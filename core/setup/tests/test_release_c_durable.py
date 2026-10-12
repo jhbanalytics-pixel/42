@@ -2,8 +2,11 @@
 (plan 3.4d; review of Release C, finding m10). Offline: git only, no cloud."""
 import ast
 import functools
+import io
 import json
+import re
 import subprocess
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -28,18 +31,71 @@ def head():
     return git(ROOT, "rev-parse", "HEAD")
 
 
+# The services release range the manifest is built for, in a repository of its own. Its base holds the files of the checkout's HEAD under
+# core/ and app/ except the product files that name the evidence_links key; one services-only commit on top adds them back, so the head
+# holds the checkout's files. The range is the shape of a services release that adds the stored key, whatever the checkout's own history
+# holds: a later tree that also carries jobs changes, or a shallow clone without the prior release commit, builds the same range.
+KEY_TEXT = re.compile(r"evidence_links|comment_links")
+
+
+def key_product_file(path, text):
+    return (not dec.is_test_path(path) and not path.startswith("core/setup/") and path.endswith(dp.SOURCE_SUFFIXES)
+            and KEY_TEXT.search(text) is not None)
+
+
+RANGE_ROOT = []
+
+
+@pytest.fixture(scope="module", autouse=True)
+def range_root(tmp_path_factory):
+    RANGE_ROOT[:] = [tmp_path_factory.mktemp("durable-range")]
+    yield
+    services_range.cache_clear()
+    built.cache_clear()
+
+
+@functools.lru_cache(maxsize=None)
+def services_range():
+    """(repo, base, head) of the services release range, made once a module under pytest's temporary folder."""
+    repo = RANGE_ROOT[0] / "range"
+    repo.mkdir()
+    archive = subprocess.run(["git", "-c", "core.autocrlf=false", "archive", "--format=tar", "HEAD", "--", "core", "app",
+                              ":(exclude)app/frontend/vendor"], cwd=ROOT, capture_output=True, timeout=120)
+    assert archive.returncode == 0, archive.stderr
+    with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as bundle:
+        bundle.extractall(repo, filter="data")
+    held = {}
+    for path in sorted(p for p in repo.rglob("*") if p.is_file()):
+        rel = path.relative_to(repo).as_posix()
+        if rel.endswith(dp.SOURCE_SUFFIXES) and key_product_file(rel, path.read_text(encoding="utf-8", errors="replace")):
+            held[rel] = path.read_bytes()
+            path.unlink()
+    assert held, "the checkout names the key in no product file"
+    git(repo, "init", "-q")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "base: the services files before the stored key")
+    base = git(repo, "rev-parse", "HEAD")
+    for rel, data in held.items():
+        (repo / rel).write_bytes(data)
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "head: the services release that adds the stored key")
+    return repo, base, git(repo, "rev-parse", "HEAD")
+
+
 @functools.lru_cache(maxsize=None)
 def built():
-    """The manifest of this tree on top of A, built once: it reads two archives of core/ from git."""
-    return dp.build_manifest(ROOT, head(), A, "Albert Meintjes")
+    """The manifest of the services release range, built once: it reads two archives of core/ from git."""
+    repo, base, tip = services_range()
+    return dp.build_manifest(repo, tip, base, "Albert Meintjes")
 
 
-# the real range: Release A to this tree
+# the services release range: a base without the stored key, and the checkout's files on top
 
 def test_the_manifest_of_this_tree_on_top_of_a_is_valid_and_states_no_storage_change():
+    repo, base, tip = services_range()
     manifest = built()
     assert dec.validate_manifest(manifest) == []
-    assert manifest["generated_from"] == {"base": A, "head": head()} and manifest["release_id"] == f"rel-{head()[:7]}-01"
+    assert manifest["generated_from"] == {"base": base, "head": tip} and manifest["release_id"] == f"rel-{tip[:7]}-01"
     claim = manifest["no_storage_change"]
     assert claim["claimed"] is True and claim["proof"]["schema_statements_added"] == 0 and claim["proof"]["changed_sql_or_job_owned"] == []
     assert claim["proof"]["schema_sha256"]["base"] == claim["proof"]["schema_sha256"]["head"]
@@ -47,18 +103,28 @@ def test_the_manifest_of_this_tree_on_top_of_a_is_valid_and_states_no_storage_ch
 
 
 def test_the_claim_holds_against_the_checker_with_the_schema_files_of_both_commits():
+    repo, base, tip = services_range()
     claim = built()["no_storage_change"]
-    base_texts = dp.schema_texts(dec.git_tree_files(A, "core", ROOT))
-    head_texts = dp.schema_texts(dec.git_tree_files(head(), "core", ROOT))
+    base_texts = dp.schema_texts(dec.git_tree_files(base, "core", repo))
+    head_texts = dp.schema_texts(dec.git_tree_files(tip, "core", repo))
     assert head_texts and dec.check_no_storage_change(claim, head_texts, base_texts) == []
     assert dec.new_statements(head_texts, base_texts) == []
 
 
+def test_the_range_holds_the_checkout_files_at_its_head_and_changes_only_services_files():
+    repo, base, tip = services_range()
+    assert dp.harness_sha256(repo, tip) == dp.harness_sha256(ROOT, head())
+    changed = dp.changed_paths(repo, base, tip)
+    assert changed and not [p for p in changed if p.endswith(".sql") or p.startswith(dp.JOB_OWNED)]
+    assert all(p.startswith(("core/agent/", "core/api/")) for p in changed), changed
+
+
 def test_bind_accepts_the_manifest_for_the_release_it_names_and_no_other():
+    repo, base, tip = services_range()
     manifest = built()
-    tree = git(ROOT, "rev-parse", "HEAD^{tree}")
-    assert packet.durable_binding_problem(manifest, manifest["release_id"], head(), tree) is None
-    assert packet.durable_binding_problem(manifest, "rel-1234567-01", head(), tree) == "release_id"
+    tree = git(repo, "rev-parse", "HEAD^{tree}")
+    assert packet.durable_binding_problem(manifest, manifest["release_id"], tip, tree) is None
+    assert packet.durable_binding_problem(manifest, "rel-1234567-01", tip, tree) == "release_id"
 
 
 def test_the_effects_name_the_release_tags_and_say_nothing_about_a80_or_the_canonical_url():
@@ -141,6 +207,17 @@ def change_job_owned(repo):
 
 def a_new_sql_file(repo):
     (repo / "core/api/extra.sql").write_text("SELECT 1;\n", encoding="utf-8")
+
+
+def change_the_brief_job(repo):
+    (repo / "core/brief").mkdir(parents=True)
+    (repo / "core/brief/job.py").write_text("RULE_VERSION = 'x'\n", encoding="utf-8")
+
+
+def test_a_range_whose_top_commit_changes_the_brief_job_is_refused_as_a_jobs_change(tmp_path):
+    repo, base, tip = make_range(tmp_path, change_the_brief_job)
+    with pytest.raises(dp.Refused, match="a file the jobs or the schema own changed: core/brief/job.py"):
+        dp.build_manifest(repo, tip, base, "Albert Meintjes")
 
 
 def test_a_range_that_touches_only_application_code_is_a_claim_that_holds(tmp_path):
@@ -229,7 +306,8 @@ def test_the_stored_effect_says_the_previous_readers_return_the_key_as_stored_id
 
 
 def blob_lines(path):
-    return git(ROOT, "show", f"{head()}:{path}").splitlines()
+    repo, _, tip = services_range()
+    return git(repo, "show", f"{tip}:{path}").splitlines()
 
 
 def test_the_consumers_are_the_non_test_files_that_name_the_key_each_with_a_line_that_does():
@@ -247,8 +325,9 @@ def test_the_consumers_are_the_non_test_files_that_name_the_key_each_with_a_line
 def test_every_changed_product_file_that_names_the_key_is_a_consumer_of_the_stored_effect():
     manifest = built()
     only = {**manifest, "effects": [stored_effect(manifest)]}
-    changed_paths = set(dp.changed_paths(ROOT, A, head()))
-    changed = {path: text for path, text in dec.git_tree_files(head(), "core", ROOT)
+    repo, base, tip = services_range()
+    changed_paths = set(dp.changed_paths(repo, base, tip))
+    changed = {path: text for path, text in dec.git_tree_files(tip, "core", repo)
                if path in changed_paths and not dec.is_test_path(path) and not path.startswith("core/setup/")}
     assert any("evidence_links" in text for text in changed.values())
     assert dec.check_consumers(only, changed) == []
@@ -282,8 +361,9 @@ def test_the_harness_hash_the_tool_recomputes_from_git_equals_the_one_the_harnes
 
 
 def test_a_passing_receipt_made_for_this_tree_settles_the_five_verdicts_of_the_stored_effect_and_no_other_effect(tmp_path):
-    path = write_receipt(tmp_path)
-    manifest = dp.build_manifest(ROOT, head(), A, "Albert Meintjes", old_reader_receipt=path)
+    repo, base, tip = services_range()
+    path = write_receipt(tmp_path, base_commit=base, candidate_commit=tip)
+    manifest = dp.build_manifest(repo, tip, base, "Albert Meintjes", old_reader_receipt=path)
     effect = stored_effect(manifest)
     assert {k: v["verdict"] for k, v in effect["compat"].items()} == {k: "pass" for k in dec.COMPAT_KEYS}
     digest = dec.sha_text(path.read_text(encoding="utf-8"))[:12]
@@ -320,10 +400,12 @@ def test_a_receipt_that_is_missing_or_not_a_json_object_is_refused(tmp_path):
 
 
 def test_a_receipt_that_names_a_short_form_of_the_base_is_accepted_and_a_wrong_one_is_not(tmp_path):
-    path = write_receipt(tmp_path, base_commit=A[:7])
-    assert stored_effect(dp.build_manifest(ROOT, head(), A, "Albert Meintjes", old_reader_receipt=path))
+    repo, base, tip = services_range()
+    path = write_receipt(tmp_path, base_commit=base[:7], candidate_commit=tip)
+    assert stored_effect(dp.build_manifest(repo, tip, base, "Albert Meintjes", old_reader_receipt=path))
+    wrong = base[:6] + ("0" if base[6] != "0" else "1")
     with pytest.raises(dp.Refused, match="old-reader receipt"):
-        dp.build_manifest(ROOT, head(), A, "Albert Meintjes", old_reader_receipt=write_receipt(tmp_path, base_commit="3710c5f"))
+        dp.build_manifest(repo, tip, base, "Albert Meintjes", old_reader_receipt=write_receipt(tmp_path, base_commit=wrong, candidate_commit=tip))
 
 
 def producer_and_harness(repo):
