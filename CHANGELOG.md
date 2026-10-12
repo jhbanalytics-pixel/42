@@ -12,7 +12,7 @@ At bind for every release, the version entry's lines are re-derived from the mer
 
 The newest release comes first, and VERSION at the root of the repository holds its number. Each version is a heading with the version and the date in brackets, or "next, not live yet" until the date is written in, then one line naming the release and one plain line per change. A jobs update is a "### Jobs update" heading with its date in brackets under its version, followed by its own lines. The panel in the menu marks the version the page runs as This version.
 
-## 2.3.0 (next, not live yet)
+## 2.3.0 (12 October 2026)
 
 Release D0, the website and Ask.
 
@@ -21,7 +21,7 @@ Release D0, the website and Ask.
 - Ask's "The numbers" tiles say what each figure counts.
 - Each claim in "The numbers" has one tile that shows the whole claim, with posts and accounts posting side by side only when one search counted both.
 - Every trend card, Compare and the reach alerts say accounts posting, and Method says Radar counts the accounts that post.
-- The credit confirm covers the whole screen, a click inside it no longer opens the card behind it, and the page stays still behind every dialog.
+- The credit confirm covers the whole screen, a click inside it no longer opens the card behind it, and the page stays still behind the credit confirm and the Watch, Hide and skill dialogs.
 - Try again after a failed ask goes through the same credit confirm before anything is asked again.
 - Investigations shows the credits and the USD of model time a plan needs, and a refusal says in plain words which budget is short.
 - A gap search names each source route as its platform.
