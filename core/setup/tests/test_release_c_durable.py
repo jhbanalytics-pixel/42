@@ -31,6 +31,34 @@ def head():
     return git(ROOT, "rev-parse", "HEAD")
 
 
+# The storage the checkout is held to. The range below carries the checkout's own schema on both sides, so it cannot see a storage change in
+# the tree; these pins do. Both were measured on the tree of the live jobs commit 1cfda9c (the schema statements are the same at 3710c5e and
+# c31d1c6). A release that changes the schema or a file the jobs own fails here until the pin is changed on purpose, in that release.
+LIVE_SCHEMA_SHA256 = "008cf325c71801846bc8a2b1693cc199f5d87edc6f113a984d0c13b03abb5349"
+LIVE_JOB_OWNED_FILES = 420
+LIVE_JOB_OWNED_SHA256 = "150edf8b9e81b61760f69bea6eb8ce0dcd2bc80d03003ead289f444155492acb"
+
+
+def job_owned_blobs(repo, rev):
+    """Sorted "path blob" lines for every .sql file and every file under a job-owned folder of core/ at rev, from the tree of rev alone."""
+    rows = []
+    for line in git(repo, "ls-tree", "-r", rev, "--", "core").splitlines():
+        meta, path = line.split("\t", 1)
+        if path.endswith(".sql") or path.startswith(dp.JOB_OWNED):
+            rows.append(f"{path} {meta.split()[2]}")
+    return sorted(rows)
+
+
+def test_the_tree_holds_the_schema_statements_of_the_live_commits():
+    texts = dp.schema_texts(dec.git_tree_files(head(), "core", ROOT))
+    assert texts and dec.sha_text("\n".join(dec.schema_statements(texts))) == LIVE_SCHEMA_SHA256
+
+
+def test_the_tree_holds_every_sql_and_job_owned_file_of_the_live_jobs_commit():
+    rows = job_owned_blobs(ROOT, "HEAD")
+    assert len(rows) == LIVE_JOB_OWNED_FILES and dec.sha_text("\n".join(rows)) == LIVE_JOB_OWNED_SHA256
+
+
 # The services release range the manifest is built for, in a repository of its own. Its base holds the files of the checkout's HEAD under
 # core/ and app/ except the product files that name the evidence_links key; one services-only commit on top adds them back, so the head
 # holds the checkout's files. The range is the shape of a services release that adds the stored key, whatever the checkout's own history
