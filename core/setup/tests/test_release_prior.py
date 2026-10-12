@@ -456,3 +456,142 @@ def test_the_packet_tool_still_names_the_a80_pair_for_the_release_that_reads_it_
 
     assert packet.A80_SERVING == {"f42-agent": "f42-agent-00047-677", "f42-api": "f42-api-00041-lns"} == so.A80_PRIOR["revisions"]
     assert packet.A80_JOBS_DIGEST_PREFIX == "sha256:e77c3819" == so.A80_PRIOR["jobs_digest_prefix"]
+
+
+# Release D0: the prior release is C, and Release A's tag is still on A's revisions because C's bindings retained it. The record of C
+# carries that tag forward (earlier_tags), so a release on C retains it too, judged on A's revisions and A's tag URLs.
+
+C_COMMIT = "c0ffee0" + "1" * 33
+C_RID = "rel-c0ffee0-01"
+C_DIGEST = "sha256:" + "c2" + "0" * 62
+C_REV = {name: f"{name}-{C_RID}" for name in SERVICES}
+C_TAG_URL = {name: so.tag_url(C_RID, CANON[name]) for name in SERVICES}
+STRAY = "rel-1234567-01"
+
+
+def after_c():
+    world = after_a()
+    for name in SERVICES:
+        world.deploy_candidate(name, rid=C_RID, digest=C_DIGEST, version=C_COMMIT[:12])
+    for name in SERVICES:
+        world.promote(name, rid=C_RID)
+    world.base_rev = dict(C_REV)
+    return world
+
+
+def prior_record_c(earlier=True):
+    record = {**prior_record_a(jobs_digest=None), "release_id": C_RID, "commit": C_COMMIT, "tag": C_RID, "revisions": dict(C_REV),
+              "image_digest": C_DIGEST, "tag_urls": dict(C_TAG_URL), "api_agent_url_literal": C_TAG_URL[AGENT]}
+    if earlier:
+        record["earlier_tags"] = {name: {A_RID: {"revision": A_REV[name], "tag_url": A_TAG_URL[name]}} for name in SERVICES}
+    return record
+
+
+def on_c(tmp_path, earlier=True):
+    return Scenario(tmp_path, world=after_c(), after="A", prior_record=prior_record_c(earlier))
+
+
+def a_tag(world, service):
+    return [(e["revisionName"], e["percent"]) for e in world.svc[service]["traffic"] if e.get("tag") == A_RID]
+
+
+def test_a_release_on_c_retains_the_tag_c_retained_from_a_from_the_baseline_to_the_promotion(tmp_path):
+    s = on_c(tmp_path)
+    assert s.bound["retainedTags"] == {name: {C_RID: C_REV[name], A_RID: A_REV[name]} for name in SERVICES}
+    assert s.bound["retainedAgentUrls"] == [C_TAG_URL[AGENT]]
+    assert s.to("AfterPromotion")["phase"] == "AfterPromotion"
+    for name in SERVICES:
+        assert a_tag(s.world, name) == [(A_REV[name], 0)]
+
+
+def test_a_release_on_c_rolls_back_and_retires_with_the_tag_of_a_left_where_it_was(tmp_path):
+    s = on_c(tmp_path)
+    s.to("AfterPromotion")
+    for name in reversed(SERVICES):
+        s.world.restore(name)
+    assert s.run("AfterRollback")["phase"] == "AfterRollback"
+    s.run("BeforeRetire", tag=RID)
+    for name in SERVICES:
+        s.world.remove_tag(name)
+    assert s.run("AfterRetire", tag=RID)["tags"] == {AGENT: False, API: False}
+    for name in SERVICES:
+        assert a_tag(s.world, name) == [(A_REV[name], 0)]
+
+
+def test_a_tag_nobody_retains_still_stops_a_release_on_c_before_any_write_and_after_the_candidate(tmp_path):
+    s = on_c(tmp_path / "before")
+    s.world.svc[API]["traffic"].append({"revisionName": A_REV[API], "percent": 0, "tag": STRAY})
+    assert s.stop("BeforeAnyWrite").code == "TAG_MAPPING"
+    s = on_c(tmp_path / "after")
+    s.ready("BeforeSmoke")
+    s.world.svc[AGENT]["traffic"].append({"revisionName": A_REV[AGENT], "percent": 0, "tag": STRAY})
+    assert s.stop("BeforeSmoke").code == "TAG_MAPPING"
+
+
+def test_the_tag_of_a_stops_a_release_on_c_when_the_record_of_c_does_not_carry_it(tmp_path):
+    s = on_c(tmp_path, earlier=False)
+    assert s.bound["retainedTags"] == {name: {C_RID: C_REV[name]} for name in SERVICES}
+    assert s.stop("BeforeAnyWrite").code == "TAG_MAPPING"
+
+
+@pytest.mark.parametrize("service", SERVICES)
+def test_the_tag_of_a_gone_or_moved_stops_a_release_on_c(tmp_path, service):
+    s = on_c(tmp_path / "gone")
+    strip_tag(s.world, service, A_RID)
+    assert s.stop("BeforeAnyWrite").code == "TAG_MAPPING"
+    s = on_c(tmp_path / "moved")
+    retag(s.world, service, A_RID, A80_REV[service])
+    assert s.stop("BeforeAnyWrite").code == "TAG_MAPPING"
+    s = on_c(tmp_path / "rollback")
+    s.to("AfterPromotion")
+    for name in reversed(SERVICES):
+        s.world.restore(name)
+    strip_tag(s.world, service, A_RID)
+    assert s.stop("AfterRollback").code == "TAG_MAPPING"
+
+
+@pytest.mark.parametrize("label", ["a tag the record does not carry", "the tag of a left out"])
+def test_bindings_that_retain_other_tags_than_the_record_of_c_carries_are_refused(tmp_path, label):
+    s = on_c(tmp_path)
+    if label == "a tag the record does not carry":
+        s.bound["retainedTags"][API][STRAY] = A_REV[API]
+    else:
+        for name in SERVICES:
+            s.bound["retainedTags"][name].pop(A_RID)
+    with pytest.raises(so.Stop) as stopped:
+        so.validate_bindings(s.bound)
+    assert stopped.value.code == "BINDINGS"
+
+
+def renamed(earlier, tag):
+    """The earlier tag of A renamed to `tag` on both services, at the tag URL that name would have, so only the name is wrong."""
+    for name in SERVICES:
+        kept = earlier[name].pop(A_RID)
+        earlier[name][tag] = {"revision": kept["revision"], "tag_url": so.tag_url(tag, CANON[name])}
+
+
+BAD_EARLIER = {
+    "the record's own tag": lambda e: renamed(e, C_RID),
+    "not a release id": lambda e: renamed(e, "stray"),
+    "one service only": lambda e: e.pop(API),
+    "other tags on each service": lambda e: e[API].update({STRAY: e[API].pop(A_RID)}),
+    "a revision of the other service": lambda e: e[AGENT][A_RID].update(revision=A_REV[API]),
+    "an agent tag URL on another host": lambda e: e[AGENT][A_RID].update(tag_url=A_TAG_URL[API]),
+    "an API tag URL on another host": lambda e: e[API][A_RID].update(tag_url=A_TAG_URL[AGENT]),
+    "an extra key": lambda e: e[API][A_RID].update(digest=OTHER_DIGEST),
+    "no tag at all": lambda e: [e[n].clear() for n in SERVICES],
+}
+
+
+@pytest.mark.parametrize("label", sorted(BAD_EARLIER))
+def test_a_record_whose_earlier_tags_are_malformed_is_refused(label):
+    record = prior_record_c()
+    BAD_EARLIER[label](record["earlier_tags"])
+    with pytest.raises(so.Stop) as stopped:
+        so.validate_prior_release(record, need_jobs=False)
+    assert stopped.value.code == "BINDINGS"
+
+
+def test_a_record_without_earlier_tags_is_still_a_record():
+    assert so.validate_prior_release(prior_record_c(earlier=False), need_jobs=False)
+    assert so.prior_retained(prior_record_c(earlier=False)) == ({name: {C_RID: C_REV[name]} for name in SERVICES}, [C_TAG_URL[AGENT]])

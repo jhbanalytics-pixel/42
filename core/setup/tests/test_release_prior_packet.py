@@ -480,3 +480,82 @@ def test_the_lock_hashes_the_prior_release_tests_and_the_chain_to_the_receipt_ho
     for rel in ("core/setup/tests/test_release_prior.py", "core/setup/tests/test_release_prior_packet.py", "core/api/tests/test_release_base_commit.py"):
         assert rel in locklib.TEST_FILES, rel
         assert (pw.ROOT / rel).is_file(), rel
+
+
+# prior-release over a prior packet that itself sits on a prior release (Release D0 over C over A): the tags the prior bindings retained
+# from earlier releases are carried into the record, each from the prior bindings the prior lock binds, and only while those
+# bindings' retainedTags record them
+
+E_RID, F_RID = "rel-eeee111-01", "rel-ffff222-01"
+
+
+def earlier_record(rid, earlier=None):
+    revisions = {name: f"{name}-{rid}" for name in so.SERVICES}
+    urls = {name: so.tag_url(rid, rw.CANON[name]) for name in so.SERVICES}
+    record = {**rw.prior_record_a(), "release_id": rid, "commit": rid[4:11] + "0" * 33, "tag": rid, "revisions": revisions,
+              "tag_urls": urls, "api_agent_url_literal": urls[AGENT]}
+    if earlier:
+        record["earlier_tags"] = earlier
+    return record
+
+
+def kept(rid):
+    return {name: {rid: {"revision": f"{name}-{rid}", "tag_url": so.tag_url(rid, rw.CANON[name])}} for name in so.SERVICES}
+
+
+def chain(prior, record, retained=None):
+    """The prior bindings bound to `record` as bind writes them, with the lock and the review tied again to the edited bindings."""
+    tags = retained if retained is not None else rw.retained_for(record)[0]
+    pw.edit_json(prior.bindings, lambda b: b.update(priorRelease=record, retainedTags=tags, retainedAgentUrls=[record["tag_urls"][AGENT]],
+                                                    releaseLetter="C"))
+    pw.edit_json(prior.lock, lambda lock: lock["bound_files"].update(bindings=pw.sha(prior.bindings)))
+    pw.edit_json(prior.review, lambda review: review.update(lock_sha256=pw.sha(prior.lock)))
+
+
+def test_prior_release_carries_the_tag_the_prior_bindings_retained_from_the_release_before(bench, capsys, prior):
+    chain(prior, earlier_record(E_RID))
+    code, out, err = run(bench.prior_argv(), capsys)
+    assert code == 0, err
+    assert json.loads(bench.prior_file.read_text(encoding="utf-8")) == {**prior.expected(), "earlier_tags": kept(E_RID)}
+
+
+def test_prior_release_carries_every_earlier_tag_down_the_chain(bench, capsys, prior):
+    chain(prior, earlier_record(E_RID, earlier=kept(F_RID)))
+    code, out, err = run(bench.prior_argv(), capsys)
+    assert code == 0, err
+    record = json.loads(bench.prior_file.read_text(encoding="utf-8"))
+    assert record["earlier_tags"] == {name: {**kept(E_RID)[name], **kept(F_RID)[name]} for name in so.SERVICES}
+    assert so.prior_retained(record)[0] == {name: {rw.A_RID: rw.A_REV[name], E_RID: f"{name}-{E_RID}", F_RID: f"{name}-{F_RID}"}
+                                           for name in so.SERVICES}
+
+
+def test_prior_release_of_a_release_bound_to_a80_carries_no_earlier_tag(bench, capsys, prior):
+    code, out, err = run(bench.prior_argv(), capsys)
+    assert code == 0, err
+    assert "earlier_tags" not in json.loads(bench.prior_file.read_text(encoding="utf-8"))
+
+
+UNRECORDED = {
+    "the earlier tag left out of retainedTags": lambda record: {name: {} for name in so.SERVICES},
+    "a tag retainedTags holds and the record does not": lambda record: {
+        name: {**rw.retained_for(record)[0][name], F_RID: f"{name}-{F_RID}"} for name in so.SERVICES},
+    "the earlier tag on another revision": lambda record: {
+        name: {record["tag"]: rw.A_REV[name]} for name in so.SERVICES},
+}
+
+
+@pytest.mark.parametrize("label", sorted(UNRECORDED))
+def test_prior_release_refuses_an_earlier_tag_the_prior_bindings_do_not_retain_as_the_record_says(bench, capsys, prior, label):
+    record = earlier_record(E_RID)
+    chain(prior, record, retained=UNRECORDED[label](record))
+    code, out, err = run(bench.prior_argv(), capsys)
+    assert code == 1 and "REFUSED" in err, (label, err)
+    assert not bench.prior_file.exists()
+
+
+def test_prior_release_refuses_prior_bindings_whose_own_prior_record_is_malformed(bench, capsys, prior):
+    record = earlier_record(E_RID)
+    record["image_digest"] = "sha256:not-a-digest"  # a field the derived record does not carry, so only the read of the record can refuse it
+    chain(prior, record)
+    code, out, err = run(bench.prior_argv(), capsys)
+    assert code == 1 and "REFUSED" in err and not bench.prior_file.exists()

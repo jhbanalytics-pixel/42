@@ -308,8 +308,11 @@ def jobs_image_digest(world):
 
 
 def retained_for(record):
-    """What bind writes for a prior release: its tag on its revision, per service, and its agent tag URL."""
-    return ({name: {record["tag"]: record["revisions"][name]} for name in so.SERVICES}, [record["tag_urls"]["f42-agent"]])
+    """What bind writes for a prior release: its tag on its revision, per service, with the tags of earlier releases the record carries
+    on their own revisions, and its agent tag URL."""
+    earlier = record.get("earlier_tags", {})
+    return ({name: {record["tag"]: record["revisions"][name], **{tag: kept["revision"] for tag, kept in earlier.get(name, {}).items()}}
+             for name in so.SERVICES}, [record["tag_urls"]["f42-agent"]])
 
 
 def write_json(path, value):
@@ -325,12 +328,16 @@ class Scenario:
     ORDER = ("BeforeAnyWrite", "Freeze", "BeforeCandidate", "BeforeSmoke", "AfterSmoke", "BeforePromotion",
              "AfterAgentPromotion", "AfterPromotion")
 
-    def __init__(self, tmp_path, *, bound_over=None, world=None, prior=None, release_id=RID, retained=None, baseline_from=None, after=None):
+    def __init__(self, tmp_path, *, bound_over=None, world=None, prior=None, release_id=RID, retained=None, baseline_from=None, after=None,
+                 prior_record=None):
         """after: "A" makes Release A the prior release: the world is A's live state, the jobs run another image than e77c3819, and the
-        bindings carry A's record, the tags to retain and the agent tag URLs to retain."""
+        bindings carry A's record, the tags to retain and the agent tag URLs to retain. prior_record, with after="A", puts another
+        prior release in A's place (the world must be that release's live state)."""
         self.tmp = Path(tmp_path)
         self.world = world or (World(after="A", jobs_digest=B_JOBS_DIGEST) if after == "A" else World())
-        self.prior_release = prior_record_a(jobs_digest=jobs_image_digest(self.world)) if after == "A" else None
+        self.prior_release = None
+        if after == "A":
+            self.prior_release = {**(prior_record or prior_record_a()), "jobs_image_digest": jobs_image_digest(self.world)}
         self.reader = FakeReader(self.world)
         self.rid = release_id
         self.release_dir = self.tmp / "releases" / release_id
@@ -344,7 +351,7 @@ class Scenario:
             self.baseline_path = self.tmp / "baseline" / "baseline-A.json"
         else:
             self.baseline_path, baseline_sha = baseline_from.baseline_path, baseline_from.bound["baselineSha256"]
-        commits = {"base_commit": A_SHORT12[:7], "candidate_commit": COMMIT} if after == "A" else {}
+        commits = {"base_commit": self.prior_release["commit"][:7], "candidate_commit": COMMIT} if after == "A" else {}
         compat = write_json(self.release_dir / "compat-receipt.json", {"schema_version": 1, "verdict": "pass", **commits})
         stored = {"prior_stores_answer_meta": True} if after == "A" else {}
         old = write_json(self.release_dir / "old-reader-receipt.json", {"schema_version": 1, "verdict": "pass", **commits, **stored})

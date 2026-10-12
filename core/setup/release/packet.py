@@ -32,6 +32,7 @@ is a required flag with no default. Exit 0 done, 1 refused, 2 a bad command line
 from __future__ import annotations
 
 import argparse
+import copy
 import datetime as dt
 import hashlib
 import io
@@ -369,6 +370,24 @@ def prior_writes_answer_meta(repo, commit):
         raise Refused("The writers of the prior commit could not be run") from None
 
 
+def earlier_tags(bindings):
+    """The tags of earlier releases the prior release retained, as {service: {tag: {revision, tag_url}}}, or {} for a prior release that
+    was bound to a80. They come from the prior bindings' own record of the release before it (its tag, revisions and tag URLs, and the
+    earlier tags that record carries in turn), and they count only while the prior bindings' retainedTags hold exactly those tags on those
+    revisions: the bindings the prior lock binds are the ledger that keeps them. Nothing is read from live."""
+    if "priorRelease" not in bindings:
+        return {}
+    try:
+        before = so.validate_prior_release(bindings["priorRelease"], need_jobs=False)
+    except so.Stop:
+        raise Refused("The prior bindings carry a record of the release before it that is not accepted") from None
+    carried = {name: {before["tag"]: {"revision": before["revisions"][name], "tag_url": before["tag_urls"][name]},
+                      **copy.deepcopy(before.get("earlier_tags", {}).get(name, {}))} for name in so.SERVICES}
+    tie(bindings.get("retainedTags") == {name: {tag: kept["revision"] for tag, kept in carried[name].items()} for name in so.SERVICES},
+        "The prior bindings do not retain the tags of the releases before it as their record gives them")
+    return carried
+
+
 def cmd_prior_release(args):
     try:
         return derive_prior_release(args)
@@ -424,11 +443,14 @@ def derive_prior_release(args):
     deltas = bindings.get("envDeltas", {}).get("f42-api", {}) if isinstance(bindings.get("envDeltas"), dict) else {}
     tie(deltas.get("AGENT_URL") == tag_urls["f42-agent"] and deltas.get("AGENT_AUDIENCE") == canonical.get("agent_url"),
         "The prior bindings do not give the API the agent tag URL and the canonical audience")
+    earlier = earlier_tags(bindings)
     stores = prior_writes_answer_meta(Path(args.repo), commit)
     record = {"schema_version": so.SCHEMA_VERSION, "kind": "prior-release", "release_id": rid, "commit": commit, "tag": rid,
               "revisions": revisions, "image_digest": digest, "tag_urls": tag_urls, "api_agent_url_literal": deltas["AGENT_URL"],
               "agent_audience": deltas["AGENT_AUDIENCE"], "stores_answer_meta": stores,
               "sources": {"lock_sha256": lock_sha, "bindings_sha256": bindings_sha, "manifest_sha256": manifest_sha, "after_promotion_sha256": after_sha}}
+    if earlier:
+        record["earlier_tags"] = earlier
     try:
         so.validate_prior_release(record, need_jobs=False)
     except so.Stop as error:

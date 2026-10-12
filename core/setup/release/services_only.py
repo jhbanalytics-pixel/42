@@ -228,7 +228,7 @@ def validate_prior_release(record, *, need_jobs):
     require(isinstance(record, dict), "BINDINGS", "The prior release is not an object")
     keys = set(record)
     wanted = PRIOR_KEYS | ({"jobs_image_digest"} if need_jobs else set())
-    require(wanted <= keys <= PRIOR_KEYS | {"jobs_image_digest"}, "BINDINGS", "The prior release record has other keys than it should")
+    require(wanted <= keys <= PRIOR_KEYS | {"jobs_image_digest", "earlier_tags"}, "BINDINGS", "The prior release record has other keys than it should")
     require(record["schema_version"] == SCHEMA_VERSION and not isinstance(record["schema_version"], bool), "BINDINGS",
             "Unknown prior release schema_version")
     require(record["kind"] == "prior-release", "BINDINGS", "The prior release record is of another kind")
@@ -262,6 +262,22 @@ def validate_prior_release(record, *, need_jobs):
     if "jobs_image_digest" in record:
         require(isinstance(record["jobs_image_digest"], str) and DIGEST.match(record["jobs_image_digest"]), "BINDINGS",
                 "The prior release jobs image is not a sha256 digest")
+    if "earlier_tags" in record:
+        # The tags of earlier releases the prior release retained (packet.earlier_tags): one set of release ids on both services, each on
+        # a revision of that service at its own tag URL on the host of the prior release's tag URL.
+        earlier = record["earlier_tags"]
+        require(isinstance(earlier, dict) and set(earlier) == set(SERVICES) and all(isinstance(earlier[n], dict) and earlier[n] for n in SERVICES)
+                and set(earlier[SERVICES[0]]) == set(earlier[SERVICES[1]]), "BINDINGS",
+                "The earlier tags of the prior release do not name one set of tags on both services")
+        hosts = {name: "https://" + record["tag_urls"][name][len("https://" + rid + "---"):] for name in SERVICES}
+        for name in SERVICES:
+            for tag, kept in earlier[name].items():
+                require(isinstance(tag, str) and RELEASE_ID.match(tag) is not None and tag != rid, "BINDINGS",
+                        "An earlier tag of the prior release is not the release id of another release")
+                require(isinstance(kept, dict) and set(kept) == {"revision", "tag_url"} and isinstance(kept["revision"], str)
+                        and re.fullmatch(re.escape(name) + r"-[a-z0-9-]+", kept["revision"]) is not None
+                        and kept["tag_url"] == tag_url(tag, hosts[name]), "BINDINGS",
+                        f"An earlier tag of {name} does not name a revision of that service at its tag URL")
     return record
 
 
@@ -283,8 +299,11 @@ def receipt_commits_problem(receipt, prior, release_commit, old_reader=False):
 
 def prior_retained(record):
     """What a release retains because of its prior release, derived from the record and never typed beside it: the prior tag on
-    the prior revision of each service, and the agent tag URL the prior API names."""
-    return ({name: {record["tag"]: record["revisions"][name]} for name in SERVICES}, [record["tag_urls"]["f42-agent"]])
+    the prior revision of each service, the tags of earlier releases the record carries on their own revisions, and the agent tag URL
+    the prior API names."""
+    earlier = record.get("earlier_tags", {})
+    return ({name: {record["tag"]: record["revisions"][name], **{tag: kept["revision"] for tag, kept in earlier.get(name, {}).items()}}
+             for name in SERVICES}, [record["tag_urls"]["f42-agent"]])
 
 
 def prior_baseline_problem(baseline, prior):
@@ -718,9 +737,12 @@ def retained_tag_problems(rel, live):
         return []
     gone = []
     for name in SERVICES:
+        # Each retained tag is judged where the record puts it: the prior tag on the prior revision, an earlier tag on its own.
+        where = {rel.prior["tag"]: (rel.prior["revisions"][name], rel.prior["tag_urls"][name]),
+                 **{tag: (kept["revision"], kept["tag_url"]) for tag, kept in rel.prior.get("earlier_tags", {}).get(name, {}).items()}}
         for tag in rel.bound.get("retainedTags", {}).get(name, {}):
             entries = live.tag_entries(name, tag)
-            if len(entries) != 1 or entries[0]["revision"] != rel.prior["revisions"][name] or entries[0]["url"] != rel.prior["tag_urls"][name]:
+            if len(entries) != 1 or (entries[0]["revision"], entries[0]["url"]) != where.get(tag):
                 gone.append((name, tag))
     return gone
 
