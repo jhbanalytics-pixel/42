@@ -20,6 +20,7 @@ import {TrendCard, longDate, platformWord, topicHref} from './ui/TrendCard.jsx';
 import {TopicGlobe} from './ui/TopicGlobe.jsx';
 import {globeModel} from './ui/topicGlobeModel.js';
 import {useFocusTrap} from './ui/useFocusTrap.js';
+import {useScrollLock} from './ui/useScrollLock.js';
 import './styles/people42.css';
 import './styles/alerts42.css';
 import './styles/hidden42.css';
@@ -258,6 +259,7 @@ function HideDialog({creator, onAuth, onClose}){
     return () => { live.current = false; };
   }, []);
   useFocusTrap(box);
+  useScrollLock();
 
   const busy = state.status === 'hiding';
   const send = () => {

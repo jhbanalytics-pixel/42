@@ -436,7 +436,7 @@ test('checked-held summary stays limited to checked topics when the omission aud
     } else if (audit?.count === 0){
       expect(omissions.textContent).toContain('No topics were left unassessed.');
     } else {
-      expect(omissions.textContent).toContain('Selection audit unavailable for this brief.');
+      expect(omissions.textContent).toContain('This brief does not list the topics it did not assess.');
       expect(omissions.textContent).not.toContain('No topics were left unassessed.');
     }
     expect(host.querySelector('[data-glance-market="NG"]').textContent).toContain('0 trends cleared');
@@ -1747,6 +1747,9 @@ test('the alerts strip sits above the cards with the count and a link to each to
   expect(links.find((a) => a.textContent === '#amapiano').getAttribute('href')).toBe('#/t/item_ama?market=ZA');
   expect(links.find((a) => a.textContent === 'Castle Lager').getAttribute('href')).toBe('#/t/item_castle?market=NG');
   expect(strip.textContent).toContain('Entered Rising');
+  /* Design audit item 12: the reach alert says its count the way its rule does. */
+  expect(strip.textContent).toContain('Reach passed 50 accounts posting in 3 days');
+  expect(strip.textContent).not.toContain('creators');
   expect(strip.textContent).not.toContain('Waiting for breakout detection');
   expect(links.some((a) => a.getAttribute('href') === '#/alerts')).toBe(true);
 });

@@ -10,7 +10,9 @@
    would bring it back as a disabled choice that says what it needs. */
 import {useEffect, useId, useRef, useState} from 'react';
 import {sentenceCase} from '../api.js';
+import {accountsWords} from './accounts.js';
 import {useFocusTrap} from './useFocusTrap.js';
+import {useScrollLock} from './useScrollLock.js';
 import '../styles/alerts42.css';
 
 export const MARKET_WORDS = {ZA: 'South Africa', NG: 'Nigeria', KE: 'Kenya', all: 'All markets'};
@@ -21,6 +23,8 @@ const SURGE = "When the creator's views surge";
 const LATER = [];
 export const FIRST_CHOICE = {kind: 'rising', ratio: '2', reach: '50'};
 export const SHOW_UNBUILT_RULES = false;
+/* The one way the reach rule says its count, in the rule, its field and its alerts. */
+const REACH_UNIT = 'accounts posting in 3 days';
 
 const stateWord = (code) => sentenceCase(String(code || '').replace(/_/g, ' '));
 const later = (rule) => LATER.find((l) => rule && rule[l.id]);
@@ -32,12 +36,23 @@ export function ruleWords(rule){
     return 'When it enters ' + r.state_in.map(stateWord).join(' or ');
   }
   if (r.ratio_over !== undefined) return 'When growth passes ' + r.ratio_over + ' times';
-  if (r.reach_over !== undefined) return 'When reach passes ' + r.reach_over + ' creators';
+  if (r.reach_over !== undefined) return 'When reach passes ' + r.reach_over + ' ' + REACH_UNIT;
   if (r.breakout) return BREAKOUT;
   if (r.tone_flip) return TONE_FLIP;
   if (r.creator_surge) return SURGE;
   const l = later(r);
   return l ? l.label : 'A rule this screen does not know';
+}
+
+/* Why an alert fired, as the server words it, said the way its rule is said:
+   "Reach passed 50 creators in 3 days" reads "Reach passed 50 accounts
+   posting in 3 days", like "When reach passes 50 accounts posting in 3 days".
+   Any other count of creators over days reads as accounts. */
+const REACH_FIRED = /^Reach passed (\d[\d\s,.]*?) creators? in 3 days$/;
+export function firedWords(reason){
+  const text = String(reason || '');
+  const reach = REACH_FIRED.exec(text);
+  return reach ? 'Reach passed ' + reach[1] + ' ' + REACH_UNIT : accountsWords(text);
 }
 
 /* The waiting line for a rule whose data does not exist yet, else null. */
@@ -60,7 +75,7 @@ export function ruleFrom(choice, {creator = false} = {}){
   }
   if (choice.kind === 'reach'){
     const n = Number(choice.reach);
-    return String(choice.reach).trim() && Number.isInteger(n) && n > 0 ? {rule: {reach_over: n}} : {error: 'Reach must be a whole number of creators above 0.'};
+    return String(choice.reach).trim() && Number.isInteger(n) && n > 0 ? {rule: {reach_over: n}} : {error: 'Reach must be a whole number of accounts posting above 0.'};
   }
   if (choice.kind === 'breakout') return {rule: {breakout: true}};
   if (choice.kind === 'tone_flip') return {rule: {tone_flip: true}};
@@ -91,9 +106,9 @@ export function RuleChoice({choice, onChange, creator = false, showUnbuilt = SHO
           <input type="radio" name="rule" value="reach" checked={choice.kind === 'reach'} onChange={() => set({kind: 'reach'})} />
           When reach passes
         </label>
-        <input type="number" name="reach" className="w42-number" min="1" step="1" value={choice.reach} aria-label="Reach, creators in 3 days"
+        <input type="number" name="reach" className="w42-number" min="1" step="1" value={choice.reach} aria-label={'Reach, ' + REACH_UNIT}
           onFocus={() => set({kind: 'reach'})} onChange={(e) => set({kind: 'reach', reach: e.target.value})} />
-        creators
+        {REACH_UNIT}
       </span>
       <label className="w42-rule">
         <input type="radio" name="rule" value="breakout" checked={choice.kind === 'breakout'} onChange={() => set({kind: 'breakout'})} />
@@ -134,6 +149,7 @@ export function WatchDialog({card, market, create, onDone, onClose, onAuth}){
     return () => { live.current = false; };
   }, []);
   useFocusTrap(box);
+  useScrollLock();
   const watching = Boolean(card.watch_id);
 
   const submit = (event) => {

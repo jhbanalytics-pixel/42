@@ -11,7 +11,7 @@ import {fetchCompare, fetchDiscover} from './api42.js';
 import {readerFigure, sentenceCase, seriesFigure} from './api.js';
 import {unitFor} from './readerUnits.js';
 import {SpikeConfirm} from './ui/SpikeConfirm.jsx';
-import {figureWords, longDate, platformWord, topicHref, writtenTitle} from './ui/TrendCard.jsx';
+import {accountsFigure, figureWords, longDate, platformWord, topicHref, writtenTitle} from './ui/TrendCard.jsx';
 import './styles/today42.css';
 import './styles/compare42.css';
 
@@ -520,11 +520,15 @@ function Multiple({points, top, unit, label, onDay}){
   );
 }
 
+/* Design audit item 12: a count of creators over days is said as accounts
+   posting, as on Today and Discover, in its row label and in each cell. */
+const ROW_WORDS = {creators: 'Accounts posting in the window', reach: 'Accounts posting in the last 3 days'};
+
 function cellWords(metric, figure){
   if (figure.value === null || figure.value === undefined) return metric === 'first_seen' ? 'Not seen' : 'None';
   if (metric === 'first_seen') return longDate(figure.value);
   if (metric === 'state') return figure.word || sentenceCase(String(figure.value).replace(/_/g, ' '));
-  return figureWords(figure);
+  return figureWords(accountsFigure(figure));
 }
 
 function Table({subjects, rows, mode}){
@@ -558,7 +562,7 @@ function Table({subjects, rows, mode}){
           <tbody>
             {rows.map((r) => (
               <tr key={r.metric}>
-                <th scope="row">{r.words}</th>
+                <th scope="row">{ROW_WORDS[r.metric] || r.words}</th>
                 {subjects.map((s) => {
                   const figure = r.values ? r.values[s.key] : null;
                   const id = 'c42-q-' + r.metric + '-' + s.key;

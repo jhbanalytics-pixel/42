@@ -32,3 +32,32 @@ test('record ids in a gap search become a count', () => {
   expect(plainSearched('cited posts obs1_7c5bbc4782cb6b3b0567d5670c39d603')).toBe('1 cited post');
   expect(plainSearched('the what to watch next text')).toBe('the what to watch next text');
 });
+
+/* Design audit item 10: a dossier gap printed the source key "instagram/hashtag". The route reads as its
+   platform and a search term after it as "for <term>", the way the Ask page says it. */
+test('a source route in a gap search reads as its platform', () => {
+  expect(plainSearched('instagram/hashtag #fixture, 21 to 27 September: 0 found')).toBe('Instagram for #fixture, 21 to 27 September: 0 found');
+  expect(plainSearched('tiktok/search/videos amapiano: 3 found')).toBe('TikTok for amapiano: 3 found');
+  expect(plainSearched('x/search')).toBe('X');
+});
+
+/* Review of the route words: only a single search term right before a comma,
+   a colon or the end is read as "for <term>". A sentence after the route
+   keeps its own words, every route in the line is named, and a word that is
+   not a platform before a slash is left alone. */
+test('a source route never swallows the sentence after it', () => {
+  expect(plainSearched('reddit/search/v2 and x/search, 21 to 28 September')).toBe('Reddit and X, 21 to 28 September');
+  expect(plainSearched('tiktok/search for amapiano returned rate_limited')).toBe('TikTok for amapiano returned rate_limited');
+  expect(plainSearched('reddit/search/v2 at 2026-09-24T12:30:00Z')).toBe('Reddit at 2026-09-24T12:30:00Z');
+  expect(plainSearched('tiktok/video/screen-text')).toBe('TikTok');
+  expect(plainSearched('instagram/search, 21 to 28 September')).toBe('Instagram, 21 to 28 September');
+  expect(plainSearched('instagram/hashtag #fixture, Kenya, 21 to 27 September')).toBe('Instagram for #fixture, Kenya, 21 to 27 September');
+  expect(plainSearched('24/7 coverage and/or replies')).toBe('24/7 coverage and/or replies');
+});
+
+/* Re-review N4: a search term of several words still reads as "for" that term. */
+test('a search term of several words reads as for that term', () => {
+  expect(plainSearched('instagram/hashtag sunday best, 21 to 27 September')).toBe('Instagram for sunday best, 21 to 27 September');
+  expect(plainSearched('tiktok/search amapiano dance challenge: 0 found')).toBe('TikTok for amapiano dance challenge: 0 found');
+  expect(plainSearched('x/search kota in soweto')).toBe('X for kota in soweto');
+});

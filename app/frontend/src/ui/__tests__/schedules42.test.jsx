@@ -236,7 +236,8 @@ test('the form starts on a quick scan every Monday, in the app, and names the ti
   expect([...add.querySelectorAll('select[name="market"] option')].map((o) => o.value)).toEqual(['ZA', 'NG', 'KE']);
   expect(inputOf(add, 'In the app').checked).toBe(true);
   expect([...add.querySelectorAll('input[name="deliver"]')].map((i) => i.value)).toEqual(['in_app']);
-  expect(text(add)).toContain('Sending answers to the team channel is not connected yet.');
+  /* Design audit item 10: a feature that is not built is not announced on the form. */
+  expect(text(add)).not.toContain('team channel');
   expect(add.querySelector('textarea').getAttribute('maxlength')).toBe('500');
 });
 

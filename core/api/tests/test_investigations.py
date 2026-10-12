@@ -209,15 +209,53 @@ def test_ceilings_are_the_lower_of_plan_and_budget_left():
         {"max_credits": 100, "max_model_usd": 1.2}
 
 
-def test_refusal_names_whichever_budget_the_estimate_breaks():
+# Design audit item 10: the refusal is shown to the reader as written, so it names no setting or person.
+# Money has one name per kind: credits for credits, USD for the dollars of model time.
+NOT_FOR_READERS = ("ASK_DAILY", "MODEL_DAILY_USD", "Albert", "model spend", "research budget")
+
+
+def test_refusal_says_whichever_budget_the_estimate_breaks_in_reader_words():
     assert inv.refusal({"credits": 300, "model_usd": 1.5}, {"credits": 300, "model_usd": 1.5}) is None
     credits = inv.refusal({"credits": 301, "model_usd": 1.5}, {"credits": 300, "model_usd": 5})
-    assert "301 credits" in credits and "300" in credits and "ASK_DAILY" in credits
-    assert "MODEL_DAILY_USD" not in credits
+    assert credits == "This plan needs about 301 credits but only 300 are left today. Try a smaller plan or try again tomorrow."
     usd = inv.refusal({"credits": 10, "model_usd": 2.0}, {"credits": 300, "model_usd": 1.25})
-    assert "USD 2.00" in usd and "USD 1.25" in usd and "MODEL_DAILY_USD" in usd and "ASK_DAILY" not in usd
+    assert usd == ("This plan needs about USD 2.00 of model time but only USD 1.25 is left today. "
+                   "Try a smaller plan or try again tomorrow.")
     both = inv.refusal({"credits": 999, "model_usd": 99}, {"credits": 1, "model_usd": 1})
-    assert "ASK_DAILY" in both and "MODEL_DAILY_USD" in both
+    assert both == ("This plan needs about 999 credits but only 1 is left today, and about USD 99.00 of model time "
+                    "but only USD 1.00 is left today. Try a smaller plan or try again tomorrow.")
+    for words in (credits, usd, both):
+        assert not any(name in words for name in NOT_FOR_READERS), words
+
+
+def test_model_spent_is_said_in_reader_words():
+    assert inv.MODEL_SPENT == "Today's model time is used up. Try again tomorrow."
+    assert not any(name in inv.MODEL_SPENT for name in NOT_FOR_READERS)
+
+
+# Re-review N1: dollars are said in whole cents with the need rounded up and what is left rounded down, so a
+# refusal never reads "needs about USD 1.50 but only USD 1.50 is left". The page rounds the same way
+# (investigations42.jsx), half cents included.
+def test_refusal_rounds_the_need_up_and_what_is_left_down_in_cents():
+    tight = inv.refusal({"credits": 1, "model_usd": 1.5049}, {"credits": 10, "model_usd": 1.5001})
+    assert tight == ("This plan needs about USD 1.51 of model time but only USD 1.50 is left today. "
+                     "Try a smaller plan or try again tomorrow.")
+    half = inv.refusal({"credits": 1, "model_usd": 1.005}, {"credits": 10, "model_usd": 1.0049})
+    assert half == ("This plan needs about USD 1.01 of model time but only USD 1.00 is left today. "
+                    "Try a smaller plan or try again tomorrow.")
+    trap = inv.refusal({"credits": 1, "model_usd": 2.675}, {"credits": 10, "model_usd": 2.6749})
+    assert "about USD 2.68 of model time but only USD 2.67 is left" in trap
+    assert inv.refusal({"credits": 1, "model_usd": 1.5}, {"credits": 10, "model_usd": 1.5}) is None
+
+
+def test_usd_cents_round_half_cents_up_for_a_need_and_down_for_what_is_left():
+    assert [inv.usd_up(v) for v in (1.5, 1.005, 0.125, 2.675, 0.001, 0)] == ["1.50", "1.01", "0.13", "2.68", "0.01", "0.00"]
+    assert [inv.usd_down(v) for v in (1.5, 1.005, 0.125, 2.675, 0.009, 0)] == ["1.50", "1.00", "0.12", "2.67", "0.00", "0.00"]
+
+
+def test_a_need_of_one_credit_is_said_in_the_singular():
+    one = inv.refusal({"credits": 1, "model_usd": 0.1}, {"credits": 0, "model_usd": 5})
+    assert one == "This plan needs about 1 credit but only 0 are left today. Try a smaller plan or try again tomorrow."
 
 
 def test_clamp_keeps_plan_ceilings_within_budget_left():

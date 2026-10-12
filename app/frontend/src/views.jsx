@@ -610,7 +610,7 @@ const PIPELINE_STEPS = [
 ];
 
 const DATA_RULES = [
-  'Creators are ranked by the attention their posts earn, not by how often they post. Radar ranks topics by how many different creators post about them.',
+  'Creators are ranked by the attention their posts earn, not by how often they post. Radar ranks topics by how many different accounts post about them.',
   'Share of voice is a percentage within one market, adding up to 100 across that market.',
   'Figures show their unit, time window and market. A figure 42 could not measure says so instead of showing 0.',
   'South Africa, Nigeria and Kenya are never added together into one figure, unless the view says it covers all markets.',

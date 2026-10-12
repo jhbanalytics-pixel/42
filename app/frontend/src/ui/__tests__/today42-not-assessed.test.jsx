@@ -51,7 +51,9 @@ test('legacy missing audit remains unavailable instead of reporting zero', async
   const market = await mount(null);
   const section = market.querySelector('[data-not-assessed]');
   expect(section).not.toBeNull();
-  expect(section.textContent).toContain('Selection audit unavailable for this brief.');
+  /* Design audit item 10: the reader is told what is missing, not the name of the stage that missed it. */
+  expect(section.textContent).toContain('This brief does not list the topics it did not assess.');
+  expect(section.textContent).not.toContain('Selection audit');
   expect(section.textContent).not.toContain('No topics were left unassessed.');
 });
 

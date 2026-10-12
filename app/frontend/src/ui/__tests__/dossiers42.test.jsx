@@ -315,6 +315,22 @@ test('a failed read of past answers says nothing about them, and only an empty r
   await until(() => text().includes(EMPTY), 'the empty past answers');
 });
 
+/* Design audit item 12: History said "Answered" and "Partly answered" where
+   Dossiers said "Full answer" and "Partial answer" for the same states. Both
+   now say Answered and Partial answer, the second as Ask and Schedules do. */
+test('the answers ready for a dossier say Answered or Partial answer, the words History uses', async () => {
+  const asks = [
+    {ask_id: 'a_full', question: 'Where did the step start?', market: 'ZA', at: '2026-09-30T08:00:00+02:00', status: 'complete', answer_status: 'complete'},
+    {ask_id: 'a_part', question: 'Who carried it to Nigeria?', market: 'NG', at: '2026-09-29T08:00:00+02:00', status: 'complete', answer_status: 'partial'},
+  ];
+  serve([['GET', /^\/api\/dossiers\?/, json(200, {dossiers: [], next_before: null})], ['GET', /^\/api\/history\/asks/, json(200, {asks, next_before: null})]]);
+  await act(async () => root.render(<DossiersPage onAuth={() => {}} />));
+  await until(() => host.querySelector('[data-ready-ask="a_part"]'), 'the ready answers');
+  expect(plain(host.querySelector('[data-ready-ask="a_full"]').textContent)).toContain('Answered');
+  expect(plain(host.querySelector('[data-ready-ask="a_part"]').textContent)).toContain('Partial answer');
+  expect(text()).not.toContain('Full answer');
+});
+
 test('a list that could not be read offers Try again, which reads it again', async () => {
   serve([['GET', /^\/api\/dossiers\?/, json(503, {error: 'agent_unavailable', message: 'The Ask service cannot be reached.'})]]);
   await act(async () => root.render(<DossiersPage onAuth={() => {}} />));

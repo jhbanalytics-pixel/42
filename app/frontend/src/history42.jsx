@@ -119,7 +119,7 @@ function askStatus(ask){
   if (ask.status === 'failed') return 'Did not finish';
   if (ask.status === 'running' || ask.status === 'queued') return 'Still running';
   if (ask.answer_status === 'complete') return 'Answered';
-  if (ask.answer_status === 'partial') return 'Partly answered';
+  if (ask.answer_status === 'partial') return 'Partial answer';
   if (ask.answer_status === 'refused') return 'Declined';
   return words(ask.answer_status || ask.status) || 'No status';
 }

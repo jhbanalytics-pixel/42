@@ -37,7 +37,7 @@ MAX_TEXT = 500
 MAX_RESEARCHERS = MAX_SUB_QUESTIONS
 ROUND_USD = 4
 
-MODEL_SPENT = "Today's model budget is spent; try tomorrow or ask Albert to raise MODEL_DAILY_USD"
+MODEL_SPENT = "Today's model time is used up. Try again tomorrow."
 BUDGET_UNKNOWN = ("Today's spend could not be read, so 42 will not {what} an investigation that might overspend; "
                   "try again in a few minutes.")
 NEED_T3 = "Investigations need the T3 agent"
@@ -179,20 +179,36 @@ class Reservations:
 RESERVED = Reservations()
 
 
+def _cents(value):
+    """Dollars as cents, with the float noise of a half cent (2.675 * 100 = 267.4999...) settled first."""
+    return round(float(value) * 100, 6)
+
+
+def usd_up(value):
+    """A dollar need in whole cents, rounded up, so it is never said as less than it is."""
+    return f"{math.ceil(_cents(value)) / 100:.2f}"
+
+
+def usd_down(value):
+    """Dollars left in whole cents, rounded down, so they are never said as more than they are."""
+    return f"{math.floor(_cents(value)) / 100:.2f}"
+
+
 def refusal(estimate, left):
     """The words for whichever budget the estimate breaks, or None when it fits both."""
-    broken, caps_named = [], []
+    # The reader sees these words as written, so they name no setting or person; credits are said as credits
+    # and the dollars of model time as USD.
+    broken = []
     if estimate["credits"] > left["credits"]:
-        broken.append(f"This plan needs about {estimate['credits']:,} credits but only {left['credits']:,} are left "
-                      "today under ASK_DAILY")
-        caps_named.append("ASK_DAILY")
+        noun = "credit" if estimate["credits"] == 1 else "credits"
+        verb = "is" if left["credits"] == 1 else "are"
+        broken.append(f"about {estimate['credits']:,} {noun} but only {left['credits']:,} {verb} left today")
     if estimate["model_usd"] > left["model_usd"]:
-        broken.append(f"This plan needs about USD {estimate['model_usd']:.2f} of model spend but only "
-                      f"USD {left['model_usd']:.2f} is left today under MODEL_DAILY_USD")
-        caps_named.append("MODEL_DAILY_USD")
+        broken.append(f"about USD {usd_up(estimate['model_usd'])} of model time but only USD {usd_down(left['model_usd'])} "
+                      "is left today")
     if not broken:
         return None
-    return "; ".join(broken) + f". Trim the plan, try tomorrow or ask Albert to raise {' and '.join(caps_named)} for today."
+    return "This plan needs " + ", and ".join(broken) + ". Try a smaller plan or try again tomorrow."
 
 
 def ceilings(plan, left):

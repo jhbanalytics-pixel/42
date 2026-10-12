@@ -3,12 +3,13 @@
    Stage 2 fields show when the card carries them, and a field that is
    present but null says its data does not exist yet instead of hiding.
    Watch and the feedback taps show only when the page passes their calls. */
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {fetchTrend} from '../api42.js';
 import {readerFigure, sentenceCase, seriesFigure} from '../api.js';
 import {lifecycleRuleWords} from '../plainLabels.js';
 import {safeUrl} from '../safeUrl.js';
 import {AskAboutThis} from './AskAboutThis.jsx';
+import {accountsCard} from './accounts.js';
 import {Facts} from './Facts.jsx';
 import {UNNAMED_TOPIC_WORDS, isUnnamedTopic} from '../topicNames.js';
 import '../styles/today42.css';
@@ -155,7 +156,12 @@ export function useCardPosts(card, where, when, onAuth){
    the not-yet states ('spread', 'growth') the page has already said once for
    every card, so this card does not repeat them; a field that has a value
    still shows. */
-export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, linkTopic = false, tapToOpen = false, posts: showPosts = true, todaySpecificity = null, scope = null, extraActions = null, index = null, className = '', sparkMinDays = MIN_CHART_DAYS, saidAbove = null}){
+export function TrendCard({card: stored, market, date, onAuth, onWatch, onFeedback, linkTopic = false, tapToOpen = false, posts: showPosts = true, todaySpecificity = null, scope = null, extraActions = null, index = null, className = '', sparkMinDays = MIN_CHART_DAYS, saidAbove = null}){
+  /* Design audit item 12: every page that draws this card says the 3 day
+     count as accounts posting, as Today and Discover do, so Topic, Creator,
+     Community and Skins no longer say creators for the same figure. The
+     helper only rewords, and a card it has already read stays the same. */
+  const card = useMemo(() => accountsCard(stored), [stored]);
   const where = card.market || market;
   const when = card.date || date;
   const panelId = 't42-posts-' + where + '-' + card.item_id;

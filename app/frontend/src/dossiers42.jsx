@@ -183,7 +183,7 @@ function ReadyAnswers({picked = ''}){
             {asks.map((ask) => (
               <li key={ask.ask_id} className="dossiers42-ready-row" data-ready-ask={ask.ask_id}>
                 <a className="dossiers42-ready-q" href={'#/ask?follow=' + encodeURIComponent(ask.ask_id)}>{ask.question || 'A question with no text'}</a>
-                <span className="dossiers42-muted"><Facts parts={[MARKET_NAME[ask.market], ask.at ? postDay(ask.at) : '', ask.answer_status === 'partial' ? 'Partial answer' : 'Full answer']} /></span>
+                <span className="dossiers42-muted"><Facts parts={[MARKET_NAME[ask.market], ask.at ? postDay(ask.at) : '', ask.answer_status === 'partial' ? 'Partial answer' : 'Answered']} /></span>
               </li>
             ))}
           </ol>}
