@@ -9,7 +9,7 @@ import hashlib
 import json
 import re
 
-from core.api import alerts, fast
+from core.api import alerts, code_title, fast
 from core.api.held_words import plain_reason
 from core.api.searching import searching_now
 from core.api.store import canon_platform, creator_key
@@ -716,6 +716,9 @@ def build_alerts(store, watches, date=None):
             waiting.append({"watch_id": a["watch_id"], "label": labels.get(a["watch_id"]), "waiting": a["waiting"]})
         else:
             card = dict(by_item[(a["item_id"], a["market"])], watch_id=a["watch_id"])
-            label = alerts._written_title(card, run["run_date"], a["market"]) or a["label"]
+            # A label the user typed stays theirs; one that is the card's own raw label gives way to its code title.
+            own = labels.get(a["watch_id"])
+            coded = code_title.shown_code_title(card) if not own or own == card.get("title") else None
+            label = alerts._written_title(card, run["run_date"], a["market"]) or coded or a["label"]
             out.append({**a, "label": label, "card": card})
     return {"date": run["run_date"], "run_id": run["run_id"], "alerts": out, "waiting": waiting}

@@ -16,10 +16,11 @@ import {SnapBand} from './SnapBand.jsx';
 import {
   BEFORE_COUNT, BigFigures, Feedback, Figure, Lifecycle, Novelty, PostFull, PostsShownNote, EvidenceList, ExcerptNote, Sparkline, Thumbnails,
   askHref, askQuestion, bigFigures, countLineWords, countWindowStart, factWords, figureWords, isFigure, isYoutubeChannelAuthor, longDate, platformWord,
-  postTextView, proseDates, topicHref, useCardPosts, writtenTitle,
+  codedTitle, postTextView, proseDates, topicHref, useCardPosts, writtenTitle,
 } from './TrendCard.jsx';
 import {accountsCard, countedCreators} from './accounts.js';
 import {UNNAMED_TOPIC_WORDS, isUnnamedTopic} from '../topicNames.js';
+import {codeCountLine} from '../codeTitle.js';
 import {readerFigure} from '../api.js';
 import {safeUrl} from '../safeUrl.js';
 import '../styles/today-story.css';
@@ -38,10 +39,11 @@ export function cardWords(card, market, date){
   const when = card.date || date;
   const label = card.title;
   const written = writtenTitle(card, label);
-  const unnamed = !written && isUnnamedTopic(label);
-  const title = written || (unnamed ? UNNAMED_TOPIC_WORDS : label);
+  const coded = codedTitle(card, label);
+  const unnamed = !written && !coded && isUnnamedTopic(label);
+  const title = written || coded || (unnamed ? UNNAMED_TOPIC_WORDS : label);
   const question = askQuestion(card, label, written);
-  return {where, when, label, written, unnamed, title, question, href: askHref(card, where, when, question)};
+  return {where, when, label, written, coded, unnamed, title, question, href: askHref(card, where, when, question)};
 }
 
 /* The platforms of a card's evidence in the order they first appear, each with
@@ -124,7 +126,7 @@ export function StoryCard({card: stored, market, date, onAuth, onWatch, onFeedba
   /* The card is read through its measured accounts figure, as Discover does. */
   const card = useMemo(() => accountsCard(stored), [stored]);
   const words = cardWords(card, market, date);
-  const {where, when, label, written, unnamed, title, question, href} = words;
+  const {where, when, label, written, coded, unnamed, title, question, href} = words;
   const {posts, open, loadPosts, togglePosts} = useCardPosts(card, where, when, onAuth);
   /* A card whose counted creators is 0 says nothing a reader can use, so it is
      never drawn, whatever reached the page. */
@@ -138,7 +140,7 @@ export function StoryCard({card: stored, market, date, onAuth, onWatch, onFeedba
   const reach7 = isFigure(card.reach7) ? card.reach7 : null;
   const chart = hasChart(card.sparkline);
   /* The facts the large figures do not already say: a count line that adds to them, spread, novelty, reach and growth. */
-  const countLine = countLineWords(card.count_line);
+  const countLine = countLineWords(codeCountLine(card, label, card.count_line, coded));
   const countSaysReach = Boolean(countLine) && isFigure(card.reach) && factWords(countLine) === factWords(figureWords(card.reach));
   const saysBig = (words) => big.some((figure) => factWords(figureWords(figure)) === factWords(words));
   const countShown = Boolean(countLine) && !countSaysReach && !saysBig(countLine);
@@ -226,7 +228,7 @@ export function StoryCard({card: stored, market, date, onAuth, onWatch, onFeedba
         <div className="t42-actions">
           <AskAboutThis className="t42-action t42-action-primary" href={href} question={question} />
           {onWatch
-            ? <button type="button" className="t42-action" aria-pressed={watching ? 'true' : 'false'} onClick={() => onWatch(written ? {...card, title: written} : card, where)}>
+            ? <button type="button" className="t42-action" aria-pressed={watching ? 'true' : 'false'} onClick={() => onWatch(written || coded ? {...card, title: written || coded} : card, where)}>
                 {watching ? 'Watching' : 'Watch'}
               </button>
             : watching && <span className="tc-watching">Watching</span>}

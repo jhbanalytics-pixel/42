@@ -14,7 +14,7 @@ import {safeUrl} from './safeUrl.js';
 import {unitFor} from './readerUnits.js';
 import {SpikeConfirm} from './ui/SpikeConfirm.jsx';
 import {AskAboutThis} from './ui/AskAboutThis.jsx';
-import {ExcerptNote, PostFull, TrendCard, askQuestion, longDate, platformWord, postTextView, writtenTitle} from './ui/TrendCard.jsx';
+import {ExcerptNote, PostFull, TrendCard, askQuestion, codedTitle, longDate, platformWord, postTextView, writtenTitle} from './ui/TrendCard.jsx';
 import {UNNAMED_TOPIC_WORDS, isUnnamedTopic} from './topicNames.js';
 import {useCardWatch} from './ui/WatchDialog.jsx';
 import './styles/topic42.css';
@@ -164,8 +164,9 @@ export function TopicPage42({itemId, market, onAuth, onCreateWatch}){
   const aliases = Array.isArray(data.aliases) ? data.aliases : [];
   /* The heading is the title the card leads with on Today; the cluster label it replaces sits in the line under it. */
   const written = writtenTitle(card, card.title);
-  const unnamed = !written && isUnnamedTopic(card.title);
-  const heading = written || (unnamed ? UNNAMED_TOPIC_WORDS : card.title);
+  const coded = codedTitle(card, card.title);
+  const unnamed = !written && !coded && isUnnamedTopic(card.title);
+  const heading = written || coded || (unnamed ? UNNAMED_TOPIC_WORDS : card.title);
   const question = askQuestion(card, card.title, written);
 
   return (

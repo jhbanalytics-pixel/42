@@ -18,7 +18,7 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from core.api import discover, store as store_mod
+from core.api import code_title, discover, store as store_mod
 from core.api.agent_app import current_watches
 from core.api.alerts import _written_title
 from core.api.digest import _day, app_url, topic_url
@@ -64,8 +64,10 @@ def _card_words(card, market, date):
     if _creator(card, written):
         word = card.get("state_word")
         return f"A creator is {word} in {LABELS[market]}" if word else f"A creator moved in {LABELS[market]}"
-    title = written or card.get("title")
-    return ", ".join(str(w) for w in (title, card.get("state_word"), card.get("count_line")) if w)
+    # A card with no written title goes out under its code title, as the app shows it (core/api/code_title.py).
+    title = written or code_title.shown_code_title(card) or card.get("title")
+    count_line = card.get("count_line") if written else code_title.code_count_line(card, card.get("count_line"))
+    return ", ".join(str(w) for w in (title, card.get("state_word"), count_line) if w)
 
 
 def _headline(resp, markets, link):

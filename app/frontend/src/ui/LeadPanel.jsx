@@ -78,7 +78,7 @@ export function LeadPanel({card: stored, specificity, market, date, watch}){
       <div className="t42-lead-actions">
         <AskAboutThis className="t42-action t42-action-primary" href={words.href} question={words.question} />
         {watch && watch.onWatch
-          ? <button type="button" className="t42-action" aria-pressed={watching ? 'true' : 'false'} onClick={() => watch.onWatch(words.written ? {...card, title: words.written} : card, market)}>
+          ? <button type="button" className="t42-action" aria-pressed={watching ? 'true' : 'false'} onClick={() => watch.onWatch(words.written || words.coded ? {...card, title: words.written || words.coded} : card, market)}>
               {watching ? 'Watching' : 'Watch'}
             </button>
           : watching && <span className="tc-watching">Watching</span>}

@@ -11,7 +11,7 @@ import {fetchCompare, fetchDiscover} from './api42.js';
 import {readerFigure, sentenceCase, seriesFigure} from './api.js';
 import {unitFor} from './readerUnits.js';
 import {SpikeConfirm} from './ui/SpikeConfirm.jsx';
-import {figureWords, longDate, platformWord, topicHref, writtenTitle} from './ui/TrendCard.jsx';
+import {codedTitle, figureWords, longDate, platformWord, topicHref, writtenTitle} from './ui/TrendCard.jsx';
 import './styles/today42.css';
 import './styles/compare42.css';
 
@@ -119,9 +119,9 @@ export function Compare42({search, region, onAuth}){
     return () => ctrl.abort();
   }, [hash, tick]);
 
-  /* A subject is named as the rest of 42 names it: a checked written title, else the name Discover gave it, else the label the comparison carried. */
+  /* A subject is named as the rest of 42 names it: a checked written title, else its code title, else the name Discover gave it, else the label the comparison carried. */
   const shown = load.state === 'ready' && load.data
-    ? {...load, data: {...load.data, subjects: list(load.data.subjects).map((s) => ({...s, label: (s.card && writtenTitle(s.card, s.label)) || names[s.item_id] || s.label}))}}
+    ? {...load, data: {...load.data, subjects: list(load.data.subjects).map((s) => ({...s, label: (s.card && (writtenTitle(s.card, s.label) || codedTitle(s.card, s.label))) || names[s.item_id] || s.label}))}}
     : load;
   const update = (change) => setChoice((prev) => ({...prev, ...change(prev)}));
   const toggle = (key, order, value) => update((prev) => {

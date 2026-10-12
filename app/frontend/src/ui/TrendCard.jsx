@@ -11,6 +11,7 @@ import {safeUrl} from '../safeUrl.js';
 import {AskAboutThis} from './AskAboutThis.jsx';
 import {Facts} from './Facts.jsx';
 import {UNNAMED_TOPIC_WORDS, isUnnamedTopic} from '../topicNames.js';
+import {codeCountLine, codeTitle} from '../codeTitle.js';
 import '../styles/today42.css';
 import '../styles/discover42.css';
 import '../styles/alerts42.css';
@@ -114,6 +115,15 @@ export function writtenTitle(card, label){
   return written && titleKey(written) !== titleKey(label) ? written : null;
 }
 
+/* Albert, 12 October 2026, "code titles": a card from a brief that writes
+   titles (it carries title_written, as every brief since 6 October does)
+   and shows none leads with a plain title built from its label
+   (codeTitle.js). The title says the label's words, so the label is not
+   repeated beside it. A brief written before titles reads as before. */
+export function codedTitle(card, label){
+  return card && has(card, 'title_written') && !writtenTitle(card, label) ? codeTitle(card, label) : null;
+}
+
 /* The question an Ask link carries. The server words it from the cluster label, so a card that shows a written title asks about that title in the same sentence; a question that does not hold the label is left as the server wrote it. */
 export function askQuestion(card, label, written){
   const base = typeof card.ask === 'string' && card.ask.trim() ? card.ask : '';
@@ -162,8 +172,9 @@ export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, link
   const {posts, open, loadPosts, togglePosts} = useCardPosts(card, where, when, onAuth);
   const label = isYoutubeChannelId(card.title) ? 'YouTube channel' : card.title;
   const written = writtenTitle(card, label);
-  const unnamed = !written && isUnnamedTopic(label);
-  const title = written || (unnamed ? UNNAMED_TOPIC_WORDS : label);
+  const coded = codedTitle(card, label);
+  const unnamed = !written && !coded && isUnnamedTopic(label);
+  const title = written || coded || (unnamed ? UNNAMED_TOPIC_WORDS : label);
   const question = askQuestion(card, label, written);
 
   const tag = TAG_WORDS[card.tag];
@@ -179,7 +190,7 @@ export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, link
   const showGrowth = has(card, 'growth') && !(said('growth') && !isFigure(card.growth));
   /* Reach is said once: a count line that says what the reach figure says
      gives way to the figure, which carries its query. */
-  const countLine = countLineWords(card.count_line);
+  const countLine = countLineWords(codeCountLine(card, label, card.count_line, coded));
   const countSaysReach = Boolean(countLine) && isFigure(card.reach)
     && factWords(countLine) === factWords(figureWords(card.reach));
   /* Visual pass, 3 October 2026: the card's headline numbers are set large
@@ -264,7 +275,7 @@ export function TrendCard({card, market, date, onAuth, onWatch, onFeedback, link
         <div className="t42-actions">
           <AskAboutThis className="t42-action t42-action-primary" href={askHref(card, where, when, question)} question={question} />
           {onWatch
-            ? <button type="button" className="t42-action" aria-pressed={watching ? 'true' : 'false'} onClick={() => onWatch(written ? {...card, title: written} : card, where)}>
+            ? <button type="button" className="t42-action" aria-pressed={watching ? 'true' : 'false'} onClick={() => onWatch(written || coded ? {...card, title: written || coded} : card, where)}>
                 {watching ? 'Watching' : 'Watch'}
               </button>
             : watching && <span className="tc-watching">Watching</span>}

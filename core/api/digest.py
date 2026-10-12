@@ -36,7 +36,7 @@ from email.message import EmailMessage
 from pathlib import Path
 from urllib.parse import quote
 
-from core.api import discover, privacy, store as store_mod, watchlist
+from core.api import code_title, discover, privacy, store as store_mod, watchlist
 from core.api.email_kit import button, document, esc, safe_url
 from core.api.email_kit.layout import (ACCENT, CARD, FONT_BODY, FONT_SERIF, INK, INK_DIM, INK_SOFT, PAPER, RULE,
                                        TABLE, WARN)
@@ -106,6 +106,15 @@ def _meta(card):
     return [w for w in words if w]
 
 
+def _title(card):
+    """The card's label, or its code title when it has no written title, as the app shows it (core/api/code_title.py)."""
+    return card.get("title") if code_title.written_title(card) else code_title.shown_title(card)
+
+
+def _count_line(card):
+    return code_title.code_count_line(card, card.get("count_line"))
+
+
 def _alert_row(a, base):
     card = a["card"]
     market = LABELS.get(a["market"], a["market"])
@@ -116,9 +125,9 @@ def _alert_row(a, base):
         f'<div style="font-family:{FONT_BODY};font-size:14px;font-weight:bold;color:{ACCENT};padding-top:6px;">'
         f'{esc(a["fired_because"])}</div>',
         f'<div style="font-family:{FONT_SERIF};font-size:20px;line-height:1.3;color:{INK};padding-top:4px;">'
-        f'{esc(card.get("title"))}</div>',
+        f'{esc(_title(card))}</div>',
         f'<div style="font-family:{FONT_BODY};font-size:13px;color:{INK_SOFT};padding-top:4px;">'
-        + " &middot; ".join(esc(w) for w in _meta(card) + [card.get("count_line")] if w) + "</div>",
+        + " &middot; ".join(esc(w) for w in _meta(card) + [_count_line(card)] if w) + "</div>",
     ]
     if held:
         parts.append(f'<div style="font-family:{FONT_BODY};font-size:13px;font-weight:bold;color:{WARN};'
@@ -168,8 +177,8 @@ def render_text(resp, base):
         card = a["card"]
         lines.append(f"{a.get('label')}, {LABELS.get(a['market'], a['market'])}")
         lines.append(a["fired_because"])
-        facts = ", ".join(str(w) for w in _meta(card) + [card.get("count_line")] if w)
-        lines.append(f"{card.get('title')}: {facts}" if facts else str(card.get("title")))
+        facts = ", ".join(str(w) for w in _meta(card) + [_count_line(card)] if w)
+        lines.append(f"{_title(card)}: {facts}" if facts else str(_title(card)))
         if card.get("held_back"):
             lines.append(f"Held back: {card['held_back'].get('reason_text') or card['held_back'].get('reason')}")
         lines += [f"{w}: {u}" if u else w for u, w in post_links(card)]
