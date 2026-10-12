@@ -163,7 +163,7 @@ def test_jp02_the_paste_world_call_logs_carry_no_forbidden_verb(tmp_path):
 B_FILES = ("chain_evidence.py", "jobs_only.py", "jobs_run.py", "JOBS-PASTE.ps1", "env_scan.py", "jobs_baseline.py", "jobs_effects.py", "jobs_freeze.py",
            "jobs_source.py")
 SERVICES_FILES = {"bound_readback.py", "declared_env_removals.py", "lock.py", "natives.py", "packet.py", "plan.py", "services_only.py", "SERVICES-PASTE.ps1",
-                  "durable-effects-manifest.template.json", "__init__.py"}
+                  "durable-effects-manifest.template.json", "__init__.py", "durable_prior.py"}
 DESTRUCTIVE = re.compile(r"create\s+or\s+replace|\bdrop\s+(table|view|schema|function|index)\b|\bdelete\s+from\b|\btruncate\s+table\b|\bdrop\b|\btruncate\b", re.I)
 
 
