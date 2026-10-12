@@ -5,7 +5,9 @@ items first, with a candidate held for invalid data days (G1) not taking one of 
 rows of the top 90 are judged in its place (_candidates), an SQL evidence pack each, the publish gate (core/trust/gate.py, plus G4 for items detect marked
 likely coordinated, which gate_card does not read), then one card per set of posts: a Today-bound candidate with
 fewer than 3 posts not already on a higher card merges into the card it shares most posts with, listed there under
-also and recorded in the counts, before any confirm or model spend, one confirm search each for the Today-bound ones inside the confirm share, then
+also and recorded in the counts, before any confirm or model spend (and, after the explanations, the published cards
+of one market that describe the same event become one, core/brief/same_event.py), one confirm search each for the
+Today-bound ones inside the confirm share, then
 for the ones held only by the post floors (fewer than 3 posts it can show or 2 local), with
 what it found added to the pack facts as presence only, then one structured explanation each, 5 at a time in
 rank order across the markets. Confirm results also go into posts and post_observations through lane L1's
@@ -59,14 +61,15 @@ from time import sleep as _sleep
 from core.brief import confirm as confirm_lane
 from core.brief import gatectx
 from core.api.store import creator_key
-from core.api.today import without_hidden
+from core.api.today import _today_card_fault, without_hidden
 from core.brief import pack_order
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
 from core.brief.explain import CHECK_INCOMPLETE, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.locality_audit import build_locality_audit
 from core.brief.market_scope import read_market_scope
 from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _worth, brief_row,
-                               build_market_payload)
+                               build_market_payload, preview_card)
+from core.brief.same_event import same_event
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_local_posts, showable_posts
 from core.collect import chain as collect_chain
 from core.config.caps import model_daily_usd
@@ -86,10 +89,11 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # beside a party, leader or election term, k6-b7-decade the K6 decade rule of closure review B (CB-4), k6-names the K6
 # false hold exemptions for names, titles and identifiers, k6-n13-n15 the N13-T and N15 K6 age words, rule1-old-age the
 # rule 1 words old man, old woman and elders, g1-gap a missing baseline day after history began read as invalid for G1,
-# zero-count-hold a card with a measured zero creators or posts in its counted 3 days held.
+# zero-count-hold a card with a measured zero creators or posts in its counted 3 days held, event-merge the published
+# cards of one market that describe the same event merged into one (core/brief/same_event.py, _merge_events).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
-                "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold")
+                "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+event-merge")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -1288,7 +1292,54 @@ def _payload_candidate(cand, result, specificity=None):
     }
 
 
-def _market_payload(market, d, cands, results, *, banners, moments_, boards_, issues, selection_audit=None):
+def _today_admits(item, market, d):
+    """True when Today would admit the item as a card (core/api/today.py _today_card_fault), read on the card the
+    payload builds for it alone."""
+    return _today_card_fault(preview_card(item, market, d)) is None
+
+
+def _published(item):
+    decision = item["decision"]
+    if isinstance(decision, dict):
+        return decision.get("publish") is True and decision.get("where") == "today"
+    return decision.publish is True and decision.where == "today"
+
+
+def _strength(item):
+    """Most creators in the card's 3 days first, then most posts in them, then Today's own order (payload _worth). A
+    card without the count reads as weaker than every card with it."""
+    def count(unit):
+        value = next((n.get("value") for n in item.get("numbers") or [] if n.get("unit") == unit), None)
+        return value if isinstance(value, (int, float)) and not isinstance(value, bool) else -1
+
+    return -count("creators in 3 days"), -count("posts in 3 days"), _worth(item)
+
+
+def _merge_events(market, d, items, posts, merged):
+    """One Today card per event. items: the market's payload items after the explanation gate (G10); posts:
+    {item_id: member posts}, every post the item's card could rest on. Among the published items Today would admit,
+    strongest first (_strength), an item that describes the same event as a stronger kept card (same_event, on the
+    explanation and the member posts) merges into the first such card: its title, then its own also list, join that
+    card's also, it is marked merged_into and it shows nowhere else (payload.build_market_payload). Each item is
+    compared with the kept cards only, never with one already merged. The merge only merges: no decision changes, so
+    a held item stays held and never absorbs, and nothing held is shown. Appends {market, into, item_id, by} to
+    merged."""
+    def event(item):
+        return {"explanation": item.get("explanation"), "posts": posts.get(item["item_id"]) or set()}
+
+    kept = []
+    for item in sorted((i for i in items if _published(i) and _today_admits(i, market, d)), key=_strength):
+        into = next((k for k in kept if same_event(event(k), event(item))), None)
+        if into is None:
+            kept.append(item)
+            continue
+        into["also"] = [*into["also"], {"item_id": item["item_id"], "title": item["title"]}, *item["also"]]
+        item["merged_into"] = into["item_id"]
+        merged.append({"market": market, "into": into["item_id"], "item_id": item["item_id"], "by": "same_event"})
+
+
+def _market_payload(market, d, cands, results, *, banners, moments_, boards_, issues, selection_audit=None,
+                    merged=None):
     # A candidate whose market scope could not be read is not known to be global, so it stays, held for its
     # unreadable evidence.
     # A candidate admitted under locality_v2.1 stays whatever its scope: a not_local one is held by G6 and shown, which
@@ -1323,6 +1374,9 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
                 # an explanation (the enum in core/api/contract.md has no explained-and-held value).
                 item["explanation_status"] = "failed_checks"
         items.append(item)
+    # One card per event, on the final decision: after G10, so a card held there neither absorbs nor is absorbed.
+    _merge_events(market, d, items, {c["row"]["item_id"]: c.get("posts") or set() for c in local_cands},
+                  [] if merged is None else merged)
     # An evidence read that failed is a data problem too, so it counts with G1 toward the over-30% banner. The
     # denominator is every current-market candidate considered: the G1 holds that _candidates backfilled past as well
     # as the candidates judged, so the banner still shows how much of what was looked at bad data blocked.
@@ -1639,7 +1693,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
             banners.append({"kind": "data_issue", "text": "Data issue: today's candidates could not be read"})
         boards_, unnamed = boards(client, d, m, core, agent, hidden=hidden)
         payload = _market_payload(m, d, cands, results, banners=banners, moments_=calendar[m],
-                                  boards_=boards_, issues=_unnamed_issue(unnamed), selection_audit=selection_audits.get(m))
+                                  boards_=boards_, issues=_unnamed_issue(unnamed), selection_audit=selection_audits.get(m),
+                                  merged=merged)
         # Titles, aliases and model text never name a suppressed person either, as Today reads them.
         selection_receipt = payload.pop("selection_receipt", None)
         payload = without_hidden(payload, hidden)

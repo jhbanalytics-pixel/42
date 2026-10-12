@@ -212,6 +212,11 @@ def _card(c, market, day, rank, shown_above=frozenset()):
     }
 
 
+def preview_card(c, market, brief_date):
+    """The card c would be on its own, ranked first: what core/brief/job.py asks Today's admission check about."""
+    return _card(c, market, _iso(brief_date), 1)
+
+
 def _title_written(c, explained):
     """The writer's title that passed its checks (core/brief/explain.py), on an explained card only, else None; the
     card keeps title, its cluster label, either way."""
@@ -313,6 +318,10 @@ def build_market_payload(market, brief_date, candidates, *, moments, boards, ban
     day = _iso(brief_date)
     by_where = {"today": [], "held_back": [], "moments": []}
     for c in candidates:
+        # A card merged into another card of the same event (core/brief/job.py _merge_events) shows only on that
+        # card's also list. It stays among the candidates, so its critic answer and hold audit are kept.
+        if c.get("merged_into"):
+            continue
         by_where[_decision(c)["where"]].append(c)
 
     ranked = sorted(by_where["today"], key=_worth)[:SHOWN]
