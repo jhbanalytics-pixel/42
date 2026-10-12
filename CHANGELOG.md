@@ -30,7 +30,7 @@ Release D0, the website and Ask.
 
 ### Jobs update (12 October 2026)
 
-Release D jobs, the brief and collect jobs.
+Release D jobs, the brief, collect and watchdog jobs.
 
 - A card with no accounts posting or no posts counted in its last 3 days is held back from Today instead of shown.
 - Today puts its cards in order of accounts posting in the last 3 days, then posts, then worth, so the lead card is the one the most accounts are posting about. Which cards are shown does not change. On the first morning the moved up and held place tags compare against the old order, so they are wrong that day only.
