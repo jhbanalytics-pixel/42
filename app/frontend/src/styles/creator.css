@@ -24,7 +24,7 @@
 .creator-topics > p { color: var(--muted); font-size: var(--type-2); }
 .creator-topics > div { display: flex; flex-wrap: wrap; gap: 8px; }
 .creator-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
-.creator-section-heading > span { font-family: var(--mono); font-variation-settings: "MONO" 1, "CASL" 0, "slnt" 0, "CRSV" 0; font-size: 11px; font-weight: 400; letter-spacing: .12em; color: var(--muted); }
+.creator-section-heading > span { font-family: var(--mono); font-variation-settings: "MONO" 1, "CASL" 0, "slnt" 0, "CRSV" 0; font-size: var(--t-1); font-weight: 400; letter-spacing: .12em; color: var(--muted); }
 .creator-post { padding: 24px 0; border-top: 1px solid var(--line); }
 .creator-post header, .creator-post-dates { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; color: var(--muted); font-size: var(--type-2); }
 .creator-post-text { max-width: var(--measure); font-size: var(--type-3); line-height: 1.65; overflow-wrap: anywhere; }
