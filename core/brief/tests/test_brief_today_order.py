@@ -118,3 +118,26 @@ def test_the_brief_job_headlines_the_broadest_card():
     p = jobt.payload(jobt.brief(con), "ZA")
     assert [c["item_id"] for c in p["cards"]] == ["za_broad", "za_mid", "za_thin"]
     assert p["headline"]["item_id"] == "za_broad"
+
+
+def test_accounts_lead_posts_when_they_disagree():
+    cands = [cand(1, worth=0.9, numbers=[num(3, ACCOUNTS), num(30, POSTS)]),
+             cand(2, worth=0.1, numbers=[num(6, ACCOUNTS), num(8, POSTS)])]
+    p = build_market_payload("ZA", D, cands, moments=[], boards=[], banners=[])
+    assert [c["item_id"] for c in p["cards"]] == ["it_2", "it_1"]
+
+
+def test_at_tied_accounts_a_card_with_a_posts_figure_leads_one_without():
+    cands = [cand(1, worth=0.9, numbers=[num(5, ACCOUNTS)]),
+             cand(2, worth=0.1, numbers=[num(5, ACCOUNTS), num(9, POSTS)])]
+    p = build_market_payload("ZA", D, cands, moments=[], boards=[], banners=[])
+    assert [c["item_id"] for c in p["cards"]] == ["it_2", "it_1"]
+
+
+def test_a_count_that_is_not_a_number_reads_as_no_figure():
+    # evidence.py writes INT64 or drops the figure; these are the shapes a later reader could still hand over.
+    for odd in ("6", True):
+        cands = [cand(1, worth=0.9, numbers=[num(odd, ACCOUNTS), num(odd, POSTS)]),
+                 cand(2, worth=0.1, numbers=[num(1, ACCOUNTS), num(1, POSTS)])]
+        p = build_market_payload("ZA", D, cands, moments=[], boards=[], banners=[])
+        assert [c["item_id"] for c in p["cards"]] == ["it_2", "it_1"], odd

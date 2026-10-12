@@ -183,7 +183,9 @@ def test_market_labels_and_date_objects():
 
 
 def test_rank_by_worth_raw_among_today_only_five_cards_then_more():
-    cands = [cand(i, worth=w) for i, w in enumerate([0.1, 0.9, 0.5, 0.7, 0.3, 0.8, 0.2, 0.6, 0.4, 0.05, 0.01], 1)]
+    # Every cand has the same 31 creators and no posts figure, so this is the worth tie-break of Today's order
+    # (payload _today_order, tested in test_brief_today_order.py) and the top-ten cut, which stays by worth.
+    cands =[cand(i, worth=w) for i, w in enumerate([0.1, 0.9, 0.5, 0.7, 0.3, 0.8, 0.2, 0.6, 0.4, 0.05, 0.01], 1)]
     cands.append(cand(99, worth=5.0, decision=decision("held_back", rule="G6", reason="Not in this market")))
     p = build(cands)
     assert [c["item_id"] for c in p["cards"]] == ["it_2", "it_6", "it_4", "it_8", "it_3"]

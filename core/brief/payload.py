@@ -103,10 +103,15 @@ def _today_order(c):
     """Today's order: the accounts posting in the counted window, as the card shows them ("creators in 3 days", which
     Today says as "accounts posting, last 3 days"), then posts in that window, then _worth. On 12 October 2026 ZA card
     01 had 2 accounts and 3 posts and led cards with 6 and 5 accounts, because the order was worth_raw alone. A card
-    without the figure comes after those with it."""
-    shown = {n["unit"]: n["value"] for n in c.get("numbers") or [] if "rival_field" not in n}
-    accounts, posts = shown.get("creators in 3 days"), shown.get("posts in 3 days")
+    without the figure, or whose figure is not a number, comes after those with it."""
+    accounts, posts = _count(c, "creators in 3 days"), _count(c, "posts in 3 days")
     return (accounts is None, -(accounts or 0), posts is None, -(posts or 0), *_worth(c))
+
+
+def _count(c, unit):
+    """The card's own figure for unit, or None when it has none or the value is not a number (a bool is not)."""
+    v = next((n.get("value") for n in c.get("numbers") or [] if "rival_field" not in n and n.get("unit") == unit), None)
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
 # A count of one reads "1 creator", "1 post" (tester report, 5 October 2026: "1 creators and 1 posts").
@@ -215,7 +220,8 @@ def _card(c, market, day, rank, shown_above=frozenset()):
         "explanation_status": status,
         # The job's fixed wording for the check that held the explanation back; no model or scraped text.
         "failed_reason": _failed_reason(c, status),
-        # Items merged into this card because their posts are this card's (core/brief/job.py), in rank order.
+        # Items merged into this card because their posts are this card's (core/brief/job.py), in the judging
+        # order (_worth), not the shown order.
         "also": also,
         # A news event explains the rise and local creators add their own reaction; claims sit one step lower.
         "news_driven": explained and c.get("news_driven") is True,
