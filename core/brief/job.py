@@ -86,10 +86,11 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # beside a party, leader or election term, k6-b7-decade the K6 decade rule of closure review B (CB-4), k6-names the K6
 # false hold exemptions for names, titles and identifiers, k6-n13-n15 the N13-T and N15 K6 age words, rule1-old-age the
 # rule 1 words old man, old woman and elders, g1-gap a missing baseline day after history began read as invalid for G1,
-# zero-count-hold a card with a measured zero creators or posts in its counted 3 days held.
+# zero-count-hold a card with a measured zero creators or posts in its counted 3 days held, e-order-breadth Today's
+# shown order by the card's creators in 3 days, then posts in 3 days, then worth (core/brief/payload.py _today_order).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
-                "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold")
+                "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
