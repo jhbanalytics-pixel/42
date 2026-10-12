@@ -34,7 +34,9 @@ function texts(card){
   return out;
 }
 
-/* The most used cased form of the term's letters in the texts, spaced forms first, else null. */
+/* A hashtag's most used form in the texts, lower case included, so one
+   post's casing never outvotes the rest; a word's most used cased form of
+   its letters, spaced forms first. Null when the texts give none. */
 function postForm(term, sources){
   const forms = [];
   if (term.startsWith('#')){
@@ -54,7 +56,7 @@ function postForm(term, sources){
     }
   }
   const counts = new Map();
-  for (const form of forms) if (form !== form.toLowerCase()) counts.set(form, (counts.get(form) || 0) + 1);
+  for (const form of forms) if (term.startsWith('#') || form !== form.toLowerCase()) counts.set(form, (counts.get(form) || 0) + 1);
   const order = [...counts.keys()];
   if (order.length === 0) return null;
   const rank = (f) => [-f.split(' ').length, -counts.get(f), order.indexOf(f)];

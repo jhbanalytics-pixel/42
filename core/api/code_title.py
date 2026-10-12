@@ -6,8 +6,9 @@ title now shows "Posts about Bafana Bafana, Mofokeng and Relebohile", built here
 
 - the label's terms, in order, each said once (a term whose words all sit in a longer term is left out);
 - a hashtag keeps its # form; a term already cased in the label keeps its casing;
-- otherwise a term takes the casing the card's own posts give it (its explanation too, on an explained card): the
-  most used cased form of exactly its letters, a spaced form ("Mamelodi Sundowns") before a joined one;
+- otherwise a hashtag takes the casing most of the card's posts give it, lower case included, and a word takes the
+  casing the card's own posts give it (its explanation too, on an explained card): the most used cased form of
+  exactly its letters, a spaced form ("Mamelodi Sundowns") before a joined one;
 - else a doubled word is spaced ("bafanabafana" is "Bafana Bafana") and each word starts with a capital, while a
   hashtag stays as the label writes it.
 
@@ -57,7 +58,8 @@ def _texts(card):
 
 
 def _post_form(term, texts):
-    """The most used cased form of the term's letters in the texts, spaced forms first, else None."""
+    """A hashtag's most used form in the texts, lower case included, so one post's casing never outvotes the rest;
+    a word's most used cased form of its letters, spaced forms first. None when the texts give none."""
     counts, order = {}, []
     if term.startswith("#"):
         body = term[1:].lower()
@@ -68,7 +70,7 @@ def _post_form(term, texts):
                  for i in range(len(tokens)) for j in range(i + 1, min(i + _WINDOW, len(tokens)) + 1)
                  if "".join(tokens[i:j]).lower() == key)
     for form in forms:
-        if form != form.lower():
+        if term.startswith("#") or form != form.lower():
             if form not in counts:
                 order.append(form)
             counts[form] = counts.get(form, 0) + 1

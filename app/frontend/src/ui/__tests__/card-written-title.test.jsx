@@ -48,17 +48,27 @@ test('a written title leads the card and the cluster label sits beside it', () =
   expect(host.querySelector('h3 a.tc-title-link').textContent).toBe(WRITTEN);
 });
 
-test('a card from a brief without a written title reads as before', () => {
+/* Albert's typed decision of 12 October 2026, "code titles"
+   (wave8/decisions/DECISIONS-20261012-albert-e.txt): when the title check
+   drops the writer's title, the card shows a plain title built in code from
+   the cluster label, not the label. A brief written before title_written
+   still reads as before. */
+const CODED = 'Posts about Northeast Governors';
+
+test('a card from a brief without a written title reads as before, and one whose title was dropped shows its code title', () => {
   const card = {...clone(explained), title: LABEL};
   delete card.title_written;
   expect(render(card)).toEqual({heading: LABEL, label: null});
-  expect(render({...card, title_written: null})).toEqual({heading: LABEL, label: null});
+  expect(render({...card, title_written: null})).toEqual({heading: CODED, label: null});
 });
 
+/* The written title still shows only on an explained card and never repeats
+   its label; where it does not show, the card takes its code title (decision
+   "code titles", DECISIONS-20261012-albert-e.txt). */
 test('a written title shows only on an explained card and never repeats its label', () => {
   const held = {...clone(explained), title: LABEL, title_written: WRITTEN, explained: false, explanation: null, claims: []};
-  expect(render(held)).toEqual({heading: LABEL, label: null});
-  expect(render({...clone(explained), title: '#Shaya_Step', title_written: 'shaya step'})).toEqual({heading: '#Shaya_Step', label: null});
+  expect(render(held)).toEqual({heading: CODED, label: null});
+  expect(render({...clone(explained), title: '#Shaya_Step', title_written: 'shaya step'})).toEqual({heading: 'Posts about #Shaya_Step', label: null});
   expect(writtenTitle({explained: true, title_written: '   '}, LABEL)).toBeNull();
   expect(writtenTitle({explained: true, title_written: 42}, LABEL)).toBeNull();
 });

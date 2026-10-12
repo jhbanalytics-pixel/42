@@ -787,18 +787,23 @@ test('the topic heading is the checked written title and the cluster label sits 
   expect(host.querySelector('.tp42-sub').textContent).toContain(LABEL);
 });
 
-test('a topic with no written title, or one that is not explained, keeps the label as its heading', async () => {
+/* Albert's typed decision of 12 October 2026, "code titles"
+   (wave8/decisions/DECISIONS-20261012-albert-e.txt): a topic whose written
+   title was dropped, or is not shown because the card is not explained, is
+   headed by the plain title built in code from its label, not by the label. */
+test('a topic with no written title, or one that is not explained, is headed by its code title', async () => {
+  const CODED = 'Posts about Northeast Governors';
   const unexplained = clone(topicFixture);
   Object.assign(unexplained.card, {title: LABEL, explained: false, title_written: WRITTEN});
   await mount(unexplained);
-  expect(host.querySelector('h1.tp42-heading').textContent).toBe(LABEL);
+  expect(host.querySelector('h1.tp42-heading').textContent).toBe(CODED);
   expect(host.querySelector('.tp42-sub').textContent).not.toContain(LABEL);
   flushSync(() => root.unmount());
   root = createRoot(host);
   const none = clone(topicFixture);
   Object.assign(none.card, {title: LABEL, explained: true, title_written: null});
   await mount(none);
-  expect(host.querySelector('h1.tp42-heading').textContent).toBe(LABEL);
+  expect(host.querySelector('h1.tp42-heading').textContent).toBe(CODED);
 });
 
 test('a neutral Topic label is not the heading of the topic page', async () => {
