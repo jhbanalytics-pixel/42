@@ -253,6 +253,28 @@ def test_usd_cents_round_half_cents_up_for_a_need_and_down_for_what_is_left():
     assert [inv.usd_down(v) for v in (1.5, 1.005, 0.125, 2.675, 0.009, 0)] == ["1.50", "1.00", "0.12", "2.67", "0.00", "0.00"]
 
 
+# Review 3 N10: a whole cent that binary floats hold a hair off itself (0.07 * 100 = 7.000000000000001,
+# 0.29 * 100 = 28.999999999999996) stays that cent both ways; without the settle step it reads a cent off.
+def test_whole_cents_on_float_noise_stay_as_they_are():
+    for value, cents in ((0.07, "0.07"), (0.55, "0.55"), (1.09, "1.09"), (0.14, "0.14"), (0.28, "0.28"), (0.29, "0.29"), (0.57, "0.57")):
+        assert inv.usd_up(value) == cents and inv.usd_down(value) == cents
+    assert inv.usd_up(1.5049) == "1.51" and inv.usd_up(1.0001) == "1.01"
+
+
+# Review 3 N8: a figure is said against what is left the way the refusal says it: above what is left it is a
+# need, rounded up; at or under it, it fits and is said rounded down, the same cent as the left beside it. The
+# page says the plan ceiling and the estimate through the same rule (investigations42.jsx usdAgainst).
+def test_a_figure_is_said_up_above_what_is_left_and_down_when_it_fits():
+    assert inv.usd_against(0.965, 0.965) == inv.usd_down(0.965) == "0.96"
+    assert inv.usd_against(5.4951, 5.4951) == "5.49"
+    assert inv.usd_against(0.961, 0.965) == "0.96"
+    assert inv.usd_against(0.9651, 0.965) == "0.97"
+    assert inv.usd_against(1.5049, 1.0) == "1.51"
+    over = inv.refusal({"credits": 1, "model_usd": 0.9651}, {"credits": 10, "model_usd": 0.965})
+    assert "about USD 0.97 of model time but only USD 0.96 is left" in over
+    assert inv.refusal({"credits": 1, "model_usd": 0.965}, {"credits": 10, "model_usd": 0.965}) is None
+
+
 def test_a_need_of_one_credit_is_said_in_the_singular():
     one = inv.refusal({"credits": 1, "model_usd": 0.1}, {"credits": 0, "model_usd": 5})
     assert one == "This plan needs about 1 credit but only 0 are left today. Try a smaller plan or try again tomorrow."
