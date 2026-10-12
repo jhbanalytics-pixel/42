@@ -19,6 +19,14 @@ Release D0, the website and Ask.
 - The menu shows the version 42 is on, with this list of what changed.
 - A quiet hint offers a reload when the live version changes while the page is open, on phones too.
 - Ask's "The numbers" tiles say what each figure counts.
+- Each tile in "The numbers" shows its whole claim, and puts posts and accounts posting side by side only when one search counted both.
+- Every trend card, Compare and the reach alerts say accounts posting, and Method says Radar counts the accounts that post.
+- The credit confirm covers the whole screen, a click inside it no longer opens the card behind it, and the page stays still behind every dialog.
+- Try again after a failed ask goes through the same credit confirm before anything is asked again.
+- Investigations shows the credits and the USD of model time a plan needs, and a refusal says in plain words which budget is short.
+- A gap search names each source route as its platform.
+- History, Build and Dossiers say Answered and Partial answer the same way, and Schedules no longer announces a delivery that is not built.
+- The Peaking and Spike chips are easier to read in dark mode.
 
 ## 2.2.0 (11 October 2026)
 
