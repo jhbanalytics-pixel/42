@@ -318,10 +318,6 @@ def build_market_payload(market, brief_date, candidates, *, moments, boards, ban
     day = _iso(brief_date)
     by_where = {"today": [], "held_back": [], "moments": []}
     for c in candidates:
-        # A card merged into another card of the same event (core/brief/job.py _merge_events) shows only on that
-        # card's also list. It stays among the candidates, so its critic answer and hold audit are kept.
-        if c.get("merged_into"):
-            continue
         by_where[_decision(c)["where"]].append(c)
 
     ranked = sorted(by_where["today"], key=_worth)[:SHOWN]

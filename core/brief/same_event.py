@@ -1,19 +1,27 @@
-"""Whether two Today cards of one market and run describe the same event (core/brief/job.py _merge_events).
+"""Whether two Today cards of one market and run describe the same event (core/brief/job.py _merge_events, which
+records the answer in shadow and changes no card, RELEASE-E-PLAN item 8h).
 
 Pure Python. Each card brings its explanation, the why now sentence that passed the claim checks, and its member
-posts, every post its card could rest on (brief.sql post_set plus the pack). Two cards are one event when all of
+posts, every post its card could rest on (brief.sql post_set plus the pack). Two cards are one event only when all of
 these hold:
 
 - they share at least MIN_SHARED_POSTS member posts, a card's worth (MIN_EVIDENCE);
-- their explanations do not name dates that all differ: when both name a date, they name one in common;
-- their explanations share names: DATED_NAMES of them when both name a date in common, else UNDATED_NAMES.
+- both explanations name a date, and they name the same dates (the same dated cause);
+- they name the same sides (SIDES: a women's, reserves, juniors or age group side, Banyana or Bafana) and the same
+  stages (STAGES: a final, a semi-final, a leg), so a final and its semi, or a men's side and a women's side, are
+  two events;
+- their explanations share at least SHARED_NAMES names.
 
-A name is a run of capitalised words, such as Mamelodi Sundowns or Premier League, cut at punctuation. The word that
-opens a sentence is a name only when the next word is capitalised too, and leading words such as "The" or "Local"
-are dropped. Never a name: a platform, any of the three markets and their people, a month, weekday or number, and a
-handle (a word with "_" in it, after "@", or joined to the next word by a dot). Words are compared after NFKD accent
-folding, case folding and dropping a final possessive. Two names match when they are equal or one opens the other
-(MTN8 and MTN8 Cup Final, never Manchester City and Manchester United), and each name counts once.
+A name is a run of capitalised words, such as Mamelodi Sundowns or Premier League, cut at punctuation; a number
+right after a capitalised word stays in the name (Stage 2). The word that opens a sentence is a name only when the
+next word is capitalised too, and leading words such as "The" or "Local" are dropped. Never a name: a place of the
+gazetteer (core/detect/geo.py PLACES and COUNTRIES, the whole name), a name with a platform word or any of the three
+markets and their people in it, calendar words, and a handle (a word with "_" in it, after "@", or joined to another
+word by a dot). Words are compared after NFKD accent folding, case folding and dropping a final possessive.
+
+Two names match when they are equal; when they have the same words but one shortens a word of the other to 3 or more
+of its first letters, the last word equal (Man City and Manchester City); or when one is a single word with a digit or
+in capitals (MTN8, AFCON) that opens the other and the other adds no side word. Each name counts once.
 
 A date is a day and a month ("11 Oct", "10 October", "October 4", "2026-10-01"); the year is not read."""
 
@@ -21,15 +29,16 @@ import re
 import unicodedata
 
 from core.brief.specificity import MIN_EVIDENCE
+from core.detect.geo import COUNTRIES, PLACES
 
 MIN_SHARED_POSTS = MIN_EVIDENCE
-DATED_NAMES = 2
-UNDATED_NAMES = 3
+SHARED_NAMES = 3
+SHORTENED_MIN = 3
 
 PLATFORMS = {"tiktok", "twitter", "x", "instagram", "youtube", "facebook", "threads", "reddit", "nairaland",
-             "boomplay", "spotify", "apple music", "audiomack", "whatsapp", "telegram", "snapchat"}
-PEOPLES = {"south africa", "south african", "south africans", "nigeria", "nigerian", "nigerians", "kenya", "kenyan",
-           "kenyans", "africa", "african", "africans", "mzansi", "naija"}
+             "boomplay", "spotify", "apple", "audiomack", "whatsapp", "telegram", "snapchat"}
+PEOPLES = {"south", "africa", "african", "africans", "nigeria", "nigerian", "nigerians", "kenya", "kenyan", "kenyans",
+           "mzansi", "naija", "sa", "rsa", "za", "ng", "ke", "kot"}
 CALENDAR = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "january", "february",
             "march", "april", "may", "june", "july", "august", "september", "october", "november", "december",
             "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec", "sast"}
@@ -37,9 +46,19 @@ LEADING = {"a", "an", "the", "on", "in", "at", "after", "as", "across", "ahead",
            "with", "this", "these", "their", "his", "her", "its", "multiple", "local", "creators", "several", "many",
            "some", "users", "fans", "posts", "both", "other", "while", "when", "and", "but", "or", "from", "for",
            "by", "to", "of", "it", "they"}
+SIDES = (("women", r"women'?s?|woman|ladies|girls|banyana"), ("reserves", r"reserves?"), ("juniors", r"juniors?|youth"),
+         ("bafana", r"bafana"))
+_AGE = re.compile(r"\b(?:u|under)[- ]?(\d{2})\b", re.I)
+STAGES = (("semi-final", r"semi[- ]?finals?"), ("quarter-final", r"quarter[- ]?finals?"),
+          ("first leg", r"first leg"), ("second leg", r"second leg"), ("play-off", r"play[- ]?offs?"),
+          ("final", r"finale?s?"))
+SIDE_WORDS = {"women", "woman", "ladies", "girls", "banyana", "reserve", "reserves", "junior", "juniors", "youth",
+              "bafana"}
 
+_PLACES = {" ".join(n.casefold().split()) for names_ in (*PLACES.values(), *COUNTRIES.values()) for n in names_}
 MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
-_MONTH = r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*"
+_MONTH = (r"(Jan|January|Feb|February|Mar|March|Apr|April|May|Jun|June|Jul|July|Aug|August|Sep|Sept|September|Oct|"
+          r"October|Nov|November|Dec|December)")
 _DAY_MONTH = re.compile(r"\b(\d{1,2})(?:st|nd|rd|th)?\s+" + _MONTH + r"\b")
 _MONTH_DAY = re.compile(r"\b" + _MONTH + r"\s+(\d{1,2})\b(?![-:/]\d)")
 _ISO = re.compile(r"\b\d{4}-(\d{2})-(\d{2})\b")
@@ -47,9 +66,17 @@ _WORD = re.compile(r"[^\W_][\w'’-]*")
 _SENTENCE = re.compile(r"(?<=[.!?])\s+")
 
 
+class _Word(str):
+    """A folded word that remembers whether it was written in capitals (AFCON), which folding loses."""
+
+    capitals = False
+
+
 def _fold(word):
-    word = "".join(ch for ch in unicodedata.normalize("NFKD", word) if not unicodedata.combining(ch)).casefold()
-    return re.sub(r"['’]s$", "", word).strip("'’-")
+    folded = "".join(ch for ch in unicodedata.normalize("NFKD", word) if not unicodedata.combining(ch)).casefold()
+    out = _Word(re.sub(r"['’]s$", "", folded).strip("'’-"))
+    out.capitals = len(word) > 1 and word.isupper()
+    return out
 
 
 def _capitalised(word):
@@ -57,8 +84,7 @@ def _capitalised(word):
 
 
 def _handle(sentence, start, end):
-    word = sentence[start:end]
-    return ("_" in word or sentence[start - 1:start] == "@" and start > 0
+    return ("_" in sentence[start:end] or start > 0 and sentence[start - 1] == "@"
             or sentence[end:end + 1] == "." and sentence[end + 1:end + 2].isalnum()
             or start > 1 and sentence[start - 1] == "." and sentence[start - 2].isalnum())
 
@@ -67,9 +93,13 @@ def _name(run):
     words = list(run)
     while words and words[0] in LEADING:
         words.pop(0)
-    words = [w for w in words if w not in CALENDAR and not w.isdigit()]
-    name = " ".join(words)
-    return None if not words or name in PLATFORMS or name in PEOPLES else tuple(words)
+    if any(w in CALENDAR for w in words):
+        words = [w for w in words if w not in CALENDAR and not w.isdigit()]
+    if not words or all(w.isdigit() for w in words) or " ".join(words) in _PLACES:
+        return None
+    if any(w in PLATFORMS or w in PEOPLES for w in words):
+        return None
+    return tuple(words)
 
 
 def names(text):
@@ -79,10 +109,11 @@ def names(text):
         runs, prev_end = [], None
         for index, m in enumerate(_WORD.finditer(sentence)):
             word = m.group(0)
-            if not _capitalised(word) or _handle(sentence, m.start(), m.end()):
+            joined = prev_end is not None and not sentence[prev_end:m.start()].strip()
+            if _handle(sentence, m.start(), m.end()) or not (_capitalised(word) or word.isdigit() and joined):
                 prev_end = None
                 continue
-            if prev_end is not None and not sentence[prev_end:m.start()].strip():
+            if joined:
                 runs[-1][1].append(_fold(word))
             else:
                 runs.append((index, [_fold(word)]))
@@ -103,9 +134,38 @@ def dates(text):
     return {d for d in out if 1 <= d[0] <= 12 and 1 <= d[1] <= 31}
 
 
+def sides(text):
+    """The side qualifiers an explanation names: women, reserves, juniors, bafana and age groups such as u20."""
+    text = text or ""
+    found = {label for label, pattern in SIDES if re.search(r"\b(?:" + pattern + r")\b", text, re.I)}
+    return found | {f"u{m.group(1)}" for m in _AGE.finditer(text)}
+
+
+def stages(text):
+    """The competition stages an explanation names; a semi-final or quarter-final is not also read as a final."""
+    text, found = text or "", set()
+    for label, pattern in STAGES:
+        rx = re.compile(r"\b(?:" + pattern + r")\b", re.I)
+        if rx.search(text):
+            found.add(label)
+            text = rx.sub(" ", text)
+    return found
+
+
 def _match(a, b):
-    n = min(len(a), len(b))
-    return a[:n] == b[:n]
+    if a == b:
+        return True
+    if len(a) == len(b) and a[-1] == b[-1] and all(
+            x == y or min(len(x), len(y)) >= SHORTENED_MIN and (x.startswith(y) or y.startswith(x))
+            for x, y in zip(a, b)):
+        return True
+    short, long_ = (a, b) if len(a) < len(b) else (b, a)
+    return (len(short) == 1 and long_[0] == short[0] and _marked(short[0])
+            and not any(w in SIDE_WORDS for w in long_[1:]))
+
+
+def _marked(word):
+    return any(ch.isdigit() for ch in word) or getattr(word, "capitals", False)
 
 
 def shared_names(a, b):
@@ -115,12 +175,21 @@ def shared_names(a, b):
     return min(left, right)
 
 
+def reason(a, b):
+    """Why a and b ({"explanation": str, "posts": set of member post ids}) are one event, or None when they are not:
+    {"shared_posts", "shared_names", "date"}, the date as MM-DD. No name or post text is returned."""
+    shared_posts = len(set(a.get("posts") or ()) & set(b.get("posts") or ()))
+    if shared_posts < MIN_SHARED_POSTS:
+        return None
+    ea, eb = a.get("explanation"), b.get("explanation")
+    da = dates(ea)
+    if not da or da != dates(eb) or sides(ea) != sides(eb) or stages(ea) != stages(eb):
+        return None
+    n = shared_names(names(ea), names(eb))
+    if n < SHARED_NAMES:
+        return None
+    return {"shared_posts": shared_posts, "shared_names": n, "date": [f"{m:02d}-{d:02d}" for m, d in sorted(da)]}
+
+
 def same_event(a, b):
-    """a and b: {"explanation": str, "posts": set of member post ids}."""
-    if len(set(a.get("posts") or ()) & set(b.get("posts") or ())) < MIN_SHARED_POSTS:
-        return False
-    da, db = dates(a.get("explanation")), dates(b.get("explanation"))
-    if da and db and not da & db:
-        return False
-    need = DATED_NAMES if da & db else UNDATED_NAMES
-    return shared_names(names(a.get("explanation")), names(b.get("explanation"))) >= need
+    return reason(a, b) is not None

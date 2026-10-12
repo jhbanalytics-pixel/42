@@ -1,4 +1,5 @@
 {
+ "masked": "creator handles in explanations replaced with 'a creator'",
  "source": "intelligence_42_agent.briefs rows with 2 or more explained cards, 1 Sep to 12 Oct 2026, and brief.sql post_set for each card re-read on 12 Oct 2026 (read time, not the brief's own read), with the pack evidence ids added as job.py does",
  "jobs": [
   {
@@ -1097,7 +1098,7 @@
      "kind": "hashtag",
      "title": "#manchesterunited",
      "title_written": null,
-     "explanation": "Creators in Nigeria discussed Manchester United on TikTok and Instagram, likely because of team performances and upcoming fixtures, with phlowzanalysis stating that Michael Carrick has until the Atletico game to change things.",
+     "explanation": "Creators in Nigeria discussed Manchester United on TikTok and Instagram, likely because of team performances and upcoming fixtures, with a creator stating that Michael Carrick has until the Atletico game to change things.",
      "creators3": 10,
      "posts3": 23,
      "also": [],

@@ -1,31 +1,34 @@
-"""One event, one Today card (core/brief/job.py _merge_events). On 12 October 2026 all 4 ZA cards were the MTN8 final
-and 4 of NG's 7 were one Liverpool and Manchester City match: _merge only merges a card that adds fewer than 3 posts
-not already on a higher card, and nothing compared what the cards said.
+"""One event, one Today card, in shadow (core/brief/job.py _merge_events, RELEASE-E-PLAN item 8h and the W8 header:
+every W8 item records and gates nothing until E3). On 12 October 2026 all 4 ZA cards were the MTN8 final and 4 of NG's
+7 were one Liverpool and Manchester City match.
 
-After the explanation gate (G10), the published cards of one market and run that describe the same event
-(core/brief/same_event.py) become one card: the one with the most creators in its 3 days keeps its place and lists the
-others under also. The merge only merges. A held card neither absorbs nor is absorbed, a card Today would not admit
-takes no part, and nothing held is ever shown."""
+After the explanation gate (G10), the job works out which published cards of one market and run describe the same
+event (core/brief/same_event.py) and records it in the run's counts under event_merge_shadow: the kept card (the
+higher ranked, 8h), each card it would take and why. Today's cards, holds and order do not change, and nothing reads
+the record. Switching to a live merge is an E3 line for Albert after the shadow data."""
 
 import json
-import re
 from datetime import date
 from pathlib import Path
 
 import pytest
 
 from core.brief import job
-from core.brief.tests.test_brief_job import (FakeConfirm, FakeModel, add_item, all_cards, brief, draft, held_items,
-                                             payload, world)
+from core.brief.payload import build_market_payload
+from core.brief.tests.test_brief_job import (FakeConfirm, FakeModel, add_item, add_post, all_cards, brief,
+                                             held_items, payload, rows, world)
 from core.brief.tests.test_brief_job import busy_waits, market_scope_is_valid_by_default  # noqa: F401  (autouse)
 from core.detect.tests import duck
 from core.trust.gate import Decision
 
 REPLAY = json.loads((Path(__file__).parent / "fixtures" / "same_event_replay.json").read_text(encoding="utf-8"))
 
-MTN8 = "Local creators are posting clips, likely because Mamelodi Sundowns beat Orlando Pirates in the MTN8 final."
-MTN8_2 = "Local creators are posting reactions, likely because Mamelodi Sundowns claimed the MTN8 over Orlando Pirates."
-DERBY = "Local creators are posting clips, likely because Kaizer Chiefs drew with Golden Arrows in the Betway league."
+MTN8 = ("Local creators are posting clips on 10 Oct, likely because Mamelodi Sundowns beat Orlando Pirates in the MTN8 "
+        "final.")
+MTN8_2 = ("Local creators are posting reactions, likely because Mamelodi Sundowns claimed the MTN8 final over Orlando "
+          "Pirates on 10 Oct.")
+DERBY = ("Local creators are posting clips, likely because Kaizer Chiefs drew with Golden Arrows in the Betway league on "
+         "10 Oct.")
 
 
 def link(con, item_id, post_ids):
@@ -52,85 +55,110 @@ class EventModel(FakeModel):
 
 
 def za_cards(r):
-    return {c["item_id"]: c for c in all_cards(payload(r, "ZA"))}
+    return [c["item_id"] for c in all_cards(payload(r, "ZA"))]
 
 
-def two_items(con, *, a_creators=4, b_creators=9, shared=3):
+def shadow(r):
+    return r.chain.finished[0]["counts"]["event_merge_shadow"]
+
+
+def two_items(con, *, shared=3):
     """za_a ranks first by worth; za_b has more creators in its 3 days; they share `shared` of za_a's posts."""
-    add_item(con, "ZA", "za_a", 0.97, label="mtn8 final", creators3=a_creators, posts3=12)
-    add_item(con, "ZA", "za_b", 0.96, label="sundowns pirates", creators3=b_creators, posts3=15)
+    add_item(con, "ZA", "za_a", 0.97, label="mtn8 final", creators3=4, posts3=12)
+    add_item(con, "ZA", "za_b", 0.96, label="sundowns pirates", creators3=9, posts3=15)
     link(con, "za_b", [f"za_a_p{k}" for k in range(1, shared + 1)])
 
 
-def test_two_cards_of_one_event_become_the_card_with_the_most_creators():
+def test_two_cards_of_one_event_are_recorded_and_both_stay_cards():
     con = world(n=0)
     two_items(con)
     r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": MTN8_2}), confirm=FakeConfirm())
-    za = za_cards(r)
-    assert list(za) == ["za_b"]
-    assert za["za_b"]["rank"] == 1
-    assert za["za_b"]["also"] == [{"item_id": "za_a", "title": "mtn8 final"}]
+    assert za_cards(r) == ["za_a", "za_b"]
+    assert [c["also"] for c in all_cards(payload(r, "ZA"))] == [[], []]
     assert payload(r, "ZA")["held_back"]["count"] == 0
-    assert {"market": "ZA", "into": "za_b", "item_id": "za_a", "by": "same_event"} in r.chain.finished[0]["counts"][
-        "merged"]
+    assert shadow(r)["ZA"] == {"judged": 2, "merges": [
+        {"kept": "za_a", "item_id": "za_b", "shared_posts": 3, "shared_names": 3, "date": ["10-10"]}]}
+    assert shadow(r)["NG"] == shadow(r)["KE"] == {"judged": 0, "merges": []}
+    assert r.chain.finished[0]["counts"]["merged"] == []
 
 
-def test_two_cards_of_different_events_stay_two_cards():
+def test_the_shadow_changes_nothing_a_reader_sees(monkeypatch):
+    def run_once():
+        con = world(n=0)
+        two_items(con)
+        r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": MTN8_2}), confirm=FakeConfirm())
+        counts = dict(r.chain.finished[0]["counts"])
+        counts.pop("event_merge_shadow")
+        return rows(r), counts
+
+    with_shadow = run_once()
+    monkeypatch.setattr(job, "_merge_events", lambda *a, **k: {"judged": 0, "merges": []})
+    assert run_once() == with_shadow
+
+
+def test_two_cards_of_different_events_record_nothing():
     con = world(n=0)
     two_items(con)
     r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": DERBY}), confirm=FakeConfirm())
-    za = za_cards(r)
-    assert sorted(za) == ["za_a", "za_b"]
-    assert za["za_a"]["also"] == [] and za["za_b"]["also"] == []
-    assert r.chain.finished[0]["counts"]["merged"] == []
+    assert za_cards(r) == ["za_a", "za_b"]
+    assert shadow(r)["ZA"]["merges"] == []
 
 
-def test_cards_of_one_event_that_share_fewer_than_three_posts_stay_two_cards():
+def test_cards_of_one_event_that_share_fewer_than_three_posts_record_nothing():
     con = world(n=0)
     two_items(con, shared=2)
     r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": MTN8_2}), confirm=FakeConfirm())
-    assert sorted(za_cards(r)) == ["za_a", "za_b"]
+    assert shadow(r)["ZA"]["merges"] == []
 
 
-def test_a_card_held_at_g10_absorbs_nothing_and_the_other_card_stays_a_card():
+def test_member_posts_count_every_post_of_the_post_set_not_only_the_pack():
+    # Three shared posts by one creator: a pack keeps 2 per creator, the post set keeps all 3.
     con = world(n=0)
-    two_items(con)
-    r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": MTN8_2}, fail={"sundowns pirates"}),
-              confirm=FakeConfirm())
-    za = za_cards(r)
-    assert list(za) == ["za_a"] and za["za_a"]["also"] == []
-    held = held_items(r, "ZA")
-    assert list(held) == ["za_b"] and held["za_b"]["reason"] == "explanation_failed"
-    assert "also" not in held["za_b"]
-    assert r.chain.finished[0]["counts"]["merged"] == []
+    add_item(con, "ZA", "za_a", 0.97, label="mtn8 final")
+    add_item(con, "ZA", "za_b", 0.96, label="sundowns pirates")
+    for k in (1, 2, 3):
+        add_post(con, "ZA", "za_a", f"solo_p{k}", "solo", "tiktok", geo="ZA")
+        link(con, "za_b", [f"solo_p{k}"])
+    # add_post loads the creator with each post; one creator row, as the table holds it.
+    con.execute("CREATE OR REPLACE TABLE core.creators AS SELECT DISTINCT * FROM core.creators")
+    r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": MTN8_2}), confirm=FakeConfirm())
+    assert [m["shared_posts"] for m in shadow(r)["ZA"]["merges"]] == [3]
 
 
-def test_a_weaker_card_held_at_g10_stays_its_own_held_item():
+def test_a_card_held_at_g10_takes_no_part():
     con = world(n=0)
     two_items(con)
     r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": MTN8_2}, fail={"mtn8 final"}),
               confirm=FakeConfirm())
-    za = za_cards(r)
-    assert list(za) == ["za_b"] and za["za_b"]["also"] == []
+    assert za_cards(r) == ["za_b"]
     assert list(held_items(r, "ZA")) == ["za_a"]
+    assert shadow(r)["ZA"] == {"judged": 1, "merges": []}
 
 
 # _merge_events on its own, on payload items
 
 
-def item(item_id, explanation, creators3, *, worth=0.5, publish=True, also=(), posts3=10, where=None):
-    numbers = [] if creators3 is None else [{"value": creators3, "unit": "creators in 3 days"},
-                                            {"value": posts3, "unit": "posts in 3 days"}]
+def item(item_id, explanation, creators3=5, *, worth=0.5, publish=True, where=None):
     where = where or ("today" if publish else "held_back")
     return {"item_id": item_id, "title": f"#{item_id}", "worth_raw": worth, "explanation": explanation,
-            "numbers": numbers, "also": list(also), "decision": Decision(publish, where, None, None, None, False)}
+            "numbers": [{"value": creators3, "unit": "creators in 3 days"}, {"value": 10, "unit": "posts in 3 days"}],
+            "also": [], "decision": Decision(publish, where, None, None, None, False)}
+
+
+class Refused(set):
+    pass
 
 
 @pytest.fixture
-def admitted(monkeypatch):
-    """Every item is one Today would admit, unless a test names it in the set this returns."""
-    refused = set()
-    monkeypatch.setattr(job, "_today_admits", lambda it, market, d: it["item_id"] not in refused)
+def refusals(monkeypatch):
+    refused = Refused()
+    refused.asked = []
+
+    def admits(it, market, d):
+        refused.asked.append(it["item_id"])
+        return it["item_id"] not in refused
+
+    monkeypatch.setattr(job, "_today_admits", admits)
     return refused
 
 
@@ -138,149 +166,138 @@ POSTS = {"p1", "p2", "p3"}
 
 
 def run_merge(items, posts=None):
-    merged = []
-    job._merge_events("ZA", date(2026, 10, 12), items, posts or {i["item_id"]: POSTS for i in items}, merged)
-    return merged
+    return job._merge_events("ZA", date(2026, 10, 12), items, posts or {i["item_id"]: POSTS for i in items})
 
 
-def shown(items):
-    return [i["item_id"] for i in items if not i.get("merged_into")]
+def pairs(result):
+    return [(m["kept"], m["item_id"]) for m in result["merges"]]
 
 
-def test_the_strongest_is_read_from_creators_then_posts_then_rank(admitted):
-    items = [item("first", MTN8, 3, worth=0.9), item("broad", MTN8_2, 8, worth=0.2), item("mid", MTN8, 5, worth=0.5)]
-    merged = run_merge(items)
-    assert shown(items) == ["broad"]
-    assert items[1]["also"] == [{"item_id": "mid", "title": "#mid"}, {"item_id": "first", "title": "#first"}]
-    assert [m["item_id"] for m in merged] == ["mid", "first"]
+def test_the_higher_ranked_card_is_kept_whatever_the_counts(refusals):
+    items = [item("low", MTN8, 2, worth=0.1), item("high", MTN8_2, 30, worth=0.9)]
+    assert pairs(run_merge(items)) == [("high", "low")]
 
 
-def test_creators_outrank_posts_when_they_disagree(admitted):
-    items = [item("posts", MTN8, 4, posts3=40, worth=0.9), item("creators", MTN8_2, 6, posts3=8, worth=0.1)]
-    run_merge(items)
-    assert shown(items) == ["creators"]
+def test_nothing_on_the_items_changes(refusals):
+    items = [item("a", MTN8, worth=0.9), item("b", MTN8_2, worth=0.1)]
+    before = json.dumps(items, default=repr, sort_keys=True)
+    assert pairs(run_merge(items)) == [("a", "b")]
+    assert json.dumps(items, default=repr, sort_keys=True) == before
 
 
-def test_a_count_that_is_not_a_number_reads_as_no_count(admitted):
-    items = [item("flag", MTN8, 5, worth=0.9), item("real", MTN8_2, 0, posts3=0, worth=0.1)]
-    items[0]["numbers"] = [{"value": True, "unit": "creators in 3 days"}, {"value": True, "unit": "posts in 3 days"}]
-    run_merge(items)
-    assert shown(items) == ["real"]
+def test_the_payload_is_the_same_with_and_without_the_shadow(refusals):
+    def items():
+        out = [item("a", MTN8, worth=0.9), item("b", MTN8_2, worth=0.1)]
+        for i in out:
+            i.update(kind="hashtag", state="emerging", evidence=[], claims=[], explanation_claim_ids=[],
+                     sparkline=None, specificity=None, critic={"ruled_out": True})
+        return out
+
+    plain = build_market_payload("ZA", "2026-10-12", items(), moments=[], boards=[], banners=[])
+    shadowed = items()
+    assert pairs(run_merge(shadowed)) == [("a", "b")]
+    assert build_market_payload("ZA", "2026-10-12", shadowed, moments=[], boards=[], banners=[]) == plain
 
 
-def test_an_item_routed_to_today_but_not_published_takes_no_part(admitted):
-    items = [item("unpublished", MTN8, 9, publish=False, where="today"), item("card", MTN8_2, 2)]
-    assert run_merge(items) == [] and shown(items) == ["unpublished", "card"]
+def test_a_card_joins_a_kept_card_only_if_it_is_one_event_with_every_card_already_taken(refusals):
+    # REVIEW-opus-d-event-merge I1: a roundup card naming two matches must not take both of them.
+    roundup = ("Creators posted on 11 Oct, likely because Manchester City beat Liverpool and Chelsea beat Bournemouth "
+               "in the Premier League.")
+    city = "Creators posted, likely because Manchester City beat Liverpool in the Premier League on 11 Oct."
+    chelsea = "Creators posted, likely because Chelsea beat Bournemouth in the Premier League on 11 Oct."
+    items = [item("roundup", roundup, worth=0.9), item("city", city, worth=0.5), item("chelsea", chelsea, worth=0.1)]
+    assert pairs(run_merge(items)) == [("roundup", "city")]
 
 
-def test_a_card_without_counts_is_weakest_and_ties_go_to_the_higher_rank(admitted):
-    items = [item("low", MTN8, None, worth=0.9), item("top", MTN8_2, 5, worth=0.8), item("twin", MTN8, 5, worth=0.1)]
-    run_merge(items)
-    assert shown(items) == ["top"]
+def test_a_card_joins_the_first_kept_card_it_matches(refusals):
+    one = "Fans posted on 10 Oct, likely because Mamelodi Sundowns, Orlando Pirates and Kaizer Chiefs met."
+    two = "Fans posted on 10 Oct, likely because Golden Arrows, Chippa United and Richards Bay met."
+    both = ("Fans posted on 10 Oct, likely because Mamelodi Sundowns, Orlando Pirates, Kaizer Chiefs, Golden Arrows, "
+            "Chippa United and Richards Bay met.")
+    items = [item("one", one, worth=0.9), item("two", two, worth=0.8), item("both", both, worth=0.7)]
+    assert pairs(run_merge(items)) == [("one", "both")]
 
 
-def test_an_absorbed_card_brings_its_own_also_with_it(admitted):
-    items = [item("kept", MTN8, 9), item("other", MTN8_2, 2, also=[{"item_id": "tag", "title": "#tag"}])]
-    run_merge(items)
-    assert items[0]["also"] == [{"item_id": "other", "title": "#other"}, {"item_id": "tag", "title": "#tag"}]
+def test_a_held_item_or_one_routed_to_today_but_not_published_takes_no_part(refusals):
+    items = [item("held", MTN8, publish=False, worth=0.9), item("unpublished", MTN8, publish=False, where="today",
+                                                                  worth=0.8), item("card", MTN8_2, worth=0.1)]
+    assert run_merge(items) == {"judged": 1, "merges": []}
 
 
-def test_an_absorbed_card_never_absorbs_a_third_one(admitted):
-    # bridge matches kept and far; kept and far share only two names, so far stays a card of its own.
-    kept = "Local fans posted, likely because Mamelodi Sundowns beat Orlando Pirates in the MTN8 final."
-    bridge = ("Local fans posted, likely because Mamelodi Sundowns, Orlando Pirates, the MTN8, Moses Mabhida and "
-              "Durban drew crowds.")
-    far = "Local fans posted, likely because the MTN8 drew crowds to Moses Mabhida in Durban."
-    items = [item("kept", kept, 9), item("bridge", bridge, 5), item("far", far, 2)]
-    run_merge(items)
-    assert shown(items) == ["kept", "far"]
+def test_a_card_today_would_not_admit_takes_no_part(refusals):
+    refusals.add("strong")
+    assert run_merge([item("strong", MTN8, worth=0.9), item("weak", MTN8_2, worth=0.1)])["merges"] == []
+    refusals.clear()
+    refusals.add("weak")
+    assert run_merge([item("strong", MTN8, worth=0.9), item("weak", MTN8_2, worth=0.1)])["merges"] == []
 
 
-def test_a_held_item_takes_no_part(admitted):
-    items = [item("held", MTN8, 9, publish=False), item("card", MTN8_2, 2)]
-    merged = run_merge(items)
-    assert shown(items) == ["held", "card"] and merged == []
-    assert items[0]["also"] == [] and items[1]["also"] == []
+def test_only_the_cards_the_payload_would_show_are_judged(refusals):
+    items = [item(f"c{k}", MTN8, worth=1 - k / 100) for k in range(12)]
+    result = run_merge(items)
+    assert result["judged"] == 10
+    assert sorted(refusals.asked) == sorted(f"c{k}" for k in range(10))
+    assert [m["item_id"] for m in result["merges"]] == [f"c{k}" for k in range(1, 10)]
 
 
-def test_a_card_today_would_not_admit_takes_no_part(admitted):
-    admitted.add("strong")
-    items = [item("strong", MTN8, 9), item("weak", MTN8_2, 2)]
-    assert run_merge(items) == [] and shown(items) == ["strong", "weak"]
-    admitted.clear()
-    admitted.add("weak")
-    items = [item("strong", MTN8, 9), item("weak", MTN8_2, 2)]
-    assert run_merge(items) == [] and shown(items) == ["strong", "weak"]
-
-
-def test_member_posts_are_read_per_item(admitted):
-    items = [item("a", MTN8, 9), item("b", MTN8_2, 2)]
-    assert run_merge(items, {"a": {"p1", "p2", "p3"}, "b": {"p1", "p2", "x"}}) == []
-
-
-def test_the_merge_never_shows_an_item_the_gate_held_and_never_holds_one_it_published(admitted):
-    items = [item("a", MTN8, 9), item("b", MTN8_2, 2), item("c", MTN8, 4, publish=False)]
-    before = [(i["item_id"], i["decision"]) for i in items]
-    run_merge(items)
-    assert [(i["item_id"], i["decision"]) for i in items] == before
-
-
-def test_the_payload_shows_a_merged_item_nowhere_but_its_kept_cards_also(admitted):
-    from core.brief.payload import build_market_payload
-
-    a, b = item("a", MTN8, 9), item("b", MTN8_2, 2)
-    for i in (a, b):
-        i.update(kind="hashtag", state="emerging", evidence=[], claims=[], explanation_claim_ids=[],
-                 sparkline=None, specificity=None, critic={"ruled_out": True})
-    run_merge([a, b])
-    p = build_market_payload("ZA", "2026-10-12", [a, b], moments=[], boards=[], banners=[])
-    assert [c["item_id"] for c in p["cards"] + p["more"]] == ["a"]
-    assert p["cards"][0]["also"] == [{"item_id": "b", "title": "#b"}]
-    assert p["held_back"]["count"] == 0
-    assert [c["item_id"] for c in p["critic"]] == ["a", "b"]
+def test_member_posts_are_read_per_item(refusals):
+    items = [item("a", MTN8, worth=0.9), item("b", MTN8_2, worth=0.1)]
+    assert run_merge(items, {"a": {"p1", "p2", "p3"}, "b": {"p1", "p2", "x"}})["merges"] == []
 
 
 # Replay of every stored brief with 2 or more explained cards (fixtures/same_event_replay.json). Every card in it was
-# a published card, so each is admitted here; the groups are pinned by hand from reading the explanations.
+# a published card, so each is admitted here.
 
-EXPECTED = {
-    ("2026-10-12", "ZA"): {"2e884d7ea2": ["4652356782", "81bdee2c0e", "e980768970"]},
-    ("2026-10-12", "NG"): {"3791be7f80": ["ad7f67c05b", "9cfaabf463", "59090e1b52"],
-                           "04a0aad7b9": ["6a9690baaa"]},
-}
+BRIEFS = {("2026-09-29", "KE", "brief-20260929-d26a26c2fa00"): ["59090e1b52", "4a433cfd13"],
+          ("2026-09-29", "NG", "brief-20260929-d26a26c2fa00"): ["65d987c234", "10c0dd5f5c"],
+          ("2026-09-29", "NG", "brief-20260929-d85aced54f9c"): ["8aad723fe3", "10c0dd5f5c", "18edce810b"],
+          ("2026-10-05", "NG", "brief-20261005-8e019e9c7270"): ["306b75a27e", "1df3f88973"],
+          ("2026-10-07", "KE", "brief-20261007-665e5edab6ab"): ["1df3f88973", "11598e2bc3"],
+          ("2026-10-10", "ZA", "brief-20261010-51fd5f698437"): ["e9fcecfee6", "59090e1b52"],
+          ("2026-10-12", "NG", "brief-20261012-a15d3f51d4e1"): ["ad7f67c05b", "59090e1b52", "9cfaabf463", "6a9690baaa",
+                                                                 "b1001f23b8", "3791be7f80", "04a0aad7b9"],
+          ("2026-10-12", "ZA", "brief-20261012-a15d3f51d4e1"): ["e980768970", "2e884d7ea2", "4652356782",
+                                                                 "81bdee2c0e"]}
+# Pinned by hand from reading the explanations. NG 12 Oct: the Liverpool and Manchester City match is on 4 cards, all
+# naming 11 Oct, kept on the higher ranked "Liverpool and Manchester City match". ZA 12 Oct: the 4 MTN8 cards are one
+# event, but only the first names its date, so the rule, which needs both cards to name the same date, records none.
+EXPECTED = {("2026-10-12", "NG"): [("ad7f67c05b", "59090e1b52"), ("ad7f67c05b", "9cfaabf463"),
+                                   ("ad7f67c05b", "3791be7f80")]}
 
 
-def replay_items(brief_):
-    return [item(c["item_id"], c["explanation"], c["creators3"], worth=1 - c["rank"] / 100,
-                 also=c["also"]) | {"title": c["title"], "numbers": [
-                     {"value": c["creators3"], "unit": "creators in 3 days"},
-                     {"value": c["posts3"], "unit": "posts in 3 days"}]} for c in brief_["cards"]]
+def replay(brief_):
+    items = [item(c["item_id"], c["explanation"], c["creators3"], worth=1 - c["rank"] / 100) for c in brief_["cards"]]
+    return run_merge(items, {c["item_id"]: set(c["member_posts"]) for c in brief_["cards"]})
 
 
-@pytest.mark.parametrize("brief_", REPLAY["briefs"], ids=lambda b: f"{b['brief_date']}-{b['market']}-{b['run_id']}")
-def test_replay_merges_only_cards_of_one_event(admitted, brief_):
-    items = replay_items(brief_)
-    posts = {c["item_id"]: set(c["member_posts"]) for c in brief_["cards"]}
-    merged = run_merge(items, posts)
+def short(result):
+    return [(m["kept"][:10], m["item_id"][:10]) for m in result["merges"]]
+
+
+def test_the_replay_fixture_holds_every_brief_and_card():
+    assert {(b["brief_date"], b["market"], b["run_id"]): [c["item_id"][:10] for c in b["cards"]]
+            for b in REPLAY["briefs"]} == BRIEFS
+
+
+@pytest.mark.parametrize("key", sorted(BRIEFS))
+def test_replay_records_only_cards_of_one_event(refusals, key):
+    brief_ = next(b for b in REPLAY["briefs"] if (b["brief_date"], b["market"], b["run_id"]) == key)
+    assert short(replay(brief_)) == EXPECTED.get(key[:2], [])
+
+
+@pytest.mark.parametrize("key,apart", [
+    (("2026-10-07", "KE"), ("1df3f88973", "11598e2bc3")),  # Dangote and Sifuna
+    (("2026-10-12", "NG"), ("ad7f67c05b", "b1001f23b8")),  # Liverpool and City, Chelsea and Bournemouth
+    (("2026-10-12", "NG"), ("ad7f67c05b", "6a9690baaa")),  # Liverpool and City, Manchester United
+    (("2026-10-12", "NG"), ("3791be7f80", "04a0aad7b9")),  # the same two stories as topics
+])
+def test_replay_keeps_the_named_pairs_apart(refusals, key, apart):
+    brief_ = next(b for b in REPLAY["briefs"] if (b["brief_date"], b["market"]) == key)
+    ids = {c["item_id"][:10] for c in brief_["cards"]}
+    assert set(apart) <= ids
+    merged = {frozenset(p) for p in short(replay(brief_))}
     groups = {}
-    for m in merged:
-        groups.setdefault(m["into"][:10], []).append(m["item_id"][:10])
-    assert groups == EXPECTED.get((brief_["brief_date"], brief_["market"]), {})
-
-
-def test_replay_12_october_za_gives_one_mtn8_card(admitted):
-    za = next(b for b in REPLAY["briefs"] if (b["brief_date"], b["market"]) == ("2026-10-12", "ZA"))
-    items = replay_items(za)
-    run_merge(items, {c["item_id"]: set(c["member_posts"]) for c in za["cards"]})
-    kept = [i for i in items if not i.get("merged_into")]
-    assert len(kept) == 1
-    assert next(c for c in za["cards"] if c["item_id"] == kept[0]["item_id"])["title_written"] == "MTN8 final"
-    assert [a["title"] for a in kept[0]["also"]] == ["bafanabafana, mofokeng, relebohile", "#sundowns", "#MTN8",
-                                                     "#MTN8Final"]
-
-
-def test_the_replay_fixture_holds_the_pairs_that_must_stay_apart():
-    ng = next(b for b in REPLAY["briefs"] if (b["brief_date"], b["market"]) == ("2026-10-12", "NG"))
-    titles = {c["item_id"][:10]: c["title_written"] or c["title"] for c in ng["cards"]}
-    assert titles["b1001f23b8"] == "Chelsea vs Bournemouth"
-    assert re.search("Manchester City", titles["ad7f67c05b"]) and titles["6a9690baaa"] == "#manchesterunited"
+    for kept, taken in short(replay(brief_)):
+        groups.setdefault(kept, {kept}).add(taken)
+    assert frozenset(apart) not in merged
+    assert not any(set(apart) <= g for g in groups.values())
