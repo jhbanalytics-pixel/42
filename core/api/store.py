@@ -1588,6 +1588,13 @@ or None."""
             f"  ON {key('k')} = {key('c')}\n"
             if creators else
             "SELECT CAST(NULL AS STRING), c.platform, c.handle, CAST(NULL AS STRING) FROM cur c\n")
+        # Every display name of every creators row of a hidden id, as hidden_display_names reads them, not only the
+        # name on the row with the most followers.
+        every_name = (
+            "SELECT CAST(NULL AS STRING), CAST(NULL AS STRING), CAST(NULL AS STRING), k.display_name FROM ids i\n"
+            f"  JOIN {creators} k ON k.creator_id = i.creator_id\n"
+            "UNION ALL\n"
+            if creators else "")
         rows = self._query(
             f"WITH {current},\n"
             f"ids AS (SELECT s.creator_id FROM {view} s WHERE s.creator_id IS NOT NULL\n"
@@ -1596,6 +1603,7 @@ or None."""
             f"{named}\n"
             "SELECT n.creator_id, n.platform, n.handle, n.display_name FROM named n\n"
             "UNION ALL\n"
+            f"{every_name}"
             f"{by_handle}"
             "WHERE c.status != 'lifted' AND c.platform IS NOT NULL AND c.handle IS NOT NULL")
         return {"ids": {r["creator_id"] for r in rows if r.get("creator_id")},

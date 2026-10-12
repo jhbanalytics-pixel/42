@@ -295,6 +295,17 @@ def _legacy_comments_gone(records, earlier, keys, gone):
             gone.add(e.get("id"))
 
 
+UNREADABLE_SEND = ("the list of hidden people cannot be read, so it could name someone it must not; nothing was "
+                   "sent and it is tried again on the next run")
+
+
+def list_unreadable(store):
+    """True while either reading of who is hidden fails (read_hidden, and today.hidden_people that the cards and
+    alerts are built from). A screen corrects itself on its next read; a sent message cannot be recalled, so the
+    digest and the channel post do not go out in this state (Albert's call N7, the lead's ruling of 12 Oct 2026)."""
+    return read_hidden(store) is None or today.hidden_people(store) is None
+
+
 def mask(value, hidden):
     """value with the hidden people's handles, links and names masked in every string (R10); hidden None masks every
     @mention and profile link, as no handle list exists."""

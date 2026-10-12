@@ -18,7 +18,7 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from core.api import code_title, discover, store as store_mod
+from core.api import code_title, discover, privacy, store as store_mod
 from core.api.agent_app import current_watches
 from core.api.alerts import _written_title
 from core.api.digest import _day, app_url, topic_url
@@ -244,7 +244,8 @@ def main(argv=None):
     if isinstance(scheduled, dict):
         scheduled = [scheduled]
     url = os.environ.get("CHANNEL_WEBHOOK_URL") or ""
-    resp, fired = gather(store_mod.get_store(), watches, date)
+    store = store_mod.get_store()
+    resp, fired = gather(store, watches, date)
     base = app_url()
     if args.post and url:
         try:
@@ -252,6 +253,10 @@ def main(argv=None):
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 2
+        if privacy.list_unreadable(store):
+            # A post cannot be taken back; the next run posts once the list reads again.
+            print(f"Not posted: {privacy.UNREADABLE_SEND}.", file=sys.stderr)
+            return 1
         try:
             post(render(resp, fired, scheduled, base, flavour), url)
         except ChannelError as exc:

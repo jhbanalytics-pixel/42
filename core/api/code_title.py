@@ -244,24 +244,29 @@ def mask_hidden_terms(label, names, handles):
     handles their handles. A term names one when, with accents and case ignored,
     - its letters are a name's or a handle's letters ("thabomokoena", "#thabodances", "thabo dances");
     - one of its words is a handle, or the letters of a name of two or more words;
+    - its words hold a handle's words in order ("posts about thabo dances" for thabo_dances);
     - its words hold every word of a name of two or more words, in any order ("fans of thabo mokoena");
-    - or terms made only of a name's words hold all of them together ("mofokeng, relebohile"), and then each of those
-      terms is masked.
+    - or terms that share a word with such a name hold all of its words together ("mofokeng goal, relebohile"), and
+      then each of those terms is masked.
     A one word name masks only a term that is that word, as the projection leaves a name such as Music that is also a
     word inside a longer term."""
     if not isinstance(label, str) or not (names or handles):
         return label
     names = [w for w in (_folded(str(n).lstrip("@")) for n in names or ()) if w]
-    handles = {"".join(_folded(str(h).lstrip("@"))) for h in handles or ()} - {""}
+    handle_words = [w for w in (_folded(str(h).lstrip("@")) for h in handles or ()) if w]
+    handles = {"".join(w) for w in handle_words}
     whole = {"".join(n) for n in names} | handles
     word_keys = {"".join(n) for n in names if len(n) > 1} | handles
     multi = [set(n) for n in names if len(n) > 1]
+    runs = [w for w in handle_words if len(w) > 1]
     parts = _SEPARATORS.split(label)
     terms = [_folded(part) for part in parts]
-    hit = [bool(t) and ("".join(t) in whole or any(w in word_keys for w in t) or any(m <= set(t) for m in multi))
+    hit = [bool(t) and ("".join(t) in whole or any(w in word_keys for w in t) or any(m <= set(t) for m in multi)
+                        or any(t[i:i + len(r)] == r for r in runs for i in range(len(t) - len(r) + 1)))
            for t in terms]
     for m in multi:
-        inside = [i for i, t in enumerate(terms) if t and set(t) <= m]
+        # A name split across terms ("mofokeng goal, relebohile"): the terms that share a word with it, together.
+        inside = [i for i, t in enumerate(terms) if t and m & set(t)]
         if m <= {w for i in inside for w in terms[i]}:
             for i in inside:
                 hit[i] = True

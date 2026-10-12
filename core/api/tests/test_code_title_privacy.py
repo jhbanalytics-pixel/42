@@ -5,6 +5,7 @@ Every post here is shaped as the stored briefs write evidence: id, platform, han
 author name field (0 of the 442 records in the 12 Oct payloads carry one). A hidden person's display name therefore
 comes from the hidden list, which reads it from their creators rows (today.hidden_names), never from the value the
 projection is proving something about."""
+import ast
 import hashlib
 import inspect
 import json
@@ -104,7 +105,7 @@ def test_todays_reader_masks_the_name_learned_from_the_creators_row():
 
 # The terms that name the hidden person.
 
-@pytest.mark.parametrize("label, masked", [
+LABEL_CASES = [
     ("thabo mokoena, amapiano", "***, amapiano"),
     ("thabomokoena", "***"),
     ("fans of thabo mokoena, amapiano", "***, amapiano"),
@@ -115,7 +116,13 @@ def test_todays_reader_masks_the_name_learned_from_the_creators_row():
     ("thabo\u0085mokoena, amapiano", "***, amapiano"),
     ("thabo dances, amapiano", "***, amapiano"),
     ("#thabodances", "***"),
-])
+    ("dance with thabodances, amapiano", "***, amapiano"),
+    ("thabo, mokoena fans, amapiano", "***, ***, amapiano"),
+    ("mokoena goal, thabo, amapiano", "***, ***, amapiano"),
+]
+
+
+@pytest.mark.parametrize("label, masked", LABEL_CASES)
 def test_a_label_term_that_names_the_hidden_person_is_masked(label, masked):
     got = shown({"cards": [card(label, "Amapiano is life")]})["cards"][0]
     assert got["title"] == masked
@@ -125,6 +132,13 @@ def test_a_label_term_that_names_the_hidden_person_is_masked(label, masked):
 def test_za_card_03s_label_masks_a_hidden_footballer_whose_names_are_two_terms():
     hidden = (frozenset({"tiktok:rele_10"}), frozenset(), frozenset({"Relebohile Mofokeng"}))
     got = shown({"cards": [card("bafanabafana, mofokeng, relebohile", "Bafana")]}, hidden)["cards"][0]
+    assert got["title"] == "bafanabafana, ***, ***"
+    assert code_title.shown_title(got) == "Posts about Bafana Bafana"
+
+
+def test_za_card_03s_label_masks_the_footballer_when_one_name_term_carries_another_word():
+    hidden = (frozenset({"tiktok:rele_10"}), frozenset(), frozenset({"Relebohile Mofokeng"}))
+    got = shown({"cards": [card("bafanabafana, mofokeng goal, relebohile", "Bafana")]}, hidden)["cards"][0]
     assert got["title"] == "bafanabafana, ***, ***"
     assert code_title.shown_title(got) == "Posts about Bafana Bafana"
 
@@ -185,14 +199,18 @@ def test_the_safe_value_is_the_default():
 
 
 def test_only_the_brief_jobs_calls_opt_out_and_every_one_of_them_does():
+    """Every call to without_hidden in the product code, found as a call (so a keyword on a later line counts), with
+    whether it turns label_terms off."""
     root = Path(today.__file__).resolve().parents[2]
     calls = {}
     for path in sorted((root / "core").rglob("*.py")):
         if "tests" in path.parts:
             continue
-        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if re.search(r"\bwithout_hidden\(", line) and not line.lstrip().startswith("def "):
-                calls[f"{path.relative_to(root).as_posix()}:{n}"] = "label_terms=False" in line
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Call) and getattr(node.func, "id", getattr(node.func, "attr", None)) == "without_hidden":
+                off = [k for k in node.keywords if k.arg == "label_terms"]
+                calls[f"{path.relative_to(root).as_posix()}:{node.lineno}"] = bool(off) and not (
+                    isinstance(off[0].value, ast.Constant) and off[0].value.value is True)
     brief = {k: v for k, v in calls.items() if k.startswith("core/brief/")}
     assert len(brief) == 7 and all(brief.values()), brief
     assert not any(v for k, v in calls.items() if not k.startswith("core/brief/")), calls
@@ -203,7 +221,7 @@ def test_the_brief_jobs_projection_leaves_label_terms_alone():
     assert today.without_hidden(value, HIDDEN, label_terms=False)["cards"][0]["title"] == "thabo mokoena, amapiano"
 
 
-@pytest.mark.parametrize("value, path", [
+SURFACES = [
     ({"breaking": [{"item_id": "b1", "market": "ZA", "kind": "hashtag", "title": "#thabomokoena"}]},
      ("breaking", 0, "title")),
     ({"not_assessed": {"items": [{"item_id": "n1", "title": "thabo mokoena, amapiano", "reason_text": "x"}]}},
@@ -212,7 +230,12 @@ def test_the_brief_jobs_projection_leaves_label_terms_alone():
     ({"subjects": [{"item_id": "s1", "label": "thabo mokoena, amapiano"}]}, ("subjects", 0, "label")),
     ({"items": [{"item_id": "h1", "kind": "topic", "label": "thabo mokoena, amapiano"}]}, ("items", 0, "label")),
     ([{"item_id": "m1", "kind": "topic", "label": "thabo mokoena, amapiano"}], (0, "label")),
-])
+    ({"moments": [{"date": DAY, "name": "#thabomokoena", "kind": "seasonal_item", "source": "brief",
+                   "item_ids": ["m2"]}]}, ("moments", 0, "name")),
+]
+
+
+@pytest.mark.parametrize("value, path", SURFACES)
 def test_every_label_surface_is_masked(value, path):
     got = shown(value)
     for step in path:
@@ -265,8 +288,11 @@ def _alerts(monkeypatch, label, hidden=HIDDEN, waiting=False):
     return discover.build_alerts(Store(), [{"watch_id": "w1", "label": label}])
 
 
-@pytest.mark.parametrize("label", ["Posts about Thabo Mokoena and Amapiano", "thabo mokoena, amapiano",
-                                   "Thabo Mokoena watch"])
+WATCH_LABELS = ["Posts about Thabo Mokoena and Amapiano", "thabo mokoena, amapiano", "Thabo Mokoena watch",
+                "Posts about Thabo Dances"]
+
+
+@pytest.mark.parametrize("label", WATCH_LABELS)
 def test_a_watch_label_saved_before_the_person_was_hidden_is_masked(monkeypatch, label):
     out = _alerts(monkeypatch, label)
     assert out["alerts"][0]["label"] == "Posts about Amapiano"
@@ -332,3 +358,90 @@ def test_bigquery_reads_the_display_names_in_the_hidden_lists_one_job(monkeypatc
     keys, ids, names = privacy.read_hidden(store)
     assert {NAME, "Zinhle Dube"} <= names and len(client.sql) == 1
     assert "display_name" in client.sql[0]
+
+
+def test_every_parametrized_list_is_read():
+    # A parametrize over a shortened list passes by running less, so the lists are pinned here.
+    assert (len(LABEL_CASES), len(SURFACES), len(WATCH_LABELS)) == (13, 7, 4)
+
+
+def test_a_calendar_moment_keeps_its_name():
+    """Only a seasonal item's moment is an item's label; a holiday or a fixture is the calendar's public name."""
+    value = {"moments": [{"date": DAY, "name": "Thabo Mokoena Day", "kind": "holiday", "source": "calendar"}]}
+    assert shown(value)["moments"][0]["name"] == "Thabo Mokoena Day"
+
+
+# Lexicon and Seeds leave out a row that names a hidden person, as Searching now leaves out a term.
+
+def test_lexicon_leaves_out_a_term_that_names_a_hidden_person():
+    from core.api import lexicon
+
+    plain = lexicon.build_lexicon(FixtureStore(), "ZA")
+    first = plain["terms"][0]["item_id"]
+
+    class Store(Creators):
+        def lexicon_terms(self, *args):
+            return [dict(r, label="#thabomokoena", canonical_key="#thabomokoena") if r["item_id"] == first else r
+                    for r in super().lexicon_terms(*args)]
+
+    body = lexicon.build_lexicon(Store(), "ZA")
+    assert len(body["terms"]) == len(plain["terms"]) - 1
+    assert leaks(body) == []
+
+
+def test_seeds_leave_out_a_seed_that_names_a_hidden_person():
+    from core.api import seeds
+
+    class Store(Creators):
+        def seed_queue(self, *args):
+            rows = super().seed_queue(*args)
+            return [dict(r, item_id=None, query="thabo mokoena fans", kind="query") if n == 0 else r
+                    for n, r in enumerate(rows)]
+
+    body = seeds.build_seeds(Store(), "ZA", today=__import__("datetime").date(2026, 10, 1))
+    assert leaks(body) == []
+    assert body["queue"] or body["results"]
+
+
+# While the hidden list cannot be read, nothing is sent that could name someone (Albert's call N7, the lead's ruling
+# of 12 Oct 2026): the digest and the channel post refuse and are tried again on the next run.
+
+def test_the_digest_refuses_to_send_while_the_hidden_list_cannot_be_read(monkeypatch, tmp_path, capsys):
+    from core.api.tests import test_digest as td
+
+    td.FakeSMTP.made, td.FakeSMTP.fail, td.FakeSMTP.refuse = [], None, {}
+    monkeypatch.setattr(digest.smtplib, "SMTP", td.FakeSMTP)
+    for k, v in (("F42_DATA", "fixtures"), ("RUN_DATE", td.TODAY), ("GMAIL_USER", td.SENDER),
+                 ("GMAIL_APP_PASSWORD", td.PASSWORD), ("DIGEST_RECIPIENTS", ", ".join(td.TO)),
+                 ("DIGEST_SEND_ENABLED", "true")):
+        monkeypatch.setenv(k, v)
+    runs = digest.chain.MemoryRunsStore()
+    monkeypatch.setattr(digest, "runs_store", lambda: runs)
+    watches = tmp_path / "watches.json"
+    watches.write_text(json.dumps([td.watch("w_step", {"kind": "hashtag", "value": "#fixture_za_step"},
+                                            {"state_in": ["emerging"]})]), encoding="utf-8")
+    argv = ["--send", "--date", td.D30, "--watches", str(watches)]
+    monkeypatch.setattr(privacy, "read_hidden", lambda store: None)
+    assert digest.main(argv) == 1
+    assert td.FakeSMTP.made == [] and runs.rows == []
+    assert "hidden people cannot be read" in capsys.readouterr().err
+    monkeypatch.setattr(privacy, "read_hidden", lambda store: (set(), set(), set()))
+    monkeypatch.setattr(digest.discover, "hidden_people", lambda store: None)
+    monkeypatch.setattr(today, "hidden_people", lambda store: None)
+    assert digest.main(argv) == 1 and td.FakeSMTP.made == []
+
+
+def test_the_channel_post_refuses_while_the_hidden_list_cannot_be_read(monkeypatch, tmp_path, capsys):
+    from core.api.tests import test_channel as tc
+
+    monkeypatch.setenv("F42_DATA", "fixtures")
+    monkeypatch.setenv("F42_APP_URL", tc.BASE)
+    monkeypatch.setenv("CHANNEL_WEBHOOK_URL", tc.TEAMS_HOOK)
+    posted = []
+    monkeypatch.setattr(channel, "post", lambda payload, url, http=None: posted.append(payload))
+    path = tmp_path / "watches.json"
+    path.write_text(json.dumps(tc.WATCHES), encoding="utf-8")
+    monkeypatch.setattr(privacy, "read_hidden", lambda store: None)
+    assert channel.main(["--post", "--date", tc.D30, "--watches", str(path)]) == 1
+    assert posted == []
+    assert "hidden people cannot be read" in capsys.readouterr().err

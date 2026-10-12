@@ -318,8 +318,8 @@ def without_hidden(value, hidden, label_terms=True):
 
 def _mask_label_terms(value, names, handles):
     """value with each label term that names a hidden person masked (code_title.mask_hidden_terms): the title, label
-    and aliases of every item, card, row, subject, news story and watch in it, and the ask and count line where they
-    repeat the title. Post records keep their words (their authors are handled above) and a creator item keeps its
+    and aliases of every item, card, row, subject, news story and watch in it, the name of a seasonal item's moment,
+    and the ask and count line where they repeat the title. Post records keep their words (their authors are handled above) and a creator item keeps its
     account name, since the hidden person's own item is masked by the rule above."""
     if not names and not handles:
         return value
@@ -334,6 +334,9 @@ def _mask_label_terms(value, names, handles):
         if isinstance(item.get("aliases"), list):
             item["aliases"] = [code_title.mask_hidden_terms(a, names, handles) if isinstance(a, str) else a
                                for a in item["aliases"]]
+        # A seasonal item's moment on Today is named by the item's title (core/brief/payload.py moments).
+        if item.get("kind") == "seasonal_item" and isinstance(item.get("name"), str):
+            item["name"] = code_title.mask_hidden_terms(item["name"], names, handles)
         if isinstance(old, str) and item["title"] != old:
             for key in ("ask", "count_line"):
                 if isinstance(item.get(key), str):

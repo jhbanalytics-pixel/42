@@ -12,7 +12,8 @@ import re
 
 from core.api.discover import BadRequest, figure
 from core.api.seedpath import _keyword, _market
-from core.api.today import LABELS
+from core.api import code_title
+from core.api.today import LABELS, hidden_people, label_people
 from core.detect.items import is_generic
 
 __all__ = ["BadRequest", "NotReady", "build_lexicon"]
@@ -95,10 +96,14 @@ def build_lexicon(store, market):
     first_collect = store.first_ok_collect_date()
     warming = first_collect is None or str(first_collect) > prior_from
     rid = run["run_id"]
+    # A word or hashtag that names a hidden person is left out, with its seed term (Albert's ruling, 12 Oct 2026).
+    names, handles = label_people(hidden_people(store))
     terms = []
     for r in rows:
         label = _label(r)
         if not _shown(r) or label is None or not r.get("posts_window"):
+            continue
+        if code_title.mask_hidden_terms(label, names, handles) != label:
             continue
         scope = {"item_id": r["item_id"], "market": market}
         hashed = [dict(scope, start=start, end=end, posts=r["posts_window"])]

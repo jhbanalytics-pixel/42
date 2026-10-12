@@ -20,7 +20,9 @@ replies can echo what was sent.
 Once a day: every send appends runs rows, stage digest, run_date today in SAST (RUN_DATE overrides): a running row
 before the connection and an ok or failed row after it. A run whose day already has an ok row, or a running row
 younger than SEND_WINDOW, sends nothing and exits 0; a failed one is retried. If those rows cannot be read or the
-running row cannot be written, nothing is sent and the job exits 1. The runs table is append-only.
+running row cannot be written, nothing is sent and the job exits 1. The runs table is append-only. While the
+list of hidden people cannot be read, nothing is sent and the job exits 1 without a runs row, so the next run tries
+again: a sent mail cannot be recalled, and it could name someone hidden.
 """
 import argparse
 import datetime as dt
@@ -305,8 +307,13 @@ def main_send(args):
     if why:
         print(why)
         return 0
+    store = store_mod.get_store()
+    if privacy.list_unreadable(store):
+        # No runs row is written, so the next run sends as if this one had not happened.
+        print(f"Not sent: {privacy.UNREADABLE_SEND}.", file=sys.stderr)
+        return 1
     try:
-        out = build(store_mod.get_store(), _watches(args.watches), args.date, app_url())
+        out = build(store, _watches(args.watches), args.date, app_url())
     except NotReady as exc:
         print(f"No digest: {exc}.", file=sys.stderr)
         return 1

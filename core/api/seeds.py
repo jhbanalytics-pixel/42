@@ -16,7 +16,8 @@ import re
 
 from core.api.discover import BadRequest, figure
 from core.api.store import creator_key
-from core.api.today import LABELS, MARKETS, PLATFORM_WORDS
+from core.api import code_title
+from core.api.today import LABELS, MARKETS, PLATFORM_WORDS, hidden_people, label_people
 
 __all__ = ["BadRequest", "build_seeds"]
 
@@ -225,10 +226,20 @@ def build_seeds(store, market, today=None):
                                       "topics while it collects.")
     cmap = {r["item_id"]: r for r in store.map_items(sorted({r["item_id"] for r in rows if r.get("item_id")})) or []}
     hidden = _suppressed_keys(store)
+    # A seed whose label or search names a hidden person is left out, with the link built from it (Albert's ruling,
+    # 12 Oct 2026), as Searching now leaves out such a term.
+    names, handles = label_people(hidden_people(store))
+
+    def names_hidden(r):
+        texts = (_label(r, cmap.get(r.get("item_id"))), r.get("query"))
+        return any(isinstance(t, str) and code_title.mask_hidden_terms(t, names, handles) != t for t in texts)
+
     kept, people = [], set()
     for r in rows:
         person = _names_a_person(r, cmap.get(r.get("item_id")))
         if person and _handle_key(r) in hidden:
+            continue
+        if names_hidden(r):
             continue
         kept.append(r)
         if person:
