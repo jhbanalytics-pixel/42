@@ -390,3 +390,188 @@ def test_a_corpus_without_the_link_rows_cannot_pass_once_the_candidate_has_the_p
     stripped["reads"] = {k: v for k, v in stripped["reads"].items() if k not in ids}
     receipt = h.build_receipt(ch.git_head(), stripped, base_commit=A)
     assert receipt["verdict"] == "fail" and any(p.startswith("layer 1: ") and "evidence_links" in p for p in receipt["problems"])
+
+
+
+# Release C as the previous release (the D0 gate). Its writers store evidence_links as well as answer_meta, and its readers act on the key:
+# with a creator hidden in the fixture world they withhold a comment whose post they cannot place, the claims that cite it and the so_what
+# items of those claims, mark the read with privacy, and prune the link to what is still shown. A candidate link row is therefore judged
+# against Release C's own row of the same case, made by Release C's producer from Release C's own complete row and read by the same
+# readers, never against the key-absent twin. The keys a candidate may add are the ones the previous writers do not already store.
+
+C = "d0aebe7"
+
+
+def link_row(ask_id, links="absent"):
+    out = row(ask_id)
+    if links != "absent":
+        out["record"]["evidence_links"] = copy.deepcopy(links)
+    return out
+
+
+def links_read(ask_id, links, body=None):
+    got = reads_for([ask_id], body or {"ask_id": "a"})[ask_id]
+    got["ask read"]["links"] = copy.deepcopy(links)
+    return got
+
+
+def links_world(candidate_got, prior_got, *, candidate_stored=LINKED, prior_stored=LINKED, keep=True):
+    """One candidate link row a_c1 with the previous release's own row of the same case a_p1 as its twin, and (keep) one more own row
+    a_p9 that came back as stored, so the rule has a row that shows the previous reader giving a link back."""
+    candidate, prior = link_row("a_c1", candidate_stored), [link_row("a_p1", prior_stored)]
+    reads = {"a_c1": links_read("a_c1", candidate_got), "a_p1": links_read("a_p1", prior_got)}
+    if keep:
+        prior.append(link_row("a_p9", LINKED))
+        reads["a_p9"] = links_read("a_p9", LINKED)
+    return reads, [candidate], {"a_c1": "a_p1"}, prior
+
+
+def test_the_keys_the_previous_writers_store_are_read_from_what_they_wrote():
+    with_meta, without = [row("a_1"), row("a_2", "failed")], [row("a_1", meta=False)]
+    assert h.prior_record_keys(without, []) == set()
+    assert h.prior_record_keys(with_meta, []) == {"answer_meta"}
+    assert h.prior_record_keys(with_meta, [link_row("a_p1", LINKED), link_row("a_p2")]) == {"answer_meta", "evidence_links"}
+    assert h.prior_record_keys(with_meta, [link_row("a_p2")]) == {"answer_meta"}, "a producer that stored no key on any row stores none"
+
+
+def test_a_candidate_may_add_only_the_keys_the_previous_writers_do_not_store():
+    assert h.declared_keys(set()) == h.RECORD_KEYS == {"answer_meta", "evidence_links"}
+    assert h.declared_keys({"answer_meta"}) == h.C_RECORD_KEYS == {"evidence_links"}
+    assert h.declared_keys({"answer_meta", "evidence_links"}) == set()
+
+
+def test_a_tree_whose_producer_writes_no_link_gives_no_rows_of_its_own_and_the_suffix_names_them(candidate, tmp_path):
+    written, linked = candidate
+    assert h.linked_rows(ch.archive(A, tmp_path / "a"), written, suffix="_prior") == []
+    own = h.linked_rows(h.ROOT, written, suffix="_prior")
+    assert [h.ask_id_of(r) for r in own] == [h.ask_id_of(r) + "_prior" for r in linked]
+    assert all(r["run_id"] == h.ask_id_of(r) and r["record"]["answer_meta"]["ask_id"] == h.ask_id_of(r) for r in own)
+
+
+def test_a_candidate_row_read_as_the_previous_release_reads_its_own_row_of_the_case_is_no_problem():
+    assert h.links_problems(*links_world("absent", "absent")) == []
+    assert h.links_problems(*links_world(LINKED, LINKED)) == []
+
+
+def test_a_previous_reader_that_withholds_its_own_link_must_withhold_the_candidate_one_too():
+    problems = h.links_problems(*links_world(LINKED, "absent"))
+    assert len(problems) == 1 and problems[0].startswith("a_c1 ask read.evidence_links:") and "a_p1" in problems[0]
+
+
+def test_where_the_previous_reader_gives_its_own_link_back_as_stored_the_candidate_link_must_come_back_as_the_candidate_stored_it():
+    other = {"v": 2, "parents": {"x_comment_7001": "x_fixture_3"}}
+    problems = h.links_problems(*links_world("absent", LINKED, candidate_stored=other))
+    assert len(problems) == 1 and problems[0].startswith("a_c1 ask read.evidence_links: the previous reader gave absent where the record stores")
+
+
+def test_a_read_of_the_previous_release_own_row_that_does_not_show_the_key_is_a_problem():
+    reads, rows, twin_of, prior = links_world(LINKED, LINKED)
+    del reads["a_p1"]["ask read"]["links"]
+    assert any(p.startswith("a_p1 ask read.evidence_links:") and "does not show" in p for p in h.links_problems(reads, rows, twin_of, prior))
+
+
+def test_own_rows_none_of_which_came_back_as_stored_prove_nothing_and_are_a_problem():
+    problems = h.links_problems(*links_world("absent", "absent", keep=False))
+    assert problems == ["ask read.evidence_links: no link row of the previous release came back as stored, so its rows show nothing"]
+
+
+def c_data(candidate_body, prior_body):
+    """layer_problems data for a previous release that stores both keys: one candidate link row against its own row of the case."""
+    reads, rows, twin_of, prior = links_world("absent", "absent")
+    reads["a_c1"]["ask read"] = {**read(candidate_body), "links": "absent"}
+    reads["a_p1"]["ask read"] = {**read(prior_body), "links": "absent"}
+    return {"rows": rows, "legacy": [], "twin_of": twin_of, "paths": set(), "reads": reads, "reverse": {}, "prior_stores_answer_meta": True,
+            "layer2_rows": rows, "prior_linked": prior, "prior_record_keys": ["answer_meta", "evidence_links"]}
+
+
+MARKER = {"v": 1, "state": "applied", "withheld": {"posts": 1, "claims": 1, "summary": False}}
+
+
+def test_a_withholding_the_previous_release_gives_its_own_row_too_is_not_an_undeclared_key():
+    body = {"ask_id": "a", "answer": {"so_what": []}, "privacy": MARKER}
+    assert h.layer_problems(c_data(body, body))["layer 2"] == []
+
+
+def test_a_withholding_marker_on_the_candidate_row_alone_is_undeclared_and_a_lost_so_what_is_missing():
+    plain = {"ask_id": "a", "answer": {"so_what": [{"text": "x", "claim_ids": ["c1"]}]}}
+    withheld = {"ask_id": "a", "answer": {"so_what": []}, "privacy": MARKER}
+    problems = h.layer_problems(c_data(withheld, plain))["layer 2"]
+    assert "a_c1 ask read.privacy: undeclared key" in problems
+    assert any(p.startswith("a_c1 ask read.answer.so_what[0]") for p in problems)
+
+
+def test_a_key_the_previous_release_already_stores_is_no_longer_declared_against_it():
+    problems = h.layer_problems(c_data({"ask_id": "a", "evidence_links": LINKED}, {"ask_id": "a"}))["layer 2"]
+    assert "a_c1 ask read.evidence_links: undeclared key" in problems
+
+
+def test_a_previous_release_own_link_row_nobody_read_is_a_problem_not_a_pass():
+    data = c_data({"ask_id": "a"}, {"ask_id": "a"})
+    del data["reads"]["a_p1"]
+    assert any(p.startswith("a_p1: no read of") for p in h.layer_problems(data)["layer 2"])
+
+
+# the evidence: Release C's own writers and readers judging this tree
+
+@pytest.fixture(scope="module")
+def at_c(tmp_path_factory):
+    return h.collect(ch.ROOT, tmp_path_factory.mktemp("old-readers-at-c"), base_commit=C)
+
+
+def c_link_ids(suffix=""):
+    return [f"a_20261009_link{number:02d}{suffix}" for number in range(1, len(NAMES) + 1)]
+
+
+def test_the_harness_derives_that_release_c_stores_both_keys_and_reads_its_own_link_rows(at_c):
+    assert at_c["prior_stores_answer_meta"] is True and at_c["prior_record_keys"] == ["answer_meta", "evidence_links"]
+    own = c_link_ids("_prior")
+    assert [h.ask_id_of(r) for r in at_c["prior_linked"]] == own
+    assert [at_c["twin_of"][c] for c in c_link_ids()] == own
+    assert all(at_c["reads"][i]["ask read"]["status"] == 200 for i in own)
+
+
+def test_release_c_withholds_what_it_cannot_place_on_its_own_rows_as_stated_here(at_c):
+    """The stated withholding of Release C's readers in the fixture world, pinned here and not read from the rows: the link comes back
+    on the linked and the partial case and on no other, and every case but the linked one carries the privacy marker."""
+    reads = at_c["reads"]
+    want = dict(zip(NAMES, [LINKED, LINKED, "absent", "absent", "absent"]))
+    for suffix in ("_prior", ""):
+        for name, ask_id in zip(NAMES, c_link_ids(suffix)):
+            assert reads[ask_id]["ask read"]["links"] == want[name], (name, suffix)
+            assert ("privacy" in reads[ask_id]["ask read"]["shape"]) is (name != "linked"), (name, suffix)
+
+
+def test_the_receipt_at_release_c_says_pass_with_no_problem(at_c):
+    receipt = h.build_receipt(ch.git_head(), at_c, base_commit=C)
+    assert receipt["problems"] == [] and receipt["verdict"] == "pass", receipt["problems"]
+    assert receipt["legacy_rows"] == 4 and receipt["json_paths"] > 0 and receipt["corpus_rows"] > 4
+
+
+def test_against_release_c_a_candidate_read_that_differs_from_its_own_row_is_found(at_c):
+    pruned, first, second = c_link_ids()[NAMES.index("post_pruned")], c_link_ids()[0], c_link_ids()[1]
+    through = copy.deepcopy(at_c)
+    through["reads"][pruned]["ask read"]["links"] = LINKED
+    assert any(p.startswith(f"{pruned} ask read.evidence_links:") for p in h.layer_problems(through)["layer 2"])
+    lost = copy.deepcopy(at_c)
+    lost["reads"][first]["ask read"]["links"] = "absent"
+    assert any(p.startswith(f"{first} ask read.evidence_links:") for p in h.layer_problems(lost)["layer 2"])
+    unmarked = copy.deepcopy(at_c)
+    shape = unmarked["reads"][second]["ask read"]["shape"]
+    unmarked["reads"][second]["ask read"]["shape"] = {k: v for k, v in shape.items() if k != "privacy"}
+    assert f"{second} ask read.privacy: missing from the candidate" in h.layer_problems(unmarked)["layer 2"]
+
+
+def test_a_candidate_tree_that_writes_a_link_release_c_cannot_read_fails_the_receipt(tmp_path):
+    """A planted incompatibility: the candidate producer writes the link under version 2, which Release C's reader takes for no link.
+    The tree is this one with that one line changed; the harness must fail it against Release C and still pass it against Release A,
+    whose readers do not act on the key."""
+    tree = h.copy_tree(ch.ROOT, tmp_path / "mutant")
+    checks = tree / "core/agent/checks.py"
+    text = checks.read_text(encoding="utf-8")
+    planted = text.replace('return {"v": 1, "parents": parents} if parents else None', 'return {"v": 2, "parents": parents} if parents else None')
+    assert planted != text, "the producer line moved; the mutation must be planted again"
+    checks.write_text(planted, encoding="utf-8")
+    receipt = h.build_receipt("c" * 40, h.collect(tree, tmp_path / "c", base_commit=C), base_commit=C)
+    assert receipt["verdict"] == "fail"
+    assert any(p.startswith("layer 2: a_20261009_link01 ask read.evidence_links:") for p in receipt["problems"]), receipt["problems"]
+    assert h.build_receipt("c" * 40, h.collect(tree, tmp_path / "a", base_commit=A), base_commit=A)["verdict"] == "pass"
