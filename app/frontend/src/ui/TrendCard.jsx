@@ -11,7 +11,7 @@ import {safeUrl} from '../safeUrl.js';
 import {AskAboutThis} from './AskAboutThis.jsx';
 import {Facts} from './Facts.jsx';
 import {UNNAMED_TOPIC_WORDS, isUnnamedTopic} from '../topicNames.js';
-import {codeCountLine, codeTitle} from '../codeTitle.js';
+import {clean, codeCountLine, codeTitle} from '../codeTitle.js';
 import '../styles/today42.css';
 import '../styles/discover42.css';
 import '../styles/alerts42.css';
@@ -109,9 +109,11 @@ export const isYoutubeChannelAuthor = (item) => item.platform === 'youtube' && t
    card whose brief wrote a title that passed its checks (title_written) leads
    with it, and the cluster label stays beside it as smaller text. A card
    without one, or whose written title only repeats the label, reads as before. */
-const titleKey = (text) => String(text || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+const titleKey = (text) => String(text || '').toUpperCase().replace(/[^\p{L}\p{N}]+/gu, '');
 export function writtenTitle(card, label){
-  const written = card && card.explained === true && typeof card.title_written === 'string' ? card.title_written.trim() : '';
+  /* Spacing is read as core/api/code_title.py reads it, invisible separators included. */
+  const written = card && card.explained === true && typeof card.title_written === 'string'
+    ? clean(card.title_written).split(/\s+/u).filter(Boolean).join(' ') : '';
   return written && titleKey(written) !== titleKey(label) ? written : null;
 }
 

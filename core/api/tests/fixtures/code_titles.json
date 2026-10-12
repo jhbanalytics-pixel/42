@@ -1,59 +1,681 @@
 {
-  "about": "Cards with no written title and the plain title code builds for them (core/api/code_title.py and app/frontend/src/codeTitle.js read this one list). null means the card keeps its label.",
-  "cases": [
-    {"name": "12 Oct ZA card 03", "card": {"kind": "topic", "title": "bafanabafana, mofokeng, relebohile", "explained": true,
-      "explanation": "Creators in South Africa on TikTok are reacting to football clubs including Mamelodi Sundowns and Orlando Pirates around the MTN8 tournament.",
-      "evidence": [{"text": "Masandawana ke nako || #mamelodisundowns #mtn8 #football #final #fyp "}, {"text": "#orlandopirates #kaizerchiefs #derby #greenscreen "}],
-      "count_line": "5 creators and 11 posts in 3 days (bafanabafana, mofokeng, relebohile only)"},
-      "title": "Posts about Bafana Bafana, Mofokeng and Relebohile",
-      "count_line": "5 creators and 11 posts in 3 days (Bafana Bafana, Mofokeng and Relebohile only)"},
-    {"name": "a hashtag keeps its # form and its casing", "card": {"kind": "hashtag", "title": "#MTN8Final"}, "title": "Posts about #MTN8Final"},
-    {"name": "a lower case hashtag stays as written when no post cases it", "card": {"kind": "hashtag", "title": "#football",
-      "evidence": [{"text": "#football #fyp"}, {"text": "Football is life"}]}, "title": "Posts about #football"},
-    {"name": "a hashtag takes the casing its posts give the same hashtag", "card": {"kind": "hashtag", "title": "#premierleague",
-      "evidence": [{"text": "Big day #PremierLeague"}, {"text": "#premierleague #epl"}, {"text": "Premier League again #PremierLeague"}]},
-      "title": "Posts about #PremierLeague"},
-    {"name": "a hashtag takes the casing most of its posts use, not one post's (12 Oct NG card 04)", "card": {"kind": "hashtag", "title": "#manchesterunited",
-      "evidence": [{"text": "#manchesterunited #mufc"}, {"text": "#manchesterunited"}, {"text": "Manchester United #Manchesterunited"},
-                   {"text": "#manchesterunited #fyp"}, {"text": "Glory #manchesterunited"}]},
-      "title": "Posts about #manchesterunited"},
-    {"name": "a hashtag cased equally both ways takes the casing seen first", "card": {"kind": "hashtag", "title": "#amapiano",
-      "evidence": [{"text": "#Amapiano vibes"}, {"text": "#amapiano"}]}, "title": "Posts about #Amapiano"},
-    {"name": "a single term is proper cased", "card": {"kind": "topic", "title": "amapiano"}, "title": "Posts about Amapiano"},
-    {"name": "two terms are joined with and", "card": {"kind": "topic", "title": "kaizer, chiefs"}, "title": "Posts about Kaizer and Chiefs"},
-    {"name": "a term inside a longer term is said once", "card": {"kind": "topic", "title": "ouaddou, abdeslam, abdeslam ouaddou"},
-      "title": "Posts about Abdeslam Ouaddou"},
-    {"name": "12 Oct KE card 01", "card": {"kind": "topic", "title": "kikuyucomedy, tata wa, tata", "explained": true,
-      "explanation": "Creators in Kenya are sharing reactions to sports teams.", "evidence": [{"text": "Hizi ni gani."}]},
-      "title": "Posts about Kikuyucomedy and Tata Wa"},
-    {"name": "an acronym in the label is kept", "card": {"kind": "topic", "title": "MTN8, final"}, "title": "Posts about MTN8 and Final"},
-    {"name": "an acronym is kept as the posts write it", "card": {"kind": "topic", "title": "sabc, news", "evidence": [{"text": "SABC News tonight"}]},
-      "title": "Posts about SABC and News"},
-    {"name": "the posts' spaced form names a joined term", "card": {"kind": "topic", "title": "mamelodisundowns",
-      "evidence": [{"text": "#MamelodiSundowns all the way"}, {"text": "Mamelodi Sundowns win the cup"}]}, "title": "Posts about Mamelodi Sundowns"},
-    {"name": "the most used casing wins", "card": {"kind": "topic", "title": "mofokeng",
-      "evidence": [{"text": "Mofokeng scores"}, {"text": "MOFOKENG!!"}, {"text": "what a goal Mofokeng"}, {"text": "mofokeng"}]}, "title": "Posts about Mofokeng"},
-    {"name": "an explained card's explanation cases a term", "card": {"kind": "topic", "title": "sundowns, mtn8", "explained": true,
-      "explanation": "Creators are reacting around the MTN8 tournament."}, "title": "Posts about Sundowns and MTN8"},
-    {"name": "an unexplained card's explanation is not read", "card": {"kind": "topic", "title": "sundowns, mtn8", "explained": false,
-      "explanation": "Creators are reacting around the MTN8 tournament."}, "title": "Posts about Sundowns and Mtn8"},
-    {"name": "three or more terms are listed with a final and", "card": {"kind": "topic", "title": "pirates, chiefs, derby, soweto"},
-      "title": "Posts about Pirates, Chiefs, Derby and Soweto"},
-    {"name": "the same term twice is said once", "card": {"kind": "topic", "title": "bafana bafana, bafanabafana"}, "title": "Posts about Bafana Bafana"},
-    {"name": "a short doubled word is not split", "card": {"kind": "topic", "title": "haha"}, "title": "Posts about Haha"},
-    {"name": "spacing is tidied", "card": {"kind": "topic", "title": "  tata   wa ,  kikuyu  "}, "title": "Posts about Tata Wa and Kikuyu"},
-    {"name": "a creator card keeps its label", "card": {"kind": "creator", "title": "Thabo Dance"}, "title": null},
-    {"name": "a sound card keeps its label", "card": {"kind": "sound", "title": "original sound"}, "title": null},
-    {"name": "a card with no kind keeps its label", "card": {"title": "amapiano"}, "title": null},
-    {"name": "a handle in the label keeps the label", "card": {"kind": "topic", "title": "@thabo, dance"}, "title": null},
-    {"name": "a masked handle keeps the label", "card": {"kind": "topic", "title": "@***, dance"}, "title": null},
-    {"name": "a masked name keeps the label", "card": {"kind": "topic", "title": "***"}, "title": null},
-    {"name": "a masked link keeps the label", "card": {"kind": "topic", "title": "[link], dance"}, "title": null},
-    {"name": "an unnamed topic keeps its words", "card": {"kind": "topic", "title": "Topic 4558a7fe"}, "title": null},
-    {"name": "an empty label", "card": {"kind": "topic", "title": "  "}, "title": null},
-    {"name": "a label that is not text", "card": {"kind": "topic", "title": 42}, "title": null},
-    {"name": "a term with no letters keeps the label", "card": {"kind": "topic", "title": "dance, ..."}, "title": null},
-    {"name": "a count line without the label is unchanged", "card": {"kind": "topic", "title": "kaizer, chiefs", "count_line": "4 creators, 3 days"},
-      "title": "Posts about Kaizer and Chiefs", "count_line": "4 creators, 3 days"}
-  ]
+ "about": "Cards with no written title and the plain title code builds for them (core/api/code_title.py and app/frontend/src/codeTitle.js read this one list). null means the card keeps its label. Both runners pin the number of cases.",
+ "cases": [
+  {
+   "name": "12 Oct ZA card 03",
+   "card": {
+    "kind": "topic",
+    "title": "bafanabafana, mofokeng, relebohile",
+    "explained": true,
+    "explanation": "Creators in South Africa on TikTok are reacting to football clubs including Mamelodi Sundowns and Orlando Pirates around the MTN8 tournament.",
+    "evidence": [
+     {
+      "text": "Masandawana ke nako || #mamelodisundowns #mtn8 #football #final #fyp "
+     },
+     {
+      "text": "#orlandopirates #kaizerchiefs #derby #greenscreen "
+     }
+    ],
+    "count_line": "5 creators and 11 posts in 3 days (bafanabafana, mofokeng, relebohile only)"
+   },
+   "title": "Posts about Bafana Bafana, Mofokeng and Relebohile",
+   "count_line": "5 creators and 11 posts in 3 days (Bafana Bafana, Mofokeng and Relebohile only)"
+  },
+  {
+   "name": "12 Oct KE card 01, whose label really ends with tata wa and tata; no joined token is split",
+   "card": {
+    "kind": "topic",
+    "title": "kikuyucomedy, tata wa, tata",
+    "explained": true,
+    "explanation": "Creators in Kenya are sharing reactions to sports teams.",
+    "evidence": [
+     {
+      "text": "Hizi ni gani."
+     }
+    ]
+   },
+   "title": "Posts about Kikuyucomedy and Tata Wa"
+  },
+  {
+   "name": "a hashtag keeps its # form and its casing",
+   "card": {
+    "kind": "hashtag",
+    "title": "#MTN8Final"
+   },
+   "title": "Posts about #MTN8Final"
+  },
+  {
+   "name": "a lower case hashtag stays as written when no post cases it",
+   "card": {
+    "kind": "hashtag",
+    "title": "#football",
+    "evidence": [
+     {
+      "text": "#football #fyp"
+     },
+     {
+      "text": "Football is life"
+     }
+    ]
+   },
+   "title": "Posts about #football"
+  },
+  {
+   "name": "a hashtag takes the form most posts use",
+   "card": {
+    "kind": "hashtag",
+    "title": "#premierleague",
+    "evidence": [
+     {
+      "text": "Big day #PremierLeague"
+     },
+     {
+      "text": "#premierleague #epl"
+     },
+     {
+      "text": "Premier League again #PremierLeague"
+     }
+    ]
+   },
+   "title": "Posts about #PremierLeague"
+  },
+  {
+   "name": "12 Oct NG card 04: the most used hashtag form wins, lower case included",
+   "card": {
+    "kind": "hashtag",
+    "title": "#manchesterunited",
+    "evidence": [
+     {
+      "text": "#manchesterunited #mufc"
+     },
+     {
+      "text": "#manchesterunited"
+     },
+     {
+      "text": "Manchester United #Manchesterunited"
+     },
+     {
+      "text": "#manchesterunited #fyp"
+     },
+     {
+      "text": "Glory #manchesterunited"
+     }
+    ]
+   },
+   "title": "Posts about #manchesterunited"
+  },
+  {
+   "name": "the most used hashtag form wins when a minority form is seen first",
+   "card": {
+    "kind": "hashtag",
+    "title": "#manchesterunited",
+    "evidence": [
+     {
+      "text": "#Manchesterunited"
+     },
+     {
+      "text": "#manchesterunited"
+     },
+     {
+      "text": "#manchesterunited"
+     }
+    ]
+   },
+   "title": "Posts about #manchesterunited"
+  },
+  {
+   "name": "a hashtag used once in each casing takes the form seen first",
+   "card": {
+    "kind": "hashtag",
+    "title": "#amapiano",
+    "evidence": [
+     {
+      "text": "#Amapiano vibes"
+     },
+     {
+      "text": "#amapiano"
+     }
+    ]
+   },
+   "title": "Posts about #Amapiano"
+  },
+  {
+   "name": "a post counts once however often it writes a form",
+   "card": {
+    "kind": "hashtag",
+    "title": "#amapiano",
+    "evidence": [
+     {
+      "text": "#AMAPIANO #AMAPIANO #AMAPIANO"
+     },
+     {
+      "text": "#Amapiano"
+     },
+     {
+      "text": "#Amapiano"
+     }
+    ]
+   },
+   "title": "Posts about #Amapiano"
+  },
+  {
+   "name": "a single term is proper cased",
+   "card": {
+    "kind": "topic",
+    "title": "amapiano"
+   },
+   "title": "Posts about Amapiano"
+  },
+  {
+   "name": "two terms are joined with and",
+   "card": {
+    "kind": "topic",
+    "title": "kaizer, chiefs"
+   },
+   "title": "Posts about Kaizer and Chiefs"
+  },
+  {
+   "name": "three or more terms are listed with a final and",
+   "card": {
+    "kind": "topic",
+    "title": "pirates, chiefs, derby, soweto"
+   },
+   "title": "Posts about Pirates, Chiefs, Derby and Soweto"
+  },
+  {
+   "name": "a term inside a longer term is said once",
+   "card": {
+    "kind": "topic",
+    "title": "ouaddou, abdeslam, abdeslam ouaddou"
+   },
+   "title": "Posts about Abdeslam Ouaddou"
+  },
+  {
+   "name": "the same term joined and spaced is said once",
+   "card": {
+    "kind": "topic",
+    "title": "bafana bafana, bafanabafana"
+   },
+   "title": "Posts about Bafana Bafana"
+  },
+  {
+   "name": "a word and its doubled form are said once",
+   "card": {
+    "kind": "topic",
+    "title": "bafana, bafanabafana"
+   },
+   "title": "Posts about Bafana Bafana"
+  },
+  {
+   "name": "a doubled form and the word are said once",
+   "card": {
+    "kind": "topic",
+    "title": "bafanabafana, bafana"
+   },
+   "title": "Posts about Bafana Bafana"
+  },
+  {
+   "name": "a word inside its spaced double is said once",
+   "card": {
+    "kind": "topic",
+    "title": "bafana, bafana bafana"
+   },
+   "title": "Posts about Bafana Bafana"
+  },
+  {
+   "name": "a term in another order is said once",
+   "card": {
+    "kind": "topic",
+    "title": "chiefs kaizer, kaizer chiefs"
+   },
+   "title": "Posts about Chiefs Kaizer"
+  },
+  {
+   "name": "an acronym in the label is kept",
+   "card": {
+    "kind": "topic",
+    "title": "MTN8, final"
+   },
+   "title": "Posts about MTN8 and Final"
+  },
+  {
+   "name": "a cased label keeps its casing against a post's",
+   "card": {
+    "kind": "topic",
+    "title": "Mofokeng",
+    "evidence": [
+     {
+      "text": "MOFOKENG"
+     },
+     {
+      "text": "MOFOKENG"
+     }
+    ]
+   },
+   "title": "Posts about Mofokeng"
+  },
+  {
+   "name": "an acronym is kept as the posts write it",
+   "card": {
+    "kind": "topic",
+    "title": "sabc, news",
+    "evidence": [
+     {
+      "text": "SABC News tonight"
+     }
+    ]
+   },
+   "title": "Posts about SABC and News"
+  },
+  {
+   "name": "the most used casing wins",
+   "card": {
+    "kind": "topic",
+    "title": "mofokeng",
+    "evidence": [
+     {
+      "text": "Mofokeng scores"
+     },
+     {
+      "text": "MOFOKENG!!"
+     },
+     {
+      "text": "what a goal Mofokeng"
+     },
+     {
+      "text": "mofokeng"
+     }
+    ]
+   },
+   "title": "Posts about Mofokeng"
+  },
+  {
+   "name": "the most used casing wins when a minority form is seen first",
+   "card": {
+    "kind": "topic",
+    "title": "mofokeng",
+    "evidence": [
+     {
+      "text": "MOFOKENG"
+     },
+     {
+      "text": "Mofokeng"
+     },
+     {
+      "text": "Mofokeng"
+     }
+    ]
+   },
+   "title": "Posts about Mofokeng"
+  },
+  {
+   "name": "one post in capitals does not outvote the rest",
+   "card": {
+    "kind": "topic",
+    "title": "amapiano",
+    "evidence": [
+     {
+      "text": "AMAPIANO"
+     },
+     {
+      "text": "amapiano"
+     },
+     {
+      "text": "amapiano"
+     }
+    ]
+   },
+   "title": "Posts about Amapiano"
+  },
+  {
+   "name": "a word only posts write in lower case starts with a capital",
+   "card": {
+    "kind": "topic",
+    "title": "amapiano",
+    "evidence": [
+     {
+      "text": "amapiano vibes"
+     }
+    ]
+   },
+   "title": "Posts about Amapiano"
+  },
+  {
+   "name": "a joined word more posts use beats a spaced form",
+   "card": {
+    "kind": "topic",
+    "title": "afrobeats",
+    "evidence": [
+     {
+      "text": "Afrobeats"
+     },
+     {
+      "text": "Afrobeats night"
+     },
+     {
+      "text": "big Afrobeats"
+     },
+     {
+      "text": "Afro Beats"
+     }
+    ]
+   },
+   "title": "Posts about Afrobeats"
+  },
+  {
+   "name": "a post never splits a word",
+   "card": {
+    "kind": "topic",
+    "title": "therapist",
+    "evidence": [
+     {
+      "text": "The Rapist"
+     },
+     {
+      "text": "The Rapist"
+     },
+     {
+      "text": "Therapist says"
+     }
+    ]
+   },
+   "title": "Posts about Therapist"
+  },
+  {
+   "name": "a post never splits a joined term",
+   "card": {
+    "kind": "topic",
+    "title": "mamelodisundowns",
+    "evidence": [
+     {
+      "text": "#MamelodiSundowns all the way"
+     },
+     {
+      "text": "Mamelodi Sundowns win the cup"
+     }
+    ]
+   },
+   "title": "Posts about Mamelodisundowns"
+  },
+  {
+   "name": "an explanation never splits a word",
+   "card": {
+    "kind": "topic",
+    "title": "amapiano",
+    "explained": true,
+    "explanation": "Ama Piano is trending",
+    "evidence": [
+     {
+      "text": "Amapiano"
+     },
+     {
+      "text": "Amapiano"
+     }
+    ]
+   },
+   "title": "Posts about Amapiano"
+  },
+  {
+   "name": "a spaced term takes a spaced post form",
+   "card": {
+    "kind": "topic",
+    "title": "mamelodi sundowns",
+    "evidence": [
+     {
+      "text": "Mamelodi Sundowns win"
+     }
+    ]
+   },
+   "title": "Posts about Mamelodi Sundowns"
+  },
+  {
+   "name": "an explained card's explanation cases a term",
+   "card": {
+    "kind": "topic",
+    "title": "sundowns, mtn8",
+    "explained": true,
+    "explanation": "Creators are reacting around the MTN8 tournament."
+   },
+   "title": "Posts about Sundowns and MTN8"
+  },
+  {
+   "name": "an unexplained card's explanation is not read",
+   "card": {
+    "kind": "topic",
+    "title": "sundowns, mtn8",
+    "explained": false,
+    "explanation": "Creators are reacting around the MTN8 tournament."
+   },
+   "title": "Posts about Sundowns and Mtn8"
+  },
+  {
+   "name": "only a long word written twice is spaced",
+   "card": {
+    "kind": "topic",
+    "title": "murmur, couscous, hahahaha, banyanabanyana"
+   },
+   "title": "Posts about Murmur, Couscous, Hahahaha and Banyana Banyana"
+  },
+  {
+   "name": "a short doubled word is not split",
+   "card": {
+    "kind": "topic",
+    "title": "haha"
+   },
+   "title": "Posts about Haha"
+  },
+  {
+   "name": "spacing is tidied",
+   "card": {
+    "kind": "topic",
+    "title": "  tata   wa ,  kikuyu  "
+   },
+   "title": "Posts about Tata Wa and Kikuyu"
+  },
+  {
+   "name": "dashes separate terms as commas do",
+   "card": {
+    "kind": "topic",
+    "title": "amapiano \u2013 live, bafana \u2014 fans, sound - name"
+   },
+   "title": "Posts about Amapiano, Live, Bafana, Fans, Sound and Name"
+  },
+  {
+   "name": "a zero width no-break space inside a label goes",
+   "card": {
+    "kind": "topic",
+    "title": "ama\ufeffpiano"
+   },
+   "title": "Posts about Amapiano"
+  },
+  {
+   "name": "the other invisible separators read as spaces",
+   "card": {
+    "kind": "topic",
+    "title": "mamelodi\u0085sundowns,\u001ckaizer\u001fchiefs",
+    "evidence": [
+     {
+      "text": "Mamelodi\u001eSundowns win"
+     }
+    ]
+   },
+   "title": "Posts about Mamelodi Sundowns and Kaizer Chiefs"
+  },
+  {
+   "name": "a written title of invisible characters only is no title",
+   "card": {
+    "kind": "topic",
+    "title": "amapiano",
+    "explained": true,
+    "title_written": "\ufeff\u0085"
+   },
+   "title": "Posts about Amapiano",
+   "shown": "Posts about Amapiano"
+  },
+  {
+   "name": "tone marks stay when a post leaves them out",
+   "card": {
+    "kind": "topic",
+    "title": "\u1eb9\u0300k\u1ecd\u0301",
+    "evidence": [
+     {
+      "text": "\u1eb8k\u1ecd ni"
+     }
+    ]
+   },
+   "title": "Posts about \u1eb8\u0300k\u1ecd\u0301"
+  },
+  {
+   "name": "a decomposed label reads as its composed form",
+   "card": {
+    "kind": "topic",
+    "title": "cafe\u0301",
+    "evidence": [
+     {
+      "text": "Caf\u00e9 culture"
+     }
+    ]
+   },
+   "title": "Posts about Caf\u00e9"
+  },
+  {
+   "name": "a creator card keeps its label",
+   "card": {
+    "kind": "creator",
+    "title": "Thabo Dance"
+   },
+   "title": null
+  },
+  {
+   "name": "a sound card keeps its label",
+   "card": {
+    "kind": "sound",
+    "title": "original sound"
+   },
+   "title": null
+  },
+  {
+   "name": "a card with no kind keeps its label",
+   "card": {
+    "title": "amapiano"
+   },
+   "title": null
+  },
+  {
+   "name": "an unnamed topic keeps its words",
+   "card": {
+    "kind": "topic",
+    "title": "Topic 4558a7fe"
+   },
+   "title": null
+  },
+  {
+   "name": "an unnamed term is left out",
+   "card": {
+    "kind": "topic",
+    "title": "Topic 4558a7fe, amapiano"
+   },
+   "title": "Posts about Amapiano"
+  },
+  {
+   "name": "an empty label",
+   "card": {
+    "kind": "topic",
+    "title": "  "
+   },
+   "title": null
+  },
+  {
+   "name": "a label that is not text",
+   "card": {
+    "kind": "topic",
+    "title": 42
+   },
+   "title": null
+  },
+  {
+   "name": "a handle term is left out",
+   "card": {
+    "kind": "topic",
+    "title": "@thabo, dance"
+   },
+   "title": "Posts about Dance"
+  },
+  {
+   "name": "a masked handle term is left out",
+   "card": {
+    "kind": "topic",
+    "title": "@***, dance"
+   },
+   "title": "Posts about Dance"
+  },
+  {
+   "name": "a term holding a mask is left out",
+   "card": {
+    "kind": "topic",
+    "title": "dance with ***, amapiano"
+   },
+   "title": "Posts about Amapiano"
+  },
+  {
+   "name": "a masked link term is left out",
+   "card": {
+    "kind": "topic",
+    "title": "[link], dance"
+   },
+   "title": "Posts about Dance"
+  },
+  {
+   "name": "a link or a profile path term is left out",
+   "card": {
+    "kind": "topic",
+    "title": "https://t.co/abc, u/thabo, x.com/thabo, dance"
+   },
+   "title": "Posts about Dance"
+  },
+  {
+   "name": "a term with no letters is left out",
+   "card": {
+    "kind": "topic",
+    "title": "dance, ..."
+   },
+   "title": "Posts about Dance"
+  },
+  {
+   "name": "a label with nothing left to name says this topic",
+   "card": {
+    "kind": "topic",
+    "title": "***"
+   },
+   "title": "Posts about this topic"
+  },
+  {
+   "name": "a label of a masked person and a handle says this topic",
+   "card": {
+    "kind": "hashtag",
+    "title": "***, @***"
+   },
+   "title": "Posts about this topic"
+  },
+  {
+   "name": "a count line without the label is unchanged",
+   "card": {
+    "kind": "topic",
+    "title": "kaizer, chiefs",
+    "count_line": "4 creators, 3 days"
+   },
+   "title": "Posts about Kaizer and Chiefs",
+   "count_line": "4 creators, 3 days"
+  },
+  {
+   "name": "a count line names this topic when nothing is left",
+   "card": {
+    "kind": "topic",
+    "title": "***",
+    "count_line": "4 creators (*** only)"
+   },
+   "title": "Posts about this topic",
+   "count_line": "4 creators (this topic only)"
+  }
+ ]
 }

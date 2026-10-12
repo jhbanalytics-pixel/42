@@ -482,3 +482,16 @@ test('a matched card with a checked written title names the subject by it', asyn
   expect([...host.querySelectorAll('.c42-subject')].map((node) => node.textContent)[0]).toBe('Step dance craze in Soweto');
   expect(text()).not.toContain(RAW_ID);
 });
+
+/* Albert's typed decision of 12 October 2026, "code titles"
+   (DECISIONS-20261012-albert-e.txt): a matched card whose written title was
+   dropped names the subject by the code title of its own label, never of the
+   raw map label the comparison carries. */
+test('a matched card whose written title was dropped names the subject by its own code title', async () => {
+  await mount('mode=items&items=i_step,i_cola&market=ZA&days=7', [
+    ['/api/discover', reply(200, DISCOVER)],
+    ['/api/compare', reply(200, rawLabelled((body) => { Object.assign(body.subjects[0].card, {kind: 'hashtag', explained: true, title_written: null}); }))],
+  ]);
+  expect([...host.querySelectorAll('.c42-subject')].map((node) => node.textContent)[0]).toBe('Posts about #fixture_za_step');
+  expect(text()).not.toContain(RAW_ID);
+});

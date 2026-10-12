@@ -115,13 +115,22 @@ def _count_line(card):
     return code_title.code_count_line(card, card.get("count_line"))
 
 
+def _heads(a):
+    """The alert's head line words: its label and market, or the market alone when the label is the card's own code
+    title, which the card line says next."""
+    market = LABELS.get(a["market"], a["market"])
+    card = a["card"]
+    coded = not code_title.written_title(card) and a.get("label") == _title(card)
+    return [market] if coded else [a.get("label"), market]
+
+
 def _alert_row(a, base):
     card = a["card"]
     market = LABELS.get(a["market"], a["market"])
     held = card.get("held_back")
     parts = [
         f'<div style="font-family:{FONT_BODY};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;'
-        f'color:{INK_DIM};">{esc(a.get("label"))} &middot; {esc(market)}</div>',
+        f'color:{INK_DIM};">{" &middot; ".join(esc(w) for w in _heads(a))}</div>',
         f'<div style="font-family:{FONT_BODY};font-size:14px;font-weight:bold;color:{ACCENT};padding-top:6px;">'
         f'{esc(a["fired_because"])}</div>',
         f'<div style="font-family:{FONT_SERIF};font-size:20px;line-height:1.3;color:{INK};padding-top:4px;">'
@@ -175,7 +184,7 @@ def render_text(resp, base):
     lines = [subject(resp), ""]
     for a in resp["alerts"]:
         card = a["card"]
-        lines.append(f"{a.get('label')}, {LABELS.get(a['market'], a['market'])}")
+        lines.append(", ".join(str(w) for w in _heads(a)))
         lines.append(a["fired_because"])
         facts = ", ".join(str(w) for w in _meta(card) + [_count_line(card)] if w)
         lines.append(f"{_title(card)}: {facts}" if facts else str(_title(card)))

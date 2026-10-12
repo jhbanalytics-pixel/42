@@ -19,6 +19,7 @@ const {flushSync} = await import('react-dom');
 const {codeTitle, codeCountLine} = await import('../../codeTitle.js');
 const {TrendCard, codedTitle} = await import('../TrendCard.jsx');
 const {StoryCard, cardWords} = await import('../StoryCard.jsx');
+const {LeadPanel} = await import('../LeadPanel.jsx');
 const {TopicPage42} = await import('../../topic42.jsx');
 
 const CASES = JSON.parse(readFileSync(new URL('../../../../../core/api/tests/fixtures/code_titles.json', import.meta.url), 'utf8')).cases;
@@ -46,11 +47,17 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
+test('every case is read', () => {
+  // A loop over an empty list passes, so the number of cases is pinned here and in the services' runner.
+  expect(CASES.length).toBe(58);
+});
+
 for (const c of CASES){
   test('the code title: ' + c.name, () => {
     expect(codeTitle(c.card, c.card.title)).toBe(c.title);
     const shown = {...c.card, title_written: null};
     if ('count_line' in c) expect(codeCountLine(shown, c.card.title, c.card.count_line, codedTitle(shown, c.card.title))).toBe(c.count_line);
+    if ('shown' in c) expect(codedTitle(c.card, c.card.title)).toBe(c.shown);
   });
 }
 
@@ -95,7 +102,36 @@ test('a card from a brief written before titles, and a creator card, read as bef
   delete old.title_written;
   expect(renderCard(old).heading).toBe(LABEL);
   expect(renderCard({...za03(), kind: 'creator', title: 'Thabo Dance'}).heading).toBe('Thabo Dance');
-  expect(renderCard({...za03(), title: '@***, dance'}).heading).toBe('@***, dance');
+});
+
+/* Albert's lead ruling, 12 October 2026: a term the privacy projection
+   masked (a hidden person's handle or name) is left out of the code title,
+   and a title with nothing left says "this topic". */
+test('a masked term is left out of the code title', () => {
+  expect(renderCard({...za03(), title: '@***, dance'}).heading).toBe('Posts about Dance');
+  expect(renderCard({...za03(), title: '***'}).heading).toBe('Posts about this topic');
+});
+
+function click(node, words){
+  const button = [...node.querySelectorAll('button')].find((b) => b.textContent === words);
+  flushSync(() => button.dispatchEvent(new MouseEvent('click', {bubbles: true})));
+}
+
+test('Today\'s story card names the card by its code title in its count line and its Watch label', () => {
+  let watched = null;
+  const card = {...za03(), numbers: [], count_line: COUNT};
+  flushSync(() => root.render(<ol><StoryCard card={card} index={2} market="ZA" date="2026-10-12" todaySpecificity={null} onWatch={(c) => { watched = c; }} /></ol>));
+  const node = host.querySelector('[data-card]');
+  expect(node.querySelector('.t42-count').textContent).toBe('5 creators and 11 posts in 3 days (Bafana Bafana, Mofokeng and Relebohile only)');
+  click(node, 'Watch');
+  expect(watched.title).toBe(CODED);
+});
+
+test('the lead panel names the watch by the code title', () => {
+  let watched = null;
+  flushSync(() => root.render(<LeadPanel card={za03()} market="ZA" date="2026-10-12" watch={{onWatch: (c) => { watched = c; }}} />));
+  click(host, 'Watch');
+  expect(watched.title).toBe(CODED);
 });
 
 test('Today\'s story card leads with the code title', () => {

@@ -197,7 +197,7 @@ def build_compare(store, mode, items=None, market=None, markets=None, platforms=
         for s in subjects:
             s.pop("_terms")
         body["notes"] = [CAP_NOTE]
-        return without_hidden(body, hidden)
+        return without_hidden(body, hidden, label_terms=True)
 
     window = [(dt.date.fromisoformat(start) + dt.timedelta(days=n)).isoformat() for n in range(days)]
     totals = {r["key"]: r for r in counts if r["grain"] == "total"}
@@ -242,4 +242,4 @@ def build_compare(store, mode, items=None, market=None, markets=None, platforms=
         note = _engagement_note(s, totals.get(s["key"]) or {})
         if note and note not in body["notes"]:
             body["notes"].append(note)
-    return without_hidden(body, hidden)
+    return without_hidden(body, hidden, label_terms=True)

@@ -121,7 +121,7 @@ export function Compare42({search, region, onAuth}){
 
   /* A subject is named as the rest of 42 names it: a checked written title, else its code title, else the name Discover gave it, else the label the comparison carried. */
   const shown = load.state === 'ready' && load.data
-    ? {...load, data: {...load.data, subjects: list(load.data.subjects).map((s) => ({...s, label: (s.card && (writtenTitle(s.card, s.label) || codedTitle(s.card, s.label))) || names[s.item_id] || s.label}))}}
+    ? {...load, data: {...load.data, subjects: list(load.data.subjects).map((s) => ({...s, label: (s.card && (writtenTitle(s.card, s.label) || codedTitle(s.card, s.card.title))) || names[s.item_id] || s.label}))}}
     : load;
   const update = (change) => setChoice((prev) => ({...prev, ...change(prev)}));
   const toggle = (key, order, value) => update((prev) => {

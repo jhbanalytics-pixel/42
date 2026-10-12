@@ -352,7 +352,8 @@ def _cards(store, run, market, hidden=UNREAD):
     out = []
     for r in rows:
         key = r["item_id"] + "|" + r["market"]
-        card = without_hidden(_build_card(r, briefs.get((r["market"], r["item_id"])), warmup, order.get(key)), hidden)
+        card = without_hidden(_build_card(r, briefs.get((r["market"], r["item_id"])), warmup, order.get(key)), hidden,
+                              label_terms=True)
         if held[key]:
             rule, reason, text = held[key]
             status, failed = _hold_basis(briefs.get((r["market"], r["item_id"])),
@@ -694,7 +695,7 @@ def build_topic(store, item_id, market):
             for w in sorted(waves, key=lambda w: w["peak_date"], reverse=True)],
         "authenticity": {"flag": auth, "flag_word": FLAG_WORDS.get(auth), "signals": signals},
         "evidence": _evidence(None if evidence is None else without_hidden({"evidence": evidence}, hidden)["evidence"]),
-    }, hidden)
+    }, hidden, label_terms=True)
 
 
 def build_alerts(store, watches, date=None):

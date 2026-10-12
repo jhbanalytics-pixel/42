@@ -10,6 +10,7 @@ import sys
 from collections import Counter
 from urllib.parse import parse_qs, unquote, urlsplit
 
+from core.api import code_title
 from core.api.held_words import plain_reason as _plain_reason
 from core.api.searching import searching_now
 from core.api.store import canon_platform, creator_key
@@ -214,13 +215,16 @@ def _evidence_holders(value):
             yield from _evidence_holders(v)
 
 
-def without_hidden(value, hidden):
+def without_hidden(value, hidden, label_terms=False):
     """A copy of value (a brief payload, a card or a topic page) with no suppressed person in it (SETUP.md data
     protection): their posts leave every evidence list, with the thumbnails and evidence_ids that point at them,
     and their handle and YouTube channel id are masked in every other string. Their display name (the map label
     of their own creator item, or an author name on a left-out post) is masked only where it names them: their
     own creator item (title, label, ask and aliases), titled as a YouTube channel when it is one, and the author
-    fields of evidence. Claims lose the quotes of a left-out post. A claim that rested only on left-out posts keeps
+    fields of evidence. label_terms (the readers' projection, never the brief job's) also masks a topic or hashtag
+    label term that is their name or handle (Albert's ruling of 12 Oct 2026, so the code title built from the label
+    leaves it out; _mask_label_terms); the payload the brief writes is unchanged. Claims lose the quotes of a left-out
+    post. A claim that rested only on left-out posts keeps
     its evidence ids, so Today's checks hold its card back with their reason. A claim that also cites posts that stay
     is checked again on those by the brief's rules, and an explained card that lost posts meets the brief's card
     floors again (_recheck_explanation). hidden None (the list cannot be read) names no evidence author at all, as a
@@ -229,8 +233,11 @@ def without_hidden(value, hidden):
 
     if hidden is None:
         records = [e for h in _evidence_holders(value) for e in h["evidence"] if isinstance(e, dict)]
+        authors = {str(e[k]).strip().lstrip("@") for e in records for k in ("handle",) + skins.NAME_KEYS
+                   if isinstance(e.get(k), str) and e[k].strip()}
         # One deepcopy keeps the records shared with the body, so stripping them strips the body's.
-        return skins.mask_people({"evidence": records, "body": value}, (), ())["body"]
+        body = skins.mask_people({"evidence": records, "body": value}, (), ())["body"]
+        return _mask_label_terms(body, authors) if label_terms else body
     keys, ids, names = hidden
     if not keys and not ids:
         return value
@@ -296,7 +303,27 @@ def without_hidden(value, hidden):
             for k in skins.NAME_KEYS if isinstance(e, dict) else ():
                 if isinstance(e.get(k), str) and " ".join(e[k].split()).lower().lstrip("@") in names:
                     e[k] = skins.URL_MASK
-    return skins._mask_strings(out, masked, lambda text: text)
+    out = skins._mask_strings(out, masked, lambda text: text)
+    return _mask_label_terms(out, names | handles) if label_terms else out
+
+
+def _mask_label_terms(value, people):
+    """value with each topic and hashtag label term that names one of people masked (code_title.mask_hidden_terms),
+    in the title and label and where the ask and the count line repeat the title."""
+    for item in _dicts(value):
+        if item.get("kind") not in code_title.KINDS or not isinstance(item.get("title"), str):
+            continue
+        old = item["title"]
+        new = code_title.mask_hidden_terms(old, people)
+        if isinstance(item.get("label"), str):
+            item["label"] = code_title.mask_hidden_terms(item["label"], people)
+        if new == old:
+            continue
+        item["title"] = new
+        for key in ("ask", "count_line"):
+            if isinstance(item.get(key), str):
+                item[key] = item[key].replace(old, new)
+    return value
 
 
 def _recheck_explanation(card, gone):
@@ -364,7 +391,7 @@ class _WithoutHidden:
         return getattr(self._store, name)
 
     def _row(self, row):
-        return dict(row, payload=without_hidden(row.get("payload"), self._hidden)) if row else row
+        return dict(row, payload=without_hidden(row.get("payload"), self._hidden, label_terms=True)) if row else row
 
     def briefs(self, date):
         return [self._row(r) for r in self._store.briefs(date) or []]
