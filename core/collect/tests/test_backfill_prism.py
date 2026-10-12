@@ -760,19 +760,26 @@ def test_source_market_comes_from_the_call_not_from_the_posts_geo():
 
 def test_a_gossip_post_is_scoped_only_when_its_creator_is_on_a_curated_list():
     market = "ZA"
+    # Since 12 Oct 2026 the ZA panel holds one page the source audit kept (@sahiphopmag) and two it did not, so one
+    # call carries both cases: the listed page's posts take ZA, the unlisted pages' posts take none.
     listed = sorted(curated_creators.listed_handles(MANIFEST, market))
     gossip = gossip_fetch(market).params["items"]
     handles = [e["handle"] for e in gossip]
-    assert not any(("instagram", h.casefold()) in listed for h in handles)
+    assert [h for h in handles if ("instagram", h.casefold()) in listed] == ["sahiphopmag"]
+    assert handles[0] == "entertainmentsa"
     plan = plan_of([raw("prism/profiles", market, at(DAY, 1), prism_body(gossip, "g"))])
-    assert plan.observations and {o["source_market"] for o in plan.observations} == {None}
+    creator = {p["post_id"]: p["creator_id"] for p in plan.posts}
+    by_handle = {}
+    for o in plan.observations:
+        by_handle.setdefault(creator[o["post_id"]], set()).add(o["source_market"])
+    assert by_handle == {"entertainmentsa": {None}, "sahiphopmag": {market}, "zkhiphani": {None}}
     platform, handle = listed[0]
     body = prism_body(gossip, "g")
     body["data"]["results"][0]["posts"]["items"][0]["post"]["author"]["username"] = handle
     body["data"]["results"][0]["platform"] = platform
     plan = plan_of([raw("prism/profiles", market, at(DAY, 1), body)])
     scoped = [o for o in plan.observations if o["source_market"] == market]
-    assert len(scoped) == 1 and len(plan.observations) == 2 * len(gossip)
+    assert len(scoped) == 3 and len(plan.observations) == 2 * len(gossip)
 
 
 def test_a_panel_that_matches_no_list_claims_no_source_market():
