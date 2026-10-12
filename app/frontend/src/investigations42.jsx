@@ -125,6 +125,11 @@ const plural = (count, word) => readerFigure(count) + ' ' + word + (count === 1 
 const cents = (value) => Number(((typeof value === 'number' ? value : 0) * 100).toFixed(6));
 const usdUp = (value) => 'USD ' + (Math.ceil(cents(value)) / 100).toFixed(2) + ' of model time';
 const usdDown = (value) => 'USD ' + (Math.floor(cents(value)) / 100).toFixed(2) + ' of model time';
+/* A ceiling or an estimate said beside what is left, as the server's
+   usd_against says it: above the left, compared raw, it is a need and
+   rounds up; at or under it, it fits and rounds down, so a figure clamped to
+   the left reads as the same cent. With no left read, it rounds up. */
+const usdAgainst = (value, left) => (typeof left === 'number' && typeof value === 'number' && !(value > left) ? usdDown(value) : usdUp(value));
 const platformWords = (list) => (Array.isArray(list) ? list : []).map((p) => PLATFORM_WORD[p] || p).join(', ');
 
 function useAuthHandover(onAuth){
@@ -427,7 +432,7 @@ export function InvestigationPage({investigationId, onAuth, streamOptions}){
         ? <PlanEditor plan={inv.plan} onSave={save} onCancel={() => setEditing(false)} onAuth={handover} />
         : (
           <>
-            <PlanView plan={inv.plan} />
+            <PlanView plan={inv.plan} budget={budget} />
             <EstimateView estimate={inv.estimate} budget={budget} />
             <div className="ask42-actions">
               <button type="button" className="ask42-quiet" onClick={() => setEditing(true)} disabled={start.busy}>Edit plan</button>
@@ -457,7 +462,7 @@ export function InvestigationPage({investigationId, onAuth, streamOptions}){
   );
 }
 
-function PlanView({plan}){
+function PlanView({plan, budget}){
   const subs = plan && Array.isArray(plan.sub_questions) ? plan.sub_questions : [];
   return (
     <section className="inv42-section" data-section="plan" aria-labelledby="inv42-plan-title">
@@ -471,7 +476,7 @@ function PlanView({plan}){
         ))}
       </ol>
       <p className="inv42-line">{plural(plan.researchers ?? 0, 'researcher') + ' · ' + (plan.gap_round ? 'A gap round after the first pass' : 'No gap round')}</p>
-      <p className="inv42-line">{'Spends at most ' + plural(plan.max_credits ?? 0, 'credit') + ' and ' + usdUp(plan.max_model_usd) + '.'}</p>
+      <p className="inv42-line">{'Spends at most ' + plural(plan.max_credits ?? 0, 'credit') + ' and ' + usdAgainst(plan.max_model_usd, budget && budget.model_usd) + '.'}</p>
     </section>
   );
 }
@@ -481,7 +486,7 @@ function EstimateView({estimate, budget}){
   return (
     <section className="inv42-section" data-section="estimate" aria-labelledby="inv42-estimate-title">
       <h2 className="inv42-section-title" id="inv42-estimate-title">The estimate</h2>
-      <p className="inv42-line">{'About ' + plural(e.credits ?? 0, 'credit') + ', ' + usdUp(e.model_usd) + ' and ' + plural(Math.ceil(e.minutes ?? 0), 'minute') + '.'}</p>
+      <p className="inv42-line">{'About ' + plural(e.credits ?? 0, 'credit') + ', ' + usdAgainst(e.model_usd, budget && budget.model_usd) + ' and ' + plural(Math.ceil(e.minutes ?? 0), 'minute') + '.'}</p>
       {budget
         ? <p className="inv42-line">{'Left today: ' + plural(budget.credits ?? 0, 'credit') + ' and ' + usdDown(budget.model_usd) + '. Both are checked again when you start.'}</p>
         : <p className="inv42-line">What is left today is checked again when you start.</p>}

@@ -194,6 +194,13 @@ def usd_down(value):
     return f"{math.floor(_cents(value)) / 100:.2f}"
 
 
+def usd_against(value, left):
+    """A dollar figure said beside what is left, compared raw as the refusal compares them: above what is left
+    it is a need, rounded up; at or under it, it fits and is rounded down, so a figure the server treats as equal
+    to the left is said as the same cent. The page says its ceiling and estimate this way (usdAgainst)."""
+    return usd_up(value) if value > left else usd_down(value)
+
+
 def refusal(estimate, left):
     """The words for whichever budget the estimate breaks, or None when it fits both."""
     # The reader sees these words as written, so they name no setting or person; credits are said as credits
@@ -204,7 +211,7 @@ def refusal(estimate, left):
         verb = "is" if left["credits"] == 1 else "are"
         broken.append(f"about {estimate['credits']:,} {noun} but only {left['credits']:,} {verb} left today")
     if estimate["model_usd"] > left["model_usd"]:
-        broken.append(f"about USD {usd_up(estimate['model_usd'])} of model time but only USD {usd_down(left['model_usd'])} "
+        broken.append(f"about USD {usd_against(estimate['model_usd'], left['model_usd'])} of model time but only USD {usd_down(left['model_usd'])} "
                       "is left today")
     if not broken:
         return None

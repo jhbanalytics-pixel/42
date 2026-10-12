@@ -955,6 +955,60 @@ test('a reopened answer folds the composer to Ask a follow-up, which asks a foll
   expect(posted.body.parent_id).toBe(first.ask_id);
 });
 
+/* Review 3 N10: Ask again after a failed fresh ask sends what the first ask
+   asked for, the card it came from and the answer it follows, unchanged. */
+function failFirstAsk(){
+  const served = globalThis.fetch;
+  let refused = false;
+  const stub = async (url, init = {}) => {
+    if (!refused && String(init.method || 'GET').toUpperCase() === 'POST' && String(url) === '/api/ask'){
+      refused = true;
+      calls.push({path: String(url), method: 'POST', headers: init.headers || {}, body: init.body ? JSON.parse(init.body) : null});
+      return json(500, {error: 'internal', message: 'Something went wrong on the server.'});
+    }
+    return served(url, init);
+  };
+  globalThis.fetch = stub;
+  window.fetch = stub;
+}
+
+const postedAsks = () => calls.filter((call) => call.method === 'POST' && call.path === '/api/ask');
+
+async function askAgainThroughTheConfirm(){
+  await until(() => button('Try again'), 'the failed ask');
+  await act(async () => { button('Try again').click(); });
+  await act(async () => { [...host.querySelectorAll('[role="dialog"] button')].find((node) => plain(node.textContent) === 'Ask again').click(); });
+  await until(() => postedAsks().length === 2, 'the confirmed retry');
+}
+
+test('Ask again after a failed ask from a card sends the same card again', async () => {
+  serve([clone(completeRecord)]);
+  failFirstAsk();
+  await render({query: {q: 'What is behind this?', market: 'ZA', item: 'it_1', date: '2026-10-01', draft: true}});
+  await act(async () => { button('Ask').click(); });
+  await until(() => postedAsks().length === 1, 'the first ask');
+  expect(postedAsks()[0].body.from_card).toEqual({item_id: 'it_1', market: 'ZA', date: '2026-10-01'});
+  await askAgainThroughTheConfirm();
+  expect(postedAsks()[1].body).toEqual(postedAsks()[0].body);
+});
+
+test('Ask again after a failed follow-up sends the same parent again', async () => {
+  const first = clone(completeRecord);
+  const server = serve([first, {...clone(completeRecord), ask_id: 'a_20260928_0000000f', parent_id: first.ask_id}]);
+  await render({query: {follow: first.ask_id}});
+  await finish(server, first);
+  await until(() => button('Ask a follow-up'), 'the reopened answer');
+  failFirstAsk();
+  await act(async () => { button('Ask a follow-up').click(); });
+  const field = host.querySelector('textarea');
+  await act(async () => typeInto(field, 'Is it moving in Durban too?'));
+  await act(async () => { host.querySelector('form.ask42-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); });
+  await until(() => postedAsks().length === 1, 'the follow-up');
+  expect(postedAsks()[0].body.parent_id).toBe(first.ask_id);
+  await askAgainThroughTheConfirm();
+  expect(postedAsks()[1].body).toEqual(postedAsks()[0].body);
+});
+
 test('a Today card starts once and retains its accepted ask URL', async () => {
   const record = clone(completeRecord);
   const server = serve([record]);

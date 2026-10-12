@@ -456,13 +456,15 @@ test('a draft opened from New investigation shows its estimate against the budge
   expect(text()).not.toMatch(/model spend|research budget/);
 });
 
-/* Re-review N1: dollars are said in whole cents, a need rounded up and what
-   is left rounded down, as the server words its refusal
-   (core/api/investigations.py usd_up and usd_down), half cents included. */
-test('USD rounds the need and the ceiling up and what is left down, in cents', async () => {
+/* Re-review N1 and review 3 N8: dollars are said in whole cents the way the
+   server says them (core/api/investigations.py usd_against): a figure above
+   what is left is a need, rounded up; one at or under it fits and is rounded
+   down, so a ceiling or an estimate the server treats as equal to the left
+   is said as the same cent; what is left is rounded down. */
+test('USD rounds a need above what is left up and a figure that fits down, in cents', async () => {
   await openDraft(draft({plan: {...clone(PLAN), max_model_usd: 2.675}, estimate: {credits: 1, model_usd: 1.005, minutes: 1}, budget_left: {credits: 590, model_usd: 1.005}}));
   await until(() => text().includes('Left today'), 'the budget line');
-  expect(text()).toContain('About 1 credit, USD 1.01 of model time and 1 minute.');
+  expect(text()).toContain('About 1 credit, USD 1.00 of model time and 1 minute.');
   expect(text()).toContain('USD 2.68 of model time.');
   expect(text()).toContain('Left today: 590 credits and USD 1.00 of model time.');
 });
@@ -471,8 +473,57 @@ test('USD keeps a whole cent as it is and splits a half cent up for a need and d
   await openDraft(draft({plan: {...clone(PLAN), max_model_usd: 0.125}, estimate: {credits: 300, model_usd: 1.5, minutes: 6}, budget_left: {credits: 590, model_usd: 0.125}}));
   await until(() => text().includes('Left today'), 'the budget line');
   expect(text()).toContain('USD 1.50 of model time and 6 minutes.');
-  expect(text()).toContain('USD 0.13 of model time.');
+  expect(text()).toContain('Spends at most 400 credits and USD 0.12 of model time.');
   expect(text()).toContain('Left today: 590 credits and USD 0.12 of model time.');
+});
+
+test('a ceiling and an estimate clamped to what is left are said as the same cent as the left', async () => {
+  await openDraft(draft({plan: {...clone(PLAN), max_model_usd: 0.965}, estimate: {credits: 300, model_usd: 0.965, minutes: 6}, budget_left: {credits: 600, model_usd: 0.965}}));
+  await until(() => text().includes('Left today'), 'the budget line');
+  expect(text()).toContain('Spends at most 400 credits and USD 0.96 of model time.');
+  expect(text()).toContain('About 300 credits, USD 0.96 of model time and 6 minutes.');
+  expect(text()).toContain('Left today: 600 credits and USD 0.96 of model time.');
+  expect(text()).not.toContain('USD 0.97');
+});
+
+test('after Edit plan a re-planned estimate clamped to what is left is said as the same cent as the left', async () => {
+  const saved = draft({version: 2, plan: {...clone(PLAN), max_model_usd: 5.4951}, estimate: {credits: 250, model_usd: 5.4951, minutes: 14}, budget_left: {credits: 600, model_usd: 5.4951}});
+  await openDraft(draft(), [['PUT', '/api/investigations/' + ID + '/plan', json(200, saved)]]);
+  await press('Edit plan');
+  await press('Save plan');
+  await until(() => text().includes('About 250 credits'), 'the fresh estimate');
+  expect(text()).toContain('Spends at most 400 credits and USD 5.49 of model time.');
+  expect(text()).toContain('About 250 credits, USD 5.49 of model time and 14 minutes.');
+  expect(text()).toContain('Left today: 600 credits and USD 5.49 of model time.');
+  expect(text()).not.toContain('USD 5.50');
+});
+
+/* Review 3 N10: a whole cent that floats hold a hair above itself stays that
+   cent, and a need above what is left rounds up past any part of a cent. */
+test('USD keeps a whole cent on float noise as it is, rounding up or down', async () => {
+  /* 1.09 and 0.55 sit a hair above their cent (109.00000000000001), so a
+     need above the left would round them a cent high without the settle. */
+  await openDraft(draft({plan: {...clone(PLAN), max_model_usd: 1.09}, estimate: {credits: 300, model_usd: 0.55, minutes: 6}, budget_left: {credits: 600, model_usd: 0.01}}));
+  await until(() => text().includes('Left today'), 'the budget line');
+  expect(text()).toContain('Spends at most 400 credits and USD 1.09 of model time.');
+  expect(text()).toContain('About 300 credits, USD 0.55 of model time and 6 minutes.');
+  await act(async () => root.unmount());
+  root = createRoot(host);
+  /* 0.29 and 0.57 sit a hair below theirs (28.999999999999996), so a figure
+     that fits, or what is left, would round them a cent low. */
+  await openDraft(draft({plan: {...clone(PLAN), max_model_usd: 0.29}, estimate: {credits: 300, model_usd: 0.29, minutes: 6}, budget_left: {credits: 600, model_usd: 0.57}}));
+  await until(() => text().includes('Left today'), 'the budget line');
+  expect(text()).toContain('Spends at most 400 credits and USD 0.29 of model time.');
+  expect(text()).toContain('About 300 credits, USD 0.29 of model time and 6 minutes.');
+  expect(text()).toContain('Left today: 600 credits and USD 0.57 of model time.');
+});
+
+test('USD rounds a need above what is left up past any part of a cent', async () => {
+  await openDraft(draft({plan: {...clone(PLAN), max_model_usd: 1.0001}, estimate: {credits: 300, model_usd: 1.5049, minutes: 6}, budget_left: {credits: 600, model_usd: 0.5}}));
+  await until(() => text().includes('Left today'), 'the budget line');
+  expect(text()).toContain('Spends at most 400 credits and USD 1.01 of model time.');
+  expect(text()).toContain('About 300 credits, USD 1.51 of model time and 6 minutes.');
+  expect(text()).toContain('Left today: 600 credits and USD 0.50 of model time.');
 });
 
 test('a draft read again after a reload shows the budget left today that the read carries', async () => {
