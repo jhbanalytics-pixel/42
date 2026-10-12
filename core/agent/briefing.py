@@ -45,7 +45,8 @@ def story_name(text) -> str | None:
 
 
 def _key(name: str) -> str:
-    return " ".join(name.split()).casefold()
+    """A story name compared as plain text: case, spacing and curly apostrophes do not tell two stories apart."""
+    return " ".join(name.replace(chr(0x2019), "'").replace(chr(0x2018), "'").split()).casefold()
 
 
 def _pinned(number) -> bool:

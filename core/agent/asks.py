@@ -47,13 +47,6 @@ _YES_NO = re.compile(r"^(?:is|are|was|were|has|have|had|does|do|did|can|could|sh
 # "about" ends the question ("talking about most", "about this week") or names its subject ("about Checkers").
 _ABOUT_SUBJECT = re.compile(r"\babout\s+(?!(?:the\s+)?most\b|this\b|today\b|right\b|now\b|lately\b|currently\b|in\b"
                             r"|across\b|on\b|the\s+(?:week|month|year|market)\b)\w", re.IGNORECASE)
-# A question for a brief is the brief skill's, whatever it says about the top stories.
-_BRIEF = re.compile(r"\bbrief\b", re.IGNORECASE)
-# Around, on, for and with name a subject the way about does, unless what follows is the market, a platform or a span.
-_SUBJECT_PREP = re.compile(r"\b(?:around|on|for|with)\s+(?!(?:the\s+)?(?:most|top|biggest|this|today|right|now|lately|currently"
-                           r"|week|month|year|market|south|african|nigeria|nigerian|kenya|kenyan|social|tiktok|instagram"
-                           r"|youtube|x|twitter|facebook|reddit|threads|bluesky|linkedin|telegram|sa|za|mzansi|kzn|gauteng"
-                           r"|joburg|johannesburg|lagos|nairobi|abuja)\b|\d)\w", re.IGNORECASE)
 # A capital that is not the start of a sentence names something other than a market or a platform.
 _KNOWN_CAPITALS = frozenset({
     "South", "Africa", "African", "Africans", "SA", "ZA", "Nigeria", "Nigerian", "Nigerians", "Kenya", "Kenyan",
@@ -61,7 +54,16 @@ _KNOWN_CAPITALS = frozenset({
     "LinkedIn", "Telegram", "I", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
     "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November",
     "December", "Mzansi", "KZN", "Gauteng", "Joburg", "Johannesburg", "Pretoria", "Cape", "Town", "Durban", "Soweto",
-    "Lagos", "Abuja", "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Gen", "Z"})
+    "Port", "Elizabeth", "Lagos", "Abuja", "Ibadan", "Kano", "Harcourt", "Nairobi", "Mombasa", "Kisumu", "Nakuru",
+    "Eldoret", "Gen", "Z"})
+# A question for a brief is the brief skill's, whatever it says about the top stories. "Keep it brief" asks for none.
+_BRIEF = re.compile(r"\b(?:an?|the|my|our|this)\s+(?:\w+\s+){0,3}brief\b|\bbrief\s+(?:for|on|about)\b", re.IGNORECASE)
+# Around, on, for, with and re name a subject the way about does, unless what follows is the market, a platform, a place,
+# a day or a span: "on TikTok", "for the week", "on Monday", "on 10 October", "with Gen Z", "for Cape Town".
+_NOT_A_SUBJECT = "|".join(sorted({"most", "top", "biggest", "this", "today", "right", "now", "lately", "currently", "week",
+                                  "month", "year", "market", "social", "the"} | {c.lower() for c in _KNOWN_CAPITALS}))
+_SUBJECT_PREP = re.compile(r"\b(?:around|on|for|with)\s+(?!(?:" + _NOT_A_SUBJECT + r")\b|\d)\w"
+                           r"|\b(?:re|regarding|concerning)\s+\w", re.IGNORECASE)
 
 
 def _names_a_subject(text: str) -> bool:

@@ -58,6 +58,17 @@ RANKED = [
     "What are people in KZN talking about most?",
     "What are the top trends in Gauteng?",
     "What are Gen Z South Africans talking about most?",
+    "What are the biggest stories on the timeline this week?",
+    "What are the top conversations on Monday?",
+    "What are the top 5 stories in South Africa this week? Keep it brief.",
+    "Quick brief: what are the top stories in South Africa this week?",
+    "What are the top stories for the week in South Africa?",
+    "What are the top stories on 10 October?",
+    "What is trending on TikTok in South Africa this week?",
+    "What is trending with Gen Z in Nigeria?",
+    "What are the top stories for Cape Town this week?",
+    "What are the top stories in Port Elizabeth this week?",
+    "What are the biggest conversations in Kano and Eldoret this week?",
 ]
 NOT_RANKED = [
     "What is happening with amapiano Sundays?",
@@ -94,6 +105,8 @@ NOT_RANKED = [
     "Which topics are most likely to blow up in South Africa this week?",
     "Which of the top stories will keep growing?",
     "Why are the top stories in South Africa trending?",
+    "What are the biggest stories this week in Mzansi re the petrol price?",
+    "Write me a brief on the top conversations in Nigeria this week.",
     "",
 ]
 
@@ -192,6 +205,14 @@ def test_the_rule_leaves_a_part_out_when_the_pack_does_not_support_it():
 def test_the_rule_asks_for_one_so_what_line_per_story_worded_as_interpretation():
     rule = writer.RANKED_BRIEFING_RULE
     assert "so_what" in rule and "claim ids" in rule and "interpretation" in rule
+
+
+def test_the_question_the_asker_typed_decides_the_rule_not_the_question_a_repair_adds_to(ctx):
+    why, plain, ranked = "Why is amapiano back in Soweto?", "What is happening with amapiano Sundays?", RANKED[0]
+    assert writer.CAUSE_FIRST_RULE in call_for(plain, ctx, asked=why)["user"]
+    assert writer.CAUSE_FIRST_RULE not in call_for(why, ctx, asked=plain)["user"]
+    assert writer.RANKED_BRIEFING_RULE in call_for(plain, ctx, asked=ranked)["user"]
+    assert writer.RANKED_BRIEFING_RULE not in call_for(ranked, ctx, asked=plain)["user"]
 
 
 def test_the_rule_asks_the_lead_to_name_each_story_with_exactly_the_name_its_claims_start_with():

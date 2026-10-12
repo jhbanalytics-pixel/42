@@ -182,3 +182,67 @@ def test_the_input_is_not_changed():
     before = copy.deepcopy(answer)
     checks.replace_cut_story_lead(answer, GONE, ranked=True)
     assert answer == before
+
+
+# The support step cuts a claim without clearing the lead (a demographic flag holds it at once), and a skill with its own
+# answer shape is left alone.
+
+def run_with(qid, folder, *, flag=None, skill=None):
+    """One replay with the support check flagging the claim whose text starts with flag as a demographic inference, and
+    with the request naming skill. Returns the result and the rewrites dispatched."""
+    calls, original, real_run_ask = {"n": 0}, ask_replay.ReplayModel.complete_json, ask_replay.ask.run_ask
+
+    def spy(self, *, system, user, schema, model, max_tokens):
+        if schema is writer.HEADLINE_REWRITE_SCHEMA:
+            calls["n"] += 1
+        out, usage = original(self, system=system, user=user, schema=schema, model=model, max_tokens=max_tokens)
+        if flag and schema is writer.SUPPORT_SCHEMA and f"Claim: {flag}" in user:
+            out = {**out, "demographic_inference": True}
+        return out, usage
+
+    def run_ask(body, *args, **kwargs):
+        return real_run_ask({**body, **({"skill": skill} if skill else {})}, *args, **kwargs)
+
+    saved = ask_replay.FIXTURES
+    ask_replay.ReplayModel.complete_json, ask_replay.ask.run_ask, ask_replay.FIXTURES = spy, run_ask, FIXTURES / folder
+    try:
+        result = ask_replay.run_question(qid)
+    finally:
+        ask_replay.ReplayModel.complete_json, ask_replay.ask.run_ask, ask_replay.FIXTURES = original, real_run_ask, saved
+    return result, calls["n"]
+
+
+def test_a_support_cut_that_leaves_the_lead_alone_gets_the_lead_rebuilt_in_code_and_pays_for_no_rewrite():
+    result, rewrites = run_with("TOP-ZA", "ranked_briefing", flag="Forbes and Motsoane murder trial")
+    answer = result["answer"]
+    assert result["error"] is None and "c7" not in [c["id"] for c in answer["claims"]]
+    assert rewrites == 0  # the tree before the lead cut kept the lead and dispatched none
+    assert answer["short_answer"] == CODE_LEAD
+    rows = [r for r in result["claim_checks"] if r["claim_id"] == "short_answer" and r["rule"] == "K10"]
+    assert [r["verdict"] for r in rows if r["reason"] == checks.LEAD_STORY_REASON] == ["downgrade"]
+    assert result["answer_meta"]["summary"]["removals"] == [] and result["meta_problem"] is None
+    ok, why = smoke.check_ask_record(wire(result))
+    assert ok, why
+
+
+def test_the_same_cut_leaves_the_lead_as_written_for_a_skill_with_its_own_answer_shape():
+    result, rewrites = run_with("TOP-ZA", "ranked_briefing", flag="Forbes and Motsoane murder trial", skill="context-pack")
+    assert result["error"] is None and rewrites == 0
+    assert "Forbes" in result["answer"]["short_answer"] and not result["answer"]["short_answer"].startswith("The stories")
+
+
+def test_a_lead_naming_a_cut_story_is_left_alone_when_no_story_survives_to_name():
+    two_cut = [story("Murder trial")["text"], story("Cup final")["text"]]
+    plain = [{"id": "x", "text": "No label here."}]
+    answer = answer_of("The murder trial and the cup final led.", plain)
+    out, row = checks.replace_cut_story_lead(answer, two_cut, ranked=True)
+    assert row is None and out is answer
+
+
+def test_a_lead_replaced_twice_carries_the_gap_once():
+    first, row = checks.replace_cut_story_lead(answer_of("The murder trial led.", copy.deepcopy(KEPT)), GONE, ranked=True)
+    assert row is not None and first["gaps"].count(checks.LEAD_STORY_GAP) == 1
+    cup = [story("Cup final")["text"]]
+    second, row = checks.replace_cut_story_lead({**first, "claims": [KEPT[0]]}, cup, ranked=True)
+    assert row is not None and second["gaps"].count(checks.LEAD_STORY_GAP) == 1
+    assert second["short_answer"] == "The stories that led: Soweto unrest."
