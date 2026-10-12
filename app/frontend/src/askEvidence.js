@@ -88,21 +88,88 @@ export function scopeWords(record, windowWords){
 }
 
 /* Each distinct figure once, with the unit in words. Two claims that count
-   the same thing (same value, same unit) leave one tile. */
+   the same thing (same value, same unit) leave one tile. Each figure also
+   carries the position of the claim it is pinned to, so a tile can name it. */
 export function distinctFigures(claims, limit = 8){
   const seen = new Set();
   const out = [];
-  for (const claim of claims || []){
+  (claims || []).forEach((claim, claimIndex) => {
     for (const number of (claim && claim.numbers) || []){
       if (!number || typeof number.value !== 'number') continue;
       const unit = unitFor(number.value, plainUnit(number.unit));
       const key = readerFigure(number.value) + ' ' + unit;
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({key, value: readerFigure(number.value), unit, queryId: number.query_id || ''});
+      out.push({key, value: readerFigure(number.value), unit, queryId: number.query_id || '', raw: number.value, claimIndex, claimText: String(claim.text || '')});
     }
-  }
+  });
   return out.slice(0, limit);
+}
+
+export const UNNAMED_FIGURE = 'Counted for a finding with no words of its own.';
+
+const sentence = (text) => (/[.!?]$/.test(text) ? text : text + '.');
+const nounOf = (unit) => (/^posts?$/i.test(unit) ? 'posts' : /^creators?$/i.test(unit) ? 'creators' : '');
+const nounOfNumber = (number) => nounOf(unitFor(number.value, plainUnit(number.unit)));
+
+/* The claims whose posts and creators may stand side by side in one line. The decision
+   is made on the claim's own numbers, before any repeat is dropped: exactly
+   one posts figure and one creators figure, counted by the same query, with
+   no more creators than posts. Anything else would put figures from two
+   queries, or two periods, in one sentence. */
+function joinableClaims(claims){
+  const joinable = new Set();
+  (claims || []).forEach((claim, index) => {
+    const numbers = ((claim && claim.numbers) || []).filter((number) => number && typeof number.value === 'number');
+    const posts = numbers.filter((number) => nounOfNumber(number) === 'posts');
+    const creators = numbers.filter((number) => nounOfNumber(number) === 'creators');
+    if (posts.length === 1 && creators.length === 1 && posts[0].query_id && posts[0].query_id === creators[0].query_id && creators[0].value <= posts[0].value) joinable.add(index);
+  });
+  return joinable;
+}
+
+/* The tiles of The numbers. Each says what it counts: the posts and the
+   creators of one claim and one query stand side by side in one line ("179
+   posts · 118 accounts posting"), then the claim they belong to. There is
+   no "by" between them, because the same query does not prove the same row.
+   Any other figure stands on its own line with its claim under it. The claim
+   is shown whole: it is never cut, clamped or hidden behind a toggle. A figure
+   whose claim has no words says so, so no tile is ever a bare number. A tile gives no market or window: a stored figure does not
+   record one. A count of creators has one name on a tile, "accounts
+   posting". */
+export function figureTiles(claims, limit = 8){
+  const joinable = joinableClaims(claims);
+  const figures = distinctFigures(claims, limit);
+  const pairs = new Map();
+  for (const figure of figures){
+    const noun = nounOf(figure.unit);
+    if (!noun || !joinable.has(figure.claimIndex)) continue;
+    const slot = pairs.get(figure.claimIndex) || {posts: [], creators: []};
+    slot[noun].push(figure);
+    pairs.set(figure.claimIndex, slot);
+  }
+  const joined = new Set();
+  const tiles = [];
+  for (const figure of figures){
+    if (joined.has(figure.key)) continue;
+    const slot = pairs.get(figure.claimIndex);
+    const paired = slot && slot.posts.length === 1 && slot.creators.length === 1 && [slot.posts[0], slot.creators[0]].includes(figure);
+    const parts = (paired ? [slot.posts[0], slot.creators[0]] : [figure]).map((part) => (nounOf(part.unit) === 'creators' ? {...part, unit: unitFor(part.raw, 'accounts posting')} : part));
+    for (const part of parts) joined.add(part.key);
+    const line = parts.map((part) => part.value + ' ' + part.unit).join(' · ');
+    const full = figure.claimText.replace(/\s+/g, ' ').trim();
+    tiles.push({
+      key: parts.map((part) => part.key).join(' | '),
+      parts: parts.map(({value, unit}) => ({value, unit})),
+      line,
+      queryId: parts[0].queryId,
+      joined: parts.length === 2,
+      about: full || UNNAMED_FIGURE,
+      full,
+      sentence: parts.map((part) => part.value + ' ' + part.unit).join(' and ') + '. ' + (full ? 'Finding: ' + sentence(full) : UNNAMED_FIGURE),
+    });
+  }
+  return tiles;
 }
 
 /* Posts each platform returned, once per platform. A call that failed is not

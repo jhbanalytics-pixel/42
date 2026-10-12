@@ -1,0 +1,395 @@
+{
+ "ask_id": "a_20261011_0000000d",
+ "question": "What are people in South Africa posting about most this week?",
+ "parent_id": null,
+ "market": "ZA",
+ "status": "complete",
+ "created_at": "2026-10-10T16:06:59+02:00",
+ "finished_at": "2026-10-10T16:10:54+02:00",
+ "answer": {
+  "status": "complete",
+  "as_of": "2026-10-10T16:10:50+02:00",
+  "short_answer": "Four topics carried the week: the Soweto unrest anniversary, the Springboks selection debate, load shedding complaints and a taxi fare notice.",
+  "claims": [
+   {
+    "id": "c1",
+    "text": "Posts about the Soweto unrest anniversary led the week across TikTok and X, with creators in Gauteng driving most of it.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_post_1"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_post_1",
+      "text": "Fixture post 1"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 179,
+      "unit": "posts",
+      "query_id": "q_soweto",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+     },
+     {
+      "value": 118,
+      "unit": "creators",
+      "query_id": "q_soweto",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+     }
+    ]
+   },
+   {
+    "id": "c2",
+    "text": "The Springboks selection debate drew a steady stream of posts from sports creators.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_post_3"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_post_3",
+      "text": "Fixture post 3"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 104,
+      "unit": "posts",
+      "query_id": "q_boks",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+     },
+     {
+      "value": 31,
+      "unit": "creators",
+      "query_id": "q_boks",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+     }
+    ]
+   },
+   {
+    "id": "c3",
+    "text": "Load shedding complaints stayed constant but concentrated in a small set of accounts.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_post_5"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_post_5",
+      "text": "Fixture post 5"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 18,
+      "unit": "posts",
+      "query_id": "q_power",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+     },
+     {
+      "value": 2,
+      "unit": "creators",
+      "query_id": "q_power",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+     }
+    ]
+   },
+   {
+    "id": "c4",
+    "text": "A new taxi fare notice was discussed by six creators who each posted once.",
+    "label": "single_source",
+    "kind": "observation",
+    "evidence_ids": [
+     "tt_post_7"
+    ],
+    "quotes": [
+     {
+      "evidence_id": "tt_post_7",
+      "text": "Fixture post 7"
+     }
+    ],
+    "numbers": [
+     {
+      "value": 6,
+      "unit": "posts",
+      "query_id": "q_taxi",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+     },
+     {
+      "value": 6,
+      "unit": "creators",
+      "query_id": "q_taxi",
+      "run_id": "r_20261010_000000_fixture",
+      "result_hash": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+     }
+    ]
+   }
+  ],
+  "evidence": [
+   {
+    "id": "tt_post_1",
+    "platform": "tiktok",
+    "handle": "thando.reports",
+    "url": "https://example.invalid/post/1",
+    "posted_at": "2026-10-05T10:12:00+02:00",
+    "market": "ZA",
+    "text": "Fixture post 1 about the week",
+    "engagement": {
+     "views": 10000,
+     "likes": 900,
+     "comments": 20
+    },
+    "flags": []
+   },
+   {
+    "id": "tt_post_2",
+    "platform": "x",
+    "handle": "zola_streets",
+    "url": "https://example.invalid/post/2",
+    "posted_at": "2026-10-06T10:12:00+02:00",
+    "market": "ZA",
+    "text": "Fixture post 2 about the week",
+    "engagement": {
+     "views": 11111,
+     "likes": 901,
+     "comments": 21
+    },
+    "flags": []
+   },
+   {
+    "id": "tt_post_3",
+    "platform": "tiktok",
+    "handle": "mpho.daily",
+    "url": "https://example.invalid/post/3",
+    "posted_at": "2026-10-07T10:12:00+02:00",
+    "market": "ZA",
+    "text": "Fixture post 3 about the week",
+    "engagement": {
+     "views": 12222,
+     "likes": 902,
+     "comments": 22
+    },
+    "flags": []
+   },
+   {
+    "id": "tt_post_4",
+    "platform": "x",
+    "handle": "lindiwe.tv",
+    "url": "https://example.invalid/post/4",
+    "posted_at": "2026-10-08T10:12:00+02:00",
+    "market": "ZA",
+    "text": "Fixture post 4 about the week",
+    "engagement": {
+     "views": 13333,
+     "likes": 903,
+     "comments": 23
+    },
+    "flags": []
+   },
+   {
+    "id": "tt_post_5",
+    "platform": "tiktok",
+    "handle": "kagiso.clips",
+    "url": "https://example.invalid/post/5",
+    "posted_at": "2026-10-09T10:12:00+02:00",
+    "market": "ZA",
+    "text": "Fixture post 5 about the week",
+    "engagement": {
+     "views": 14444,
+     "likes": 904,
+     "comments": 24
+    },
+    "flags": []
+   },
+   {
+    "id": "tt_post_6",
+    "platform": "x",
+    "handle": "nomsa.news",
+    "url": "https://example.invalid/post/6",
+    "posted_at": "2026-10-10T10:12:00+02:00",
+    "market": "ZA",
+    "text": "Fixture post 6 about the week",
+    "engagement": {
+     "views": 15555,
+     "likes": 905,
+     "comments": 25
+    },
+    "flags": []
+   },
+   {
+    "id": "tt_post_7",
+    "platform": "tiktok",
+    "handle": "thando.reports",
+    "url": "https://example.invalid/post/7",
+    "posted_at": "2026-10-05T10:12:00+02:00",
+    "market": "ZA",
+    "text": "Fixture post 7 about the week",
+    "engagement": {
+     "views": 16666,
+     "likes": 906,
+     "comments": 26
+    },
+    "flags": []
+   },
+   {
+    "id": "tt_post_8",
+    "platform": "x",
+    "handle": "thando.reports",
+    "url": "https://example.invalid/post/8",
+    "posted_at": "2026-10-06T10:12:00+02:00",
+    "market": "ZA",
+    "text": "Fixture post 8 about the week",
+    "engagement": {
+     "views": 17777,
+     "likes": 907,
+     "comments": 27
+    },
+    "flags": []
+   }
+  ],
+  "so_what": [],
+  "watch_next": [],
+  "gaps": [],
+  "context": ""
+ },
+ "run": {
+  "run_id": "r_20261010_000000_fixture",
+  "tier": "T1",
+  "mode": "live",
+  "credits": 12,
+  "tokens": {
+   "input": 6400,
+   "output": 720
+  },
+  "seconds": 234.7,
+  "model_usd": 0,
+  "window": {
+   "from": "2026-10-05",
+   "to": "2026-10-11"
+  },
+  "posts": 296,
+  "platforms": 5,
+  "store": {
+   "posts": 3444
+  },
+  "source_status": [
+   {
+    "platform": "tiktok",
+    "route": "tiktok/search",
+    "status": "ok",
+    "items": 120
+   },
+   {
+    "platform": "x",
+    "route": "x/search",
+    "status": "ok",
+    "items": 80
+   },
+   {
+    "platform": "instagram",
+    "route": "instagram/search",
+    "status": "ok",
+    "items": 50
+   },
+   {
+    "platform": "youtube",
+    "route": "youtube/search",
+    "status": "ok",
+    "items": 30
+   },
+   {
+    "platform": "facebook",
+    "route": "facebook/search",
+    "status": "ok",
+    "items": 16
+   }
+  ],
+  "followups": [
+   "What do the spoken words in these videos say?",
+   "Which creators posted #funnyclip in South Africa this week?"
+  ],
+  "notices": [
+   "A model call did not report what it cost, so the rest of this question's model calls were limited"
+  ],
+  "technical_gaps": [
+   {
+    "what": "Original sound titles for the three TikTok posts",
+    "searched": "Inspected audio metadata associated with sound identifiers used across the three posts",
+    "why": "The platform records only numeric sound identifiers without text titles"
+   },
+   {
+    "what": "Local South African posts tagged #funnyclip on non-TikTok platforms",
+    "searched": "Searched posts matching #funnyclip across Instagram, YouTube, X, Threads, and Facebook",
+    "why": "Posts tagged #funnyclip on other platforms were international and lacked South African geo-location"
+   },
+   {
+    "what": "Some posts found could not be quoted",
+    "searched": "the posts found for this question",
+    "why": "some stored posts had no author handle, which every quoted post needs, so they were left out of the answer"
+   },
+   {
+    "what": "A claim was cut: a post outside the window or the market, or a place no cited post is located in",
+    "searched": "stored evidence tiktok_comment_77020000000000001, tiktok_comment_77020000000000002",
+    "why": "every cited post must fall inside the question's window and market, and text that names a place must cite a post located there"
+   },
+   {
+    "what": "A line on what to watch next was removed: a forecast that has not outperformed a simple no-change forecast",
+    "searched": "the what to watch next text",
+    "why": "forecasts are not shown until they outperform a simple no-change forecast"
+   },
+   {
+    "what": "Transcript of a TikTok post not fetched",
+    "searched": "tiktok/post/transcript",
+    "why": "error"
+   },
+   {
+    "what": "Background removed after a claim was narrowed or removed",
+    "searched": "the background text",
+    "why": "the background could repeat wording that did not pass the claim checks"
+   },
+   {
+    "what": "An implication removed after a claim was narrowed or removed",
+    "searched": "the implications and the claims they refer to",
+    "why": "the implication relied on wording that did not pass the claim checks"
+   }
+  ]
+ },
+ "steps": [
+  {
+   "seq": 1,
+   "at": "2026-10-11T08:00:01+02:00",
+   "kind": "plan",
+   "text": "Planning 3 searches for South Africa, 5 to 11 October",
+   "platform": null,
+   "count": 3
+  },
+  {
+   "seq": 2,
+   "at": "2026-10-11T08:00:09+02:00",
+   "kind": "search",
+   "text": "Reading TikTok posts for South Africa, 5 to 11 October: 120 found",
+   "platform": "tiktok",
+   "count": 120
+  },
+  {
+   "seq": 3,
+   "at": "2026-10-11T08:00:20+02:00",
+   "kind": "write",
+   "text": "Writing the answer from 4 checked claims",
+   "platform": null,
+   "count": 4
+  }
+ ],
+ "error": null
+}
