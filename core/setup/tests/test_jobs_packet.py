@@ -425,6 +425,59 @@ def test_a_jobs_bind_refuses_the_services_prior_flags_instead_of_ignoring_them(b
         assert not bench.bindings.exists() and not bench.producer.exists()
 
 
+# Every bind flag that belongs to one mode is a bad command line in the other, as it was when each mode had a parser of its own: a flag
+# the other mode would drop without a word is refused, never ignored. The command lines are complete binds of their own mode, so without the
+# extra flag they get past the parser (and stop later, at the checkout, which is not a repository).
+SERVICES_ONLY_FLAGS = (("--baseline", "baseline.json"), ("--max-smoke-age-minutes", "360"), ("--inflight-asks-bytes-cap", "10485760"),
+                       ("--prior-release", "prior-release.json"), ("--expect-jobs-digest", "sha256:" + "a" * 64))
+JOBS_ONLY_FLAGS = (("--baseline-j", "baseline-j.json"), ("--baseline-chain", "chain.json"), ("--dry-run-receipt", "dry-run.txt"),
+                   ("--chain-evidence-bytes-cap", "67108864"), ("--collect-start-tolerance-minutes", "10"), ("--max-baseline-age-days", "2"),
+                   ("--max-candidate-age-hours", "12"), ("--prior-jobs-release", "prior-jobs-release.json"), ("--producer-only", None))
+
+
+def services_bind_argv(tmp_path):
+    return ["bind", "--repo", str(tmp_path), "--release-commit", "0" * 40, "--attempt", "01", "--packet-dir", str(tmp_path / "packet"),
+            "--baseline", "baseline.json", "--durable-manifest", "durable.json", "--caller-account", jpw.CALLER, "--gcloud-timeout-seconds", "30",
+            "--http-timeout-seconds", "30", "--max-smoke-age-minutes", "360", "--inflight-asks-bytes-cap", "10485760"]
+
+
+def jobs_bind_argv(tmp_path):
+    return ["bind", "--mode", "jobs", "--repo", str(tmp_path), "--release-commit", "0" * 40, "--attempt", "01", "--packet-dir",
+            str(tmp_path / "packet"), "--baseline-j", "baseline-j.json", "--caller-account", jpw.CALLER, "--gcloud-timeout-seconds", "30",
+            "--http-timeout-seconds", "30", "--chain-evidence-bytes-cap", "67108864", "--collect-start-tolerance-minutes", "10",
+            "--baseline-chain", "chain.json", "--durable-manifest", "durable.json", "--dry-run-receipt", "dry-run.txt",
+            "--max-baseline-age-days", "2", "--max-candidate-age-hours", "12"]
+
+
+def with_flag(argv, flag, value):
+    return [*argv, flag] if value is None else [*argv, flag, value]
+
+
+@pytest.mark.parametrize("make_argv", [services_bind_argv, jobs_bind_argv])
+def test_each_complete_bind_of_its_own_mode_gets_past_the_parser(tmp_path, capsys, make_argv):
+    assert packet.main(make_argv(tmp_path)) == 1
+    assert "the following arguments are required" not in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("flag, value", JOBS_ONLY_FLAGS, ids=[f for f, _ in JOBS_ONLY_FLAGS])
+def test_a_services_bind_refuses_every_flag_of_the_jobs_mode(tmp_path, capsys, flag, value):
+    with pytest.raises(SystemExit) as stopped:
+        packet.main(with_flag(services_bind_argv(tmp_path), flag, value))
+    err = capsys.readouterr().err
+    assert stopped.value.code == 2 and f"{flag} belongs to --mode jobs" in err, err
+    assert not (tmp_path / "packet").exists()
+
+
+@pytest.mark.parametrize("flag, value", SERVICES_ONLY_FLAGS, ids=[f for f, _ in SERVICES_ONLY_FLAGS])
+def test_a_jobs_bind_refuses_every_flag_of_the_services_mode(tmp_path, capsys, flag, value):
+    for argv in (jobs_bind_argv(tmp_path), [*jobs_bind_argv(tmp_path), "--producer-only"]):
+        with pytest.raises(SystemExit) as stopped:
+            packet.main(with_flag(argv, flag, value))
+        err = capsys.readouterr().err
+        assert stopped.value.code == 2 and f"{flag} belongs to --mode services-only" in err, err
+    assert not (tmp_path / "packet").exists()
+
+
 # bind --producer-only: the file the chain evidence producer reads (the lead wrote it by hand before)
 
 def test_the_producer_bindings_hold_exactly_the_keys_the_producer_reads_and_nothing_the_chain_manifest_has_yet_to_supply(bench, capsys):

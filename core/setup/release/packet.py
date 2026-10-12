@@ -1061,19 +1061,25 @@ REQUIRED = {
 }
 
 
+# The bind flags only one mode reads. Given to the other mode's bind, each is a bad command line, as it was when each mode had a parser of its
+# own, and never dropped without a word.
+MODE_ONLY = {
+    "jobs": ("baseline_j", "baseline_chain", "dry_run_receipt", "chain_evidence_bytes_cap", "collect_start_tolerance_minutes",
+             "max_baseline_age_days", "max_candidate_age_hours", "prior_jobs_release", "producer_only"),
+    "services-only": ("baseline", "max_smoke_age_minutes", "inflight_asks_bytes_cap", "prior_release", "expect_jobs_digest"),
+}
+
+
 def check_required(parser, args):
     if args.command != "bind":
         return
-    if args.mode != "jobs" and args.prior_jobs_release is not None:
-        parser.error("--prior-jobs-release belongs to --mode jobs")
-    for flag in ("prior_release", "expect_jobs_digest"):
-        if args.mode == "jobs" and getattr(args, flag) is not None:
-            parser.error(f"--{flag.replace('_', '-')} belongs to --mode services-only; a jobs release is bound to a prior jobs release by --prior-jobs-release")
+    for mode, flags in MODE_ONLY.items():
+        for flag in flags:
+            if args.mode != mode and getattr(args, flag) not in (None, False):
+                parser.error(f"--{flag.replace('_', '-')} belongs to --mode {mode}")
     names = list(REQUIRED[("bind", args.mode)])
     if args.mode == "jobs" and not args.producer_only:
         names += REQUIRED[("bind", "jobs-full")]
-    if args.mode != "jobs" and args.producer_only:
-        parser.error("--producer-only belongs to --mode jobs")
     missing = [name for name in names if getattr(args, name) is None]
     if missing:
         parser.error("the following arguments are required: " + ", ".join("--" + name.replace("_", "-") for name in missing))
