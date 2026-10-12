@@ -28,6 +28,15 @@ Release D0, the website and Ask.
 - History, Build and Dossiers say Answered and Partial answer the same way, and Schedules no longer announces a delivery that is not built.
 - The Peaking and Spike chips are easier to read in dark mode.
 
+### Jobs update (12 October 2026)
+
+Release D jobs, the brief, collect and watchdog jobs.
+
+- A card with no accounts posting or no posts counted in its last 3 days is held back from Today instead of shown.
+- Today puts its cards in order of accounts posting in the last 3 days, then posts, then worth, so the lead card is the one the most accounts are posting about. Which cards make the brief does not change, only their order, so a card can move into or out of the first five. On the first morning, and on the first morning after a rollback, the moved up and held place tags compare against the other order.
+- The South Africa Instagram gossip panel reads three live publisher pages in place of three that had stopped returning posts.
+- The watchdog no longer emails an alert when a source adds a field to its replies. It still emails when a field every reply carried goes missing, now also emails when a field's value changes type, and logs a new field as a notice.
+
 ## 2.2.0 (11 October 2026)
 
 Release C, rel-d0aebe7-01, the website and Ask.

@@ -99,6 +99,21 @@ def _worth(c):
     return (w is None, -(w or 0), c["item_id"])
 
 
+def _today_order(c):
+    """Today's order: the accounts posting in the counted window, as the card shows them ("creators in 3 days", which
+    Today says as "accounts posting, last 3 days"), then posts in that window, then _worth. On 12 October 2026 ZA card
+    01 had 2 accounts and 3 posts and led cards with 6 and 5 accounts, because the order was worth_raw alone. A card
+    without the figure, or whose figure is not a number, comes after those with it."""
+    accounts, posts = _count(c, "creators in 3 days"), _count(c, "posts in 3 days")
+    return (accounts is None, -(accounts or 0), posts is None, -(posts or 0), *_worth(c))
+
+
+def _count(c, unit):
+    """The card's own figure for unit, or None when it has none or the value is not a number (a bool is not)."""
+    v = next((n.get("value") for n in c.get("numbers") or [] if "rival_field" not in n and n.get("unit") == unit), None)
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
 # A count of one reads "1 creator", "1 post" (tester report, 5 October 2026: "1 creators and 1 posts").
 ONE_NOUNS = {"creators": "creator", "posts": "post"}
 
@@ -205,11 +220,17 @@ def _card(c, market, day, rank, shown_above=frozenset()):
         "explanation_status": status,
         # The job's fixed wording for the check that held the explanation back; no model or scraped text.
         "failed_reason": _failed_reason(c, status),
-        # Items merged into this card because their posts are this card's (core/brief/job.py), in rank order.
+        # Items merged into this card because their posts are this card's (core/brief/job.py), in the judging
+        # order (_worth), not the shown order.
         "also": also,
         # A news event explains the rise and local creators add their own reaction; claims sit one step lower.
         "news_driven": explained and c.get("news_driven") is True,
     }
+
+
+def preview_card(c, market, brief_date):
+    """The card c would be on its own, ranked first: what core/brief/job.py asks Today's admission check about."""
+    return _card(c, market, _iso(brief_date), 1)
 
 
 def _title_written(c, explained):
@@ -315,7 +336,8 @@ def build_market_payload(market, brief_date, candidates, *, moments, boards, ban
     for c in candidates:
         by_where[_decision(c)["where"]].append(c)
 
-    ranked = sorted(by_where["today"], key=_worth)[:SHOWN]
+    # Which cards are shown stays the top SHOWN by worth; only their order is Today's.
+    ranked = sorted(sorted(by_where["today"], key=_worth)[:SHOWN], key=_today_order)
     shown, shown_posts = [], set()
     for r, c in enumerate(ranked, 1):
         card = _card(c, market, day, r, shown_posts)

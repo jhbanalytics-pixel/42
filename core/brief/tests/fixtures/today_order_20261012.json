@@ -1,0 +1,134 @@
+{
+ "source": "v_briefs_current brief_date 2026-10-12 and item_state metric_date 2026-10-12, read only",
+ "markets": {
+  "KE": {
+   "brief_run_id": "brief-20261012-a15d3f51d4e1",
+   "status": "partial",
+   "headline_item_id": "266c32229a92466aec63f8946ae75d3a5ed5554e35a8335a10e3260d32d69875",
+   "cards": [
+    {
+     "stored_rank": 1,
+     "item_id": "266c32229a92466aec63f8946ae75d3a5ed5554e35a8335a10e3260d32d69875",
+     "title": "kikuyucomedy, tata wa, tata",
+     "creators in 3 days": 13,
+     "posts in 3 days": 19,
+     "worth_raw": 0.42627697484524535,
+     "detect_run_id": "detect-20261012-26fcdcdbc113"
+    }
+   ]
+  },
+  "NG": {
+   "brief_run_id": "brief-20261012-a15d3f51d4e1",
+   "status": "partial",
+   "headline_item_id": "ad7f67c05b5d70fe5621955b2ec619b8a72ab9f74c32ec420f1f6121e53c0242",
+   "cards": [
+    {
+     "stored_rank": 1,
+     "item_id": "ad7f67c05b5d70fe5621955b2ec619b8a72ab9f74c32ec420f1f6121e53c0242",
+     "title": "#premierleague",
+     "creators in 3 days": 20,
+     "posts in 3 days": 37,
+     "worth_raw": 0.3927139954981355,
+     "detect_run_id": "detect-20261012-26fcdcdbc113"
+    },
+    {
+     "stored_rank": 2,
+     "item_id": "59090e1b524045b11d6308cab433d0ccc6f042fe9354d3be007822853c8a4f47",
+     "title": "#football",
+     "creators in 3 days": 12,
+     "posts in 3 days": 34,
+     "worth_raw": 0.39248448559992655,
+     "detect_run_id": "detect-20261012-26fcdcdbc113"
+    },
+    {
+     "stored_rank": 3,
+     "item_id": "9cfaabf46321eb118a731d24841c53deb28db6d13248982c8ba81b91fa5625c5",
+     "title": "#liverpool",
+     "creators in 3 days": 19,
+     "posts in 3 days": 37,
+     "worth_raw": 0.36994107530674813,
+     "detect_run_id": "detect-20261012-26fcdcdbc113"
+    },
+    {
+     "stored_rank": 4,
+     "item_id": "6a9690baaa2116e4f22b5028eabb40f7367eb802da9c7ebfb4ad97d45a0c4f06",
+     "title": "#manchesterunited",
+     "creators in 3 days": 10,
+     "posts in 3 days": 23,
+     "worth_raw": 0.3697786992881266,
+     "detect_run_id": "detect-20261012-26fcdcdbc113"
+    },
+    {
+     "stored_rank": 5,
+     "item_id": "b1001f23b8a1f2de185bcb474f1d54eb858d25f4308f6d9f62d489301338976f",
+     "title": "#chelseafc",
+     "creators in 3 days": 3,
+     "posts in 3 days": 3,
+     "worth_raw": 0.3678574482482036,
+     "detect_run_id": "detect-20261012-26fcdcdbc113"
+    },
+    {
+     "stored_rank": 6,
+     "item_id": "3791be7f803e3761334d8cf11299f492c53947e2d7a6c709c302356513e33bbc",
+     "title": "manchester, league, portugal",
+     "creators in 3 days": 33,
+     "posts in 3 days": 66,
+     "worth_raw": 0.36776028032571095,
+     "detect_run_id": "detect-20261012-26fcdcdbc113"
+    },
+    {
+     "stored_rank": 7,
+     "item_id": "04a0aad7b97a5f9d367728699fc7f3a2eecd683da20116bddd55f8500a55cb9c",
+     "title": "messi, soccer, argentina",
+     "creators in 3 days": 18,
+     "posts in 3 days": 34,
+     "worth_raw": 0.36720750307405037,
+     "detect_run_id": "detect-20261012-26fcdcdbc113"
+    }
+   ]
+  },
+  "ZA": {
+   "brief_run_id": "brief-20261012-a15d3f51d4e1",
+   "status": "data_issue",
+   "headline_item_id": "e980768970724163f6bda50c491c32d179b2d6ce42e1a658fcf8564f934b1b5b",
+   "cards": [
+    {
+     "stored_rank": 1,
+     "item_id": "e980768970724163f6bda50c491c32d179b2d6ce42e1a658fcf8564f934b1b5b",
+     "title": "#MTN8Final",
+     "creators in 3 days": 2,
+     "posts in 3 days": 3,
+     "worth_raw": 0.529812752766198,
+     "detect_run_id": "detect-20261012-26fcdcdbc113"
+    },
+    {
+     "stored_rank": 2,
+     "item_id": "2e884d7ea20320b7cda04df96a89a79b10d7ebd4e5ecad0e34e8c19dd07d2232",
+     "title": "ouaddou, abdeslam, abdeslam ouaddou",
+     "creators in 3 days": 6,
+     "posts in 3 days": 15,
+     "worth_raw": 0.3853438672546954,
+     "detect_run_id": "detect-20261012-26fcdcdbc113"
+    },
+    {
+     "stored_rank": 3,
+     "item_id": "4652356782c2d512fd3e2fc70c5750b399d20d9ac9580635b1a6c67279032b75",
+     "title": "bafanabafana, mofokeng, relebohile",
+     "creators in 3 days": 5,
+     "posts in 3 days": 11,
+     "worth_raw": 0.38302367016985667,
+     "detect_run_id": "detect-20261012-26fcdcdbc113"
+    },
+    {
+     "stored_rank": 4,
+     "item_id": "81bdee2c0edb34c35ca509f882d2bc84d4454193ffb6616ee5bb4453b350c578",
+     "title": "#MTN8",
+     "creators in 3 days": 5,
+     "posts in 3 days": 9,
+     "worth_raw": 0.36616013757948035,
+     "detect_run_id": "detect-20261012-26fcdcdbc113"
+    }
+   ]
+  }
+ }
+}

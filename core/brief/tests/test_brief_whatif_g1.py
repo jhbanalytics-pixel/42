@@ -226,3 +226,39 @@ def test_a_title_a_cp1252_console_cannot_show_does_not_stop_the_report(monkeypat
     sys.stdout.flush()
     text = raw.getvalue().decode("cp1252")
     assert "KE | ?? | tiktok | passes data gates" in text and text.rstrip().splitlines()[-1].startswith("bytes read")
+
+
+ZERO = "e" * 64
+
+
+class ZeroCountBigQuery(FakeBigQuery):
+    """One G1 held item that would pass every data gate, and whose pack pinned a 0 for the creators of its counted 3 days."""
+
+    def rows(self, sql, params):
+        if "v_briefs_current" in sql:
+            numbers = [{"value": 0, "unit": "creators in 3 days", "query_id": "q_creators3", "run_id": "r"},
+                       {"value": 5, "unit": "posts in 3 days", "query_id": "q_posts3", "run_id": "r"}]
+            payload = {"held_back": {"count": 1, "items": [_held(ZERO, "Quiet Friday", numbers=numbers)]}}
+            return [{"market": "ZA", "run_id": "r1", "status": "data_issue", "payload": json.dumps(payload)}]
+        if "-- name: market_scope" in sql:
+            return [{"total_posts7": 10, "market_posts7": 9, "market_news_posts7": 0}]
+        if "v_item_state_current s" in sql:
+            return [_state(ZERO, "Quiet Friday")]
+        return super().rows(sql, params)
+
+
+def test_an_item_the_zero_count_hold_would_hold_is_named_by_that_hold_and_not_by_the_name_gate():
+    # The hold has no rule and is not a floor hold, so the step finder fell through to "name" and the report said "no readable name".
+    client = whatif_g1.CappedClient(ZeroCountBigQuery())
+    markets, outcomes = whatif_g1.forecast(client, D, campaign_hashtags=[], political_terms={"ZA": [], "NG": [], "KE": []})
+    [held] = outcomes
+    assert (held.verdict, held.gate) == ("held", "no creator in its counted 3 days")
+    assert held.line() == ("ZA | Quiet Friday | youtube | held by no creator in its counted 3 days: "
+                           "No creator posted about it in the last 3 days")
+    assert whatif_g1.summary(markets, outcomes)[0] == "ZA: 1 held at G1; 0 pass data gates, 0 to Moments, 1 held (no creator in its counted 3 days 1), 0 unknown"
+
+
+def test_an_item_with_a_readable_name_and_a_measured_zero_is_not_called_nameless():
+    client = whatif_g1.CappedClient(ZeroCountBigQuery())
+    _, outcomes = whatif_g1.forecast(client, D, campaign_hashtags=[], political_terms={"ZA": [], "NG": [], "KE": []})
+    assert "readable name" not in outcomes[0].text

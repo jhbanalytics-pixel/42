@@ -760,19 +760,26 @@ def test_source_market_comes_from_the_call_not_from_the_posts_geo():
 
 def test_a_gossip_post_is_scoped_only_when_its_creator_is_on_a_curated_list():
     market = "ZA"
+    # Since 12 Oct 2026 the ZA panel holds one page the source audit kept (@sahiphopmag) and two it did not, so one
+    # call carries both cases: the listed page's posts take ZA, the unlisted pages' posts take none.
     listed = sorted(curated_creators.listed_handles(MANIFEST, market))
     gossip = gossip_fetch(market).params["items"]
     handles = [e["handle"] for e in gossip]
-    assert not any(("instagram", h.casefold()) in listed for h in handles)
+    assert [h for h in handles if ("instagram", h.casefold()) in listed] == ["sahiphopmag"]
+    assert handles[0] == "entertainmentsa"
     plan = plan_of([raw("prism/profiles", market, at(DAY, 1), prism_body(gossip, "g"))])
-    assert plan.observations and {o["source_market"] for o in plan.observations} == {None}
+    creator = {p["post_id"]: p["creator_id"] for p in plan.posts}
+    by_handle = {}
+    for o in plan.observations:
+        by_handle.setdefault(creator[o["post_id"]], set()).add(o["source_market"])
+    assert by_handle == {"entertainmentsa": {None}, "sahiphopmag": {market}, "zkhiphani": {None}}
     platform, handle = listed[0]
     body = prism_body(gossip, "g")
     body["data"]["results"][0]["posts"]["items"][0]["post"]["author"]["username"] = handle
     body["data"]["results"][0]["platform"] = platform
     plan = plan_of([raw("prism/profiles", market, at(DAY, 1), body)])
     scoped = [o for o in plan.observations if o["source_market"] == market]
-    assert len(scoped) == 1 and len(plan.observations) == 2 * len(gossip)
+    assert len(scoped) == 3 and len(plan.observations) == 2 * len(gossip)
 
 
 def test_a_panel_that_matches_no_list_claims_no_source_market():
@@ -1183,3 +1190,29 @@ def test_every_statement_the_guard_allows_names_only_the_four_tables_and_the_raw
 
 def test_the_tables_the_command_writes_are_the_four_and_no_other():
     assert set(bf.SPECS) == WRITTEN
+
+
+# RC3-3: the backfill writes days on which the live jobs stored kept creators under panel_culture_desk, so its curated class stays under that
+# series and never takes the curated panel's own series, which would give the new series a history that stops on 7 Oct and a gap before the split.
+
+def test_rc3_3_the_curated_class_stays_under_the_series_the_history_of_those_days_uses_and_not_the_curated_panel_series():
+    from core.collect import parse
+
+    plan = plan_of(scenario())
+    curated_posts = {pid for c in plan.calls if c["class"] == "curated" for pid in c["post_ids"]}
+    assert curated_posts
+    series = {o["series"] for o in plan.observations if o["post_id"] in curated_posts}
+    assert series == {"panel_culture_desk"}
+    assert parse.CURATED_PANEL_SERIES == "panel_curated_creators" and parse.CURATED_PANEL_SERIES not in {o["series"] for o in plan.observations}
+
+
+def test_rc3_3_no_backfill_code_passes_curated_true_to_a_call():
+    import ast
+    from pathlib import Path
+
+    source = Path(bf.__file__).read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.keyword) and node.arg == "curated":
+            raise AssertionError("backfill_prism passes a curated keyword; RC3-3 says the backfill does not")
+        if isinstance(node, ast.Attribute) and node.attr == "curated" and isinstance(node.ctx, ast.Store):
+            raise AssertionError("backfill_prism sets a curated attribute; RC3-3 says the backfill does not")

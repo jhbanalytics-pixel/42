@@ -49,6 +49,7 @@ def test_the_statements_that_read_the_columns_are_the_ones_expected(monkeypatch)
     set_locality_authority(monkeypatch, "v2")
     assert sorted(statements_reading_the_columns()) == sorted([
         "watches.items", "seeds.candidates", "brief.candidates", "brief.candidates_without_locality",
+        "brief.candidates_without_news_column", "brief.candidates_without_locality_or_news_column",
         "scorecard.time_to_detect", "scorecard.lead_time", "scorecard.recall", "scorecard.breadth_platforms",
         "scorecard.locality_regime"])
 
@@ -64,7 +65,7 @@ def test_under_v2_the_statements_are_the_files_as_written(monkeypatch):
     from core.conftest import set_locality_authority
 
     set_locality_authority(monkeypatch, "v2")
-    assert len(statements_reading_the_columns()) == 9
+    assert len(statements_reading_the_columns()) == 11
 
 
 PARAMS = {"d": D, "run_id": "detect-1", "market": "ZA", "week_start": date(2026, 10, 5), "week_end": date(2026, 10, 11),

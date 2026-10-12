@@ -120,7 +120,12 @@ def test_no_gate_state_card_payload_or_rank_reads_the_table_or_the_module():
                "core/detect/tests/early_identity.py", "core/detect/tests/test_detect_early_signal.py",
                "core/detect/tests/test_detect_early_signal_backtest.py",
                "core/detect/tests/test_detect_early_signal_record.py",
-               "core/schema/early_signal.sql", "core/schema/tests/test_early_signal_schema.py"}
+               "core/schema/early_signal.sql", "core/schema/tests/test_early_signal_schema.py",
+               # Release B's source checks and durable manifest name the schema file and its effect, and read no table
+               "core/setup/release/jobs_effects.py", "core/setup/release/jobs_source.py",
+               "core/setup/tests/test_jobs_effects.py", "core/setup/tests/test_jobs_source.py",
+               # and the jobs rollback names the table in its residue list and the packet lock names the schema file; neither reads a table
+               "core/setup/release/jobs_only.py", "core/setup/release/lock.py", "core/setup/tests/test_jobs_readback.py"}
     named_apart = "core/schema/apply.py"
     hits = []
     for path in ROOT.rglob("*"):

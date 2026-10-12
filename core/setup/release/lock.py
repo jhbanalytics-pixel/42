@@ -25,6 +25,13 @@ from pathlib import Path
 SCHEMA_VERSION = 1
 REPO_FILES = (
     "core/setup/release/SERVICES-PASTE.ps1",
+    "core/setup/release/JOBS-PASTE.ps1",
+    "core/setup/release/chain_evidence.py",
+    "core/setup/release/jobs_only.py",
+    "core/setup/release/jobs_run.py",
+    "core/setup/cloudbuild.jobs.yaml",
+    "core/setup/jobs.Dockerfile",
+    "core/setup/deploy_jobs.py",
     "core/setup/release/bound_readback.py",
     "core/setup/release/natives.py",
     "core/setup/release/services_only.py",
@@ -39,8 +46,72 @@ REPO_FILES = (
     "core/api/deploy.sh",
     "core/api/deploy_flags.env",
     "core/api/smoke.py",
+    # Release B, the files the jobs paste and its children execute, found as the first party import closure of the scripts the paste starts
+    # (core/setup/tests/test_jobs_lock.py holds this list to that closure), the schema files core.schema.apply runs and the release tooling
+    # the lead runs to produce and judge the packet.
+    "core/__init__.py",
+    "core/collect/__init__.py",
+    "core/collect/chain.py",
+    "core/collect/curated_creators.py",
+    "core/collect/gdelt.py",
+    "core/collect/google_rss.py",
+    "core/collect/google_trends.py",
+    "core/collect/ids.py",
+    "core/collect/job.py",
+    "core/collect/local_sources.py",
+    "core/collect/location_sources.py",
+    "core/collect/parse.py",
+    "core/collect/public_feed_collect.py",
+    "core/collect/public_feed_rows.py",
+    "core/collect/research_terms.py",
+    "core/collect/seeds.py",
+    "core/collect/socialcrawl_client.py",
+    "core/collect/stores.py",
+    "core/collect/telegram_collect.py",
+    "core/collect/writers.py",
+    "core/collect/x_discovery.py",
+    "core/config/caps.py",
+    "core/detect/__init__.py",
+    "core/detect/aggregate.py",
+    "core/detect/geo.py",
+    "core/detect/items.py",
+    "core/detect/sqlrun.py",
+    "core/public_feeds/catalog.py",
+    "core/public_feeds/reader.py",
+    "core/public_feeds/telegram.py",
+    "core/schema/__init__.py",
+    "core/schema/agent.sql",
+    "core/schema/apply.py",
+    "core/schema/core.sql",
+    "core/schema/early_signal.sql",
+    "core/setup/__init__.py",
+    "core/setup/release/__init__.py",
+    "core/setup/release/env_scan.py",
+    "core/setup/release/jobs_baseline.py",
+    "core/setup/release/jobs_effects.py",
+    "core/setup/release/jobs_freeze.py",
+    "core/setup/release/jobs_source.py",
+    "core/setup/schedule.py",
+    "core/setup/smoke.py",
+    "core/setup/stamp.py",
+    "core/setup/watchdog.py",
+    "core/trust/__init__.py",
+    "core/trust/locality.py",
 )
 TEST_FILES = (
+    "core/setup/tests/cloud_world.py",
+    "core/setup/tests/jobs_paste_world.py",
+    "core/setup/tests/jobs_world.py",
+    "core/setup/tests/range_hygiene.py",
+    "core/setup/tests/test_chain_evidence.py",
+    "core/setup/tests/test_jobs_checks.py",
+    "core/setup/tests/test_jobs_hygiene.py",
+    "core/setup/tests/test_jobs_paste.py",
+    "core/setup/tests/test_jobs_plan.py",
+    "core/setup/tests/test_jobs_prefix.py",
+    "core/setup/tests/test_jobs_readback.py",
+    "core/setup/tests/test_jobs_update.py",
+    "core/setup/tests/update_support.py",
     "core/api/tests/compat_harness.py",
     "core/api/tests/old_reader_harness.py",
     "core/api/tests/smoke_support.py",
@@ -72,8 +143,41 @@ TEST_FILES = (
     "core/setup/tests/test_release_prior_packet.py",
     "core/setup/tests/test_release_retry.py",
     "core/setup/tests/test_services_paste.py",
+    # Release B
+    "core/brief/tests/test_brief_view_columns.py",
+    "core/brief/tests/test_candidate_view_column.py",
+    "core/collect/tests/__init__.py",
+    "core/collect/tests/test_chain_record.py",
+    "core/detect/tests/__init__.py",
+    "core/detect/tests/duck.py",
+    "core/detect/tests/fixtures.py",
+    "core/detect/tests/test_js07_switch_columns.py",
+    "core/schema/tests/__init__.py",
+    "core/setup/tests/__init__.py",
+    "core/setup/tests/e2e_gcloud.py",
+    "core/setup/tests/e2e_shim.py",
+    "core/setup/tests/e2e_world.py",
+    "core/setup/tests/jobs_e2e_world.py",
+    "core/setup/tests/jobs_packet_world.py",
+    "core/setup/tests/jobs_prior_world.py",
+    "core/setup/tests/lock_closure.py",
+    "core/setup/tests/test_deploy_jobs.py",
+    "core/setup/tests/test_jobs_baseline.py",
+    "core/setup/tests/test_jobs_build.py",
+    "core/setup/tests/test_jobs_effects.py",
+    "core/setup/tests/test_jobs_envscan.py",
+    "core/setup/tests/test_jobs_final.py",
+    "core/setup/tests/test_jobs_freeze.py",
+    "core/setup/tests/test_jobs_image.py",
+    "core/setup/tests/test_jobs_lock.py",
+    "core/setup/tests/test_jobs_packet.py",
+    "core/setup/tests/test_jobs_prior.py",
+    "core/setup/tests/test_jobs_source.py",
+    "core/setup/tests/test_jobs_wiring.py",
 )
 BOUND_NAMES = ("bindings", "baseline", "durable_manifest", "compat_receipt", "old_reader_receipt")
+# The jobs release binds other durable inputs: baseline-J, the baseline chain manifest and the apply.py dry run receipt (JS-09).
+JOBS_BOUND_NAMES = ("bindings", "baseline", "durable_manifest", "baseline_chain", "dry_run_receipt")
 
 
 def sha_file(path, *, text=True):
@@ -97,9 +201,9 @@ def smoke_check_count(smoke_py):
                and isinstance(c.args[0], ast.Constant) and isinstance(c.args[0].value, str))
 
 
-def build_lock(repo, release_id, bound_files):
+def build_lock(repo, release_id, bound_files, names=BOUND_NAMES):
     repo = Path(repo)
-    missing = [name for name in BOUND_NAMES if name not in bound_files]
+    missing = [name for name in names if name not in bound_files]
     if missing:
         raise ValueError("the lock needs bound files: " + ", ".join(missing))
     return {

@@ -14,9 +14,13 @@ from core.setup.tests import release_prereq
 
 ROOT = Path(__file__).resolve().parents[3]
 MAP = ROOT / "core/setup/tests/release_test_ids.json"
-COUNTS = {"DS": 22, "RT": 5, "PS": 23, "HR": 54, "AU": 9, "CT": 7, "DE": 15, "TM": 5, "SM": 1}
-PARTITION_OF_PREFIX = {"HR": "core", "AU": "core", "DE": "core", "TM": "core", "SM": "core", "DS": "deploy", "RT": "deploy", "PS": "deploy", "CT": "deploy"}
-NODE = re.compile(r"^test_(hr|au|ds|rt|ps|ct|de|tm|sm)(\d\d)(?:_|$)")
+COUNTS = {"DS": 22, "RT": 5, "PS": 23, "HR": 54, "AU": 9, "CT": 7, "DE": 15, "TM": 5, "SM": 1,
+          "JM": 11, "JB": 8, "JS": 11, "JU": 10, "JR": 6, "JX": 8, "JP": 6}
+PARTITION_OF_PREFIX = {"HR": "core", "AU": "core", "DE": "core", "TM": "core", "SM": "core", "DS": "deploy", "RT": "deploy", "PS": "deploy", "CT": "deploy",
+                       "JM": "core", "JB": "core", "JS": "core", "JR": "core", "JX": "core", "JU": "deploy", "JP": "deploy"}
+NODE = re.compile(r"^test_(hr|au|ds|rt|ps|ct|de|tm|sm|jm|jb|js|ju|jr|jx|jp)(\d\d)(?:_|$)")
+# The folders the nodes are collected from. core/collect/tests and core/detect/tests hold the three Release B nodes the lane 6 and lane 5 files own.
+COLLECTION_ROOTS = ("core/setup/tests", "core/api/tests", "core/schema/tests", "core/collect/tests", "core/detect/tests")
 
 
 def load_map():
@@ -30,7 +34,7 @@ def declared_ids():
 def collected():
     """{id: {file, ...}} from every test file under the three test folders, read from the source (the names pytest collects)."""
     found = {}
-    for folder in ("core/setup/tests", "core/api/tests", "core/schema/tests"):
+    for folder in COLLECTION_ROOTS:
         for path in sorted((ROOT / folder).glob("test_*.py")):
             tree = ast.parse(path.read_text(encoding="utf-8"))
             for node in ast.walk(tree):
@@ -62,6 +66,15 @@ def test_tm01_every_built_id_has_a_test_in_the_partition_named_for_its_prefix_an
             assert entry["status"] in ("pending", "not_applicable") and entry["reason"]
 
 
+def test_tm01_the_two_end_to_end_files_are_in_the_deploy_partition_and_skip_off_windows_for_a_stated_reason():
+    deploy = set(load_map()["partitions"]["deploy"])
+    for rel, reason in (("core/setup/tests/test_release_e2e.py", "exist on Windows only"), ("core/setup/tests/test_jobs_final.py", "exist on Windows only")):
+        assert rel in deploy, rel
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        marks = [n for n in ast.walk(ast.parse(text)) if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "skipif"]
+        assert len(marks) == 1 and "ON_WINDOWS" in ast.unparse(marks[0]) and reason in text, rel
+
+
 def test_tm01_every_file_of_a_partition_exists_and_no_file_is_in_both():
     data = load_map()
     core, deploy = set(data["partitions"]["core"]), set(data["partitions"]["deploy"])
@@ -88,7 +101,8 @@ def test_tm01_the_pending_and_not_applicable_ids_are_exactly_the_ones_this_branc
     states = {ident: e["status"] for ident, e in data["ids"].items() if e["status"] != "built"}
     assert {i for i, s in states.items() if s == "not_applicable"} == {"HR-03", "HR-48"}
     # AU-01 to AU-09 were pending on wave8/release, which had no audience split; wave8/api builds them in test_app.py
-    assert {i for i, s in states.items() if s == "pending"} == set()
+    # JB-01 to JB-08 and JS-01 to JS-11 are built by the job code half; JX-06 and JX-08 need the B source commit and Albert's corpus
+    assert {i for i, s in states.items() if s == "pending"} == {"JX-06", "JX-08"}
 
 
 # TM-02: the lock
@@ -150,7 +164,8 @@ def test_tm03_a_missing_prerequisite_is_named_not_skipped(tmp_path):
 
 def test_tm03_the_new_test_files_carry_no_skip_marker_but_the_one_that_names_its_reason():
     allowed = {"core/setup/tests/test_declared_env_removals.py": "kept out of the repository",
-               "core/setup/tests/test_services_paste.py": "refuses every gcloud by design"}
+               "core/setup/tests/test_services_paste.py": "refuses every gcloud by design",
+               "core/setup/tests/test_jobs_final.py": "which exist on Windows only"}
     for rel in list(locklib.TEST_FILES) + ["core/setup/tests/paste_world.py", "core/setup/tests/release_world.py", "core/api/tests/smoke_support.py"]:
         path = ROOT / rel
         if not path.is_file() or path.suffix != ".py":

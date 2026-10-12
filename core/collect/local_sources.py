@@ -134,9 +134,11 @@ DROPPED_SCRAPES = {
                          "so no repair can be checked offline (3 Oct 2026)" for m in MARKETS},
 }
 # Public Instagram gossip, celebrity news and entertainment blog pages, three a market. A draft from
-# desk knowledge: colleagues in each city confirm it as they did hubs.yaml (BUILD.md 0.9).
+# desk knowledge: colleagues in each city confirm it as they did hubs.yaml (BUILD.md 0.9). ZA replaced
+# @maphephandaba (not_found every day), @zalebs (no posts since 28 Jul) and @tshisalive (no posts since March 2023)
+# with three live publisher pages, 12 Oct 2026; the count stays three, so the panel holds the same credits a day.
 IG_GOSSIP = {
-    "ZA": ("maphephandaba", "zalebs", "tshisalive"),
+    "ZA": ("entertainmentsa", "sahiphopmag", "zkhiphani"),
     "NG": ("instablog9ja", "lindaikejiblogofficial", "gossipmilltv"),
     "KE": ("nairobi_gossip_club", "edaily_kenya", "mpashogram"),
 }

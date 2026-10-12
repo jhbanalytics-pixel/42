@@ -5,7 +5,9 @@ items first, with a candidate held for invalid data days (G1) not taking one of 
 rows of the top 90 are judged in its place (_candidates), an SQL evidence pack each, the publish gate (core/trust/gate.py, plus G4 for items detect marked
 likely coordinated, which gate_card does not read), then one card per set of posts: a Today-bound candidate with
 fewer than 3 posts not already on a higher card merges into the card it shares most posts with, listed there under
-also and recorded in the counts, before any confirm or model spend, one confirm search each for the Today-bound ones inside the confirm share, then
+also and recorded in the counts, before any confirm or model spend (and, after the explanations, the published cards
+of one market that describe the same event are recorded in shadow, core/brief/same_event.py), one confirm search each for the
+Today-bound ones inside the confirm share, then
 for the ones held only by the post floors (fewer than 3 posts it can show or 2 local), with
 what it found added to the pack facts as presence only, then one structured explanation each, 5 at a time in
 rank order across the markets. Confirm results also go into posts and post_observations through lane L1's
@@ -59,14 +61,15 @@ from time import sleep as _sleep
 from core.brief import confirm as confirm_lane
 from core.brief import gatectx
 from core.api.store import creator_key
-from core.api.today import without_hidden
+from core.api.today import _today_card_fault, without_hidden
 from core.brief import pack_order
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
 from core.brief.explain import CHECK_INCOMPLETE, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.locality_audit import build_locality_audit
 from core.brief.market_scope import read_market_scope
-from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _worth, brief_row,
-                               build_market_payload)
+from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _today_order, _worth,
+                               SHOWN, brief_row, build_market_payload, preview_card)
+from core.brief.same_event import near as same_event_near, reason as same_event_reason
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_local_posts, showable_posts
 from core.collect import chain as collect_chain
 from core.config.caps import model_daily_usd
@@ -85,10 +88,15 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # Local label, W8-DEC-03d the narrowed K6 score and date terms switched on, W8-DEC-06b ballot and voter political only
 # beside a party, leader or election term, k6-b7-decade the K6 decade rule of closure review B (CB-4), k6-names the K6
 # false hold exemptions for names, titles and identifiers, k6-n13-n15 the N13-T and N15 K6 age words, rule1-old-age the
-# rule 1 words old man, old woman and elders, g1-gap a missing baseline day after history began read as invalid for G1.
+# rule 1 words old man, old woman and elders, g1-gap a missing baseline day after history began read as invalid for G1,
+# zero-count-hold a card with a measured zero creators or posts in its counted 3 days held, e-order-breadth Today's
+# shown order by the card's creators in 3 days, then posts in 3 days, then worth (core/brief/payload.py _today_order),
+# e-one-event-shadow the published cards of one market that describe the same event recorded in shadow
+# (RELEASE-E-PLAN 8h, core/brief/same_event.py, _merge_events): it changes nothing in a brief row and marks the shadow
+# era, so the live merge at E3 takes a token of its own.
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
-                "+k6-n13-n15+rule1-old-age+g1-gap")
+                "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -107,6 +115,7 @@ BOARD_WORDS = {"board_tiktok_hashtag": "TikTok hashtag board", "board_youtube": 
                "board_apple_music": "Apple Music chart"}
 NO_CONFIRM = {"kind": "thin_coverage",
               "text": "Cross-platform confirmation did not run today: cards rest on 42's own collection only"}
+NO_COUNTED_DAYS = "No creator posted about it in the last 3 days"
 PACK_MAX, PER_CREATOR = 12, 2  # core/brief/sql/evidence.sql: at most 12 posts in a pack and 2 per creator
 # Leave this reserve for the boards, moments, claim_checks, briefs and chain.finish. Each model dispatch reads the
 # remaining allowance to this cutoff and the daily deadline. HTTP phase timeouts are clamped again after auth;
@@ -162,6 +171,46 @@ _NO_LOCALITY = ("(SELECT " + ", ".join(f"CAST(NULL AS {kind}) {name}" for name, 
 _LOCALITY_VIEW = "{core}.v_item_locality_current lo"
 assert QUERIES["candidates"].count(_LOCALITY_VIEW) == 1
 QUERIES["candidates_without_locality"] = QUERIES["candidates"].replace(_LOCALITY_VIEW, _NO_LOCALITY)
+
+# a80's detect job re-creates v_item_market_scope on every run without market_news_posts7, so a brief on this code run while
+# detect is still a80 (a mixed prefix of the jobs update or its restore) finds the column absent. The candidate statement
+# then runs again with a typed NULL in its place, as core/api/store.py does for the same view: a NULL count is not below
+# the market's posts, so the row ranks in the third tier for that run. The locality view is still read. This is its own
+# reason (missing_view_column), never a locality failure, and under v2 it holds nothing. The statement serves only an error
+# that says the column is missing; an error that merely names it (a resource or deadline fault) is a read fault like any other.
+# If the null statement itself fails, that failure is caught and recorded as its own reason and the market is held with no
+# candidates under either authority: the run goes on and the brief shows the data issue.
+_NEWS_COLUMN = "ms.market_news_posts7"
+_NULL_COLUMN = "CAST(NULL AS INT64)"
+assert QUERIES["candidates"].count(_NEWS_COLUMN) == 2
+QUERIES["candidates_without_news_column"] = QUERIES["candidates"].replace(_NEWS_COLUMN, _NULL_COLUMN)
+QUERIES["candidates_without_locality_or_news_column"] = QUERIES["candidates_without_locality"].replace(_NEWS_COLUMN, _NULL_COLUMN)
+MISSING_VIEW_COLUMN = "missing_view_column"
+# Both faults at once, as live staging showed before detect re-created its views: no locality view and the old scope view.
+BOTH_VIEW_FAULTS = "read_without_view+missing_view_column"
+NULL_COLUMN_READ_FAILED = "null_column_statement_failed"
+_MISSING_COLUMN_WORDS = ("Unrecognized name", "not found inside", "does not have a column named")
+_NEWS_COLUMN_NAME = re.compile(r"(?<!\w)market_news_posts7(?!\w)")
+
+
+def _names_news_column(error):
+    """True when the error says market_news_posts7 is missing: it names the column and reads as one of the three missing
+    column wordings (BigQuery's two and DuckDB's), not merely mentions the column."""
+    text = str(error)
+    return bool(_NEWS_COLUMN_NAME.search(text)) and any(words in text for words in _MISSING_COLUMN_WORDS)
+
+
+def _null_column_rows(client, name, d, params, core, agent, receipt, failed, market):
+    """Read the statement that carries a typed NULL for the missing column. If it fails, the failure is printed and recorded
+    as NULL_COLUMN_READ_FAILED and the market has no candidates: held, whatever the locality authority."""
+    try:
+        return _query(client, name, params, core, agent, receipt=receipt)
+    except Exception:
+        receipt.clear()
+        print(f"brief {d.isoformat()}: {NULL_COLUMN_READ_FAILED} market_news_posts7", file=sys.stderr)
+        if failed is not None:
+            failed[market] = NULL_COLUMN_READ_FAILED
+        return []
 
 # Which market the retained locality result gives a candidate on the v2 basis (C4 v3 section 11.2): the status of
 # read_locality, never a v1 value. An unreadable result gives none, and the candidate is held as a data issue.
@@ -457,7 +506,24 @@ def _gate(cand, passed):
     if decision.where == "today" and len(local) < 2:
         cand["held_reason"], cand["floor_held"] = "not_confirmed", True
         return _floor_held_decision(cand, "local", "Fewer than 2 supported local posts", evidence)
+    # The floors above read the 7 day pack; the card's own counts are the last 3 days. A card whose counted days hold
+    # no creator or no post would show "0 creators and 0 posts in 3 days" over examples older than those days. Only a
+    # measured zero holds: a count detect did not give is not a zero. Not a floor hold: confirm finds posts, never
+    # detect's counts, so a search cannot change the answer.
+    if decision.where == "today" and _measured_zero(cand):
+        cand["held_reason"] = "too_few_creators"
+        return _held(NO_COUNTED_DAYS)
     return decision
+
+
+def _measured_zero(cand):
+    """True when the pack pinned a 0 for the creators or the posts of the card's counted 3 days."""
+    return 0 in (_pinned(cand, "creators in 3 days"), _pinned(cand, "posts in 3 days"))
+
+
+def _pinned(cand, unit):
+    """The pack's pinned number with this unit, None when the pack has none."""
+    return next((n.get("value") for n in cand["pack"].get("numbers") or [] if n.get("unit") == unit), None)
 
 
 def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_terms, core, agent, hidden=None,
@@ -620,15 +686,30 @@ def _candidate_rows(client, d, market, core, agent, receipt, failed=None):
     params = {"d": d, "market": market}
     try:
         return _query(client, "candidates", params, core, agent, receipt=receipt)
-    except Exception:
-        print(f"brief {d.isoformat()}: locality_view_read_failed", file=sys.stderr)
+    except Exception as error:
         receipt.clear()
+        if _names_news_column(error):
+            print(f"brief {d.isoformat()}: {MISSING_VIEW_COLUMN} market_news_posts7", file=sys.stderr)
+            if failed is not None:
+                failed[market] = MISSING_VIEW_COLUMN
+            return _null_column_rows(client, "candidates_without_news_column", d, params, core, agent, receipt, failed, market)
+        print(f"brief {d.isoformat()}: locality_view_read_failed", file=sys.stderr)
         held = locality.LOCALITY_AUTHORITY == "v2"
         if failed is not None:
             failed[market] = "held" if held else "read_without_view"
         if held:
             return []
-        return _query(client, "candidates_without_locality", params, core, agent, receipt=receipt)
+        try:
+            return _query(client, "candidates_without_locality", params, core, agent, receipt=receipt)
+        except Exception as second:
+            if not _names_news_column(second):
+                raise
+            receipt.clear()
+            print(f"brief {d.isoformat()}: {MISSING_VIEW_COLUMN} market_news_posts7", file=sys.stderr)
+            if failed is not None:
+                failed[market] = BOTH_VIEW_FAULTS
+            return _null_column_rows(client, "candidates_without_locality_or_news_column", d, params, core, agent, receipt, failed,
+                                     market)
 
 
 def _locality_audit_inputs(client, d, market, rows, core, agent):
@@ -1181,7 +1262,7 @@ def _floor_held(cand):
     """A current-market candidate held only for too few posts it can show or too few local posts. Confirm searches
     it too (ENGINE.md section 3: one search on each top candidate), since the posts confirm finds are the only way
     its pack can grow; every other hold stands whatever a search finds, so those are never searched."""
-    return (bool(cand.get("floor_held")) and not cand.get("error")
+    return (bool(cand.get("floor_held")) and not cand.get("error") and not _measured_zero(cand)
             and cand["row"].get("market_scope") == "market")
 
 
@@ -1214,7 +1295,62 @@ def _payload_candidate(cand, result, specificity=None):
     }
 
 
-def _market_payload(market, d, cands, results, *, banners, moments_, boards_, issues, selection_audit=None):
+def _today_admits(item, market, d):
+    """True when Today would admit the item as a card (core/api/today.py _today_card_fault), read on the card the
+    payload builds for it alone."""
+    return _today_card_fault(preview_card(item, market, d)) is None
+
+
+def _published(item):
+    decision = item["decision"]
+    if isinstance(decision, dict):
+        return decision.get("publish") is True and decision.get("where") == "today"
+    return decision.publish is True and decision.where == "today"
+
+
+def _merge_events(market, d, items, posts):
+    """What one Today card per event would merge, in shadow (RELEASE-E-PLAN item 8h, W8: records and gates nothing
+    until E3). items: the market's payload items after the explanation gate (G10); posts: {item_id: member posts},
+    every post the item's card could rest on (post_set plus the pack). The cards judged are the published items the
+    payload would show (payload.SHOWN in Today's order) that Today would admit. In Today's order, an item that is one
+    event (same_event.reason) with a higher ranked kept card, and with every card already recorded into it, is
+    recorded into the first such card; the lower ranked merges into the higher, as 8h says. Nothing on the items
+    changes and nothing reads the record. Near pairs are every pair of judged cards, in Today's order, that passes
+    every check but the dates (same_event.near). Returns {"judged": n, "merges": [{kept, item_id, shared_posts,
+    shared_names, date}], "near": [{a, b, shared_posts, shared_names, dated}]}, with no name, title or post text."""
+    def event(item):
+        return {"explanation": item.get("explanation"), "posts": posts.get(item["item_id"]) or set()}
+
+    # The payload's own shown cards: the top SHOWN by worth, in Today's order (payload _today_order), so the kept card
+    # is the one Today shows higher.
+    shown = sorted(sorted((i for i in items if _published(i)), key=_worth)[:SHOWN], key=_today_order)
+    judged = [i for i in shown if _today_admits(i, market, d)]
+    kept, taken, merges = [], {}, []
+    for item in judged:
+        found = None
+        for k in kept:
+            why = same_event_reason(event(k), event(item))
+            if why is not None and all(same_event_reason(event(t), event(item)) for t in taken[k["item_id"]]):
+                found = (k, why)
+                break
+        if found is None:
+            kept.append(item)
+            taken[item["item_id"]] = []
+            continue
+        k, why = found
+        taken[k["item_id"]].append(item)
+        merges.append({"kept": k["item_id"], "item_id": item["item_id"], **why})
+    near = []
+    for i, a in enumerate(judged):
+        for b in judged[i + 1:]:
+            why = same_event_near(event(a), event(b))
+            if why is not None:
+                near.append({"a": a["item_id"], "b": b["item_id"], **why})
+    return {"judged": len(judged), "merges": merges, "near": near}
+
+
+def _market_payload(market, d, cands, results, *, banners, moments_, boards_, issues, selection_audit=None,
+                    event_shadow=None):
     # A candidate whose market scope could not be read is not known to be global, so it stays, held for its
     # unreadable evidence.
     # A candidate admitted under locality_v2.1 stays whatever its scope: a not_local one is held by G6 and shown, which
@@ -1249,6 +1385,15 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
                 # an explanation (the enum in core/api/contract.md has no explained-and-held value).
                 item["explanation_status"] = "failed_checks"
         items.append(item)
+    # One card per event, in shadow, on the final decision: after G10, so a card held there takes no part. The
+    # shadow records and gates nothing, so a failure in it is logged and recorded and never costs the brief.
+    try:
+        shadow = _merge_events(market, d, items, {c["row"]["item_id"]: c.get("posts") or set() for c in local_cands})
+    except Exception as e:
+        print(f"brief {d.isoformat()}: event_merge_shadow_failed {type(e).__name__}", file=sys.stderr)
+        shadow = {"error": type(e).__name__}
+    if event_shadow is not None:
+        event_shadow[market] = shadow
     # An evidence read that failed is a data problem too, so it counts with G1 toward the over-30% banner. The
     # denominator is every current-market candidate considered: the G1 holds that _candidates backfilled past as well
     # as the candidates judged, so the banner still shows how much of what was looked at bad data blocked.
@@ -1543,6 +1688,7 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     title_receipts, receipt_omitted = title_purity.project_receipts(tasks, results)
 
     brief_rows, check_rows, cards, held = [], [], 0, 0
+    event_shadow = {}
     published_at = clock()
     recovery = _recovery_deadline(published_at, d)
     late_banner = None
@@ -1561,11 +1707,12 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                                    "checker": chk["checker"], "run_id": run.run_id,
                                    "reason": check_reason(chk), **retained_columns(chk)})
         banners = [b for b in (warm, None if m in confirmed else NO_CONFIRM, late_banner) if b]
-        if selection_audits.get(m, {}).get("candidate_read") == "held":
+        if selection_audits.get(m, {}).get("candidate_read") in ("held", NULL_COLUMN_READ_FAILED):
             banners.append({"kind": "data_issue", "text": "Data issue: today's candidates could not be read"})
         boards_, unnamed = boards(client, d, m, core, agent, hidden=hidden)
         payload = _market_payload(m, d, cands, results, banners=banners, moments_=calendar[m],
-                                  boards_=boards_, issues=_unnamed_issue(unnamed), selection_audit=selection_audits.get(m))
+                                  boards_=boards_, issues=_unnamed_issue(unnamed), selection_audit=selection_audits.get(m),
+                                  event_shadow=event_shadow)
         # Titles, aliases and model text never name a suppressed person either, as Today reads them.
         selection_receipt = payload.pop("selection_receipt", None)
         payload = without_hidden(payload, hidden)
@@ -1590,6 +1737,13 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     if shadow:
         counts["locality_shadow"] = shadow
     unread = {m: a["candidate_read"] for m, a in selection_audits.items() if a.get("candidate_read")}
+    column_missing = [m for m, v in unread.items() if MISSING_VIEW_COLUMN in v]
+    if column_missing:
+        counts["view_column_missing"] = {"markets": column_missing, "column": "market_news_posts7", "action": "null_column"}
+    null_failed = [m for m, v in unread.items() if v == NULL_COLUMN_READ_FAILED]
+    if null_failed:
+        counts["view_column_read_failed"] = {"markets": null_failed, "column": "market_news_posts7", "action": "held"}
+    unread = {m: v for m, v in unread.items() if v not in (MISSING_VIEW_COLUMN, NULL_COLUMN_READ_FAILED)}
     if unread:
         counts["locality_view_failed"] = {"markets": list(unread), "action": "held" if "held" in unread.values()
                                           else "read_without_view"}
@@ -1628,6 +1782,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                 check_rows.append({"answer_or_brief_id": f"{run.run_id}:{candidate['market']}:{candidate['row']['item_id']}",
                                    "claim_id": None, "rule": "title", "verdict": "cut", "checker": "code",
                                    "run_id": run.run_id, "reason": "Title check: receipt byte bound"})
+    # Added after the size bound above, so the shadow's own bytes can never cost a topic card its written title.
+    counts["event_merge_shadow"] = event_shadow
     _insert(client, f"{agent}.briefs", _briefs_rows(brief_rows))
     if check_rows:
         # The diagnostics are written after the briefs: a claim_checks table that has not had its W8-DEC-14
@@ -1652,7 +1808,8 @@ def _publish_data_issue(client, d, run, error, *, clock, core, agent):
                                        banners=banners, issues=_unnamed_issue(unnamed))
         rows.append(brief_row(m, d, run.run_id, published_at, payload, RULE_VERSION))
     _insert(client, f"{agent}.briefs", _briefs_rows(rows))
-    return {"markets": len(MARKETS), "cards": 0, "held": 0, "credits": 0, "model_usd": 0.0}
+    return {"markets": len(MARKETS), "cards": 0, "held": 0, "credits": 0, "model_usd": 0.0,
+            "event_merge_shadow": {m: {"not_run": "data_issue"} for m in MARKETS}}
 
 
 def run(client, d, *, chain, model, make_sc, clock, build_ctx=gatectx.build_ctx, confirm=confirm_lane.confirm,
@@ -1690,7 +1847,8 @@ def run(client, d, *, chain, model, make_sc, clock, build_ctx=gatectx.build_ctx,
                                 started=started, sleep=sleep)
         except Exception as e:
             counts = {"markets": 0, "cards": 0, "held": 0, "credits": spend["credits"],
-                      "model_usd": round(spend["usd"], 6)}
+                      "model_usd": round(spend["usd"], 6),
+                      "event_merge_shadow": {m: {"not_run": "run_failed"} for m in MARKETS}}
             if spend.get("model_reserved_usd"):
                 counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
             chain.finish(brief, "failed", counts, error=f"{type(e).__name__}: {e}")

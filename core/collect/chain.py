@@ -12,15 +12,21 @@ stage already ran ok that day or is still running inside its task timeout, so a 
 restart_next() starts the next stage when this one is ok and the next has no runs row for the day (a start_next
 that raised after finish(ok)).
 The running row records the Cloud Run execution name in counts, so Cloud Run's own task retry after a
-crash, which shares that name, is let through as a fresh run.
+crash, which shares that name, is let through as a fresh run. Beside it go the job name and the task attempt number
+the platform injects (CLOUD_RUN_JOB, CLOUD_RUN_TASK_ATTEMPT), each only when the env carries a well formed value. Every row
+this module writes carries the run stamp (core/setup/stamp.py), built from the process that wrote it. The runs table
+needs its stamp column (core/schema/agent.sql) before a job on this code writes a row.
 The runs table is append-only: every call adds a row and the latest row per run_id wins. Nothing
 here updates, merges, replaces or removes a row.
 """
 import json
 import os
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
+
+from core.setup import stamp
 
 PROJECT = "ogilvy-trends-v2"
 REGION = "us-central1"
@@ -36,6 +42,8 @@ TIMEOUTS = {"collect": timedelta(hours=3), "understand": timedelta(hours=2),
             "detect": timedelta(hours=1), "brief": timedelta(hours=1),
             "reconcile": timedelta(minutes=15)}
 SKIPPED = "skipped_duplicate"
+TASK_ATTEMPT = re.compile(r"[0-9]{1,3}\Z")
+CLOUD_RUN_NAME = re.compile(r"[a-z]([-a-z0-9]{0,61}[a-z0-9])?\Z")
 API = "https://run.googleapis.com/v2"
 
 
@@ -112,11 +120,12 @@ def begin(stage, run_date=None, *, runs=None, jobs=None):
     runs = runs or default_runs()
     run = Run(f"{stage}-{day:%Y%m%d}-{uuid.uuid4().hex[:12]}", stage, day, _utc_now(), runs)
     execution = os.environ.get("CLOUD_RUN_EXECUTION") or None
+    declared = _declared()
     duplicate = None if os.environ.get("FORCE_RERUN") == "1" else _duplicate(stage, day, runs, execution)
     if duplicate:
         runs.append(_row(run, SKIPPED, _utc_now(), None, duplicate))
         raise AlreadyDone(duplicate, run)
-    runs.append(_row(run, "running", None, {"execution": execution} if execution else None, None))
+    runs.append(_row(run, "running", None, declared or None, None))
     need = upstream(stage)
     if need is None:
         return run
@@ -131,6 +140,22 @@ def begin(stage, run_date=None, *, runs=None, jobs=None):
     reason = f"upstream {need} for {day.isoformat()} is not ok ({seen})"
     runs.append(_row(run, "blocked", _utc_now(), None, reason))
     raise UpstreamNotReady(reason, run)
+
+
+def _declared():
+    """The execution, job and task attempt this process says it is, from the platform env: only what is present and well
+    formed, so an absent or malformed name records nothing. They are declarations the row makes about itself."""
+    out = {}
+    execution = os.environ.get("CLOUD_RUN_EXECUTION")
+    if execution:
+        out["execution"] = execution
+    job = os.environ.get("CLOUD_RUN_JOB")
+    if job and CLOUD_RUN_NAME.match(job):
+        out["job"] = job
+    attempt = os.environ.get("CLOUD_RUN_TASK_ATTEMPT")
+    if attempt and TASK_ATTEMPT.match(attempt):
+        out["task_attempt"] = int(attempt)
+    return out
 
 
 def _duplicate(stage, day, runs, execution):
@@ -194,8 +219,8 @@ def restart_next(stage, run_date=None, *, runs=None, jobs=None):
 
 
 def _row(run, status, finished_at, counts, error):
-    return {"run_id": run.run_id, "stage": run.stage, "run_date": run.run_date.isoformat(), "status": status,
-            "started_at": run.started_at, "finished_at": finished_at, "counts": counts, "error": error}
+    return stamp.stamp_row({"run_id": run.run_id, "stage": run.stage, "run_date": run.run_date.isoformat(), "status": status,
+                            "started_at": run.started_at, "finished_at": finished_at, "counts": counts, "error": error})
 
 
 def _order(row, index):

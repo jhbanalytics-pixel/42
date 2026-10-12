@@ -537,6 +537,308 @@
    "partition": "core",
    "status": "built"
   },
+  "JB-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-07": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JB-08": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-07": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-08": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-09": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-10": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JM-11": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JP-01": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JP-02": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JP-03": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JP-04": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JP-05": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JP-06": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JR-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JR-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JR-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JR-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JR-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JR-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-07": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-08": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-09": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-10": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JS-11": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JU-01": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-02": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-03": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-04": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-05": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-06": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-07": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-08": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-09": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JU-10": {
+   "owner": "lane 3",
+   "partition": "deploy",
+   "status": "built"
+  },
+  "JX-01": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JX-02": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JX-03": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JX-04": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JX-05": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JX-06": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the data contract pairs run the B source commit's own stage code, which is not in this checkout; needs the reviewed integration head",
+   "status": "pending"
+  },
+  "JX-07": {
+   "owner": "lane 3",
+   "partition": "core",
+   "status": "built"
+  },
+  "JX-08": {
+   "owner": "lane 3",
+   "partition": "core",
+   "reason": "the old readers over a B-written corpus need the B source commit and the corpus the JB and JS requirements produce",
+   "status": "pending"
+  },
   "PS-01": {
    "owner": "lane 3",
    "partition": "deploy",
@@ -726,7 +1028,20 @@
    "core/setup/tests/test_release_hold.py",
    "core/setup/tests/test_release_c_durable.py",
    "core/setup/tests/test_release_prior.py",
-   "core/setup/tests/test_release_prior_packet.py"
+   "core/setup/tests/test_release_prior_packet.py",
+   "core/setup/tests/test_chain_evidence.py",
+   "core/setup/tests/test_jobs_readback.py",
+   "core/setup/tests/test_jobs_prefix.py",
+   "core/setup/tests/test_jobs_build.py",
+   "core/setup/tests/test_jobs_freeze.py",
+   "core/setup/tests/test_jobs_baseline.py",
+   "core/setup/tests/test_jobs_envscan.py",
+   "core/setup/tests/test_jobs_source.py",
+   "core/setup/tests/test_jobs_effects.py",
+   "core/collect/tests/test_chain_record.py",
+   "core/detect/tests/test_js07_switch_columns.py",
+   "core/setup/tests/test_jobs_wiring.py",
+   "core/setup/tests/test_jobs_prior.py"
   ],
   "deploy": [
    "core/api/tests/test_deploy_candidate.py",
@@ -734,10 +1049,16 @@
    "core/api/tests/test_agent_compat.py",
    "core/setup/tests/test_release_retry.py",
    "core/setup/tests/test_services_paste.py",
+   "core/setup/tests/test_jobs_plan.py",
+   "core/setup/tests/test_jobs_update.py",
+   "core/setup/tests/test_jobs_checks.py",
+   "core/setup/tests/test_jobs_paste.py",
+   "core/setup/tests/test_jobs_hygiene.py",
    "core/setup/tests/test_release_packet_paste.py",
    "core/setup/tests/test_release_e2e.py",
    "core/setup/tests/test_release_prior_e2e.py",
-   "core/api/tests/test_release_base_commit.py"
+   "core/api/tests/test_release_base_commit.py",
+   "core/setup/tests/test_jobs_final.py"
   ]
  },
  "schema_version": 1
