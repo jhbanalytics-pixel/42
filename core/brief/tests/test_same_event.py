@@ -59,6 +59,12 @@ def test_a_name_counts_once_however_many_it_matches():
     assert shared_names(a, b) == 1
 
 
+def test_two_longer_names_one_short_name_opens_count_once():
+    a = names("Fans watched the MTN8.")
+    b = names("Fans watched the MTN8 Cup Final and the MTN8 Finale.")
+    assert shared_names(a, b) == shared_names(b, a) == 1
+
+
 @pytest.mark.parametrize("text,expected", [
     ("likely because Manchester City played on 11 Oct.", {(10, 11)}),
     ("likely because it was released on 2026-10-01.", {(10, 1)}),

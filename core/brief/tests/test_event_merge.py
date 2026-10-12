@@ -118,12 +118,12 @@ def test_a_weaker_card_held_at_g10_stays_its_own_held_item():
 # _merge_events on its own, on payload items
 
 
-def item(item_id, explanation, creators3, *, worth=0.5, publish=True, also=()):
+def item(item_id, explanation, creators3, *, worth=0.5, publish=True, also=(), posts3=10, where=None):
     numbers = [] if creators3 is None else [{"value": creators3, "unit": "creators in 3 days"},
-                                            {"value": 10, "unit": "posts in 3 days"}]
+                                            {"value": posts3, "unit": "posts in 3 days"}]
+    where = where or ("today" if publish else "held_back")
     return {"item_id": item_id, "title": f"#{item_id}", "worth_raw": worth, "explanation": explanation,
-            "numbers": numbers, "also": list(also),
-            "decision": Decision(publish, "today" if publish else "held_back", None, None, None, False)}
+            "numbers": numbers, "also": list(also), "decision": Decision(publish, where, None, None, None, False)}
 
 
 @pytest.fixture
@@ -153,6 +153,24 @@ def test_the_strongest_is_read_from_creators_then_posts_then_rank(admitted):
     assert shown(items) == ["broad"]
     assert items[1]["also"] == [{"item_id": "mid", "title": "#mid"}, {"item_id": "first", "title": "#first"}]
     assert [m["item_id"] for m in merged] == ["mid", "first"]
+
+
+def test_creators_outrank_posts_when_they_disagree(admitted):
+    items = [item("posts", MTN8, 4, posts3=40, worth=0.9), item("creators", MTN8_2, 6, posts3=8, worth=0.1)]
+    run_merge(items)
+    assert shown(items) == ["creators"]
+
+
+def test_a_count_that_is_not_a_number_reads_as_no_count(admitted):
+    items = [item("flag", MTN8, 5, worth=0.9), item("real", MTN8_2, 0, posts3=0, worth=0.1)]
+    items[0]["numbers"] = [{"value": True, "unit": "creators in 3 days"}, {"value": True, "unit": "posts in 3 days"}]
+    run_merge(items)
+    assert shown(items) == ["real"]
+
+
+def test_an_item_routed_to_today_but_not_published_takes_no_part(admitted):
+    items = [item("unpublished", MTN8, 9, publish=False, where="today"), item("card", MTN8_2, 2)]
+    assert run_merge(items) == [] and shown(items) == ["unpublished", "card"]
 
 
 def test_a_card_without_counts_is_weakest_and_ties_go_to_the_higher_rank(admitted):
