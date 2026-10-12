@@ -329,9 +329,17 @@ describe('the version line and What\'s new', () => {
     const entries = [...panel().querySelectorAll('.rail42-whatsnew-release')];
     expect(entries.map((e) => e.querySelector('.rail42-whatsnew-version').textContent)).toEqual(['2.3.0', '2.2.0', '2.1.0', '2.0.0']);
     expect(entries[1].querySelector('.rail42-whatsnew-when').textContent).toBe('11 October 2026');
-    const lines = entries.map((entry) => [...entry.querySelectorAll('.rail42-whatsnew-lines > li')].map((li) => li.textContent));
+    const lines = entries.map((entry) => [...entry.querySelectorAll(':scope > .rail42-whatsnew-lines > li')].map((li) => li.textContent));
     expect(lines[0]).toEqual(parseChangelog(CHANGELOG)[0].lines);
     expect(lines[0].length).toBeGreaterThan(0);
+    const updates = [...entries[0].querySelectorAll(':scope > .rail42-whatsnew-update')].map((block) => ({
+      title: block.querySelector(':scope > .rail42-whatsnew-heading > .rail42-whatsnew-update-title').textContent,
+      when: block.querySelector(':scope > .rail42-whatsnew-heading > .rail42-whatsnew-when').textContent,
+      lines: [...block.querySelectorAll(':scope > .rail42-whatsnew-lines > li')].map((li) => li.textContent),
+    }));
+    expect(updates).toEqual(parseChangelog(CHANGELOG)[0].updates);
+    expect(updates.map(({title, when}) => `${title} (${when})`)).toEqual(['Jobs update (12 October 2026)']);
+    expect(updates[0].lines.length).toBeGreaterThan(0);
     expect(lines[1]).toContain('Instagram and X show their official marks.');
     expect(lines[2]).toContain('Stored runs record which build produced them.');
     expect(lines[3]).toContain('Today and Fieldwork read the culture desk and its kept creators in both the old and the new stored shape.');
