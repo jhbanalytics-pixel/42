@@ -8,6 +8,11 @@ WORKDIR /src/app/frontend
 COPY app/frontend/package.json app/frontend/bun.lock ./
 COPY app/frontend/vendor ./vendor
 RUN bun install --frozen-lockfile
+# The menu's version line: vite.config.mjs reads VERSION and CHANGELOG.md two levels above the frontend, and,
+# with no .git in the image build, the 12 character sha from F42_VERSION, which the builds pass from the tag.
+# The argument is declared after the install, so a new sha does not rebuild the dependency layer.
+COPY VERSION CHANGELOG.md /src/
+ARG F42_VERSION=
 COPY app/frontend/ ./
 # vite writes to ../web/dist, that is /src/app/web/dist
 RUN bun run build

@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 from core.setup.tests.release_prereq import resolve_bash
 
@@ -36,7 +37,8 @@ def run_deploy(tmp_path, *, service=PRIVATE, policy=POLICY, build_exit=0, policy
            "R3_SERVICE": json.dumps(service), "R3_POLICY": json.dumps(policy),
            **{"R3_SERVICE_" + name.replace("-", "_"): json.dumps(value) for name, value in (services or {}).items()},
            "R3_BUILD_EXIT": str(build_exit), "R3_POLICY_EXIT": str(policy_exit),
-           "F42_SMOKE_PASSCODE": "test-only", "MSYS_NO_PATHCONV": "1", "R3_STATUS": status}
+           "F42_SMOKE_PASSCODE": "test-only", "MSYS_NO_PATHCONV": "1", "R3_STATUS": status,
+           "R3_DOCKER": (tmp_path / "docker-calls").as_posix()}
     shell = r'''
 set -euo pipefail
 git() {
@@ -72,7 +74,7 @@ git() {
     *) return 96 ;;
   esac
 }
-docker() { return 97; }
+docker() { printf '%s\0' "$@" >> "$R3_DOCKER"; printf '\0' >> "$R3_DOCKER"; return 97; }
 py() {
   if [ "${2:-}" = core/api/smoke.py ]; then return 0; fi
   if [ "${2:-}" = -c ]; then command "$R3_PYTHON" -c "$3" "${@:4}"; return; fi
@@ -347,3 +349,77 @@ def test_ds21_the_script_and_its_tests_no_longer_claim_traffic_is_untouched_unti
     assert "def test_deploy_sh_no_traffic_flag_skips_the_move" not in workflow
     assert "def test_deploy_sh_issues_its_to_latest_step_after_the_health_check_and_both_deploys" in workflow
     assert "def test_deploy_sh_no_traffic_flag_skips_only_its_own_to_latest_step" in workflow
+
+
+
+# The version line (11 October 2026): the menu shows the 12 character sha f42-api reports as F42_VERSION, and the
+# image build has no .git, so every build of the image hands the sha in as the build argument F42_VERSION.
+def docker_calls(tmp_path):
+    path = tmp_path / "docker-calls"
+    raw = path.read_bytes() if path.exists() else b""
+    return [part.decode("utf-8").split("\0") for part in raw.split(b"\0\0") if part]
+
+
+def test_local_build_hands_the_image_its_short_sha(tmp_path):
+    result, calls = run_deploy(tmp_path, args=("--local-build",))
+    assert result.returncode == 97, result.stderr  # stopped by the docker double after the build call
+    [build] = docker_calls(tmp_path)
+    assert build[0] == "build"
+    assert build[build.index("--build-arg") + 1] == "F42_VERSION=d666ef64cd7a"
+    assert build[build.index("-t") + 1].endswith("/f42-web:d666ef64cd7a")
+    assert build[-1] == "."
+
+
+CLOUD_BUILD = ROOT / "core" / "api" / "cloudbuild.yaml"
+REPO_IMAGE = "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/f42-web"
+
+
+def run_cloud_build_step(tmp_path, image):
+    """Run the build step's script the way Cloud Build would: ${_IMAGE} filled in, $$ a literal dollar, with a
+    docker double that records its arguments. Both callers pass only _IMAGE: deploy.sh <sha12>, the release
+    paste <sha12>-<nn>."""
+    [step] = yaml.safe_load(CLOUD_BUILD.read_text(encoding="utf-8"))["steps"]
+    assert step["name"] == "gcr.io/cloud-builders/docker" and step["entrypoint"] == "bash"
+    script = step["args"][step["args"].index("-c") + 1]
+    env_lines = step.get("env", [])
+    # Any other $ would be a Cloud Build substitution, and an unknown one fails the build.
+    for piece in [script, *env_lines]:
+        assert "$" not in piece.replace("$$", "").replace("${_IMAGE}", ""), piece
+    fill = lambda value: value.replace("${_IMAGE}", image).replace("$$", "$")
+    env = {**os.environ, **dict(fill(line).split("=", 1) for line in env_lines)}
+    out = tmp_path / "docker-calls"
+    double = f"docker() {{ printf '%s\\0' \"$@\" >> '{out.as_posix()}'; printf '\\0' >> '{out.as_posix()}'; }}\n"
+    result = subprocess.run([str(resolve_bash()), "--noprofile", "--norc", "-c", double + fill(script)],
+                            cwd=tmp_path, env=env, capture_output=True, encoding="utf-8", timeout=15)
+    assert result.returncode == 0, result.stderr
+    [build] = docker_calls(tmp_path)
+    return build
+
+
+@pytest.mark.parametrize("tag", ["d0aebe767b06-01", "d0aebe767b06"])
+def test_cloud_build_hands_the_image_the_sha_its_tag_names(tmp_path, tag):
+    build = run_cloud_build_step(tmp_path, f"{REPO_IMAGE}:{tag}")
+    assert build[0] == "build"
+    assert build[build.index("--build-arg") + 1] == "F42_VERSION=d0aebe767b06"
+    assert build[build.index("--file") + 1] == "core/api/Dockerfile"
+    assert build[build.index("--tag") + 1] == f"{REPO_IMAGE}:{tag}"
+    assert build[-1] == "."
+
+
+@pytest.mark.parametrize("tag", ["latest", "d0aebe7-01", "D0AEBE767B06", "d0aebe767b06x"])
+def test_cloud_build_hands_no_sha_for_a_tag_that_does_not_name_one(tmp_path, tag):
+    build = run_cloud_build_step(tmp_path, f"{REPO_IMAGE}:{tag}")
+    assert build[build.index("--build-arg") + 1] == "F42_VERSION="
+    assert build[build.index("--tag") + 1] == f"{REPO_IMAGE}:{tag}"
+
+
+def test_cloud_build_reaches_the_tag_only_through_the_step_env_and_the_images_list():
+    # The script reads the tag from $IMAGE. A ${_IMAGE} inside the script would be pasted into bash by Cloud Build
+    # before bash parses it, so a crafted tag could run commands; the shape check above cannot see that.
+    config = yaml.safe_load(CLOUD_BUILD.read_text(encoding="utf-8"))
+    [step] = config["steps"]
+    script = step["args"][step["args"].index("-c") + 1]
+    assert "_IMAGE" not in script
+    assert [line for line in step["env"] if "_IMAGE" in line] == ["IMAGE=${_IMAGE}"]
+    assert config["images"] == ["${_IMAGE}"]
+    assert [arg for arg in step["args"] if "_IMAGE" in arg] == []

@@ -10,6 +10,7 @@
    that does the same job (legacyRoutes.js). */
 import {useCallback, useEffect, useId, useRef, useState} from 'react';
 import {useIsMobile} from './parts.jsx';
+import {VersionNote} from './ui/VersionNote.jsx';
 import './styles/rail42.css';
 
 const MORE_EXIT_MS = 120;
@@ -102,6 +103,12 @@ function ThemeChoice({theme, onThemeChange}){
   );
 }
 
+/* The version line (11 October 2026) sits between the theme and Log out,
+   in the wide foot and the phone More sheet (ui/VersionNote.jsx). While the
+   sheet is shut a changed version still shows: a mark on More, and a status
+   line outside the sheet that says so. With the sheet open only the line in
+   the sheet speaks, and opening it brings the reload button into view. */
+
 /* Log out (6 October 2026) sits after the theme, at the foot of the wide
    rail and the end of the phone More sheet: a quiet, always-there exit that
    is never mistaken for a page. The host passes onSignOut only where a
@@ -155,6 +162,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
   const moreRef = useRef(null);
   const sheetRef = useRef(null);
   const panelId = useId();
+  const [versionChanged, setVersionChanged] = useState(false);
 
   const setPanelOpen = useCallback((next) => {
     const wasOpen = openRef.current;
@@ -197,6 +205,12 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
   }, []);
 
   useEffect(() => {
+    if (!compact || !open || !versionChanged || !sheetRef.current) return;
+    const reload = sheetRef.current.querySelector('.rail42-version-reload');
+    if (reload) reload.scrollIntoView({block: 'nearest'});
+  }, [compact, open, versionChanged]);
+
+  useEffect(() => {
     if (!open) return undefined;
     const away = (event) => {
       if (sheetRef.current && sheetRef.current.contains(event.target)) return;
@@ -225,6 +239,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
         onClick={() => setPanelOpen((value) => !value)}
       >
         <span className="rail42-more-label">More</span>{compact && held ? <span className="sr-only">, you are on {held.label}</span> : null}
+        {compact && versionChanged ? <><span className="rail42-more-dot" aria-hidden="true" /><span className="sr-only">, version changed</span></> : null}
         {!compact ? <span className="rail42-more-chevron" aria-hidden="true" /> : null}
       </button>
       <div
@@ -239,6 +254,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
         {compact ? <Group id={`${panelId}-work`} title="Your work" items={SHEET_WORK} here={here} /> : null}
         {RAIL_MORE_GROUPS.map((group) => <Group key={group.id} id={`${panelId}-${group.id}`} title={group.title} items={group.items} here={here} />)}
         {compact ? <ThemeChoice theme={theme} onThemeChange={onThemeChange} /> : null}
+        {compact ? <VersionNote active={open} onChange={setVersionChanged} /> : null}
         {compact ? <SignOut onSignOut={onSignOut} /> : null}
       </div>
     </div>
@@ -249,6 +265,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
       <nav className="rail42 rail42--bar" aria-label="Main" data-rail-layout="bar" onKeyDown={onKeyDown}>
         <ul className="rail42-list" data-rail-group="bar"><Links items={BAR_ITEMS} here={here} /></ul>
         {more}
+        <p className="sr-only" role="status">{versionChanged && !open ? 'Version changed. Open More to reload.' : ''}</p>
       </nav>
     );
   }
@@ -259,7 +276,7 @@ function RailAt({compact, route, askOpen, theme, onThemeChange, onSignOut}){
         <Group id={`${panelId}-top`} title="Start here" items={RAIL_TOP} here={here} group="top" />
         <Group id={`${panelId}-work`} title="Your work" items={RAIL_WORK} here={here} group="work" />
         {more}
-        <div className="rail42-foot"><ThemeChoice theme={theme} onThemeChange={onThemeChange} /><SignOut onSignOut={onSignOut} /></div>
+        <div className="rail42-foot"><ThemeChoice theme={theme} onThemeChange={onThemeChange} /><VersionNote /><SignOut onSignOut={onSignOut} /></div>
       </nav>
     </>
   );

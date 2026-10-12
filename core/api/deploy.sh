@@ -149,7 +149,7 @@ case "$BUILD" in
     DOCKER_CONFIG=$(mktemp -d)
     export DOCKER_CONFIG
     echo '{"credHelpers": {"us-central1-docker.pkg.dev": "gcloud"}}' > "$DOCKER_CONFIG/config.json"
-    DOCKER_BUILDKIT=1 docker build -f core/api/Dockerfile -t "$IMAGE" .
+    DOCKER_BUILDKIT=1 docker build --build-arg "F42_VERSION=${TAG}" -f core/api/Dockerfile -t "$IMAGE" .
     docker push "$IMAGE"
     ;;
   *)

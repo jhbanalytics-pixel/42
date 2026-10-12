@@ -219,7 +219,11 @@ async function onTheConsole(theme, drive, width = 1440, {scrollbars = false, hei
 
    The current rail comes first: its skip link, seven pages, closed More
    and theme, then the shell's masthead, market and theme controls. Build's
-   forms follow. The shell's hidden jobs take no stop. */
+   forms follow. The shell's hidden jobs take no stop.
+
+   Version line, 11 October 2026: the rail foot gains one control between
+   the theme and Log out, the version line that opens What's new, so it is
+   the stop after the theme. */
 const RAIL_TOP_LABELS = ['Today', 'Ask', 'Discover', 'Alerts', 'Investigations', 'Dossiers', 'History'];
 const RAIL_MORE_LABELS = ['Compare', 'Lexicon', 'Communities', 'Seed path', 'Seeds', 'Coverage', 'Fieldwork', 'Method', 'Schedules', 'Skins', 'Hidden people', 'All pages'];
 const railLink = (label) => [/^a\.rail42-link$/, label];
@@ -228,6 +232,7 @@ const SHELL_STOPS = [
   ...RAIL_TOP_LABELS.map(railLink),
   [/^button\.rail42-more-button$/, 'More'],
   [/^select$/, null],
+  [/^button\.rail42-version-button$/, null],
   [/^a\.instrument-masthead/, null],
   [/^button\.instrument-market-trigger/, null],
   [/^button\.instrument-theme-control/, null],
