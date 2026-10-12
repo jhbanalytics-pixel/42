@@ -268,15 +268,17 @@ def test_a_route_that_lost_one_key_and_gained_another_is_one_alert_and_one_notic
     assert added.severity == "NOTICE" and "result" in added.reason and "data" not in added.reason
 
 
-@pytest.mark.parametrize("prior,today", [(["object"], ["array"]), (["array"], ["object", "array"]),
-                                         (["number"], ["string"]), (["object", "null"], ["array"])])
-def test_schema_drift_fires_when_a_key_carries_a_value_type_never_seen_in_the_last_7_days(prior, today):
+@pytest.mark.parametrize("prior,today,said", [(["object"], ["array"], "object to array"),
+                                              (["array"], ["object", "array"], "array to object"),
+                                              (["number"], ["string"], "number to string"),
+                                              (["object", "null"], ["array"], "object to array")])
+def test_schema_drift_fires_when_a_key_carries_a_value_type_never_seen_in_the_last_7_days(prior, today, said):
     keys = STABLE + [keyrow("tiktok/trending", "items", 10, 70, 10, 70, today_types=today, prior_types=prior)]
     alerts = wd.check(at(7, 0), FakeStore(keys=keys))
     assert names(alerts) == ["schema_drift"]
     [drift] = alerts
     assert drift.severity == "ERROR"
-    assert "tiktok/trending" in drift.reason and "retyped items" in drift.reason
+    assert drift.reason == f"top-level keys changed against the last 7 days: tiktok/trending (retyped items {said})"
 
 
 @pytest.mark.parametrize("prior,today", [(["object"], ["object", "null"]), (["string", "null"], ["null"]),
@@ -290,6 +292,30 @@ def test_route_keys_is_read_once_for_both_key_rules():
     store = FakeStore(keys=STABLE)
     wd.check(at(7, 0), store)
     assert store.asked.count(("route_keys", DAY)) == 1
+
+
+def test_a_failing_route_keys_read_is_asked_once_and_fails_both_key_rules():
+    class Broken(FakeStore):
+        def route_keys(self, d):
+            self.asked.append(("route_keys", d))
+            raise RuntimeError("read failed")
+
+    store, errors = Broken(), []
+    assert wd.check(at(7, 0), store, errors) == []
+    assert store.asked.count(("route_keys", DAY)) == 1
+    assert [n for n, _ in errors] == ["schema_drift", "schema_added"]
+
+
+def test_a_failing_brief_state_read_is_asked_once_and_fails_every_brief_rule():
+    class Broken(FakeStore):
+        def brief_state(self, d):
+            self.asked.append(("brief_state", d))
+            raise RuntimeError("read failed")
+
+    store, errors = Broken(keys=STABLE), []
+    assert wd.check(at(7, 0), store, errors) == []
+    assert store.asked.count(("brief_state", DAY)) == 1
+    assert [n for n, _ in errors] == ["brief_empty", "brief_all_held", "brief_data_issue"]
 
 
 def test_route_keys_is_still_read_for_the_notice_when_the_drift_alert_already_fired_today():
@@ -311,6 +337,7 @@ def test_schema_drift_fires_when_a_key_every_prior_response_carried_is_gone():
 def test_schema_drift_stays_quiet_on_a_sometimes_key_a_new_route_or_a_route_not_called_today():
     keys = STABLE + [
         keyrow("tiktok/trending", "next_cursor", 0, 30, 10, 70),  # only some prior responses carried it
+        keyrow("tiktok/trending", "next_page", 0, 69, 10, 70),  # all but one prior response carried it
         keyrow("youtube/new", "items", 4, 0, 4, 0),  # first day of a new route: nothing to compare with
         keyrow("reddit/hot", "posts", 0, 50, 0, 50),  # not called today: collection rules cover that
     ]
