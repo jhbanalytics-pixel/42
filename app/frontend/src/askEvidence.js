@@ -112,11 +112,11 @@ const sentence = (text) => (/[.!?]$/.test(text) ? text : text + '.');
 const nounOf = (unit) => (/^posts?$/i.test(unit) ? 'posts' : /^creators?$/i.test(unit) ? 'creators' : '');
 const nounOfNumber = (number) => nounOf(unitFor(number.value, plainUnit(number.unit)));
 
-/* The claims whose posts and creators may stand side by side in one line. The decision
-   is made on the claim's own numbers, before any repeat is dropped: exactly
-   one posts figure and one creators figure, counted by the same query, with
-   no more creators than posts. Anything else would put figures from two
-   queries, or two periods, in one sentence. */
+/* The claims whose posts and creators may be named accounts posting side by
+   side. The decision is made on the claim's own numbers, before any repeat is
+   dropped: exactly one posts figure and one creators figure, counted by the
+   same query, with no more creators than posts. Anything else would put
+   figures from two queries, or two periods, in one sentence. */
 function joinableClaims(claims){
   const joinable = new Set();
   (claims || []).forEach((claim, index) => {
@@ -128,45 +128,42 @@ function joinableClaims(claims){
   return joinable;
 }
 
-/* The tiles of The numbers. Each says what it counts: the posts and the
-   creators of one claim and one query stand side by side in one line ("179
-   posts · 118 accounts posting"), then the claim they belong to. There is
-   no "by" between them, because the same query does not prove the same row.
-   Any other figure stands on its own line with its claim under it. The claim
-   is shown whole: it is never cut, clamped or hidden behind a toggle. A figure
-   whose claim has no words says so, so no tile is ever a bare number. A tile gives no market or window: a stored figure does not
-   record one. A count of creators has one name on a tile, "accounts
-   posting". */
+/* One count in words, and a list of counts read aloud. */
+const countWords = (part) => part.value + ' ' + part.unit;
+const spoken = (parts) => (parts.length < 3 ? parts.map(countWords).join(' and ') : parts.slice(0, -1).map(countWords).join(', ') + ' and ' + countWords(parts[parts.length - 1]));
+
+/* The tiles of The numbers: one tile for each claim that has a figure to
+   show. A tile lists all of that claim's figures in one line, in the order the
+   claim gives them ("179 posts · 118 creators · 57 posts"), then the claim
+   once, whole: it is never cut, clamped or hidden behind a toggle. When the
+   claim's own posts and creators come from one query and no more creators
+   than posts, they stand first and the creators are named "accounts posting"
+   ("179 posts · 118 accounts posting"). There is no "by" between figures,
+   because the same query does not prove the same row. A claim with no words
+   says so, so no tile is ever a bare number. A tile gives no market or
+   window: a stored figure does not record one. */
 export function figureTiles(claims, limit = 8){
   const joinable = joinableClaims(claims);
-  const figures = distinctFigures(claims, limit);
-  const pairs = new Map();
-  for (const figure of figures){
-    const noun = nounOf(figure.unit);
-    if (!noun || !joinable.has(figure.claimIndex)) continue;
-    const slot = pairs.get(figure.claimIndex) || {posts: [], creators: []};
-    slot[noun].push(figure);
-    pairs.set(figure.claimIndex, slot);
-  }
-  const joined = new Set();
+  const byClaim = new Map();
+  for (const figure of distinctFigures(claims, limit)) byClaim.set(figure.claimIndex, [...(byClaim.get(figure.claimIndex) || []), figure]);
   const tiles = [];
-  for (const figure of figures){
-    if (joined.has(figure.key)) continue;
-    const slot = pairs.get(figure.claimIndex);
-    const paired = slot && slot.posts.length === 1 && slot.creators.length === 1 && [slot.posts[0], slot.creators[0]].includes(figure);
-    const parts = (paired ? [slot.posts[0], slot.creators[0]] : [figure]).map((part) => (nounOf(part.unit) === 'creators' ? {...part, unit: unitFor(part.raw, 'accounts posting')} : part));
-    for (const part of parts) joined.add(part.key);
-    const line = parts.map((part) => part.value + ' ' + part.unit).join(' · ');
-    const full = figure.claimText.replace(/\s+/g, ' ').trim();
+  for (const [claimIndex, list] of byClaim){
+    const posts = list.filter((figure) => nounOf(figure.unit) === 'posts');
+    const creators = list.filter((figure) => nounOf(figure.unit) === 'creators');
+    const paired = joinable.has(claimIndex) && posts.length === 1 && creators.length === 1;
+    const ordered = paired ? [posts[0], creators[0], ...list.filter((figure) => figure !== posts[0] && figure !== creators[0])] : list;
+    const parts = ordered.map((part) => (paired && part === creators[0] ? {...part, unit: unitFor(part.raw, 'accounts posting')} : part));
+    const text = list[0].claimText.replace(/\s+/g, ' ').trim();
+    const ids = [...new Set(parts.map((part) => part.queryId).filter(Boolean))];
     tiles.push({
-      key: parts.map((part) => part.key).join(' | '),
+      key: claimIndex + ': ' + parts.map((part) => part.key).join(' | '),
       parts: parts.map(({value, unit}) => ({value, unit})),
-      line,
-      queryId: parts[0].queryId,
-      joined: parts.length === 2,
-      about: full || UNNAMED_FIGURE,
-      full,
-      sentence: parts.map((part) => part.value + ' ' + part.unit).join(' and ') + '. ' + (full ? 'Finding: ' + sentence(full) : UNNAMED_FIGURE),
+      line: parts.map(countWords).join(' · '),
+      queryId: ids[0] || '',
+      queryIds: ids,
+      joined: parts.length > 1,
+      about: text || UNNAMED_FIGURE,
+      sentence: spoken(parts) + '. ' + (text ? 'Finding: ' + sentence(text) : UNNAMED_FIGURE),
     });
   }
   return tiles;

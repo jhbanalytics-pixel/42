@@ -589,15 +589,16 @@ test('a full run shows the research as it happens, then the checked answer', asy
   for (const id of figureQueries){
     expect(plain(outside.textContent)).not.toContain(id);
     expect(plain(details.textContent)).not.toContain(id);
-    expect(host.querySelector('.ask42-figure-tile[data-query-id="' + id + '"]')).not.toBeNull();
+    expect(host.querySelector('.ask42-figure-tile[data-query-ids~="' + id + '"]')).not.toBeNull();
   }
 });
 
 test('each figure in The numbers is one tile with its unit in words', async () => {
   /* Albert, 4 October 2026: "424 posts. 296 creators. 18 posts." with no
-     subject. Wave 8: each distinct figure is one tile that carries its unit
-     ("312 TikTok posts tagged #fixture in 7 days"), so it never stands bare
-     and never repeats. */
+     subject. Wave 8: each claim with figures is one tile that lists its
+     figures, each with its unit ("312 TikTok posts tagged #fixture in 7
+     days"), and shows its claim once, so no figure stands bare and none
+     repeats. */
   const record = clone(completeRecord);
   const server = serve([record]);
   await render({query: {q: record.question, market: 'ZA'}});
@@ -606,11 +607,15 @@ test('each figure in The numbers is one tile with its unit in words', async () =
   await until(() => text().includes('What we do not know'), 'the finished answer');
   const numbers = record.answer.claims.flatMap((claim) => claim.numbers || []);
   expect(numbers.length).toBeGreaterThan(0);
+  const withFigures = record.answer.claims.filter((claim) => (claim.numbers || []).length > 0);
   const tiles = [...host.querySelectorAll('.ask42-figure-tile')];
-  expect(tiles).toHaveLength(numbers.length);
+  expect(tiles).toHaveLength(withFigures.length);
+  const units = [...host.querySelectorAll('.ask42-figure-tile .ask42-figure-unit')];
+  expect(units).toHaveLength(numbers.length);
+  units.forEach((unit) => expect(unit.textContent.length).toBeGreaterThan(0));
   tiles.forEach((tile, index) => {
-    expect(tile.querySelector('.ask42-figure-unit').textContent.length).toBeGreaterThan(0);
-    expect(tile.getAttribute('data-query-id')).toBe(numbers[index].query_id);
+    expect(tile.getAttribute('data-query-ids')).toBe([...new Set(withFigures[index].numbers.map((number) => number.query_id))].join(' '));
+    expect(plain(tile.querySelector('.ask42-figure-claim').textContent)).toBe(plain(withFigures[index].text));
   });
 });
 
@@ -1849,8 +1854,7 @@ test('a claim figure with a warehouse unit reads as words, singular for one', as
   await render({query: {follow: record.ask_id}});
   await until(() => host.querySelector('.ask42-answer .ask42-figure-tile'), 'the figures');
   const figures = [...host.querySelectorAll('.ask42-answer .ask42-figure-tile .ask42-figure-line')].map((node) => plain(node.textContent));
-  expect(figures).toContain('59 posts with a known location');
-  expect(figures).toContain('1 creator with a known location');
+  expect(figures).toContain('59 posts with a known location · 1 creator with a known location');
   expect(text()).not.toContain('located_');
 });
 
