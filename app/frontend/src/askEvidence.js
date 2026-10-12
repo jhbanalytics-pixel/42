@@ -133,28 +133,33 @@ const countWords = (part) => part.value + ' ' + part.unit;
 const spoken = (parts) => (parts.length < 3 ? parts.map(countWords).join(' and ') : parts.slice(0, -1).map(countWords).join(', ') + ' and ' + countWords(parts[parts.length - 1]));
 
 /* The tiles of The numbers: one tile for each claim that has a figure to
-   show. A tile lists all of that claim's figures in one line, in the order the
-   claim gives them ("179 posts · 118 creators · 57 posts"), then the claim
-   once, whole: it is never cut, clamped or hidden behind a toggle. When the
-   claim's own posts and creators come from one query and no more creators
-   than posts, they stand first and the creators are named "accounts posting"
-   ("179 posts · 118 accounts posting"). There is no "by" between figures,
-   because the same query does not prove the same row. A claim with no words
-   says so, so no tile is ever a bare number. A tile gives no market or
-   window: a stored figure does not record one. */
+   show. The headline shows at most the claim's first posts figure and its
+   first creators figure, and only when they stand side by side ("179 posts ·
+   118 accounts posting"): the claim has exactly one of each, counted by the
+   same query, with no more creators than posts. Otherwise the headline is the
+   claim's first figure alone. Every other figure of the claim is left to the
+   claim text under the headline, never shown as a bare number beside it. The
+   claim is shown once, whole: it is never cut, clamped or hidden behind a
+   toggle. There is no "by" between figures, because the same query does not
+   prove the same row. A claim with no words says so, so no tile is ever a bare
+   number. A tile gives no market or window: a stored figure does not record
+   one. A tile carries every query id of its claim's figures. The limit counts
+   the figures shown. */
 export function figureTiles(claims, limit = 8){
   const joinable = joinableClaims(claims);
   const byClaim = new Map();
-  for (const figure of distinctFigures(claims, limit)) byClaim.set(figure.claimIndex, [...(byClaim.get(figure.claimIndex) || []), figure]);
+  for (const figure of distinctFigures(claims, Infinity)) byClaim.set(figure.claimIndex, [...(byClaim.get(figure.claimIndex) || []), figure]);
   const tiles = [];
+  let shown = 0;
   for (const [claimIndex, list] of byClaim){
-    const posts = list.filter((figure) => nounOf(figure.unit) === 'posts');
-    const creators = list.filter((figure) => nounOf(figure.unit) === 'creators');
-    const paired = joinable.has(claimIndex) && posts.length === 1 && creators.length === 1;
-    const ordered = paired ? [posts[0], creators[0], ...list.filter((figure) => figure !== posts[0] && figure !== creators[0])] : list;
-    const parts = ordered.map((part) => (paired && part === creators[0] ? {...part, unit: unitFor(part.raw, 'accounts posting')} : part));
+    const posts = list.find((figure) => nounOf(figure.unit) === 'posts');
+    const creators = list.find((figure) => nounOf(figure.unit) === 'creators');
+    const paired = joinable.has(claimIndex) && Boolean(posts) && Boolean(creators);
+    const parts = paired ? [posts, {...creators, unit: unitFor(creators.raw, 'accounts posting')}] : [list[0]];
+    if (shown + parts.length > limit) break;
+    shown += parts.length;
     const text = list[0].claimText.replace(/\s+/g, ' ').trim();
-    const ids = [...new Set(parts.map((part) => part.queryId).filter(Boolean))];
+    const ids = [...new Set(((claims[claimIndex] && claims[claimIndex].numbers) || []).filter((number) => number && typeof number.value === 'number').map((number) => number.query_id).filter(Boolean))];
     tiles.push({
       key: claimIndex + ': ' + parts.map((part) => part.key).join(' | '),
       parts: parts.map(({value, unit}) => ({value, unit})),
