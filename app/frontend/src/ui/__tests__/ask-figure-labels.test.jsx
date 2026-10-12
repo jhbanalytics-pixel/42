@@ -7,6 +7,7 @@
 import {GlobalRegistrator} from '@happy-dom/global-registrator';
 import {afterAll, afterEach, beforeEach, expect, test} from 'bun:test';
 import React from 'react';
+import {readFileSync, readdirSync} from 'node:fs';
 import record from './fixtures/ask42_numbers_labels.json';
 
 GlobalRegistrator.register();
@@ -132,16 +133,16 @@ test('the values stay exactly as pinned and each query id still rides on its til
   for (const id of ids) expect(words(host.querySelector('.ask42-answer')).includes(id)).toBe(false);
 });
 
-test('a figure repeated by a second claim stays once, and a lone figure still names its claim', async () => {
+test('a figure repeated by a second claim stays once, and the figure left still names its claim', async () => {
   const body = clone(record);
   body.answer.claims[1].numbers = [{...body.answer.claims[0].numbers[0]}, {...body.answer.claims[1].numbers[1]}];
   await open(body);
-  expect(lines()).toEqual(['179 posts · 118 accounts posting', '31 accounts posting', '18 posts · 2 accounts posting', '6 posts · 6 accounts posting']);
+  expect(lines()).toEqual(['179 posts · 118 accounts posting', '31 creators', '18 posts · 2 accounts posting', '6 posts · 6 accounts posting']);
   const lone = all('.ask42-figure-tile')[1];
   expect(words(lone.querySelector('.ask42-figure-claim'))).toContain('Springboks');
 });
 
-test('a count of one reads in the singular and a unit in words is not paired with the wrong noun', async () => {
+test('a count of one reads in the singular and a unit in words is shown alone, not joined with the wrong noun', async () => {
   const body = clone(record);
   body.answer.claims[0].numbers = [
     {...body.answer.claims[0].numbers[0], value: 1, unit: 'posts'},
@@ -152,7 +153,7 @@ test('a count of one reads in the singular and a unit in words is not paired wit
     {...body.answer.claims[1].numbers[1], value: 4, unit: 'creators'},
   ];
   await open(body);
-  expect(lines().slice(0, 3)).toEqual(['1 post · 1 account posting', '59 posts with a known location', '4 accounts posting']);
+  expect(lines().slice(0, 2)).toEqual(['1 post · 1 account posting', '59 posts with a known location']);
 });
 
 test('a claim with no words of its own still says what its figure belongs to', async () => {
@@ -164,8 +165,6 @@ test('a claim with no words of its own still says what its figure belongs to', a
   expect(tile.getAttribute('aria-label')).toBe('6 posts and 6 accounts posting. Counted for a finding with no words of its own.');
 });
 
-/* happy-dom does no layout, so the clamp is stubbed: a claim element reports
-   the height of its text and the height of the box that holds it. */
 test('a claim that holds an abbreviation is shown whole, never cut down to the abbreviation', () => {
   const claim = (text) => [{id: 'a', text, numbers: [posts(40, 'q1'), creators(12, 'q1')]}];
   for (const text of ['Mr. Mbeki trended on X. Then the posts spread.', 'Use of #SA vs. #ZA was split.', 'U.S. creators posted 40 posts about it.']){
@@ -184,54 +183,66 @@ test('an answer with no figures shows no empty heading or caption', async () => 
   expect(host.querySelector('.ask42-figure-caption')).toBeNull();
 });
 
-test('figureTiles puts posts and accounts posting side by side only from one claim, one query, with creators no more than posts', () => {
+test('figureTiles gives one tile per claim, and puts posts and accounts posting side by side only from one claim, one query, with creators no more than posts, else shows the first figure alone', () => {
   const claims = [
     {id: 'a', text: 'First claim.', numbers: [posts(5, 'q1'), creators(3, 'q1')]},
     {id: 'b', text: 'Second claim.', numbers: [creators(7, 'q3')]},
     {id: 'c', text: 'Third claim.', numbers: [posts(2, 'q4'), posts(9, 'q5')]},
   ];
   const tiles = evidence.figureTiles(claims);
-  expect(tiles.map((tile) => tile.line)).toEqual(['5 posts · 3 accounts posting', '7 accounts posting', '2 posts', '9 posts']);
+  expect(tiles.map((tile) => tile.line)).toEqual(['5 posts · 3 accounts posting', '7 creators', '2 posts']);
   expect(tiles[0].queryId).toBe('q1');
   expect(tiles.every((tile) => tile.about.length > 0 && tile.sentence.startsWith(tile.line.replace(' · ', ' and ')))).toBe(true);
   expect(evidence.figureTiles([])).toEqual([]);
 });
 
-test('posts from one query and creators from another in one claim stay two tiles', () => {
-  const tiles = evidence.figureTiles([{id: 'a', text: 'Load shedding drew 18 posts, and 2 creators posted about Eskom.', numbers: [posts(18, 'q_ls'), creators(2, 'q_eskom')]}]);
-  expect(tiles.map((tile) => tile.line)).toEqual(['18 posts', '2 accounts posting']);
+test('a claim whose figures do not join is one tile with its first figure alone, and the others stay in the claim text', () => {
+  const text = 'Run away was used by 118 creators across TikTok, Instagram and YouTube in 179 posts, against 57 posts in the 7-day period before.';
+  const tiles = evidence.figureTiles([{id: 'a', text, numbers: [posts(179, 'q_now'), creators(118, 'q_now'), posts(57, 'q_before')]}]);
+  expect(tiles.length).toBe(1);
+  expect(tiles[0].line).toBe('179 posts');
+  expect(tiles[0].joined).toBe(false);
+  expect(tiles[0].about).toBe(text);
+  expect(tiles[0].sentence).toBe('179 posts. Finding: ' + text);
+  expect(tiles[0].queryId).toBe('q_now');
+  expect(tiles[0].queryIds).toEqual(['q_now', 'q_before']);
 });
 
-test('figures with no query id are not joined', () => {
+test('posts from one query and creators from another in one claim are not joined: the first figure stands alone', () => {
+  const tiles = evidence.figureTiles([{id: 'a', text: 'Load shedding drew 18 posts, and 2 creators posted about Eskom.', numbers: [posts(18, 'q_ls'), creators(2, 'q_eskom')]}]);
+  expect(tiles.map((tile) => tile.line)).toEqual(['18 posts']);
+});
+
+test('figures with no query id are not given the accounts posting name, and the first stands alone', () => {
   const tiles = evidence.figureTiles([
     {id: 'a', text: 'A claim.', numbers: [posts(18, ''), creators(2, '')]},
     {id: 'b', text: 'B claim.', numbers: [{value: 9, unit: 'posts'}, {value: 3, unit: 'creators'}]},
   ]);
-  expect(tiles.map((tile) => tile.line)).toEqual(['18 posts', '2 accounts posting', '9 posts', '3 accounts posting']);
+  expect(tiles.map((tile) => tile.line)).toEqual(['18 posts', '9 posts']);
 });
 
-test('more creators than posts is not a pair', () => {
+test('more creators than posts is not joined: the posts figure stands alone', () => {
   const tiles = evidence.figureTiles([{id: 'a', text: 'A claim.', numbers: [posts(3, 'q1'), creators(30, 'q1')]}]);
-  expect(tiles.map((tile) => tile.line)).toEqual(['3 posts', '30 accounts posting']);
+  expect(tiles.map((tile) => tile.line)).toEqual(['3 posts']);
 });
 
-test('a tie between claims leaves no false pair: the repeated count drops out and the leftovers stay apart', () => {
+test('a tie between claims leaves no false pair: the repeated count drops out and the leftovers stay in their own claim', () => {
   const first = {id: 'a', text: 'Eish was used by 9 creators in 13 posts.', numbers: [posts(13, 'q_a'), creators(9, 'q_a')]};
   const second = {id: 'b', text: 'Run away was used by 11 creators in 13 posts, against 4 posts in the 7-day period before.', numbers: [creators(11, 'q_now'), posts(13, 'q_now'), posts(4, 'q_before')]};
   const tied = evidence.figureTiles([first, second]).map((tile) => tile.line);
-  expect(tied).toEqual(['13 posts · 9 accounts posting', '11 accounts posting', '4 posts']);
-  expect(tied).not.toContain('4 posts · 11 accounts posting');
+  expect(tied).toEqual(['13 posts · 9 accounts posting', '11 creators']);
+  expect(tied.join(' ')).not.toContain('4 posts');
   expect(tied.join(' ')).not.toContain(' by ');
 });
 
-test('a claim with three numbers joins the posts and the creators of one query and keeps the third apart', () => {
+test('a claim with three numbers shows only the joined pair', () => {
   const tiles = evidence.figureTiles([{id: 'a', text: 'A claim with a view count.', numbers: [posts(10, 'q1'), {value: 500, unit: 'views', query_id: 'q1'}, creators(4, 'q1')]}]);
-  expect(tiles.map((tile) => tile.line)).toEqual(['10 posts · 4 accounts posting', '500 views']);
+  expect(tiles.map((tile) => tile.line)).toEqual(['10 posts · 4 accounts posting']);
 });
 
-test('two posts figures in one claim are not joined with its creators', () => {
+test('two posts figures in one claim are not joined: the first stands alone', () => {
   const tiles = evidence.figureTiles([{id: 'a', text: 'A claim.', numbers: [posts(10, 'q1'), posts(4, 'q1'), creators(3, 'q1')]}]);
-  expect(tiles.map((tile) => tile.line)).toEqual(['10 posts', '4 posts', '3 accounts posting']);
+  expect(tiles.map((tile) => tile.line)).toEqual(['10 posts']);
 });
 
 test('only the first eight figures are shown, so five pairs leave four tiles', () => {
@@ -244,19 +255,53 @@ test('only the first eight figures are shown, so five pairs leave four tiles', (
 test('a claim with a second creators figure never pairs its posts with the creators of another query', () => {
   const first = {id: 'a', text: 'First.', numbers: [posts(20, 'q_a'), creators(11, 'q_a')]};
   const second = {id: 'b', text: 'Second.', numbers: [creators(11, 'q_now'), posts(13, 'q_now'), creators(3, 'q_before')]};
-  expect(evidence.figureTiles([first, second]).map((tile) => tile.line)).toEqual(['20 posts · 11 accounts posting', '13 posts', '3 accounts posting']);
+  expect(evidence.figureTiles([first, second]).map((tile) => tile.line)).toEqual(['20 posts · 11 accounts posting', '13 posts']);
 });
 
-test('a side by side claim whose partner repeats an earlier claim leaves the other figure alone, without error', () => {
+test('a side by side claim whose partner repeats an earlier claim keeps the other figure alone, without error', () => {
   const first = {id: 'a', text: 'First.', numbers: [posts(13, 'q_a'), creators(9, 'q_a')]};
   const second = {id: 'b', text: 'Second.', numbers: [posts(13, 'q_b'), creators(11, 'q_b')]};
-  expect(evidence.figureTiles([first, second]).map((tile) => tile.line)).toEqual(['13 posts · 9 accounts posting', '11 accounts posting']);
+  expect(evidence.figureTiles([first, second]).map((tile) => tile.line)).toEqual(['13 posts · 9 accounts posting', '11 creators']);
   const third = {id: 'c', text: 'Third.', numbers: [posts(30, 'q_c'), creators(9, 'q_c')]};
   expect(evidence.figureTiles([first, third]).map((tile) => tile.line)).toEqual(['13 posts · 9 accounts posting', '30 posts']);
 });
 
 test('a joined creators count in the singular reads "1 account posting"', () => {
   expect(evidence.figureTiles([{id: 'a', text: 'One.', numbers: [posts(1, 'q1'), creators(1, 'q1')]}]).map((tile) => tile.line)).toEqual(['1 post · 1 account posting']);
+});
+
+test('the page shows a claim with a current and a period before figure as one tile: one headline figure, the others only in the claim', async () => {
+  const body = clone(record);
+  const text = 'Run away was used by 118 creators across TikTok, Instagram and YouTube in 179 posts, against 57 posts in the 7-day period before.';
+  body.answer.claims = [{...body.answer.claims[0], text, numbers: [
+    {...body.answer.claims[0].numbers[0], value: 179, unit: 'posts', query_id: 'q_now'},
+    {...body.answer.claims[0].numbers[1], value: 118, unit: 'creators', query_id: 'q_now'},
+    {...body.answer.claims[0].numbers[0], value: 57, unit: 'posts', query_id: 'q_before'},
+  ]}];
+  await open(body);
+  const tiles = all('.ask42-figure-tile');
+  expect(tiles.length).toBe(1);
+  expect(lines()).toEqual(['179 posts']);
+  expect(all('.ask42-figure-value').map(words)).toEqual(['179']);
+  expect(words(tiles[0].querySelector('.ask42-figure-claim'))).toContain('118 creators');
+  expect(words(tiles[0].querySelector('.ask42-figure-claim'))).toContain('57 posts');
+  expect(all('.ask42-figure-claim').length).toBe(1);
+  expect(tiles[0].getAttribute('aria-label')).toBe('179 posts. Finding: ' + text);
+  expect(tiles[0].getAttribute('data-query-id')).toBe('q_now');
+  expect(tiles[0].getAttribute('data-query-ids')).toBe('q_now q_before');
+  expect(words(host.querySelector('.ask42-answer')).includes('q_before')).toBe(false);
+});
+
+test('no stylesheet clamps, caps or cuts the claim under a tile', () => {
+  const dir = new URL('../../styles/', import.meta.url);
+  const bodies = [];
+  for (const name of readdirSync(dir).filter((file) => file.endsWith('.css'))){
+    const css = readFileSync(new URL(name, dir), 'utf8');
+    for (const match of css.matchAll(/([^{}]*\.ask42-figure-claim[^{}]*)\{([^}]*)\}/g)) bodies.push(match[2]);
+  }
+  expect(bodies.length).toBeGreaterThan(0);
+  for (const body of bodies) expect(body).not.toMatch(/line-clamp|max-height|text-overflow|white-space:\s*nowrap|overflow:\s*hidden/);
+  expect(bodies.join(';')).toMatch(/overflow-wrap:\s*anywhere/);
 });
 
 /* Every tile shows its whole claim. */
@@ -275,7 +320,6 @@ test('a lone figure shows its whole claim, whatever the claim says and wherever 
   for (const [text, value] of WHOLE_CLAIMS){
     const [tile] = evidence.figureTiles([{id: 'a', text, numbers: [posts(value, 'q1')]}]);
     expect(tile.about).toBe(text);
-    expect(tile.full).toBe(text);
     expect(tile.sentence).toBe(value + ' posts. Finding: ' + text);
   }
 });

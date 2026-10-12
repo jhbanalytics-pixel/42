@@ -118,7 +118,7 @@ export function FigureTiles({tiles}){
       <p className="ask42-muted ask42-figure-caption">Counted in the store, not only in the posts this answer cites</p>
       <ul className="ask42-figure-tiles">
         {tiles.map((tile) => (
-          <li className="ask42-figure-tile" key={tile.key} aria-label={tile.sentence} data-joined={tile.joined ? '' : undefined} data-query-id={tile.queryId || undefined}>
+          <li className="ask42-figure-tile" key={tile.key} aria-label={tile.sentence} data-joined={tile.joined ? '' : undefined} data-query-id={tile.queryId || undefined} data-query-ids={tile.queryIds.length > 0 ? tile.queryIds.join(' ') : undefined}>
             <p className="ask42-figure-line">
               {tile.parts.map((part, index) => (
                 <Fragment key={index}>
