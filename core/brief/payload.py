@@ -228,6 +228,11 @@ def _card(c, market, day, rank, shown_above=frozenset()):
     }
 
 
+def preview_card(c, market, brief_date):
+    """The card c would be on its own, ranked first: what core/brief/job.py asks Today's admission check about."""
+    return _card(c, market, _iso(brief_date), 1)
+
+
 def _title_written(c, explained):
     """The writer's title that passed its checks (core/brief/explain.py), on an explained card only, else None; the
     card keeps title, its cluster label, either way."""

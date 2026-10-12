@@ -1433,7 +1433,8 @@ def test_upstream_not_ready_past_the_deadline_publishes_three_data_issue_rows():
     [fin] = chain.finished
     assert fin["run"].run_id == "brief-20260920-fake"
     assert fin["status"] == "ok"
-    assert fin["counts"] == {"markets": 3, "cards": 0, "held": 0, "credits": 0, "model_usd": 0.0}
+    assert fin["counts"] == {"markets": 3, "cards": 0, "held": 0, "credits": 0, "model_usd": 0.0,
+                             "event_merge_shadow": {m: {"not_run": "data_issue"} for m in MARKETS}}
     assert "upstream detect" in fin["error"]
 
 
