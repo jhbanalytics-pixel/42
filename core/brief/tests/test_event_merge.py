@@ -77,8 +77,8 @@ def test_two_cards_of_one_event_are_recorded_and_both_stay_cards():
     assert [c["also"] for c in all_cards(payload(r, "ZA"))] == [[], []]
     assert payload(r, "ZA")["held_back"]["count"] == 0
     assert shadow(r)["ZA"] == {"judged": 2, "merges": [
-        {"kept": "za_a", "item_id": "za_b", "shared_posts": 3, "shared_names": 3, "date": ["10-10"]}]}
-    assert shadow(r)["NG"] == shadow(r)["KE"] == {"judged": 0, "merges": []}
+        {"kept": "za_a", "item_id": "za_b", "shared_posts": 3, "shared_names": 3, "date": ["10-10"]}], "near": []}
+    assert shadow(r)["NG"] == shadow(r)["KE"] == {"judged": 0, "merges": [], "near": []}
     assert r.chain.finished[0]["counts"]["merged"] == []
 
 
@@ -92,7 +92,7 @@ def test_the_shadow_changes_nothing_a_reader_sees(monkeypatch):
         return rows(r), counts
 
     with_shadow = run_once()
-    monkeypatch.setattr(job, "_merge_events", lambda *a, **k: {"judged": 0, "merges": []})
+    monkeypatch.setattr(job, "_merge_events", lambda *a, **k: {"judged": 0, "merges": [], "near": []})
     assert run_once() == with_shadow
 
 
@@ -132,7 +132,76 @@ def test_a_card_held_at_g10_takes_no_part():
               confirm=FakeConfirm())
     assert za_cards(r) == ["za_b"]
     assert list(held_items(r, "ZA")) == ["za_a"]
-    assert shadow(r)["ZA"] == {"judged": 1, "merges": []}
+    assert shadow(r)["ZA"] == {"judged": 1, "merges": [], "near": []}
+
+
+def test_one_event_without_a_date_on_one_side_is_recorded_as_a_near_pair():
+    con = world(n=0)
+    two_items(con)
+    undated = MTN8_2.replace(" on 10 Oct", "")
+    r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": undated}), confirm=FakeConfirm())
+    assert za_cards(r) == ["za_a", "za_b"]
+    assert shadow(r)["ZA"] == {"judged": 2, "merges": [], "near": [
+        {"a": "za_a", "b": "za_b", "shared_posts": 3, "shared_names": 3, "dated": 1}]}
+
+
+def test_a_shadow_that_raises_is_logged_and_never_fails_the_brief(monkeypatch, capsys):
+    def boom(*a, **k):
+        raise RuntimeError("shadow broke")
+
+    model = {"mtn8 final": MTN8, "sundowns pirates": MTN8_2}
+    con = world(n=0)
+    two_items(con)
+    plain = brief(con, model=EventModel(model), confirm=FakeConfirm())
+    monkeypatch.setattr(job, "_merge_events", boom)
+    con = world(n=0)
+    two_items(con)
+    r = brief(con, model=EventModel(model), confirm=FakeConfirm())
+    assert r.chain.finished[0]["status"] == "ok"
+    assert shadow(r) == {m: {"error": "RuntimeError"} for m in ("ZA", "NG", "KE")}
+    assert rows(r) == rows(plain)
+    assert "event_merge_shadow_failed RuntimeError" in capsys.readouterr().err
+
+
+def test_the_counts_size_bound_is_read_without_the_shadow(monkeypatch):
+    from core.brief import title_purity
+
+    seen = []
+
+    def wire_bytes(counts):
+        seen.append(set(counts))
+        return 0
+
+    monkeypatch.setattr(title_purity, "wire_bytes", wire_bytes)
+    monkeypatch.setattr(title_purity, "project_receipts", lambda tasks, results: ([{"item_id": "x"}], 0))
+    con = world(n=0)
+    two_items(con)
+    r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": MTN8_2}), confirm=FakeConfirm())
+    assert seen and all("event_merge_shadow" not in keys for keys in seen)
+    assert shadow(r)["ZA"]["merges"]
+
+
+def test_the_data_issue_path_records_that_the_shadow_did_not_run():
+    from core.brief.tests.test_brief_job import LATE, FakeChain
+
+    r = brief(world(n=1), chain=FakeChain(raises="upstream"), clock=lambda: LATE)
+    assert r.chain.finished[0]["status"] == "ok"
+    assert shadow(r) == {m: {"not_run": "data_issue"} for m in ("ZA", "NG", "KE")}
+
+
+def test_a_failed_run_records_that_the_shadow_did_not_run(monkeypatch):
+    from core.brief.tests.test_brief_job import FakeChain
+
+    def broken(*a, **k):
+        raise RuntimeError("brief broke")
+
+    monkeypatch.setattr(job, "_brief", broken)
+    chain = FakeChain()
+    with pytest.raises(RuntimeError):
+        brief(world(n=1), chain=chain)
+    assert chain.finished[0]["status"] == "failed"
+    assert chain.finished[0]["counts"]["event_merge_shadow"] == {m: {"not_run": "run_failed"}
+                                                                  for m in ("ZA", "NG", "KE")}
 
 
 # _merge_events on its own, on payload items
@@ -221,7 +290,7 @@ def test_a_card_joins_the_first_kept_card_it_matches(refusals):
 def test_a_held_item_or_one_routed_to_today_but_not_published_takes_no_part(refusals):
     items = [item("held", MTN8, publish=False, worth=0.9), item("unpublished", MTN8, publish=False, where="today",
                                                                   worth=0.8), item("card", MTN8_2, worth=0.1)]
-    assert run_merge(items) == {"judged": 1, "merges": []}
+    assert run_merge(items) == {"judged": 1, "merges": [], "near": []}
 
 
 def test_a_card_today_would_not_admit_takes_no_part(refusals):
@@ -238,6 +307,35 @@ def test_only_the_cards_the_payload_would_show_are_judged(refusals):
     assert result["judged"] == 10
     assert sorted(refusals.asked) == sorted(f"c{k}" for k in range(10))
     assert [m["item_id"] for m in result["merges"]] == [f"c{k}" for k in range(1, 10)]
+
+
+def test_judged_counts_only_the_cards_today_would_admit(refusals):
+    refusals.add("refused")
+    items = [item("a", MTN8, worth=0.9), item("refused", MTN8, worth=0.5), item("b", MTN8_2, worth=0.1)]
+    result = run_merge(items)
+    assert result["judged"] == 2 and pairs(result) == [("a", "b")]
+
+
+def test_a_card_taken_into_a_kept_card_never_becomes_a_kept_card(refusals):
+    one = "Fans posted on 10 Oct, likely because Mamelodi Sundowns, Orlando Pirates and Kaizer Chiefs met."
+    both = ("Fans posted on 10 Oct, likely because Mamelodi Sundowns, Orlando Pirates, Kaizer Chiefs, Golden Arrows, "
+            "Chippa United and Richards Bay met.")
+    two = "Fans posted on 10 Oct, likely because Golden Arrows, Chippa United and Richards Bay met."
+    items = [item("one", one, worth=0.9), item("both", both, worth=0.8), item("two", two, worth=0.7)]
+    assert pairs(run_merge(items)) == [("one", "both")]
+
+
+def test_near_pairs_are_every_pair_that_fails_only_on_dates(refusals):
+    undated = MTN8_2.replace(" on 10 Oct", "")
+    other_day = MTN8_2.replace("10 Oct", "3 Oct")
+    women = MTN8.replace("Orlando Pirates", "Orlando Pirates Women")
+    items = [item("a", MTN8, worth=0.9), item("b", undated, worth=0.8), item("c", other_day, worth=0.7),
+             item("d", women, worth=0.6), item("e", MTN8_2, worth=0.5)]
+    result = run_merge(items)
+    assert pairs(result) == [("a", "e")]
+    assert [(n["a"], n["b"], n["dated"]) for n in result["near"]] == [
+        ("a", "b", 1), ("a", "c", 2), ("b", "c", 1), ("b", "e", 1), ("c", "e", 2)]
+    assert all(set(n) == {"a", "b", "shared_posts", "shared_names", "dated"} for n in result["near"])
 
 
 def test_member_posts_are_read_per_item(refusals):
@@ -263,6 +361,13 @@ BRIEFS = {("2026-09-29", "KE", "brief-20260929-d26a26c2fa00"): ["59090e1b52", "4
 # event, but only the first names its date, so the rule, which needs both cards to name the same date, records none.
 EXPECTED = {("2026-10-12", "NG"): [("ad7f67c05b", "59090e1b52"), ("ad7f67c05b", "9cfaabf463"),
                                    ("ad7f67c05b", "3791be7f80")]}
+# Near pairs, every one also pinned by hand: one event on both cards, with a date on one side only. ZA 12 Oct: the 4
+# MTN8 cards, all 6 pairs. NG 12 Oct: the Manchester United and Carrick story, whose #manchesterunited card names no
+# date.
+NEAR = {("2026-10-12", "ZA"): [("e980768970", "2e884d7ea2"), ("e980768970", "4652356782"),
+                               ("e980768970", "81bdee2c0e"), ("2e884d7ea2", "4652356782"),
+                               ("2e884d7ea2", "81bdee2c0e"), ("4652356782", "81bdee2c0e")],
+        ("2026-10-12", "NG"): [("6a9690baaa", "04a0aad7b9")]}
 
 
 def replay(brief_):
@@ -282,7 +387,20 @@ def test_the_replay_fixture_holds_every_brief_and_card():
 @pytest.mark.parametrize("key", sorted(BRIEFS))
 def test_replay_records_only_cards_of_one_event(refusals, key):
     brief_ = next(b for b in REPLAY["briefs"] if (b["brief_date"], b["market"], b["run_id"]) == key)
-    assert short(replay(brief_)) == EXPECTED.get(key[:2], [])
+    result = replay(brief_)
+    assert short(result) == EXPECTED.get(key[:2], [])
+    assert [(n["a"][:10], n["b"][:10]) for n in result["near"]] == NEAR.get(key[:2], [])
+
+
+def test_replay_12_october_za_shows_the_mtn8_cards_as_near_pairs(refusals):
+    za = next(b for b in REPLAY["briefs"] if (b["brief_date"], b["market"]) == ("2026-10-12", "ZA"))
+    result = replay(za)
+    assert result["merges"] == []
+    assert {n["a"] for n in result["near"]} | {n["b"] for n in result["near"]} == {c["item_id"] for c in za["cards"]}
+    assert len(result["near"]) == 6
+    assert all(n["shared_posts"] >= 3 and n["shared_names"] >= 3 for n in result["near"])
+    # Only the first card, MTN8 Cup Final, names its date: its 3 pairs have one dated side, the other 3 have none.
+    assert [n["dated"] for n in result["near"]] == [1, 1, 1, 0, 0, 0]
 
 
 @pytest.mark.parametrize("key,apart", [

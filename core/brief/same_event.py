@@ -175,20 +175,40 @@ def shared_names(a, b):
     return min(left, right)
 
 
-def reason(a, b):
-    """Why a and b ({"explanation": str, "posts": set of member post ids}) are one event, or None when they are not:
-    {"shared_posts", "shared_names", "date"}, the date as MM-DD. No name or post text is returned."""
+def _all_but_dates(a, b):
+    """{"shared_posts", "shared_names"} when a and b pass every check but the dates, else None."""
     shared_posts = len(set(a.get("posts") or ()) & set(b.get("posts") or ()))
     if shared_posts < MIN_SHARED_POSTS:
         return None
     ea, eb = a.get("explanation"), b.get("explanation")
-    da = dates(ea)
-    if not da or da != dates(eb) or sides(ea) != sides(eb) or stages(ea) != stages(eb):
+    if sides(ea) != sides(eb) or stages(ea) != stages(eb):
         return None
     n = shared_names(names(ea), names(eb))
     if n < SHARED_NAMES:
         return None
-    return {"shared_posts": shared_posts, "shared_names": n, "date": [f"{m:02d}-{d:02d}" for m, d in sorted(da)]}
+    return {"shared_posts": shared_posts, "shared_names": n}
+
+
+def reason(a, b):
+    """Why a and b ({"explanation": str, "posts": set of member post ids}) are one event, or None when they are not:
+    {"shared_posts", "shared_names", "date"}, the date as MM-DD. No name or post text is returned."""
+    da = dates(a.get("explanation"))
+    if not da or da != dates(b.get("explanation")):
+        return None
+    passed = _all_but_dates(a, b)
+    return None if passed is None else {**passed, "date": [f"{m:02d}-{d:02d}" for m, d in sorted(da)]}
+
+
+def near(a, b):
+    """A near pair: a and b pass every check but the dates (one or neither names a date, or both do and the dates
+    differ). {"shared_posts", "shared_names", "dated"}, dated being how many of the two explanations name a date;
+    None for a pair that is one event or fails another check. The shadow records these so a case such as the four
+    MTN8 cards of 12 October 2026, of which only one names its date, shows in the data."""
+    da, db = dates(a.get("explanation")), dates(b.get("explanation"))
+    if da and da == db:
+        return None
+    passed = _all_but_dates(a, b)
+    return None if passed is None else {**passed, "dated": bool(da) + bool(db)}
 
 
 def same_event(a, b):

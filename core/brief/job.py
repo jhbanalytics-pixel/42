@@ -69,7 +69,7 @@ from core.brief.locality_audit import build_locality_audit
 from core.brief.market_scope import read_market_scope
 from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _worth, brief_row,
                                SHOWN, build_market_payload, preview_card)
-from core.brief.same_event import reason as same_event_reason
+from core.brief.same_event import near as same_event_near, reason as same_event_reason
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_local_posts, showable_posts
 from core.collect import chain as collect_chain
 from core.config.caps import model_daily_usd
@@ -89,12 +89,13 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # beside a party, leader or election term, k6-b7-decade the K6 decade rule of closure review B (CB-4), k6-names the K6
 # false hold exemptions for names, titles and identifiers, k6-n13-n15 the N13-T and N15 K6 age words, rule1-old-age the
 # rule 1 words old man, old woman and elders, g1-gap a missing baseline day after history began read as invalid for G1,
-# zero-count-hold a card with a measured zero creators or posts in its counted 3 days held, e-one-event the published
-# cards of one market that describe the same event recorded in shadow (RELEASE-E-PLAN 8h, core/brief/same_event.py,
-# _merge_events); no card changes.
+# zero-count-hold a card with a measured zero creators or posts in its counted 3 days held, e-one-event-shadow the
+# published cards of one market that describe the same event recorded in shadow (RELEASE-E-PLAN 8h,
+# core/brief/same_event.py, _merge_events): it changes nothing in a brief row and marks the shadow era, so the live
+# merge at E3 takes a token of its own.
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
-                "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-one-event")
+                "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-one-event-shadow")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -1313,8 +1314,9 @@ def _merge_events(market, d, items, posts):
     payload would show (payload.SHOWN in Today's order) that Today would admit. In Today's order, an item that is one
     event (same_event.reason) with a higher ranked kept card, and with every card already recorded into it, is
     recorded into the first such card; the lower ranked merges into the higher, as 8h says. Nothing on the items
-    changes and nothing reads the record. Returns {"judged": n, "merges": [{kept, item_id, shared_posts,
-    shared_names, date}]}, with no name, title or post text."""
+    changes and nothing reads the record. Near pairs are every pair of judged cards, in Today's order, that passes
+    every check but the dates (same_event.near). Returns {"judged": n, "merges": [{kept, item_id, shared_posts,
+    shared_names, date}], "near": [{a, b, shared_posts, shared_names, dated}]}, with no name, title or post text."""
     def event(item):
         return {"explanation": item.get("explanation"), "posts": posts.get(item["item_id"]) or set()}
 
@@ -1335,7 +1337,13 @@ def _merge_events(market, d, items, posts):
         k, why = found
         taken[k["item_id"]].append(item)
         merges.append({"kept": k["item_id"], "item_id": item["item_id"], **why})
-    return {"judged": len(judged), "merges": merges}
+    near = []
+    for i, a in enumerate(judged):
+        for b in judged[i + 1:]:
+            why = same_event_near(event(a), event(b))
+            if why is not None:
+                near.append({"a": a["item_id"], "b": b["item_id"], **why})
+    return {"judged": len(judged), "merges": merges, "near": near}
 
 
 def _market_payload(market, d, cands, results, *, banners, moments_, boards_, issues, selection_audit=None,
@@ -1374,8 +1382,13 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
                 # an explanation (the enum in core/api/contract.md has no explained-and-held value).
                 item["explanation_status"] = "failed_checks"
         items.append(item)
-    # One card per event, in shadow, on the final decision: after G10, so a card held there takes no part.
-    shadow = _merge_events(market, d, items, {c["row"]["item_id"]: c.get("posts") or set() for c in local_cands})
+    # One card per event, in shadow, on the final decision: after G10, so a card held there takes no part. The
+    # shadow records and gates nothing, so a failure in it is logged and recorded and never costs the brief.
+    try:
+        shadow = _merge_events(market, d, items, {c["row"]["item_id"]: c.get("posts") or set() for c in local_cands})
+    except Exception as e:
+        print(f"brief {d.isoformat()}: event_merge_shadow_failed {type(e).__name__}", file=sys.stderr)
+        shadow = {"error": type(e).__name__}
     if event_shadow is not None:
         event_shadow[market] = shadow
     # An evidence read that failed is a data problem too, so it counts with G1 toward the over-30% banner. The
@@ -1706,8 +1719,7 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
         brief_rows.append(brief_row(m, d, run.run_id, published_at, payload, RULE_VERSION))
 
     counts = {"markets": len(MARKETS), "cards": cards, "held": held, "credits": spend["credits"],
-              "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged,
-              "event_merge_shadow": event_shadow}
+              "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged}
     if spend.get("model_reserved_usd"):
         counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
     if title_receipts:
@@ -1767,6 +1779,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                 check_rows.append({"answer_or_brief_id": f"{run.run_id}:{candidate['market']}:{candidate['row']['item_id']}",
                                    "claim_id": None, "rule": "title", "verdict": "cut", "checker": "code",
                                    "run_id": run.run_id, "reason": "Title check: receipt byte bound"})
+    # Added after the size bound above, so the shadow's own bytes can never cost a topic card its written title.
+    counts["event_merge_shadow"] = event_shadow
     _insert(client, f"{agent}.briefs", _briefs_rows(brief_rows))
     if check_rows:
         # The diagnostics are written after the briefs: a claim_checks table that has not had its W8-DEC-14
@@ -1791,7 +1805,8 @@ def _publish_data_issue(client, d, run, error, *, clock, core, agent):
                                        banners=banners, issues=_unnamed_issue(unnamed))
         rows.append(brief_row(m, d, run.run_id, published_at, payload, RULE_VERSION))
     _insert(client, f"{agent}.briefs", _briefs_rows(rows))
-    return {"markets": len(MARKETS), "cards": 0, "held": 0, "credits": 0, "model_usd": 0.0}
+    return {"markets": len(MARKETS), "cards": 0, "held": 0, "credits": 0, "model_usd": 0.0,
+            "event_merge_shadow": {m: {"not_run": "data_issue"} for m in MARKETS}}
 
 
 def run(client, d, *, chain, model, make_sc, clock, build_ctx=gatectx.build_ctx, confirm=confirm_lane.confirm,
@@ -1829,7 +1844,8 @@ def run(client, d, *, chain, model, make_sc, clock, build_ctx=gatectx.build_ctx,
                                 started=started, sleep=sleep)
         except Exception as e:
             counts = {"markets": 0, "cards": 0, "held": 0, "credits": spend["credits"],
-                      "model_usd": round(spend["usd"], 6)}
+                      "model_usd": round(spend["usd"], 6),
+                      "event_merge_shadow": {m: {"not_run": "run_failed"} for m in MARKETS}}
             if spend.get("model_reserved_usd"):
                 counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
             chain.finish(brief, "failed", counts, error=f"{type(e).__name__}: {e}")

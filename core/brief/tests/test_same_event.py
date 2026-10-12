@@ -71,6 +71,7 @@ def test_a_short_name_with_a_digit_or_in_capitals_opens_a_longer_one():
 
 
 def test_no_other_name_opens_a_longer_one():
+    assert shared_names(names("Fans watched Kaizer."), names("Fans watched Kaizer Chiefs.")) == 0
     assert shared_names(names("Fans watched Manchester City."), names("Fans watched Manchester City Women.")) == 0
     assert shared_names(names("Fans visited Table Mountain."), names("Fans visited Table Mountain Park.")) == 0
     assert shared_names(names("Fans watched the MTN8."), names("Fans watched the MTN8 Women.")) == 0
@@ -113,6 +114,7 @@ def test_dates_are_day_and_month(text, expected):
     ("Manchester City Women's side won, and Banyana Banyana drew.", {"women"}),
     ("The reserves and the U20 side and the Under-23 side played.", {"reserves", "u20", "u23"}),
     ("Bafana Bafana beat Egypt.", {"bafana"}),
+    ("The youth side played.", {"juniors"}),
     ("Mamelodi Sundowns beat Orlando Pirates.", set()),
 ])
 def test_sides(text, expected):
@@ -154,6 +156,19 @@ def test_both_explanations_must_name_the_same_dates():
     assert not same_event.same_event(card(MTN8), card(other_day))
     two_days = MTN8_2.replace("on 10 Oct", "on 10 Oct and 11 Oct")
     assert not same_event.same_event(card(MTN8), card(two_days))
+
+
+def test_near_is_every_check_but_the_dates():
+    undated = MTN8_2.replace(" on 10 Oct", "")
+    assert same_event.near(card(MTN8), card(undated)) == {"shared_posts": 3, "shared_names": 3, "dated": 1}
+    assert same_event.near(card(MTN8), card(MTN8_2.replace("10 Oct", "3 Oct")))["dated"] == 2
+    assert same_event.near(card(undated), card(undated))["dated"] == 0
+    assert same_event.near(card(MTN8), card(MTN8_2)) is None
+    assert same_event.near(card(MTN8), card(undated.replace("Orlando Pirates", "Orlando Pirates Women"))) is None
+    assert same_event.near(card(MTN8), card(undated.replace("final", "semi-final"))) is None
+    assert same_event.near(card(MTN8, ("p1", "p2", "x")), card(undated)) is None
+    two = "Fans reacted, likely because Orlando Pirates reached the MTN8 final."
+    assert same_event.near(card(MTN8), card(two)) is None
 
 
 def test_two_shared_names_are_not_enough():
