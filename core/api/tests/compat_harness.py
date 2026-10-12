@@ -114,7 +114,9 @@ def shape(value):
 
 def compare_shapes(control, candidate, where="$"):
     """(problems, new keys). A key missing from the candidate fails; a changed non-null type fails; a value that becomes
-    null where the control had one fails; new keys pass and are listed."""
+    null where the control had one fails; new keys pass and are listed. In an array, a candidate element that matches no control
+    element is listed as `where[]`, and one that does lists the keys it adds to the control element it is closest to (the match that
+    adds the fewest) as `where[].key`."""
     problems, added = [], []
     if isinstance(control, dict):
         if not isinstance(candidate, dict):
@@ -135,9 +137,12 @@ def compare_shapes(control, candidate, where="$"):
             if not any(not compare_shapes(item, other, where)[0] for other in candidate):
                 problems.append(f"{where}[{index}]: no candidate element has this shape")
         for other in candidate:
-            if not any(not compare_shapes(item, other, where)[0] for item in control):
-                added.append(f"{where}[]")
-                break
+            fits = [sub_added for sub_problems, sub_added in (compare_shapes(item, other, f"{where}[]") for item in control) if not sub_problems]
+            if not fits:
+                if f"{where}[]" not in added:
+                    added.append(f"{where}[]")
+                continue
+            added += [key for key in min(fits, key=len) if key not in added]
         return problems, added
     if control == "null":
         return problems, added

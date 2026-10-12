@@ -106,6 +106,21 @@ def test_ct02_shape_rules():
     assert h.compare_shapes(control, h.shape({"a": 1, "b": "x", "c": None, "d": [{"k": "1"}], "e": {"f": True}}))[0]
 
 
+
+def test_ct02_a_key_added_inside_a_list_item_is_reported_as_a_new_key():
+    control = h.shape({"d": [{"k": 1, "e": {"f": 1}}]})
+    assert h.compare_shapes(control, h.shape({"d": [{"k": 2, "rank": 1, "e": {"f": 2}}]})) == ([], ["$.d[].rank"])
+    assert h.compare_shapes(control, h.shape({"d": [{"k": 2, "e": {"f": 2, "g": "x"}}]})) == ([], ["$.d[].e.g"])
+    assert h.compare_shapes(control, h.shape({"d": [{"k": 2, "e": {"f": 2}}]})) == ([], [])
+    assert h.compare_shapes(control, h.shape({"d": [{"k": 2, "e": {"f": 2}}, "x"]})) == ([], ["$.d[]"])
+
+
+def test_ct02_an_item_judged_against_its_closest_control_element_lists_only_the_keys_it_adds_to_that_one():
+    control = h.shape({"d": [{"k": 1}, {"k": 1, "rank": 2}]})
+    assert h.compare_shapes(control, h.shape({"d": [{"k": 3, "rank": 4}]})) == ([], [])
+    assert h.compare_shapes(control, h.shape({"d": [{"k": 3, "rank": 4, "n": 5}]})) == ([], ["$.d[].n"])
+
+
 # CT-03
 
 def test_ct03_the_event_streams_deliver_the_same_event_names_in_the_same_order(world):

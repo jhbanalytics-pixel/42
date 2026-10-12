@@ -416,14 +416,17 @@ def links_read(ask_id, links, body=None):
 
 
 def links_world(candidate_got, prior_got, *, candidate_stored=LINKED, prior_stored=LINKED, keep=True):
-    """One candidate link row a_c1 with the previous release's own row of the same case a_p1 as its twin, and (keep) one more own row
-    a_p9 that came back as stored, so the rule has a row that shows the previous reader giving a link back."""
-    candidate, prior = link_row("a_c1", candidate_stored), [link_row("a_p1", prior_stored)]
+    """One candidate link row a_c1 with the previous release's own row of the same case a_p1 as its twin and, with keep, the linked case
+    first: the own row a_p9 that came back as stored, twin of the candidate row a_c9 that came back as stored too. The own rows are in
+    LINK_SCENARIOS order, as linked_rows makes them, so the linked case leads."""
+    rows, prior, twin_of = [link_row("a_c1", candidate_stored)], [link_row("a_p1", prior_stored)], {"a_c1": "a_p1"}
     reads = {"a_c1": links_read("a_c1", candidate_got), "a_p1": links_read("a_p1", prior_got)}
     if keep:
-        prior.append(link_row("a_p9", LINKED))
-        reads["a_p9"] = links_read("a_p9", LINKED)
-    return reads, [candidate], {"a_c1": "a_p1"}, prior
+        prior.insert(0, link_row("a_p9", LINKED))
+        rows.insert(0, link_row("a_c9", LINKED))
+        reads.update(a_p9=links_read("a_p9", LINKED), a_c9=links_read("a_c9", LINKED))
+        twin_of["a_c9"] = "a_p9"
+    return reads, rows, twin_of, prior
 
 
 def test_the_keys_the_previous_writers_store_are_read_from_what_they_wrote():
@@ -498,6 +501,7 @@ def test_a_withholding_marker_on_the_candidate_row_alone_is_undeclared_and_a_los
     problems = h.layer_problems(c_data(withheld, plain))["layer 2"]
     assert "a_c1 ask read.privacy: undeclared key" in problems
     assert any(p.startswith("a_c1 ask read.answer.so_what[0]") for p in problems)
+    assert problems == ["a_c1 ask read.answer.so_what[0]: no candidate element has this shape", "a_c1 ask read.privacy: undeclared key"]
 
 
 def test_a_key_the_previous_release_already_stores_is_no_longer_declared_against_it():
@@ -574,4 +578,115 @@ def test_a_candidate_tree_that_writes_a_link_release_c_cannot_read_fails_the_rec
     receipt = h.build_receipt("c" * 40, h.collect(tree, tmp_path / "c", base_commit=C), base_commit=C)
     assert receipt["verdict"] == "fail"
     assert any(p.startswith("layer 2: a_20261009_link01 ask read.evidence_links:") for p in receipt["problems"]), receipt["problems"]
+    v2 = "{'v': 2, 'parents': {'x_comment_7001': 'x_fixture_3'}}"
+    assert receipt["problems"] == [
+        "layer 2: a_20261009_link01 ask read.answer.so_what[0]: no candidate element has this shape",
+        "layer 2: a_20261009_link01 ask read.evidence_links: missing from the candidate",
+        "layer 2: a_20261009_link01 ask read.privacy: undeclared key",
+        "layer 2: a_20261009_link02 ask read.evidence_links: missing from the candidate",
+        f"layer 2: a_20261009_link01 ask read.evidence_links: the previous reader gave absent where the record stores {v2}",
+        f"layer 2: a_20261009_link02 ask read.evidence_links: the previous reader gave absent where the record stores {v2}"]
     assert h.build_receipt("c" * 40, h.collect(tree, tmp_path / "a", base_commit=A), base_commit=A)["verdict"] == "pass"
+
+
+# Review of the Release C prior rule (REVIEW-opus-d-oldreader-c): the conditions, each pinned here.
+
+def plant(tree, rel, old, new):
+    path = tree / rel
+    text = path.read_text(encoding="utf-8")
+    assert text.count(old) == 1, (rel, old)
+    path.write_text(text.replace(old, new), encoding="utf-8")
+
+
+PRODUCER = 'return {"v": 1, "parents": parents} if parents else None'
+
+
+def no_link_rows_data():
+    """A previous release that stores both keys and made its own five link rows; a candidate with no link row at all."""
+    legacy = row("a_l1")
+    own = [link_row(f"a_20261009_link{n:02d}_prior", LINKED) for n in range(1, len(NAMES) + 1)]
+    reads = {**reads_for([legacy["run_id"]], {"ask_id": "a"}), **{h.ask_id_of(r): links_read(h.ask_id_of(r), LINKED) for r in own}}
+    return {"rows": [legacy], "legacy": [legacy], "twin_of": {}, "paths": set(), "reads": reads, "reverse": {}, "prior_stores_answer_meta": True,
+            "layer2_rows": [legacy], "prior_linked": own, "prior_record_keys": ["answer_meta", "evidence_links"], "candidate_writes_links": False}
+
+
+def test_a_previous_release_that_stores_the_links_requires_the_candidate_link_rows_in_layer_1():
+    problems = h.layer_problems(no_link_rows_data())["layer 1"]
+    assert "no record holds evidence_links with a comment linked to its post" in problems
+    assert "no record shows a comment without evidence_links" in problems
+    assert "no record holds evidence_links that names a post the record does not show" in problems
+
+
+def test_a_previous_release_own_link_row_no_candidate_row_was_judged_against_is_a_problem():
+    problems = h.layer_problems(no_link_rows_data())["layer 2"]
+    for number in range(1, len(NAMES) + 1):
+        assert f"a_20261009_link{number:02d}_prior: no candidate link row of this case was judged against it" in problems
+
+
+def test_a_candidate_whose_link_producer_cannot_be_found_fails_against_release_c(tmp_path):
+    """M10 of the review: the producer renamed with its caller, and its link bumped to v 2, which Release C reads as no link. The harness
+    finds no producer, so the corpus holds no link row; against Release C that is a fail, not a pass on 17 rows."""
+    tree = h.copy_tree(ch.ROOT, tmp_path / "renamed")
+    plant(tree, "core/agent/checks.py", "def comment_links(answer, stored):", "def comment_parent_links(answer, stored):")
+    plant(tree, "core/agent/checks.py", PRODUCER, PRODUCER.replace('"v": 1', '"v": 2'))
+    plant(tree, "core/agent/ask.py", "checks.comment_links(answer, ctx.evidence)", "checks.comment_parent_links(answer, ctx.evidence)")
+    data = h.collect(tree, tmp_path / "c", base_commit=C)
+    assert data["candidate_writes_links"] is False and [h.ask_id_of(r) for r in data["prior_linked"]] == c_link_ids("_prior")
+    receipt = h.build_receipt("c" * 40, data, base_commit=C)
+    assert receipt["verdict"] == "fail"
+    assert "layer 1: no record holds evidence_links with a comment linked to its post" in receipt["problems"]
+    assert all(f"layer 2: {i}: no candidate link row of this case was judged against it" in receipt["problems"] for i in c_link_ids("_prior"))
+
+
+def test_a_prior_row_that_stores_no_link_does_not_count_as_a_link_given_back():
+    """H04 of the review: a prior row with no key that reads absent shows nothing about the previous reader giving a link back."""
+    rows, twin_of = [link_row("a_c1", {"v": 2, "parents": {"x_comment_7001": "x_fixture_3"}})], {"a_c1": "a_p1"}
+    prior = [link_row("a_p1", LINKED), link_row("a_p2")]
+    reads = {"a_c1": links_read("a_c1", "absent"), "a_p1": links_read("a_p1", "absent"), "a_p2": links_read("a_p2", "absent")}
+    assert h.links_problems(reads, rows, twin_of, prior) == [
+        "ask read.evidence_links: no link row of the previous release came back as stored, so its rows show nothing"]
+
+
+def test_the_linked_case_of_the_previous_release_must_itself_come_back_as_stored():
+    """The review's guard probe: a prior that withholds its own linked row but gives its partial row back as stored would let a candidate
+    linked row storing a link no reader takes through, judged as withheld like its twin. The linked case leads the own rows."""
+    v2 = {"v": 2, "parents": {"x_comment_7001": "x_fixture_3"}}
+    rows, twin_of = [link_row("a_c1", v2), link_row("a_c2", LINKED)], {"a_c1": "a_p1", "a_c2": "a_p2"}
+    prior = [link_row("a_p1", LINKED), link_row("a_p2", LINKED)]
+    reads = {"a_c1": links_read("a_c1", "absent"), "a_c2": links_read("a_c2", LINKED), "a_p1": links_read("a_p1", "absent"),
+             "a_p2": links_read("a_p2", LINKED)}
+    assert h.links_problems(reads, rows, twin_of, prior) == [
+        "a_p1 ask read.evidence_links: the previous release's own row of the linked case did not come back as stored, so a candidate "
+        "link of that case is judged against a withheld one"]
+
+
+def test_the_receipt_records_the_keys_the_previous_writers_store_which_choose_the_link_rule(monkeypatch):
+    monkeypatch.setattr(h, "layer_problems", lambda data: {})
+    base = {"rows": [], "legacy": [], "paths": []}
+    assert h.build_receipt("c" * 40, base)["prior_record_keys"] == []
+    assert h.build_receipt("c" * 40, {**base, "prior_stores_answer_meta": True})["prior_record_keys"] == ["answer_meta"]
+    both = {**base, "prior_stores_answer_meta": True, "prior_record_keys": ["answer_meta", "evidence_links"]}
+    assert h.build_receipt("c" * 40, both)["prior_record_keys"] == ["answer_meta", "evidence_links"]
+
+
+def test_the_receipt_at_release_c_records_both_keys(at_c):
+    assert h.build_receipt(ch.git_head(), at_c, base_commit=C)["prior_record_keys"] == ["answer_meta", "evidence_links"]
+
+
+def test_a_key_added_inside_a_list_item_is_an_undeclared_key_on_both_rules():
+    """M04 of the review: every so_what item gains rank. The shape comparison now reports a key added inside an element."""
+    item = {"text": "x", "claim_ids": ["c1"]}
+    plain, ranked = {"ask_id": "a", "answer": {"so_what": [item]}}, {"ask_id": "a", "answer": {"so_what": [{**item, "rank": 1}]}}
+    assert h.layer_problems(c_data(ranked, plain))["layer 2"] == ["a_c1 ask read.answer.so_what[].rank: undeclared key"]
+    reads, twin_of = meta_data(plain, ranked)
+    assert h.layer2_problems(reads, twin_of, declared=h.C_RECORD_KEYS) == ["a_c1 ask read.answer.so_what[].rank: undeclared key"]
+    assert h.layer2_problems(reads, twin_of) == ["a_c1 ask read.answer.so_what[].rank: undeclared key"]
+
+
+def test_the_corpus_hash_does_not_change_with_the_day_the_writers_ran():
+    """run_date is the bare day a run was written (agent_app.py), so a receipt made on a later day had another corpus hash."""
+    one = [{"record": {"ask_id": "a_20261011_0123abcd"}, "run_date": "2026-10-11"}]
+    two = [{"record": {"ask_id": "a_20261012_0123abcd"}, "run_date": "2026-10-12"}]
+    assert h.corpus_sha256(one) == h.corpus_sha256(two)
+    assert h.stable_form(two)[0]["run_date"] == "<date>"
+    assert h.corpus_sha256([{**two[0], "kept": "2026-10-12"}]) != h.corpus_sha256([{**two[0], "kept": "2026-10-13"}])

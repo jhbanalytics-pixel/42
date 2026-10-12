@@ -320,7 +320,9 @@ def links_problems(reads, rows, twin_of=None, prior_rows=()):
     prior_rows are its own link rows, made by its producer from its own complete row, and twin_of names the one of the same case for
     each candidate row. Where its reader gave its own row's link back as stored, the candidate's comes back as the candidate stored it;
     where its reader withheld or pruned its own, the candidate's comes back as its own did. At least one of its own rows must come back
-    as stored with a link in it, or no row shows the previous reader giving a link back and the rule compares nothing."""
+    as stored with a link in it, or no row shows the previous reader giving a link back and the rule compares nothing. The first of
+    prior_rows is the linked case (linked_rows makes them in LINK_SCENARIOS order): a comment shown with its post shown, which a reader
+    has no cause to withhold. It must come back as stored, or a candidate link of that case would be judged against a withheld one."""
     own = {ask_id_of(row): row for row in prior_rows}
     problems, as_stored = [], False
     for row in prior_rows:
@@ -331,6 +333,9 @@ def links_problems(reads, rows, twin_of=None, prior_rows=()):
         as_stored = as_stored or (isinstance(got, dict) and stored != "absent" and got.get("links") == stored)
     if prior_rows and not as_stored:
         problems.append("ask read.evidence_links: no link row of the previous release came back as stored, so its rows show nothing")
+    elif prior_rows and not came_back_as_stored(reads, prior_rows[0]):
+        problems.append(f"{ask_id_of(prior_rows[0])} ask read.evidence_links: the previous release's own row of the linked case did not "
+                        "come back as stored, so a candidate link of that case is judged against a withheld one")
     for row in rows:
         ask_id, stored = ask_id_of(row), row["record"].get("evidence_links", "absent")
         got = reads.get(ask_id, {}).get("ask read")
@@ -349,6 +354,20 @@ def links_problems(reads, rows, twin_of=None, prior_rows=()):
         elif got["links"] != stored:
             problems.append(f"{ask_id} ask read.evidence_links: the previous reader gave {got['links']} where the record stores {stored}")
     return problems
+
+
+def came_back_as_stored(reads, row):
+    """True when the row stores a link and its Ask read gave that link back unchanged."""
+    stored = row["record"].get("evidence_links", "absent")
+    got = reads.get(ask_id_of(row), {}).get("ask read")
+    return stored != "absent" and isinstance(got, dict) and got.get("links") == stored
+
+
+def unjudged_prior_rows(twin_of, layer2_rows, prior_linked):
+    """The previous release's own link rows that no candidate row of layer 2 is judged against: against a release whose writers store
+    evidence_links, every case it produces needs a candidate link row of the same case, or the receipt says nothing about those links."""
+    judged = {twin_of.get(ask_id_of(row)) for row in layer2_rows}
+    return [ask_id_of(row) for row in prior_linked if ask_id_of(row) not in judged]
 
 
 # Layer 3: JSON paths
@@ -471,14 +490,16 @@ def harness_sha256():
 
 def stable_form(rows):
     """The corpus without the values a run invents: ask and run ids become numbers in order of first appearance (so which record
-    points at which stays visible), timestamps, digests that cover an id, the seconds a run took and the count of research steps a
-    stop interrupted are masked. Everything else in every record is kept."""
+    points at which stays visible), timestamps, the run_date (the bare day the writers ran), digests that cover an id, the seconds a
+    run took and the count of research steps a stop interrupted are masked. Everything else in every record is kept."""
     numbered = {}
 
     def number(match):
         return f"{match.group(1)}_<{numbered.setdefault(match.group(0), len(numbered) + 1)}>"
 
     def walk(value, key=None):
+        if key == "run_date" and isinstance(value, str):
+            return "<date>"
         if isinstance(value, dict):
             return {k: walk(v, k) for k, v in value.items()}
         if isinstance(value, list):
@@ -543,12 +564,15 @@ def layer_problems(data):
     layer2 = [f"{ask_id}: no read of {route}" for route in ("ask read", "ask events", "ask export") for ask_id in unread(data["reads"], ids, route)]
     layer2 += layer2_problems(data["reads"], data["twin_of"], declared=declared_keys(prior_keys))
     layer2 += links_problems(data["reads"], layer2_rows, data["twin_of"], prior_linked)
+    layer2 += [f"{ask_id}: no candidate link row of this case was judged against it"
+               for ask_id in unjudged_prior_rows(data["twin_of"], layer2_rows, prior_linked)]
     layer3 = [] if data["paths"] else ["no JSON path is read from the previous release"]
     layer3 += [] if legacy else ["no record written by the previous writers"]
     layer3 += layer3_problems(legacy, rows, data["paths"])
     layer4 = [f"{ask_id}: no read of the candidate readers" for ask_id in unread(data["reverse"], legacy_ids, "ask read")]
     layer4 += reverse_meta_problems(data["reverse"], legacy) if stores else reverse_problems(data["reverse"])
-    return {"layer 1": layer1_problems(rows, expects_links=data.get("candidate_writes_links", False)), "layer 2": layer2, "layer 3": layer3, "layer 4": layer4}
+    expects_links = data.get("candidate_writes_links", False) or "evidence_links" in prior_keys
+    return {"layer 1": layer1_problems(rows, expects_links=expects_links), "layer 2": layer2, "layer 3": layer3, "layer 4": layer4}
 
 
 def build_receipt(candidate_commit, data, base_commit=ch.BASE_COMMIT):
@@ -556,12 +580,16 @@ def build_receipt(candidate_commit, data, base_commit=ch.BASE_COMMIT):
     1 to 4 prefixed with its layer, and a verdict that is pass only with no problem. An empty corpus, no legacy rows, no JSON paths
     and a layer that read nothing are each a problem, so none of them can pass. prior_stores_answer_meta says which rules layers 2 and 4
     were judged by: the key-absent twin and the declared answer_meta key (False, a80be1d), or the previous release's own records of the
-    same kind and the state each stored (True, Release A and later)."""
+    same kind and the state each stored (True, Release A and later). prior_record_keys names the keys the previous writers store, which
+    choose the link rule: with evidence_links among them, each candidate link row was judged against the previous release's own row of
+    the same case; without it, the link had to come back exactly as stored."""
     problems = [f"{layer}: {problem}" for layer, found in layer_problems(data).items() for problem in found]
     counts = {"corpus_rows": len(data["rows"]), "legacy_rows": len(data["legacy"]), "json_paths": len(data["paths"])}
     return {"schema_version": 1, "base_commit": base_commit, "candidate_commit": candidate_commit,
             "harness_sha256": harness_sha256(), "corpus_sha256": corpus_sha256(data["rows"]), **counts,
-            "prior_stores_answer_meta": bool(data.get("prior_stores_answer_meta", False)), "problems": problems, "verdict": "pass" if not problems else "fail"}
+            "prior_stores_answer_meta": bool(data.get("prior_stores_answer_meta", False)),
+            "prior_record_keys": sorted(data.get("prior_record_keys", ["answer_meta"] if data.get("prior_stores_answer_meta") else [])),
+            "problems": problems, "verdict": "pass" if not problems else "fail"}
 
 
 def collect(candidate_tree, log_dir, base_commit=ch.BASE_COMMIT):
