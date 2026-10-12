@@ -385,7 +385,9 @@ def run_cloud_build_step(tmp_path, image):
     # Any other $ would be a Cloud Build substitution, and an unknown one fails the build.
     for piece in [script, *env_lines]:
         assert "$" not in piece.replace("$$", "").replace("${_IMAGE}", ""), piece
-    fill = lambda value: value.replace("${_IMAGE}", image).replace("$$", "$")
+    def fill(value):
+        return value.replace("${_IMAGE}", image).replace("$$", "$")
+
     env = {**os.environ, **dict(fill(line).split("=", 1) for line in env_lines)}
     out = tmp_path / "docker-calls"
     double = f"docker() {{ printf '%s\\0' \"$@\" >> '{out.as_posix()}'; printf '\\0' >> '{out.as_posix()}'; }}\n"

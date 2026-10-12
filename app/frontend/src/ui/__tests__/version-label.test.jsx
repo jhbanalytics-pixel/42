@@ -64,6 +64,22 @@ async function phoneCheck(ahead = minutes(6)){
     restore();
   }
 }
+/* The newest entry is re-derived from the merge list and dated at bind (the
+   numbering ruling, line 5), so it is checked by its shape, never by its
+   lines or their count. The released entries below it are history and are
+   pinned. */
+const DATE = /^\d{1,2} (?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}$/;
+function expectUpcomingShape(entry){
+  expect(entry.version).toBe('2.3.0');
+  if (entry.next) expect(entry.when).toBe('Next, not live yet');
+  else expect(entry.when).toMatch(DATE);
+  expect(entry.lines.length).toBeGreaterThan(0);
+  for (const line of entry.lines){
+    expect(line.trim()).toBe(line);
+    expect(line).not.toBe('');
+    expect(line).not.toMatch(/^-|\u2014|\u2013|-{2}|[*_`#]/);
+  }
+}
 const hiddenOrInert = (node) => { for (let at = node; at; at = at.parentElement) if (at.hidden || at.hasAttribute('inert')) return at; return null; };
 
 function serveHealth(version, {fail = false} = {}){
@@ -144,8 +160,8 @@ describe('the release files', () => {
   test('the changelog lists 2.3.0 next, then Release C, B and A, each with its date and plain lines', () => {
     const releases = parseChangelog(CHANGELOG);
     expect(releases.map((r) => r.version)).toEqual(['2.3.0', '2.2.0', '2.1.0', '2.0.0']);
-    expect(releases.map((r) => r.next)).toEqual([true, false, false, false]);
-    expect(releases[0].when).toBe('Next, not live yet');
+    expectUpcomingShape(releases[0]);
+    expect(releases.slice(1).map((r) => r.next)).toEqual([false, false, false]);
     expect(releases[0].summary).toMatch(/\bD0\b/);
     /* The line naming a release stays true once it is live: release state
        is the heading's alone, and the panel reads it against VERSION. */
@@ -162,12 +178,24 @@ describe('the release files', () => {
     expect(releases[3].summary).toContain('Release A');
     expect(releases[3].summary).toContain('rel-3710c5e-01');
     for (const release of releases) expect(release.lines.length).toBeGreaterThan(0);
-    expect(releases[0].lines[0]).toBe('The menu shows the version 42 is on, with this list of what changed.');
-    expect(releases[0].lines).toContain('Ask\'s "The numbers" tiles say what each figure counts.');
     expect(releases[1].lines).toContain('Instagram and X show their official marks.');
     expect(releases[2].lines).toContain('Stored runs record which build produced them.');
     expect(releases[3].lines).toContain('Today and Fieldwork read the culture desk and its kept creators in both the old and the new stored shape.');
-    expect(releases.map((r) => r.updates)).toEqual([[], [], [], []]);
+    expect(releases.slice(1).map((r) => r.updates)).toEqual([[], [], []]);
+  });
+
+  test('the newest entry passes its shape check dated or undated, with any number of lines', () => {
+    const bound = (heading, extra) => CHANGELOG.replace('## 2.3.0 (next, not live yet)', heading).replace(
+      /(\n## 2\.3\.0 [^\n]*\n\nRelease D0[^\n]*\n\n)/, (match) => match + extra);
+    for (const text of [CHANGELOG, bound('## 2.3.0 (20 October 2026)', '- One more line.\n- And another.\n')]){
+      expectUpcomingShape(parseChangelog(text)[0]);
+    }
+    const dated = parseChangelog(bound('## 2.3.0 (20 October 2026)', ''))[0];
+    expect(dated.next).toBe(false);
+    expect(dated.when).toBe('20 October 2026');
+    expect(() => expectUpcomingShape(parseChangelog(bound('## 2.3.0 (soon)', ''))[0])).toThrow();
+    expect(() => expectUpcomingShape({...parseChangelog(CHANGELOG)[0], lines: []})).toThrow();
+    expect(() => expectUpcomingShape({...parseChangelog(CHANGELOG)[0], lines: ['A line ' + '-'.repeat(2) + ' with a double hyphen.']})).toThrow();
   });
 
   test('a Jobs update sits under its version with its own date and lines', () => {
@@ -287,12 +315,13 @@ describe('the version line and What\'s new', () => {
     const entries = [...panel().querySelectorAll('.rail42-whatsnew-release')];
     expect(entries.map((e) => e.querySelector('.rail42-whatsnew-version').textContent)).toEqual(['2.3.0', '2.2.0', '2.1.0', '2.0.0']);
     expect(entries[1].querySelector('.rail42-whatsnew-when').textContent).toBe('11 October 2026');
-    const lines = entries.map((entry) => [...entry.querySelectorAll('li')].map((li) => li.textContent));
-    expect(lines[0][0]).toBe('The menu shows the version 42 is on, with this list of what changed.');
+    const lines = entries.map((entry) => [...entry.querySelectorAll('.rail42-whatsnew-lines > li')].map((li) => li.textContent));
+    expect(lines[0]).toEqual(parseChangelog(CHANGELOG)[0].lines);
+    expect(lines[0].length).toBeGreaterThan(0);
     expect(lines[1]).toContain('Instagram and X show their official marks.');
     expect(lines[2]).toContain('Stored runs record which build produced them.');
     expect(lines[3]).toContain('Today and Fieldwork read the culture desk and its kept creators in both the old and the new stored shape.');
-    expect(lines.map((list) => list.length)).toEqual([3, 8, 4, 3]);
+    expect(lines.slice(1).map((list) => list.length)).toEqual([8, 4, 3]);
     for (const line of lines.flat()) expect(line).not.toMatch(/^-/);
   });
 
