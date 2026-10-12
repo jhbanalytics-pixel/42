@@ -131,9 +131,12 @@ def test_watchdog_effective_run_ignores_a_later_skipped_duplicate(stage, with_sk
         assert "agent_views_failed" in names(wd.check(at(3), FakeStore(detect=rows[0])))
 
 
-def keyrow(route, key, today, prior, today_total, prior_total):
+def keyrow(route, key, today, prior, today_total, prior_total, today_types=None, prior_types=None):
+    """One route_keys row. The JSON types of the key's values default to object wherever the key was seen."""
     return {"route": route, "key": key, "today_rows": today, "prior_rows": prior,
-            "today_total": today_total, "prior_total": prior_total}
+            "today_total": today_total, "prior_total": prior_total,
+            "today_types": list(today_types) if today_types is not None else (["object"] if today else []),
+            "prior_types": list(prior_types) if prior_types is not None else (["object"] if prior else [])}
 
 
 STABLE = [keyrow("tiktok/trending", k, 10, 70, 10, 70) for k in ("success", "data", "credits_used")]
@@ -219,11 +222,83 @@ def test_model_spend_uses_the_cap_at_check_time_across_sast_midnight():
     assert "model_spend" in names(wd.check(after_expiry, store))
 
 
-def test_schema_drift_fires_on_a_new_top_level_key():
+def test_a_new_top_level_key_is_a_logged_notice_and_not_a_schema_drift_alert():
+    # Changed from "schema_drift fires on a new top-level key": an added key leaves every key a parser reads in
+    # place, so it is a notice (12 Oct 2026, tiktok/search/top gained credits_remaining_note and nothing broke).
     keys = STABLE + [keyrow("tiktok/trending", "warning", 3, 0, 10, 70)]
     alerts = wd.check(at(7, 0), FakeStore(keys=keys))
+    assert names(alerts) == ["schema_added"]
+    [notice] = alerts
+    assert notice.severity == "NOTICE"
+    assert "tiktok/trending" in notice.reason and "warning" in notice.reason
+
+
+def test_the_12_october_credits_remaining_note_is_a_notice_only():
+    keys = [keyrow("tiktok/search/top", k, 189, 1280, 189, 1280) for k in ("success", "data", "credits_used")] + [
+        keyrow("tiktok/search/top", "credits_remaining_note", 1, 0, 189, 1280, today_types=["string"])]
+    alerts = wd.check(at(7, 0), FakeStore(keys=keys))
+    assert names(alerts) == ["schema_added"]
+    assert alerts[0].reason == ("new top-level keys against the last 7 days: "
+                                "tiktok/search/top (credits_remaining_note)")
+
+
+def test_an_added_key_writes_a_notice_line_that_no_alert_policy_matches_and_the_job_stays_ok(capsys):
+    from core.setup import monitoring
+
+    runs = chain.MemoryRunsStore()
+    store = FakeStore(keys=STABLE + [keyrow("tiktok/trending", "warning", 3, 0, 10, 70)], runs=runs)
+    assert wd.main(now=at(7, 0), store=store, runs=runs) == 0
+    [line] = lines(capsys.readouterr().out)
+    assert line["severity"] == "NOTICE" and line["alert"] == "schema_added"
+    assert line["message"].startswith("42 ALERT schema_added: ")
+    for name in monitoring.ALERTS:
+        if name != "job_failed":
+            assert f"42 ALERT {name}:" not in line["message"], name
+    [row] = runs.rows
+    assert row["status"] == "ok" and row["counts"]["fired"] == ["schema_added"]
+
+
+def test_a_route_that_lost_one_key_and_gained_another_is_one_alert_and_one_notice():
+    keys = [keyrow("x/search", "success", 5, 40, 5, 40), keyrow("x/search", "data", 0, 40, 5, 40),
+            keyrow("x/search", "result", 5, 0, 5, 40)]
+    alerts = wd.check(at(7, 0), FakeStore(keys=keys))
+    assert names(alerts) == ["schema_drift", "schema_added"]
+    drift, added = alerts
+    assert drift.severity == "ERROR" and "missing data" in drift.reason and "result" not in drift.reason
+    assert added.severity == "NOTICE" and "result" in added.reason and "data" not in added.reason
+
+
+@pytest.mark.parametrize("prior,today", [(["object"], ["array"]), (["array"], ["object", "array"]),
+                                         (["number"], ["string"]), (["object", "null"], ["array"])])
+def test_schema_drift_fires_when_a_key_carries_a_value_type_never_seen_in_the_last_7_days(prior, today):
+    keys = STABLE + [keyrow("tiktok/trending", "items", 10, 70, 10, 70, today_types=today, prior_types=prior)]
+    alerts = wd.check(at(7, 0), FakeStore(keys=keys))
     assert names(alerts) == ["schema_drift"]
-    assert "tiktok/trending" in alerts[0].reason and "warning" in alerts[0].reason
+    [drift] = alerts
+    assert drift.severity == "ERROR"
+    assert "tiktok/trending" in drift.reason and "retyped items" in drift.reason
+
+
+@pytest.mark.parametrize("prior,today", [(["object"], ["object", "null"]), (["string", "null"], ["null"]),
+                                         (["null"], ["string"]), (["object", "array"], ["array"])])
+def test_schema_drift_stays_quiet_when_a_key_only_turns_null_or_keeps_types_it_had(prior, today):
+    keys = STABLE + [keyrow("tiktok/trending", "items", 10, 70, 10, 70, today_types=today, prior_types=prior)]
+    assert wd.check(at(7, 0), FakeStore(keys=keys)) == []
+
+
+def test_route_keys_is_read_once_for_both_key_rules():
+    store = FakeStore(keys=STABLE)
+    wd.check(at(7, 0), store)
+    assert store.asked.count(("route_keys", DAY)) == 1
+
+
+def test_route_keys_is_still_read_for_the_notice_when_the_drift_alert_already_fired_today():
+    store = FakeStore(keys=STABLE + [keyrow("tiktok/trending", "warning", 3, 0, 10, 70)])
+    assert names(wd.check(at(7, 0), store, skip={"schema_drift"})) == ["schema_added"]
+    assert ("route_keys", DAY) in store.asked
+    both = FakeStore(keys=STABLE + [keyrow("tiktok/trending", "warning", 3, 0, 10, 70)])
+    assert wd.check(at(7, 0), both, skip={"schema_drift", "schema_added"}) == []
+    assert ("route_keys", DAY) not in both.asked
 
 
 def test_schema_drift_fires_when_a_key_every_prior_response_carried_is_gone():
@@ -242,11 +317,18 @@ def test_schema_drift_stays_quiet_on_a_sometimes_key_a_new_route_or_a_route_not_
     assert wd.check(at(7, 0), FakeStore(keys=keys)) == []
 
 
+@pytest.mark.parametrize("rule,row", [
+    ("schema_drift", keyrow("tiktok/trending", "data", 0, 70, 10, 70)),
+    ("schema_added", keyrow("tiktok/trending", "warning", 3, 0, 10, 70)),
+])
 @pytest.mark.parametrize("hh,mm,checked", [(6, 45, False), (7, 0, True), (7, 14, True), (7, 15, False), (13, 0, False)])
-def test_schema_drift_runs_once_a_day_in_the_0700_run(hh, mm, checked):
-    store = FakeStore(keys=STABLE + [keyrow("tiktok/trending", "warning", 3, 0, 10, 70)])
+def test_the_key_rules_run_once_a_day_in_the_0700_run(hh, mm, checked, rule, row):
+    # The fixture of the schema_drift case changed from an added key to a key that is gone, since an added key is
+    # schema_added's now; the window under test is the same.
+    keys = [r for r in STABLE if r["key"] != row["key"]] + [row]
+    store = FakeStore(keys=keys)
     alerts = wd.check(at(hh, mm), store)
-    assert ("schema_drift" in names(alerts)) is checked
+    assert names(alerts) == ([rule] if checked else [])
     assert (("route_keys", DAY) in store.asked) is checked
 
 
@@ -517,6 +599,21 @@ def test_bigquery_store_asks_parameterised_questions_of_the_right_tables():
             assert word not in sql.upper().split()
 
 
+def test_the_route_keys_question_reads_the_json_type_of_each_keys_value_today_and_before():
+    sql = wd.SQL["route_keys"]
+    assert "JSON_KEYS(body, 1) ks" in sql and "JSON_TYPE(r.body[k])" in sql
+    assert "ARRAY_AGG(DISTINCT IF(r.is_today, JSON_TYPE(r.body[k]), NULL) IGNORE NULLS) today_types" in sql
+    assert "ARRAY_AGG(DISTINCT IF(NOT r.is_today, JSON_TYPE(r.body[k]), NULL) IGNORE NULLS) prior_types" in sql
+
+
+def test_a_route_keys_row_without_types_is_a_rule_error_and_not_a_quiet_pass():
+    row = {k: v for k, v in keyrow("tiktok/trending", "items", 10, 70, 10, 70).items()
+           if k not in ("today_types", "prior_types")}
+    errors = []
+    assert wd.check(at(7, 0), FakeStore(keys=STABLE + [row]), errors) == []
+    assert [n for n, _ in errors] == ["schema_drift", "schema_added"]
+
+
 def test_model_spend_sums_model_usd_over_every_stage_plus_ask_records():
     sql = wd.SQL["model_usd"]
     assert "stage IN" not in sql and "stage = 'brief'" not in sql
@@ -554,7 +651,8 @@ def severity_of(alerts, name):
 def test_log_only_signals_are_not_policy_alerts():
     from core.setup import monitoring
 
-    assert wd.LOG_ONLY == ("brief_empty", "brief_all_held", "brief_data_issue", "stage_dead", "watchdog_gap")
+    assert wd.LOG_ONLY == ("brief_empty", "brief_all_held", "brief_data_issue", "stage_dead", "watchdog_gap",
+                           "schema_added")
     assert set(wd.LOG_ONLY).isdisjoint(wd.ALERTS)
     assert set(wd.LOG_ONLY).isdisjoint(monitoring.ALERTS) and set(wd.LOG_ONLY).isdisjoint(monitoring.LOG_ALERTS)
 
