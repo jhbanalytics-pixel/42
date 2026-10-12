@@ -80,6 +80,7 @@ def test_a_shortened_word_matches_the_full_one_when_the_last_words_agree():
     assert shared_names(names("Fans watched Man City."), names("Fans watched Manchester City.")) == 1
     assert shared_names(names("Fans watched Man United."), names("Fans watched Manchester City.")) == 0
     assert shared_names(names("Fans watched Ma City."), names("Fans watched Manchester City.")) == 0
+    assert shared_names(names("Fans watched Mamelodi Sun."), names("Fans watched Mamelodi Sundowns.")) == 0
 
 
 def test_a_name_counts_once_however_many_it_matches():
