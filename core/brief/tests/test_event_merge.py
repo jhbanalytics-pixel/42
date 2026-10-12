@@ -63,7 +63,8 @@ def shadow(r):
 
 
 def two_items(con, *, shared=3):
-    """za_a ranks first by worth; za_b has more creators in its 3 days; they share `shared` of za_a's posts."""
+    """za_a ranks first by worth; za_b has more creators in its 3 days, so Today shows za_b first (e-order-breadth);
+    they share `shared` of za_a's posts."""
     add_item(con, "ZA", "za_a", 0.97, label="mtn8 final", creators3=4, posts3=12)
     add_item(con, "ZA", "za_b", 0.96, label="sundowns pirates", creators3=9, posts3=15)
     link(con, "za_b", [f"za_a_p{k}" for k in range(1, shared + 1)])
@@ -73,11 +74,11 @@ def test_two_cards_of_one_event_are_recorded_and_both_stay_cards():
     con = world(n=0)
     two_items(con)
     r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": MTN8_2}), confirm=FakeConfirm())
-    assert za_cards(r) == ["za_a", "za_b"]
+    assert za_cards(r) == ["za_b", "za_a"]
     assert [c["also"] for c in all_cards(payload(r, "ZA"))] == [[], []]
     assert payload(r, "ZA")["held_back"]["count"] == 0
     assert shadow(r)["ZA"] == {"judged": 2, "merges": [
-        {"kept": "za_a", "item_id": "za_b", "shared_posts": 3, "shared_names": 3, "date": ["10-10"]}], "near": []}
+        {"kept": "za_b", "item_id": "za_a", "shared_posts": 3, "shared_names": 3, "date": ["10-10"]}], "near": []}
     assert shadow(r)["NG"] == shadow(r)["KE"] == {"judged": 0, "merges": [], "near": []}
     assert r.chain.finished[0]["counts"]["merged"] == []
 
@@ -96,11 +97,23 @@ def test_the_shadow_changes_nothing_a_reader_sees(monkeypatch):
     assert run_once() == with_shadow
 
 
+def test_the_kept_card_is_the_one_today_shows_first_when_breadth_and_worth_disagree():
+    # Accounts are tied, so posts decide Today's order (core/brief/payload.py _today_order): za_b leads on screen
+    # with the lower worth, and the shadow keeps the card Today shows first, not the worth leader.
+    con = world(n=0)
+    add_item(con, "ZA", "za_a", 0.97, label="mtn8 final", creators3=6, posts3=10)
+    add_item(con, "ZA", "za_b", 0.96, label="sundowns pirates", creators3=6, posts3=18)
+    link(con, "za_b", [f"za_a_p{k}" for k in range(1, 4)])
+    r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": MTN8_2}), confirm=FakeConfirm())
+    assert za_cards(r) == ["za_b", "za_a"]
+    assert [(m["kept"], m["item_id"]) for m in shadow(r)["ZA"]["merges"]] == [("za_b", "za_a")]
+    assert shadow(r)["ZA"]["merges"][0]["kept"] == za_cards(r)[0]
+
 def test_two_cards_of_different_events_record_nothing():
     con = world(n=0)
     two_items(con)
     r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": DERBY}), confirm=FakeConfirm())
-    assert za_cards(r) == ["za_a", "za_b"]
+    assert za_cards(r) == ["za_b", "za_a"]
     assert shadow(r)["ZA"]["merges"] == []
 
 
@@ -140,9 +153,9 @@ def test_one_event_without_a_date_on_one_side_is_recorded_as_a_near_pair():
     two_items(con)
     undated = MTN8_2.replace(" on 10 Oct", "")
     r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": undated}), confirm=FakeConfirm())
-    assert za_cards(r) == ["za_a", "za_b"]
+    assert za_cards(r) == ["za_b", "za_a"]
     assert shadow(r)["ZA"] == {"judged": 2, "merges": [], "near": [
-        {"a": "za_a", "b": "za_b", "shared_posts": 3, "shared_names": 3, "dated": 1}]}
+        {"a": "za_b", "b": "za_a", "shared_posts": 3, "shared_names": 3, "dated": 1}]}
 
 
 def test_a_shadow_that_raises_is_logged_and_never_fails_the_brief(monkeypatch, capsys):
@@ -357,17 +370,18 @@ BRIEFS = {("2026-09-29", "KE", "brief-20260929-d26a26c2fa00"): ["59090e1b52", "4
           ("2026-10-12", "ZA", "brief-20261012-a15d3f51d4e1"): ["e980768970", "2e884d7ea2", "4652356782",
                                                                  "81bdee2c0e"]}
 # Pinned by hand from reading the explanations. NG 12 Oct: the Liverpool and Manchester City match is on 4 cards, all
-# naming 11 Oct, kept on the higher ranked "Liverpool and Manchester City match". ZA 12 Oct: the 4 MTN8 cards are one
-# event, but only the first names its date, so the rule, which needs both cards to name the same date, records none.
-EXPECTED = {("2026-10-12", "NG"): [("ad7f67c05b", "59090e1b52"), ("ad7f67c05b", "9cfaabf463"),
-                                   ("ad7f67c05b", "3791be7f80")]}
-# Near pairs, every one also pinned by hand: one event on both cards, with a date on one side only. ZA 12 Oct: the 4
-# MTN8 cards, all 6 pairs. NG 12 Oct: the Manchester United and Carrick story, whose #manchesterunited card names no
-# date.
-NEAR = {("2026-10-12", "ZA"): [("e980768970", "2e884d7ea2"), ("e980768970", "4652356782"),
-                               ("e980768970", "81bdee2c0e"), ("2e884d7ea2", "4652356782"),
-                               ("2e884d7ea2", "81bdee2c0e"), ("4652356782", "81bdee2c0e")],
-        ("2026-10-12", "NG"): [("6a9690baaa", "04a0aad7b9")]}
+# naming 11 Oct, kept on the card Today shows first of them (e-order-breadth: 3791be7f80, 33 accounts posting). ZA 12
+# Oct: the 4 MTN8 cards are one event, but only the stored first, with 2 accounts and so last in Today's order, names
+# its date, so the rule, which needs both cards to name the same date, records none.
+EXPECTED = {("2026-10-12", "NG"): [("3791be7f80", "ad7f67c05b"), ("3791be7f80", "9cfaabf463"),
+                                   ("3791be7f80", "59090e1b52")]}
+# Near pairs, every one also pinned by hand: one event on both cards, with a date on one side only, each pair in
+# Today's order. ZA 12 Oct: the 4 MTN8 cards, all 6 pairs. NG 12 Oct: the Manchester United and Carrick story, whose
+# #manchesterunited card names no date.
+NEAR = {("2026-10-12", "ZA"): [("2e884d7ea2", "4652356782"), ("2e884d7ea2", "81bdee2c0e"),
+                               ("2e884d7ea2", "e980768970"), ("4652356782", "81bdee2c0e"),
+                               ("4652356782", "e980768970"), ("81bdee2c0e", "e980768970")],
+        ("2026-10-12", "NG"): [("04a0aad7b9", "6a9690baaa")]}
 
 
 def replay(brief_):
@@ -399,8 +413,9 @@ def test_replay_12_october_za_shows_the_mtn8_cards_as_near_pairs(refusals):
     assert {n["a"] for n in result["near"]} | {n["b"] for n in result["near"]} == {c["item_id"] for c in za["cards"]}
     assert len(result["near"]) == 6
     assert all(n["shared_posts"] >= 3 and n["shared_names"] >= 3 for n in result["near"])
-    # Only the first card, MTN8 Cup Final, names its date: its 3 pairs have one dated side, the other 3 have none.
-    assert [n["dated"] for n in result["near"]] == [1, 1, 1, 0, 0, 0]
+    # Only the MTN8 Cup Final card names its date, and it is last in Today's order: its 3 pairs have one dated side,
+    # the other 3 have none.
+    assert [n["dated"] for n in result["near"]] == [0, 0, 1, 0, 1, 1]
 
 
 @pytest.mark.parametrize("key,apart", [

@@ -67,8 +67,8 @@ from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read
 from core.brief.explain import CHECK_INCOMPLETE, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.locality_audit import build_locality_audit
 from core.brief.market_scope import read_market_scope
-from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _worth, brief_row,
-                               SHOWN, build_market_payload, preview_card)
+from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _today_order, _worth,
+                               SHOWN, brief_row, build_market_payload, preview_card)
 from core.brief.same_event import near as same_event_near, reason as same_event_reason
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_local_posts, showable_posts
 from core.collect import chain as collect_chain
@@ -1321,7 +1321,9 @@ def _merge_events(market, d, items, posts):
     def event(item):
         return {"explanation": item.get("explanation"), "posts": posts.get(item["item_id"]) or set()}
 
-    shown = sorted((i for i in items if _published(i)), key=_worth)[:SHOWN]
+    # The payload's own shown cards: the top SHOWN by worth, in Today's order (payload _today_order), so the kept card
+    # is the one Today shows higher.
+    shown = sorted(sorted((i for i in items if _published(i)), key=_worth)[:SHOWN], key=_today_order)
     judged = [i for i in shown if _today_admits(i, market, d)]
     kept, taken, merges = [], {}, []
     for item in judged:
