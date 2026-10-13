@@ -81,9 +81,11 @@ def _analogue(item, label, w, days, d, run_id):
     fade_day = None
     if by_day is not None:
         day = peak + dt.timedelta(days=1)
-        while by_day.get(day, 0) >= w["peak_posts"] / 2 and day <= _day(w["wave_end"]):
+        while day <= _day(w["wave_end"]) and day in by_day:
+            if by_day[day] < w["peak_posts"] / 2:
+                fade_day = (day - start).days
+                break
             day += dt.timedelta(days=1)
-        fade_day = (day - start).days
     rows = [w, sorted((str(k), n) for k, n in (by_day or {}).items()), {"from_day": d}]
     return {"item_id": item["item_id"], "label": label, "kind": item.get("kind"),
             "wave": {"start": str(w["wave_start"]), "peak_date": str(w["peak_date"]), "end": str(w["wave_end"])},

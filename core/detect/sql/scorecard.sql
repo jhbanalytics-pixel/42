@@ -295,13 +295,15 @@ SELECT cr.credits, conf.trends FROM cr CROSS JOIN conf;
 -- history is marked over those months and not over the week it is filed under. One row per window and basis with the
 -- number of days, so scorecard.py can mark a window that straddles the switch and one that follows a different rule from
 -- the window before it. Only days with a good detect run are in v_item_state_current.
-SELECT TRUE this_week, IFNULL(s.locality_basis, 'v1') locality_basis, COUNT(DISTINCT s.metric_date) days
+SELECT TRUE this_week, IFNULL(s.locality_basis, 'v1') locality_basis,
+  s.rule_version detection_rule_version, COUNT(DISTINCT s.metric_date) days
 FROM {core}.v_item_state_current s
 WHERE s.market = @market AND s.metric_date BETWEEN @since AND @until
-GROUP BY 1, 2
+GROUP BY 1, 2, 3
 UNION ALL
-SELECT FALSE this_week, IFNULL(s.locality_basis, 'v1') locality_basis, COUNT(DISTINCT s.metric_date) days
+SELECT FALSE this_week, IFNULL(s.locality_basis, 'v1') locality_basis,
+  s.rule_version detection_rule_version, COUNT(DISTINCT s.metric_date) days
 FROM {core}.v_item_state_current s
 WHERE s.market = @market AND s.metric_date BETWEEN DATE_SUB(@since, INTERVAL 7 DAY) AND DATE_SUB(@until, INTERVAL 7 DAY)
-GROUP BY 1, 2
-ORDER BY 1, 2;
+GROUP BY 1, 2, 3
+ORDER BY 1, 2, 3;

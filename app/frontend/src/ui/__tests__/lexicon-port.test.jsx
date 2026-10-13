@@ -194,3 +194,30 @@ test('the dumbbell lists at most the first 12 terms', async () => {
   const labels = [...host.querySelectorAll('.ch42-dumbbell ol .ch42-bar-label')].map((n) => n.textContent);
   expect(labels).toEqual(many.slice(0, 12).map((t) => t.label));
 });
+
+for (const [name, payload] of [
+  ['missing terms', {market: 'ZA'}],
+  ['non-object payload', null],
+  ['invalid terms', {...PAYLOAD, terms: [{label: 'unverified'}]}],
+  ['empty truncated selection', {...PAYLOAD, truncated: true, terms: []}],
+]) {
+  test('unverified lexicon data is an error instead of empty: ' + name, async () => {
+    await mount(() => reply(200, payload));
+    expect(host.querySelector('[data-state-frame="invalid"]')).not.toBeNull();
+    expect(host.querySelector('[data-state-frame="empty"]')).toBeNull();
+    expect(host.textContent).not.toContain('No words or hashtags recorded here yet');
+    expect([...host.querySelectorAll('button')].some((b) => b.textContent === 'Try again')).toBe(true);
+  });
+}
+
+test('partially verified terms retain their evidence and disclose excluded rows', async () => {
+  await mount(() => reply(200, {...PAYLOAD, terms: [PAYLOAD.terms[0], {label: 'unverified'}]}));
+  expect(host.querySelectorAll('.lex-term-card')).toHaveLength(1);
+  expect(host.querySelector('[data-lexicon-incomplete]').textContent).toContain('1 returned term could not be verified');
+});
+
+test('truncated lexicon does not assert an absent selected word has no listed coverage', async () => {
+  await mount(() => reply(200, {...PAYLOAD, truncated: true}), {term: 'wahala'});
+  expect(host.querySelector('[data-lexicon-incomplete]').textContent).toContain('limited selection');
+  expect(host.querySelector('.lex-decode').textContent).toContain('outside this selection remain unknown');
+});

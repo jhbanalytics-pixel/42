@@ -166,6 +166,7 @@ def match(ledger, vendor):
 def read_transactions(client, start):
     """Vendor transactions, newest first, until one older than start or the end of the history."""
     items, cursor, pages = [], None, 0
+    cursors, transactions = set(), {}
     while pages < MAX_PAGES:
         params = {"limit": PAGE_LIMIT} if cursor is None else {"limit": PAGE_LIMIT, "cursor": cursor}
         result = client.call("credits/transactions", params, use_cache=False)
@@ -173,14 +174,41 @@ def read_transactions(client, start):
         if result.status not in READ_OK:
             return {"items": items, "pages": pages, "covered": False,
                     "error": f"credits/transactions {result.status}: {result.reason}"}
-        items.extend(result.items)
-        times = [t for t in (_instant(i.get("created_at")) for i in result.items if isinstance(i, dict)) if t]
         body = result.body or {}
+        data = body.get("data")
         paging = body.get("pagination") or {}
-        cursor = paging.get("next_cursor") or (body.get("data") or {}).get("next_cursor")
-        if (times and min(times) < start) or not cursor or paging.get("has_more") is False:
+        if not isinstance(data, dict) or not isinstance(data.get("items"), list) or not isinstance(paging, dict):
+            return {"items": items, "pages": pages, "covered": False,
+                    "error": "credits/transactions has an unreadable page envelope"}
+        times = []
+        for item in data["items"]:
+            if not isinstance(item, dict) or _instant(item.get("created_at")) is None or _number(item.get("amount")) is None:
+                return {"items": items, "pages": pages, "covered": False,
+                        "error": "credits/transactions has an unreadable transaction"}
+            times.append(_instant(item["created_at"]))
+            identity = item.get("id")
+            if isinstance(identity, (str, int)) and not isinstance(identity, bool):
+                if identity in transactions:
+                    if transactions[identity] != item:
+                        return {"items": items, "pages": pages, "covered": False,
+                                "error": "credits/transactions has conflicting transaction identities"}
+                    continue
+                transactions[identity] = item
+            items.append(item)
+        cursor = paging.get("next_cursor") or data.get("next_cursor")
+        if (times and min(times) < start) or paging.get("has_more") is False:
             return {"items": items, "pages": pages, "covered": True, "error": ""}
-    return {"items": items, "pages": pages, "covered": False, "error": ""}
+        if not cursor:
+            if paging.get("has_more") is True:
+                return {"items": items, "pages": pages, "covered": False,
+                        "error": "credits/transactions has_more without a next cursor"}
+            return {"items": items, "pages": pages, "covered": True, "error": ""}
+        if not isinstance(cursor, str) or cursor in cursors:
+            return {"items": items, "pages": pages, "covered": False,
+                    "error": "credits/transactions has an invalid or repeated cursor"}
+        cursors.add(cursor)
+    return {"items": items, "pages": pages, "covered": False,
+            "error": "credits/transactions page limit reached before the day was covered"}
 
 
 def runway(balance, floor, mean_daily):
@@ -319,8 +347,9 @@ def run(day, *, runs, ledger, make_client, caps):
         return 1
     for line in lines:
         log.error(line)
-    failed = counts["vendor_error"] != ""
-    chain.finish(run, "failed" if failed else "ok", counts, counts["vendor_error"] or None, runs=runs)
+    failed = not counts["vendor_covered"] or bool(counts["vendor_error"])
+    error = counts["vendor_error"] or ("vendor transactions not covered for the day" if failed else None)
+    chain.finish(run, "failed" if failed else "ok", counts, error, runs=runs)
     print(json.dumps({"run_id": run.run_id, **counts}))
     return 1 if failed else 0
 

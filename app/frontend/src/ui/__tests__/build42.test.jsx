@@ -69,6 +69,13 @@ async function mount(props){
 }
 
 const text = () => host.textContent;
+test('a partial source read reports the unavailable list instead of no finished answers', async () => {
+  const {api} = fakeApi({listInvestigations: async () => { throw new Error('offline'); }, fetchHistoryAsks: async () => ({asks: []})});
+  await mount({region: 'ALL', api});
+  const sources = section('b42-dossier-title');
+  expect(sources.textContent).toContain('Some finished answers could not be read');
+  expect(sources.textContent).not.toContain('No finished answers yet');
+});
 const section = (id) => host.querySelector('[aria-labelledby="' + id + '"]');
 
 test('the page is called Build and lists recent work from the 42 API', async () => {

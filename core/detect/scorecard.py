@@ -80,7 +80,7 @@ from .sqlrun import AGENT, CORE
 SQL = Path(__file__).parent / "sql" / "scorecard.sql"
 REFERENCE = Path(__file__).parent / "reference" / "ground_truth.yaml"
 MARKETS = ("ZA", "NG", "KE")
-RULE_VERSION = "scorecard-2"      # scorecard-2: every Figure carries the locality regime marker
+RULE_VERSION = "scorecard-3-detection-epoch"
 MIN_PLACEBO = 20                 # DATA.md 3.7: platform counts need at least 20 placebo items
 REQUIRED = ("id", "market", "title", "event_date", "match_terms", "added", "source")
 NOT_YET = "not yet measured: "
@@ -196,12 +196,20 @@ def locality_regime(rows):
         return None if not found else found[0] if len(found) == 1 else "mixed"
 
     this, before = basis(True), basis(False)
+    def detection(this_week):
+        found = {r.get("detection_rule_version") for r in rows if bool(r["this_week"]) is this_week}
+        return None if not found or None in found or "" in found else next(iter(found)) if len(found) == 1 else "mixed"
+
+    detection_this, detection_before = detection(True), detection(False)
     days = {}
     for r in rows:
         if r["this_week"]:
             days[r["locality_basis"]] = days.get(r["locality_basis"], 0) + r["days"]
     return {"locality_basis": this, "previous_week_basis": before, "days_by_basis": days,
-            "comparable_with_previous_week": this is not None and this == before != "mixed"}
+            "detection_rule_version": detection_this, "previous_detection_rule_version": detection_before,
+            "comparable_with_previous_week": (this is not None and this == before != "mixed"
+                                             and detection_this is not None
+                                             and detection_this == detection_before != "mixed")}
 
 
 def _median(values):

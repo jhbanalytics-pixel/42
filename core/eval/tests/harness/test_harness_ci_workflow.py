@@ -394,8 +394,8 @@ def test_the_ops_partition_runs_the_replay_and_funnel_scoreboard_tests_under_the
 def test_the_ops_partition_adds_no_trigger():
     """The ops step lives in the existing job, so the triggers stay the ones test_the_pull_request_trigger pins."""
     _, triggers = load(LIVE / "tests.yml")
-    assert triggers["push"] == {"branches": ["full-42", "release/**"]}
-    assert triggers["pull_request"] == {"branches": ["full-42", "release/**"]}
+    assert triggers["push"] == {"branches": ["main", "full-42", "release/**"]}
+    assert triggers["pull_request"] == {"branches": ["main", "full-42", "release/**"]}
     assert sorted(triggers) == ["pull_request", "push", "workflow_dispatch"]
     assert sorted(core_workflow()["jobs"]) == ["core", "frontend"]
 
@@ -411,10 +411,10 @@ def test_a_run_line_cannot_build_an_environment_by_indirection_or_redirect_anywh
 
 
 def test_the_pull_request_trigger_is_limited_to_the_branches_the_push_trigger_names():
-    """Narrowing only: pull_request runs for PRs into full-42 and release/**, and the push trigger is untouched."""
+    """Pull requests and pushes cover main and the retained release branches."""
     _, triggers = load(LIVE / "tests.yml")
-    assert triggers["push"] == {"branches": ["full-42", "release/**"]}
-    assert triggers["pull_request"] == {"branches": ["full-42", "release/**"]}
+    assert triggers["push"] == {"branches": ["main", "full-42", "release/**"]}
+    assert triggers["pull_request"] == {"branches": ["main", "full-42", "release/**"]}
     assert sorted(triggers) == ["pull_request", "push", "workflow_dispatch"]
 
 

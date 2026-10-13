@@ -13,7 +13,7 @@ from sqlglot import exp
 from core.understand import embed, job
 
 SQL_DIR = Path(__file__).resolve().parents[1] / "sql"
-FILES = ("model", "embed", "index", "tvf_search_posts")
+FILES = ("model", "embed", "index", "tvf_search_posts_scoped", "tvf_search_posts")
 DAY = date(2026, 9, 28)
 
 
@@ -240,7 +240,7 @@ def test_the_vector_search_tvf_file_is_gone():
 
 
 def tvf():
-    return sqlglot.parse_one(sql("tvf_search_posts"), read="bigquery")
+    return sqlglot.parse_one(sql("tvf_search_posts_scoped"), read="bigquery")
 
 
 def test_tvf_signature_query_embedding_and_columns():
@@ -248,6 +248,14 @@ def test_tvf_signature_query_embedding_and_columns():
     assert re.search(r"CREATE\s+TABLE\s+FUNCTION\s+IF\s+NOT\s+EXISTS\s+"
                      r"`ogilvy-trends-v2\.intelligence_42_agent\.tvf_search_posts`\s*\(\s*q STRING,\s*market STRING,"
                      r"\s*since DATE,\s*until DATE,\s*k INT64\s*\)", text)
+    legacy = sqlglot.parse_one(text, read="bigquery")
+    (call,) = [t.this for t in legacy.find_all(exp.Table) if isinstance(t.this, exp.Func)]
+    assert call.name == "ogilvy-trends-v2.intelligence_42_agent.tvf_search_posts_scoped"
+    assert [a.sql("bigquery") for a in call.expressions] == [
+        "q", "market", "since", "until", "k", "CAST(NULL AS ARRAY<STRING>)", "CAST(NULL AS STRING)",
+        "CAST(NULL AS INT64)"]
+    text = sql("tvf_search_posts_scoped")
+    assert "platforms ARRAY<STRING>, author STRING, min_engagement INT64" in text
     assert "`ogilvy-trends-v2.intelligence_42_core.embed_gemini`" in text
     assert "'RETRIEVAL_QUERY' AS task_type" in text
     assert "768 AS output_dimensionality" in text
@@ -280,7 +288,8 @@ def test_tvf_scores_exact_cosine_distance_over_embeddings_in_the_window_and_mark
             "`ogilvy-trends-v2.intelligence_42_core.posts`"} <= tables
     where = scoring.args["where"].sql("bigquery")
     assert re.search(r"ARRAY_LENGTH\(\w+\.embedding\) = 768", where)
-    assert re.search(r"\w+\.post_date BETWEEN since AND until", where)
+    assert "w.post_date BETWEEN DATE_SUB(since, INTERVAL '1' DAY) AND DATE_ADD(until, INTERVAL '1' DAY)" in where
+    assert "COALESCE(DATE(w.published_at, 'Africa/Johannesburg'), w.post_date) BETWEEN since AND until" in where
     assert re.search(r"market IS NULL OR \w+\.geo_market = market", where)
 
 
@@ -290,7 +299,9 @@ def test_tvf_reads_posts_once_inside_the_date_window():
              if t.sql("bigquery").split(" AS ")[0] == "`ogilvy-trends-v2.intelligence_42_core.posts`"]
     assert len(posts) == 1, "posts is joined again outside the date-pruned scoring CTE"
     scoring = posts[0].find_ancestor(exp.Select)
-    assert re.search(r"\w+\.post_date BETWEEN since AND until", scoring.args["where"].sql("bigquery"))
+    where = scoring.args["where"].sql("bigquery")
+    assert "w.post_date BETWEEN DATE_SUB(since, INTERVAL '1' DAY) AND DATE_ADD(until, INTERVAL '1' DAY)" in where
+    assert "COALESCE(DATE(w.published_at, 'Africa/Johannesburg'), w.post_date) BETWEEN since AND until" in where
     assert not create.expression.unnest().args.get("joins")
 
 
@@ -392,7 +403,7 @@ def test_daily_run_order_and_window():
     fake = FakeWarehouse()
     counts = embed.run_embed(fake, run_date=DAY)
     assert [t for t, _ in fake.calls] == [sql("model"), sql("embed"), sql("embedding_count"), sql("index"),
-                                          sql("tvf_search_posts")]
+                                          sql("tvf_search_posts_scoped"), sql("tvf_search_posts")]
     assert fake.embed_windows() == [(DAY, DAY)]
     embed_params = [p for t, p in fake.calls if t == sql("embed")]
     assert embed_params == [{"from_date": DAY, "to_date": DAY, "max_rows": 50_000}]
@@ -419,7 +430,7 @@ def test_index_is_deferred_while_no_embedding_is_stored(shape):
     counts = embed.run_embed(fake, run_date=DAY)
     texts = [t for t, _ in fake.calls]
     assert sql("index") not in texts
-    assert texts == [sql("model"), sql("embed"), sql("embedding_count"), sql("tvf_search_posts")]
+    assert texts == [sql("model"), sql("embed"), sql("embedding_count"), sql("tvf_search_posts_scoped"), sql("tvf_search_posts")]
     assert counts == {"embedded": 0, "failed": 4, "skipped": 0, "chars_sent": 90, "tokens": 23, "model_usd": 0.000003,
                       "embedded_total": 0, "index": "deferred_no_embeddings"}
 
@@ -432,7 +443,7 @@ def test_index_is_deferred_below_5000_embeddings_and_the_search_still_gets_built
     counts = embed.run_embed(fake, run_date=DAY)
     texts = [t for t, _ in fake.calls]
     assert sql("index") not in texts
-    assert texts[-2:] == [sql("embedding_count"), sql("tvf_search_posts")]
+    assert texts[-3:] == [sql("embedding_count"), sql("tvf_search_posts_scoped"), sql("tvf_search_posts")]
     assert counts["index"] == "deferred_below_5000" and counts["embedded_total"] == stored
 
 
@@ -440,7 +451,7 @@ def test_index_is_created_once_5000_embeddings_are_stored():
     assert embed.INDEX_MIN_ROWS == 5_000
     fake = FakeWarehouse(shape="job", stored=5_000)
     counts = embed.run_embed(fake, run_date=DAY)
-    assert [t for t, _ in fake.calls][-2:] == [sql("index"), sql("tvf_search_posts")]
+    assert [t for t, _ in fake.calls][-3:] == [sql("index"), sql("tvf_search_posts_scoped"), sql("tvf_search_posts")]
     assert counts["index"] == "created_or_exists"
 
 
@@ -457,7 +468,7 @@ def test_a_failed_index_creation_is_recorded_and_the_embed_run_goes_on():
 
     fake = Refusing(stored=5_001)
     counts = embed.run_embed(fake, run_date=DAY)
-    assert [t for t, _ in fake.calls][-2:] == [sql("index"), sql("tvf_search_posts")]
+    assert [t for t, _ in fake.calls][-3:] == [sql("index"), sql("tvf_search_posts_scoped"), sql("tvf_search_posts")]
     assert counts["index"] == "failed"
     assert counts["index_error"] == "BadRequest: 400 the vector index could not be created"
     assert counts["embedded"] == 5 and counts["embedded_total"] == 5_001
@@ -869,7 +880,7 @@ def test_run_embed_checks_the_cap_before_each_window_and_stops_when_it_is_spent(
     counts = embed.run_embed(fake, run_date=DAY, days=14, spent_today=lambda: next(reads))
     assert fake.embed_windows() == [W1]
     assert counts["cap_limited"] is True and counts["embedded"] == 5 and "spend_unknown" not in counts
-    assert [t for t, _ in fake.calls][-2:] == [sql("index"), sql("tvf_search_posts")], "the search still gets built"
+    assert [t for t, _ in fake.calls][-3:] == [sql("index"), sql("tvf_search_posts_scoped"), sql("tvf_search_posts")], "the search still gets built"
 
 
 def test_a_window_that_would_pass_the_cap_is_cut_to_the_posts_that_fit_at_2048_tokens():

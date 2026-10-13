@@ -72,6 +72,7 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+from core.detect.items import canonical_key
 from core.trust import locality
 from core.trust.locality import MIN_SHARED_MEMBERS
 from core.understand import pair_score
@@ -209,7 +210,10 @@ def clean_keywords(words):
 
 
 def _tag(value):
-    return str(value).lstrip("#").lower()
+    try:
+        return canonical_key("hashtag", str(value))
+    except ValueError:
+        return ""
 
 
 def _top(values, k=TOP_FACETS):
@@ -256,7 +260,11 @@ def embedding_matrix(posts):
     row is filled, so the lists (about eight times the matrix) are freed as the matrix grows."""
     matrix = np.empty((len(posts), len(posts[0]["embedding"]) if posts else 0), dtype=np.float32)
     for row, post in enumerate(posts):
-        matrix[row] = post.pop("embedding")
+        with np.errstate(over="ignore", invalid="ignore"):
+            matrix[row] = post["embedding"]
+        if not np.isfinite(matrix[row]).all():
+            raise ValueError("embedding contains a nonfinite or unrepresentable component")
+        post.pop("embedding")
     return matrix
 
 
@@ -364,11 +372,13 @@ def label_net(execute, clusters, *, model=None, run_id, day, clock=None):
             for i, c in enumerate(clusters)]
     try:
         from core.llm.provider import reserve_output
-        from core.understand.enrich import CHARS_PER_TOKEN, EST_SCHEMA_TOKENS, MODEL, _fence, usd
+        from core.understand.enrich import CHARS_PER_TOKEN, EST_SCHEMA_TOKENS, MODEL, _fence, refused, usd
 
-        def book(usage):
+        def book(usage, unknown_estimate=0.0):
             usage = usage or {}
-            spend = usd(int(usage.get("input_tokens") or 0), int(usage.get("output_tokens") or 0), batched=False)
+            spend = unknown_estimate or (usage["usd"] if usage.get("usd") is not None else
+                                        usd(int(usage.get("input_tokens") or 0),
+                                            int(usage.get("output_tokens") or 0), batched=False))
             counts["model_usd"] = round(counts["model_usd"] + spend, 6)
             try:
                 counts["booked_usd"] = round(counts["booked_usd"] + book_spend(
@@ -393,9 +403,19 @@ def label_net(execute, clusters, *, model=None, run_id, day, clock=None):
             out, usage = model.complete_json(system=NET_SYSTEM, user=user, schema=NET_SCHEMA, model=MODEL,
                                              max_tokens=max_tokens)
         except Exception as err:
-            book(getattr(err, "usage", None))
+            usage = getattr(err, "usage", None)
+            unknown = usage is None and not refused(err) and not getattr(err, "known_pre_dispatch", False)
+            if unknown:
+                counts["net_unknown_spend"] = True
+                counts["net_unknown_spend_estimate_usd"] = estimate
+            book(usage, estimate if unknown else 0.0)
             raise
-        book(usage)
+        if usage and usage.get("usage_unknown"):
+            counts["net_unknown_spend"] = True
+            counts["net_unknown_spend_estimate_usd"] = estimate
+            book(None, estimate)
+        else:
+            book(usage)
         verdicts = _verdicts(out, sent)
     except Exception as err:
         counts.update(net_failed=True, net_error=str(err) if isinstance(err, NetFailed) else type(err).__name__)
@@ -742,6 +762,21 @@ def run_cluster(execute, *, run_date, market, run_id=None, day=None, model=None,
         return counts
     try:
         items = _rows(execute(load("cluster_items"), item_params(run_date, market)))
+        valid_items, invalid_ids = [], []
+        dimensions = len(clusters[0]["centroid"])
+        for item in items:
+            try:
+                vector = np.asarray(item.get("centroid"), dtype=float)
+                valid = vector.shape == (dimensions,) and np.isfinite(vector).all()
+            except (TypeError, ValueError, OverflowError):
+                valid = False
+            if valid:
+                valid_items.append(item)
+            else:
+                invalid_ids.append(item["item_id"])
+        items = valid_items
+        if invalid_ids:
+            counts.update(invalid_prior_centroids=len(invalid_ids), invalid_prior_centroid_ids=sorted(invalid_ids))
         shadow = [] if SHADOW_SINK is not None else None
         decisions = assign(clusters, items, run_date, shadow=shadow)
         if shadow is not None:
@@ -753,6 +788,14 @@ def run_cluster(execute, *, run_date, market, run_id=None, day=None, model=None,
                 failed = next((r["shadow_error"] for r in shadow if "shadow_error" in r), None)
                 if failed:
                     counts["shadow_error"] = failed
+        if invalid_ids:
+            held = {d["cluster_id"] for d in decisions if d["kind"] not in ("match", "recurrence")}
+            counts.update(held_clusters=len(held), held_cluster_ids=sorted(held),
+                          hold_reason="invalid_prior_centroid")
+            retained = [(c, d) for c, d in zip(clusters, decisions) if d["cluster_id"] not in held]
+            if not retained:
+                return counts
+            clusters, decisions = map(list, zip(*retained))
         planned = plan(clusters, decisions, items, run_date, market)
         batches = write_batches(planned)
         counts.update(merge_review=planned["merge_review"][:MERGE_REVIEW_LISTED],

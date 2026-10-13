@@ -70,7 +70,10 @@ export function buildFieldworkState({loading = false, payload = null, error = nu
     if (error.auth || error.status === 401) return {state: 'auth'};
     return {state: 'error', message: error.status ? (error.message || 'The 42 service refused the request.') : 'The 42 service did not answer.'};
   }
-  if (!payload || typeof payload !== 'object' || !Array.isArray(payload.markets) || !DATE.test(String(payload.date || ''))){
+  if (!payload || typeof payload !== 'object' || !Array.isArray(payload.markets)
+      || !payload.markets.every((m) => m && typeof m.market === 'string' && Array.isArray(m.sources)
+        && m.sources.every((s) => s && typeof s === 'object'))
+      || !DATE.test(String(payload.date || ''))){
     return {state: 'error', message: 'The 42 service answered, but not with a source list this page can read.'};
   }
   if (payload.plan_state === 'unavailable' || payload.markets.length === 0){
@@ -232,7 +235,7 @@ function CreditWords({credits}){
     return <><span className="fieldwork-day__value">Spend could not be read</span>{cap && <span className="fieldwork-day__note">Daily cap {cap}</span>}</>;
   }
   if (!isFigure(credits.spent)){
-    return <><span className="fieldwork-day__value">None charged</span>{cap && <span className="fieldwork-day__note">Daily cap {cap}</span>}{planned && <span className="fieldwork-day__note">{planned} for the day</span>}</>;
+    return <><span className="fieldwork-day__value">Spend not recorded</span>{cap && <span className="fieldwork-day__note">Daily cap {cap}</span>}{planned && <span className="fieldwork-day__note">{planned} for the day</span>}</>;
   }
   const spent = credits.spent;
   const over = typeof credits.cap === 'number' && spent.value > credits.cap;
@@ -425,7 +428,8 @@ function SourceRow({source}){
         <span className="fieldwork-source__status"><svg className="fieldwork-status-mark" viewBox="0 0 10 10" aria-hidden="true" focusable="false"><circle cx="5" cy="5" r="4" /></svg>{source.status_words}</span>
       </td>
       <td className="fieldwork-num" data-label="Calls came back">
-        {health ? <>{readerFigure(health.calls_ok ?? 0)} of {readerFigure(health.calls ?? 0)}</> : NOT_RECORDED}
+        {health && Number.isFinite(health.calls_ok) && Number.isFinite(health.calls)
+          ? <>{readerFigure(health.calls_ok)} of {readerFigure(health.calls)}</> : NOT_RECORDED}
       </td>
       <td className="fieldwork-num" data-label="Items">
         {health && isFigure(health.items)

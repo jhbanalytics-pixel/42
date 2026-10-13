@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import unicodedata
 from decimal import Decimal
@@ -20,6 +21,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 SCHEME = "obs1"
 SOURCE = "socialcrawl"
+log = logging.getLogger(__name__)
 
 _TRACKING = re.compile(r"^(utm_.*|fbclid|gclid|igshid|mc_cid|mc_eid)$", re.IGNORECASE)
 _SPACE = re.compile(r"\s+")
@@ -49,7 +51,11 @@ def canonical_url(value: object) -> str | None:
     """Scheme and host lowercased, default port and tracking parameters dropped, query sorted by name."""
     if not isinstance(value, str) or not value.strip():
         return None
-    parts = urlsplit(value.strip())
+    try:
+        parts = urlsplit(value.strip())
+    except ValueError:
+        log.warning("post identity skipped: malformed URL")
+        return None
     scheme = parts.scheme.lower()
     if scheme not in {"http", "https"} or not parts.hostname:
         return None

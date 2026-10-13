@@ -688,11 +688,15 @@ def test_top_level_dist_file_served_and_no_escape(ctx, dist):
     assert "42 app" in r.text
 
 
-def test_unknown_api_path_is_json_404(ctx, dist):
+def test_unknown_api_paths_require_the_gate_before_json_404(ctx, dist):
     for method in ("get", "post"):
-        r = getattr(ctx.client, method)("/api/nope")
-        assert r.status_code == 404
-        assert r.json()["error"] == "not_found"
+        for path in ("/api", "/api/nope"):
+            r = getattr(ctx.client, method)(path)
+            assert r.status_code == 401
+            assert r.json()["error"] == "unauthorized"
+            r = getattr(ctx.client, method)(path, headers=GOOD)
+            assert r.status_code == 404
+            assert r.json()["error"] == "not_found"
 
 
 def test_placeholder_page_when_dist_missing(ctx, tmp_path, monkeypatch):

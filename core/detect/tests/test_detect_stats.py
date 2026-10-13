@@ -37,7 +37,7 @@ FEED = dict(market="ZA", platform="tiktok", series="feed_tiktok", protocol="p1",
 
 def on(market, platform, lane_class, switched_on=None):
     return {"market": market, "platform": platform, "lane_class": lane_class,
-            "switched_on": switched_on or day(3), "backtest_run_id": "bt-1", "rule_version": "stats-1"}
+            "switched_on": switched_on or day(3), "backtest_run_id": "bt-1", "rule_version": stats.RULE_VERSION}
 
 
 SW_PANEL = on("ZA", "facebook", "panel")
@@ -199,7 +199,7 @@ def test_warmup_thin_and_silent_series_are_untested_even_when_switched_on():
     assert [one(rows, i)["test"] for i in ("warm", "thin", "silent", "music")] == ["none"] * 4
     quiet = one(rows, "quiet")
     assert quiet["test"] == "nb"
-    assert all(r["rule_version"] == stats.RULE_VERSION == "stats-1" for r in rows.values())
+    assert all(r["rule_version"] == stats.RULE_VERSION == stats.RULE_VERSION for r in rows.values())
 
 
 # 2. Negative binomial
@@ -428,6 +428,23 @@ def test_cold_start_prior_pools_across_platforms_then_markets_under_20_items():
     assert one(rows, "short")["mu_prior"] == pytest.approx(want)
 
 
+def test_cold_start_prior_requires_distinct_items_before_stopping_pooling():
+    repeated = [{**first_week("repeat", 1), "series_id": f"repeat|ZA|panel_fb_hub|p{i}"}
+                for i in range(20)]
+    other_series = [first_week(f"other-{i}", 100, series="panel_other") for i in range(19)]
+    prior = stats.cold_start_prior(repeated + other_series)
+
+    assert prior(sig("candidate", [0] * 28, 1)) == pytest.approx(100.0)
+
+
+def test_cold_start_prior_preserves_series_mean_distribution_after_item_threshold():
+    weeks = [first_week(f"item-{i}", 1) for i in range(18)]
+    weeks += [first_week("a", 1), first_week("a", 100), first_week("b", 1), first_week("b", 19)]
+    prior = stats.cold_start_prior(weeks)
+
+    assert prior(sig("candidate", [0] * 28, 1)) == pytest.approx(1.0)
+
+
 @pytest.mark.parametrize("mean, alpha", [(2, 0.5), (5, 1.0), (10, 0.3), (50, 0.2)])
 def test_null_series_are_calibrated(mean, alpha):
     """2000 stable NB series of 42 days: the last day is today, the 28 before it the history."""
@@ -627,7 +644,7 @@ def test_output_columns_are_the_series_test_ddl():
                                   D, "stats-t", "r1", switch_rows=[SW_PANEL])
     for r in rows:
         assert list(r) == cols
-        assert r["metric_date"] == D and r["run_id"] == "stats-t" and r["rule_version"] == "stats-1"
+        assert r["metric_date"] == D and r["run_id"] == "stats-t" and r["rule_version"] == stats.RULE_VERSION
         for k in ("mu", "alpha", "weekday_factor", "ratio", "p_mid", "q"):
             assert r[k] is None or type(r[k]) is float
         assert type(r["significant"]) is bool
@@ -702,11 +719,13 @@ def test_first_week_query_takes_7_observed_days_of_series_first_seen_in_90_days(
         w.daily("old", i, 1)
     for i in range(4, -1, -1):
         w.daily("fresh", i, 2)
+    for i in range(1, 8):
+        w.daily("future", -i, 100)
     w.protocol("feed_tiktok", 60)
     for i in range(50, -1, -1):
         w.counter("rank", "feed_tiktok", i, 1.0)
     w.load(con)
-    for item, i in (("new", 40), ("old", 110), ("fresh", 4), ("rank", 50)):
+    for item, i in (("new", 40), ("old", 110), ("fresh", 4), ("rank", 50), ("future", 1)):
         con.execute("UPDATE core.cultural_map SET first_seen = ? WHERE item_id = ?", [day(i), item])
     got = {r["item_id"]: r for r in duck.query(con, stats.FIRST_WEEK_SQL, {"d": D})}
     assert set(got) == {"new"}
@@ -738,7 +757,7 @@ def test_run_stats_end_to_end_with_a_switch_row(con):
     assert len(client.sql) == 4
     got = duck.query(con, "SELECT * FROM {core}.series_test ORDER BY item_id")
     assert [r["test"] for r in got] == ["nb"] * 3
-    assert {r["rule_version"] for r in got} == {"stats-1"} and {r["run_id"] for r in got} == {"stats-x"}
+    assert {r["rule_version"] for r in got} == {stats.RULE_VERSION} and {r["run_id"] for r in got} == {"stats-x"}
     totals = {day(i): (120 if day(i).weekday() == D.weekday() else 60) for i in range(1, 46) if i != 5}
     mean_all = np.mean(list(totals.values()))
     today = [t for d, t in totals.items() if d.weekday() == D.weekday()]

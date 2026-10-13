@@ -215,6 +215,7 @@ function DossierStart({investigations, asks, api, handover}){
   const [error, setError] = useState(null);
   const loading = investigations.phase === 'loading' || asks.phase === 'loading';
   const bothFailed = investigations.phase === 'error' && asks.phase === 'error';
+  const partlyFailed = !bothFailed && (investigations.phase === 'error' || asks.phase === 'error');
   const sources = dossierSources(investigations.items, asks.items);
 
   async function start(source){
@@ -239,7 +240,8 @@ function DossierStart({investigations, asks, api, handover}){
       <p className="b42-help">Made from a finished answer. Check its claims, then freeze and export it.</p>
       {loading && <p className="b42-quiet" role="status">Reading finished answers</p>}
       {!loading && bothFailed && <p className="b42-error" role="alert">Finished answers could not be read. Try again in a minute.</p>}
-      {!loading && !bothFailed && sources.length === 0 && (
+      {!loading && partlyFailed && <p className="b42-error" role="alert">Some finished answers could not be read. Retry the unavailable list under Your recent work.</p>}
+      {!loading && !bothFailed && !partlyFailed && sources.length === 0 && (
         <p className="b42-empty">No finished answers yet. Ask a question or run an investigation, then start a dossier from it here.</p>
       )}
       {!loading && sources.length > 0 && (

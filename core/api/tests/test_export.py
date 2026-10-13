@@ -32,6 +32,16 @@ def refused(record):
     return caught.value
 
 
+def test_export_refuses_duplicate_evidence_identity(complete):
+    complete["answer"]["evidence"].append(copy.deepcopy(complete["answer"]["evidence"][0]))
+    assert "uniquely" in refused(complete).message
+
+
+def test_export_refuses_claim_cut_by_checks(complete):
+    complete["answer"]["claims"][0]["check"] = "cut"
+    assert "cut" in refused(complete).message
+
+
 @pytest.mark.parametrize("name", ["ask_complete.json", "ask_partial.json"])
 def test_finished_records_render_question_claims_and_urls(name):
     record = load(name)

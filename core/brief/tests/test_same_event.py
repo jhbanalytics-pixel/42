@@ -96,6 +96,19 @@ def test_two_longer_names_one_short_name_opens_count_once():
     assert shared_names(a, b) == shared_names(b, a) == 1
 
 
+def test_alias_fanout_cannot_count_as_three_independent_shared_names():
+    a = names("Fans watched the MTN8 Cup Final and the MTN8 Finale and the AFCON.")
+    b = names("Fans watched the MTN8 and the AFCON Cup Final and the AFCON Finale.")
+    assert shared_names(a, b) == shared_names(b, a) == 2
+
+
+def test_alias_fanout_does_not_make_distinct_events_one_event():
+    a = card("Fans discussed the MTN8 Cup Final and the MTN8 Finale and the AFCON on 10 Oct.")
+    b = card("Fans discussed the MTN8 and the AFCON Cup Final and the AFCON Finale on 10 Oct.")
+    assert same_event.reason(a, b) is None
+    assert same_event.near(a, card(b["explanation"].replace(" on 10 Oct", ""))) is None
+
+
 @pytest.mark.parametrize("text,expected", [
     ("likely because Manchester City played on 11 Oct.", {(10, 11)}),
     ("likely because it was released on 2026-10-01.", {(10, 1)}),

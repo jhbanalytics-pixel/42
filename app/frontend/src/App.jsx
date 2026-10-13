@@ -694,6 +694,8 @@ export default function App(){
   const [gateFailure, setGateFailure] = useState(null);
   const [gateNotice, setGateNotice] = useState('');
   const [retrying, setRetrying] = useState(false);
+  const [checkingPasscode, setCheckingPasscode] = useState(false);
+  const checkingPasscodeNow = useRef(false);
   const [storageBlocked, setStorageBlocked] = useState(false);
   const attempts = useRef(0);
   const retryingNow = useRef(false);
@@ -915,8 +917,12 @@ export default function App(){
   };
 
   const submitPasscode = async (code) => {
-    if (authUnavailable || (authMode !== 'passcode' && authMode !== 'legacy')) return;
+    if (checkingPasscodeNow.current || retryingNow.current || authUnavailable || (authMode !== 'passcode' && authMode !== 'legacy')) return;
+    checkingPasscodeNow.current = true;
+    setCheckingPasscode(true);
     const result = await credential.verify(code);
+    checkingPasscodeNow.current = false;
+    setCheckingPasscode(false);
     if (result.outcome !== 'ok'){
       if (result.outcome === 'wrong') failWith('wrong', WRONG_WORDS, true);
       else if (result.outcome === 'rate') failWith('rate', result.message, false);
@@ -1010,7 +1016,7 @@ export default function App(){
   if (authReady === null) return <SignInWait />;
   if (needPass){
     const blocked = gateFailure && (gateFailure.kind === 'rate' || gateFailure.kind === 'check') && credential.key();
-    return <PasscodeScreen onSubmit={submitPasscode} failure={gateFailure} notice={gateNotice} onRetry={blocked ? retryStored : null} retrying={retrying} />;
+    return <PasscodeScreen onSubmit={submitPasscode} failure={gateFailure} notice={gateNotice} onRetry={blocked ? retryStored : null} retrying={retrying} checking={checkingPasscode} />;
   }
 
   /* routes that bring their own data or render their own desk states skip the generic desk gate */

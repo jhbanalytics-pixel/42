@@ -87,6 +87,20 @@ def test_precheck_never_treats_unknown_spend_as_money():
         assert scheduled.precheck("T0", spent, 120) == scheduled.SPEND_UNKNOWN
 
 
+@pytest.mark.parametrize("key", ["scheduled", "credits", "model_usd"])
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf"), -1])
+def test_invalid_spend_never_admits_a_scheduled_ask(key, bad):
+    spent = {**PLENTY, key: bad}
+    asks, records = [], []
+    outcomes = scheduled.run(
+        [schedule("s_invalid")], MONDAY, lambda: spent,
+        lambda *args: asks.append(args), lambda *args: records.append(args), 120,
+    )
+    assert asks == []
+    assert outcomes[0]["status"] == "skipped"
+    assert outcomes[0]["reason"] == scheduled.SPEND_UNKNOWN
+
+
 # ---------- run ----------
 
 class Ledger:

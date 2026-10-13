@@ -4,12 +4,14 @@ The job's own identity signs the call (google-genai with vertexai=True); there i
 usage_metadata, and thinking tokens are billed as output. An exception raised after a call was billed carries the spend as
 both .usage (Ask) and .usd (brief), the two shapes the two callers read. With GEMINI_PRIORITY on, every request goes out as
 Vertex Priority PayGo and usage is priced at the priority price (core/llm/provider.py).
+Absent usage totals preserve successful content with usage_unknown and None amounts; an unusable output keeps the reservation marker.
 """
 
 from __future__ import annotations
 
 import copy
 import json
+import math
 import os
 import re
 import threading
@@ -86,21 +88,45 @@ def media_parts(media) -> list:
     return parts
 
 
-def usage_of(response, model: str) -> dict:
-    meta = getattr(response, "usage_metadata", None)
-    tokens_in = int(getattr(meta, "prompt_token_count", 0) or 0)  # includes the cached tokens
-    cached = min(int(getattr(meta, "cached_content_token_count", 0) or 0), tokens_in)
+def _unknown_usage() -> dict:
+    return {"input_tokens": None, "output_tokens": None, "cached_tokens": None,
+            "thinking_tokens": None, "usd": None, "usage_unknown": True}
+
+
+def usage_of(response, model: str, *, price=None) -> dict:
+    fields = ("prompt_token_count", "response_token_count", "candidates_token_count",
+              "cached_content_token_count", "thoughts_token_count", "tool_use_prompt_token_count")
+    try:
+        meta = getattr(response, "usage_metadata", None)
+        raw = {field: getattr(meta, field, None) for field in fields}
+    except Exception:
+        return _unknown_usage()
+    if any(value is not None and (type(value) is not int or value < 0) for value in raw.values()):
+        return _unknown_usage()
+    prompt = raw["prompt_token_count"]
+    output = raw["response_token_count"]
+    if output is None:
+        output = raw["candidates_token_count"]
+    if prompt is None or output is None:
+        return _unknown_usage()
+    tokens_in = prompt  # includes the cached tokens
+    cached = min(raw["cached_content_token_count"] or 0, tokens_in)
     # Thinking tokens and tool-use prompt tokens are billed, the first as output and the second as input.
-    tokens_in += int(getattr(meta, "tool_use_prompt_token_count", 0) or 0)
-    tokens_out = int(getattr(meta, "response_token_count", None) or getattr(meta, "candidates_token_count", 0) or 0)
-    thinking = int(getattr(meta, "thoughts_token_count", 0) or 0)
-    tokens_out += thinking
-    price = price_for(model)
+    tokens_in += raw["tool_use_prompt_token_count"] or 0
+    thinking = raw["thoughts_token_count"] or 0
+    tokens_out = output + thinking
+    price = price_for(model) if price is None else price
     cached_price = price.get("cached", price["input"])
+    try:
+        cost = ((tokens_in - cached) * price["input"] + cached * cached_price
+                + tokens_out * price["output"]) / 1_000_000
+    except (ArithmeticError, TypeError, ValueError):
+        return _unknown_usage()
+    if not math.isfinite(cost) or cost < 0:
+        return _unknown_usage()
     return {"input_tokens": tokens_in, "output_tokens": tokens_out, "cached_tokens": cached,
             "thinking_tokens": thinking,
-            "usd": ((tokens_in - cached) * price["input"] + cached * cached_price
-                    + tokens_out * price["output"]) / 1_000_000}
+            "usd": cost}
 
 
 class GeminiModel:
@@ -192,7 +218,7 @@ class GeminiModel:
                 raise DeadlineExpired()
             if self._supplied_client:
                 raise RuntimeError("deadline dispatch requires an owned async SDK client")
-        price_for(model)  # an unpriced model fails before it spends anything
+        price = dict(price_for(model))  # an unpriced model fails before it spends anything
         contents = [*media_parts(media), user] if media else user
         extra = {}
         if request_timeout_s is not None:
@@ -220,8 +246,9 @@ class GeminiModel:
                 if runner.retired:
                     self._deadline_failed = True
                 raise
-        usage = usage_of(response, model)
+        usage = _unknown_usage()
         try:
+            usage = usage_of(response, model, price=price)
             candidate = (getattr(response, "candidates", None) or [None])[0]
             reason = str(getattr(getattr(candidate, "finish_reason", None), "name", getattr(candidate, "finish_reason", "")))
             if "MAX_TOKENS" in reason:
@@ -235,6 +262,8 @@ class GeminiModel:
             validate(parsed, schema)
             return parsed, usage
         except Exception as exc:
-            exc.usage = usage  # billed even though the output is unusable
+            exc.usage = None if usage.get("usage_unknown") else usage
             exc.usd = usage["usd"]
+            if usage.get("usage_unknown"):
+                exc.reserve_model_estimate = True
             raise

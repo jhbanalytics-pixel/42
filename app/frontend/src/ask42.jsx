@@ -474,7 +474,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
   return (
     <div className="ask42-answer-layout">
       <article className="ask42-answer" aria-describedby={shortId}>
-        <h2 className="ask42-question">{record.question}</h2>
+        <h2 className="ask42-question" aria-label={record.question}>{record.question}</h2>
         <p className="ask42-meta">{metaLine(record)}</p>
         {tag && (
           <p className="ask42-tag-line">
@@ -714,7 +714,7 @@ function Running({run, onStop}){
   const stopButton = <button type="button" className="ask42-quiet ask42-stop" onClick={onStop} disabled={run.stopping || !run.askId}>{run.stopping ? 'Stopping' : 'Stop'}</button>;
   return (
     <div className="ask42-running">
-      <h2 className="ask42-question">{question}</h2>
+      <h2 className="ask42-question" aria-label={question}>{question}</h2>
       <ProgressLine key={run.startedAt || 0} steps={run.steps} startedAt={run.startedAt} watching={Boolean(run.request && run.request.extra && run.request.extra.follow)} />
       <ResearchLog steps={run.steps} running evidence={run.evidence} claims={run.claims} market={market} clock={false} action={stopButton}>
         {run.evidence.length > 0 && (
@@ -862,10 +862,10 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
           window.dispatchEvent(new window.Event('hashchange'));
         }
       }
-      await streamAsk(started.ask_id, (event) => {
+      const finished = await streamAsk(started.ask_id, (event) => {
         if (!ctrl.signal.aborted) setRun((current) => applyEvent(current, event));
       }, {signal: ctrl.signal});
-      const record = await getAsk(started.ask_id, ctrl.signal);
+      const record = finished?.record || await getAsk(started.ask_id, ctrl.signal);
       if (ctrl.signal.aborted) return;
       setRun((current) => ({...current, phase: 'done', record, steps: Array.isArray(record.steps) ? record.steps : current.steps}));
     } catch (error){
@@ -894,10 +894,10 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
       if (mkt && setRegion) setRegion(mkt);
       setRun((current) => ({...current, opening: record.status !== 'running', request: {text: record.question || '', mkt, extra: {follow: askId}}, steps: Array.isArray(record.steps) ? record.steps : []}));
       if (record.status === 'running'){
-        await streamAsk(askId, (event) => {
+        const finished = await streamAsk(askId, (event) => {
           if (!ctrl.signal.aborted) setRun((current) => applyEvent(current, event));
         }, {signal: ctrl.signal});
-        record = await getAsk(askId, ctrl.signal);
+        record = finished?.record || await getAsk(askId, ctrl.signal);
         if (ctrl.signal.aborted) return;
       }
       setRun((current) => ({...current, phase: 'done', opening: false, record, steps: Array.isArray(record.steps) ? record.steps : current.steps}));
@@ -1069,7 +1069,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
             {record.status === 'failed' || !record.answer
               ? (
                 <div className="ask42-failed" role="alert">
-                  <h2 className="ask42-question">{record.question}</h2>
+                  <h2 className="ask42-question" aria-label={record.question}>{record.question}</h2>
                   <p>
                     {record.status === 'running'
                       ? 'This question still reads as running, so it cannot be asked again yet.'
@@ -1081,7 +1081,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
               : verdict && !verdict.ok
                 ? (
                   <div className="ask42-failed" role="alert">
-                    <h2 className="ask42-question">{record.question}</h2>
+                    <h2 className="ask42-question" aria-label={record.question}>{record.question}</h2>
                     <p>This answer did not pass its checks</p>
                     <ul className="ask42-list">{verdict.problems.map((problem, index) => <li key={index}>{problem}</li>)}</ul>
                   </div>

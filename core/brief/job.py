@@ -70,6 +70,7 @@ from core.brief.market_scope import read_market_scope
 from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _today_order, _worth,
                                SHOWN, brief_row, build_market_payload, preview_card)
 from core.brief.same_event import near as same_event_near, reason as same_event_reason
+from core.brief.same_event import fixture_anchor, fixture_reason
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_local_posts, showable_posts
 from core.collect import chain as collect_chain
 from core.config.caps import model_daily_usd
@@ -93,10 +94,12 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # shown order by the card's creators in 3 days, then posts in 3 days, then worth (core/brief/payload.py _today_order),
 # e-one-event-shadow the published cards of one market that describe the same event recorded in shadow
 # (RELEASE-E-PLAN 8h, core/brief/same_event.py, _merge_events): it changes nothing in a brief row and marks the shadow
-# era, so the live merge at E3 takes a token of its own.
+# era, so the live merge at E3 takes a token of its own, brief-504-retry a support or critic check the model service
+# answered with 504 tried once more inside the same deadline and time limit (core/brief/explain.py _no_answer).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
-                "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow")
+                "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
+                "+brief-504-retry")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -1179,7 +1182,6 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
     ({id(cand): result}, the breaker's error or None, the deadline stop or None)."""
     results, running, capped = {}, {}, False
     explanation_stop = None
-    reserved_before = spend.get("model_reserved_usd", 0.0)  # an earlier pass's reservation stays in the total
 
     def can_wait(seconds):
         then = clock() + timedelta(seconds=seconds)
@@ -1211,9 +1213,9 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
             result = fut.result()
             results[id(cand)] = result
             spend["usd"] += result["usage_usd"]
-            reserved = sum(getattr(exc, "reserved_usd", 0.0) for exc in breaker.uncertain_calls)
+            reserved = result.get("model_reserved_usd", 0.0)
             if reserved:
-                spend["model_reserved_usd"] = reserved_before + reserved
+                spend["model_reserved_usd"] = spend.get("model_reserved_usd", 0.0) + reserved
             capped = capped or result["reason"] == "model_cap"
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -1292,6 +1294,7 @@ def _payload_candidate(cand, result, specificity=None):
         "specificity": specificity, "news_driven": explained and result.get("news_driven") is True,
         # The critic's own answer, kept for audit only: the payload stores it apart from cards and held items.
         "critic": result.get("critic") if isinstance(result, dict) else None,
+        "_event_checked": explained and result.get("local_why_now_checked") is True,
     }
 
 
@@ -1349,6 +1352,70 @@ def _merge_events(market, d, items, posts):
     return {"judged": len(judged), "merges": merges, "near": near}
 
 
+def _publish_events(market, d, items, posts):
+    """Complete-link fixture groups after G10, preserving the representative's original authority."""
+    eligible = sorted((i for i in items if _published(i) and i.get("market", market) == market), key=_worth)
+    ranked = sorted(eligible[:SHOWN], key=_today_order) + sorted(eligible[SHOWN:], key=_today_order)
+    admitted = [i for i in ranked if _today_admits(i, market, d)]
+    anchors = {i["item_id"]: fixture_anchor(i.get("explanation"), market, d, checked=i.get("_event_checked"))
+               for i in admitted}
+    groups, merges, replacements, gone = [], [], {}, set()
+
+    def matches(a, b):
+        shared = len(set(posts.get(a["item_id"]) or ()) & set(posts.get(b["item_id"]) or ()))
+        why = fixture_reason(anchors.get(a["item_id"]), anchors.get(b["item_id"]))
+        return {**why, "shared_posts": shared} if why and shared >= MIN_EVIDENCE else None
+
+    for item in admitted:
+        group = next((g for g in groups if all(matches(t, item) for t in g)), None)
+        if group is None:
+            groups.append([item])
+            continue
+        representative = group[0]
+        key = representative["item_id"]
+        kept = replacements.setdefault(key, {**representative, "also": list(representative.get("also") or [])})
+        aliases = [{"item_id": item["item_id"], "title": item["title"]}, *(item.get("also") or [])]
+        seen = {key, *(a["item_id"] for a in kept["also"])}
+        for alias in aliases:
+            if alias["item_id"] not in seen:
+                kept["also"].append(dict(alias))
+                seen.add(alias["item_id"])
+        merges.append({"kept": key, "item_id": item["item_id"], **matches(representative, item)})
+        gone.add(item["item_id"])
+        group.append(item)
+    possible = []
+    for item in admitted:
+        if item["item_id"] in gone or anchors.get(item["item_id"]) is not None:
+            continue
+        partial = fixture_anchor(item.get("explanation"), market, d, checked=item.get("_event_checked"),
+                                 allow_undated=True)
+        if partial is None or partial["date"] is not None:
+            continue
+        for group in groups:
+            kept = group[0]
+            known = anchors.get(kept["item_id"])
+            if known is None or not fixture_reason(known, partial, allow_undated=True):
+                continue
+            event = {"explanation": item.get("explanation"), "posts": posts.get(item["item_id"]) or set()}
+            if not all(same_event_near(
+                    {"explanation": t.get("explanation"), "posts": posts.get(t["item_id"]) or set()}, event)
+                       or same_event_reason(
+                    {"explanation": t.get("explanation"), "posts": posts.get(t["item_id"]) or set()}, event)
+                       for t in group):
+                continue
+            fragment = {"status": "possible_duplicate", "reference_item_id": kept["item_id"],
+                        "missing": ["event_date"]}
+            replacements[item["item_id"]] = {**item,
+                "decision": Decision(False, "held_back", None,
+                    "Possible duplicate event: its event date is unknown; the dated card is shown separately", "G3", False),
+                "held_reason": "not_confirmed", "event_fragment": fragment}
+            possible.append({"item_id": item["item_id"], **fragment})
+            break
+    return ([replacements.get(i["item_id"], i) for i in items if i["item_id"] not in gone],
+            {"judged": len(admitted), "anchored": sum(a is not None for a in anchors.values()), "merges": merges,
+             "possible_fragments": possible})
+
+
 def _market_payload(market, d, cands, results, *, banners, moments_, boards_, issues, selection_audit=None,
                     event_shadow=None):
     # A candidate whose market scope could not be read is not known to be global, so it stays, held for its
@@ -1394,6 +1461,8 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
         shadow = {"error": type(e).__name__}
     if event_shadow is not None:
         event_shadow[market] = shadow
+    items, event_publication = _publish_events(
+        market, d, items, {c["row"]["item_id"]: c.get("posts") or set() for c in local_cands})
     # An evidence read that failed is a data problem too, so it counts with G1 toward the over-30% banner. The
     # denominator is every current-market candidate considered: the G1 holds that _candidates backfilled past as well
     # as the candidates judged, so the banner still shows how much of what was looked at bad data blocked.
@@ -1421,8 +1490,11 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
             headline=headline, issues=issues, not_assessed=audit.get("not_assessed"),
             selection_receipt=audit.get("selection_receipt"))
     inputs = audit.get("locality_audit_inputs")
+    if event_publication["merges"] or event_publication["possible_fragments"]:
+        payload["event_publication"] = event_publication
     if inputs is not None:
         shown = {i["item_id"] for part in ("cards", "more") for i in payload[part]}
+        shown |= {a["item_id"] for part in ("cards", "more") for i in payload[part] for a in i.get("also") or []}
         shown |= {i["item_id"] for i in payload["held_back"]["items"]}
         shown |= {i["item_id"] for i in (payload.get("not_assessed") or {}).get("items") or []}
         payload["locality_audit"] = build_locality_audit(inputs["detect_run_id"], inputs["not_local"],

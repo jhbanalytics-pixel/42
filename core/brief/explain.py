@@ -186,6 +186,7 @@ Law 5 is checked by code, which rejects any age or generation word (Gen Z, mille
 17 A date is the day a cited post's posted_at gives, or a date its own text states, written as day and month, such as 5 Oct, never an ISO date in generated prose. Include its year when it differs from the window end year; keep the year when that context is missing. Keep quoted dates, citations, URLs and timestamps exactly as supplied. Never move, guess or work out a date, and write no yesterday, this week or recently unless a post says it.
 18 Each factual clause in the explanation sentence must be supported by a claim in explanation_claim_ids at the same scope: the same posts, people, platforms, place and time. Do not turn one post's reaction into the reaction of every cited creator, or join unrelated posts into one story. A hedge does not make an unsupported clause supported.
 19 A posting date shows when that post was published, not when an event happened. A hashtag or mention alone shows only that tag or mention, not a reaction, endorsement, performance, release or reason for posting. Unseen video, audio, images and comments are not supplied evidence. Describe only what the supplied text and fields show.
+20 Preserve an explicit event date from cited post text in the why-now clause when that text identifies the cause and its date. Never substitute posted_at or the collection window for an event date. When the event date is absent or ambiguous, leave it unknown rather than inferring it from another post or topic.
 
 You write the morning explanation for one trend: 3 to 5 claims from the evidence pack, on what it is, the earliest post in the pack, the platforms its cited posts are on and why now.
 Then write one explanation sentence for a strategist that rests only on your claims, and list those claim ids in explanation_claim_ids. The sentence keeps every law above.
@@ -307,12 +308,19 @@ CHECK_INCOMPLETE = "check did not complete"
 
 
 def _no_answer(exc):
-    """True when a failed model call gave nothing back: it timed out, or its reply held no text. A refusal (the
-    model blocked the request, or declined it for capacity), a reply cut off at the token limit, an error from the
-    auth or cleanup machinery and anything else are not 'no answer' and are never tried again."""
+    """True when a failed model call gave nothing back: it timed out, the model service timed it out (an HTTP 504,
+    which google-genai raises as errors.ServerError with code 504; 13 Oct 2026), or its reply held no text. A refusal
+    (the model blocked the request, or declined it for capacity), a reply cut off at the token limit, any other server
+    error, an error from the auth or cleanup machinery and anything else are not 'no answer' and are never tried
+    again."""
     if getattr(exc, "auth_unresolved", False) or getattr(exc, "request_cleanup_failed", False):
         return False
     if any("Timeout" in k.__name__ or k.__name__ == "DeadlineExceeded" for k in type(exc).__mro__):
+        return True
+    # The SDK's own ServerError, matched by class and module so no SDK need be imported, with the HTTP status the SDK
+    # was handed (errors.APIError.raise_error), never a 504 read from the message text.
+    if (any(k.__name__ == "ServerError" and k.__module__ == "google.genai.errors" for k in type(exc).__mro__)
+            and getattr(exc, "code", None) == 504):
         return True
     return isinstance(exc, TimeoutError) or "returned no text" in str(exc)
 
@@ -1079,7 +1087,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
                   model_id=None, model_call_guard=None, second_draft=False, retry_guard=None):
     """See the module docstring."""
     model_id = model_id or default_model()
-    spent = {"usd": 0.0}
+    spent = {"usd": 0.0, "reserved_usd": 0.0}
     checks = []
     title_audit = {}
     evidence = _source_evidence(pack)
@@ -1099,17 +1107,22 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
             out, usage = model.complete_json(system=system, user=user, schema=schema, model=model_id,
                                              max_tokens=max_tokens)
         except Exception as exc:
-            booked = getattr(exc, "usd", 0.0)
+            booked = getattr(exc, "usd", None) or 0.0
             detail = f"{type(exc).__name__}: {exc}"
             if getattr(exc, "reserve_model_estimate", False):
                 booked = max(booked, estimate)
                 exc.reserved_usd = booked
+                spent["reserved_usd"] += booked
                 detail += f"; usage unknown, model reservation retained: USD {booked:.8f}"
             spent["usd"] += booked
             err = _ModelError(detail)
             err.no_answer = _no_answer(exc)
             raise err from exc
-        spent["usd"] += usage.get("usd", 0.0)
+        if usage.get("usage_unknown"):
+            spent["usd"] += estimate
+            spent["reserved_usd"] += estimate
+        else:
+            spent["usd"] += usage.get("usd", 0.0)
         return out
 
     def answered(system, user, schema, max_tokens):
@@ -1163,6 +1176,9 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
             "error": error, "local_why_now_checked": local_why_now_checked, "specificity": specificity,
             "news_driven": news_driven, "critic": critic, "title_written": title_written,
         }, reference=window_end)
+        if spent["reserved_usd"]:
+            formatted["model_reserved_usd"] = spent["reserved_usd"]
+            formatted["usage_unknown"] = True
         if title_audit:
             formatted["title_majority"] = copy.deepcopy(title_audit)
         return formatted

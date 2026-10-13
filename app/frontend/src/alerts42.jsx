@@ -173,7 +173,11 @@ function Watches({picked = '', watches, waiting, onRetry, onChange, onAuth}){
     (watch.status === 'paused' ? resumeWatch : pauseWatch)(id)
       .then((next) => {
         if (!live.current) return;
-        onChange(next && next.watch_id ? next : {...watch, status: watch.status === 'paused' ? 'active' : 'paused'});
+        if (!next || next.watch_id !== id || next.status !== (watch.status === 'paused' ? 'active' : 'paused')) {
+          setRows((r) => ({...r, [id]: {error: 'The change was not confirmed. Reload the watches before trying again.'}}));
+          return;
+        }
+        onChange({...watch, ...next});
         setRows((r) => ({...r, [id]: {}}));
       })
       .catch((error) => {

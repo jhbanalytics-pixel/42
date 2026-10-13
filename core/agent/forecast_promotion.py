@@ -16,6 +16,7 @@ from __future__ import annotations
 from datetime import date
 
 from core.agent.tools.sql_query import MAX_BYTES_BILLED
+from core.detect.forecasts import RESOLUTION_RULE_VERSION
 
 # Forecast ids are sha256 hex, so a comma list is exact; the warehouse takes scalar parameters only. The item's name
 # is its current label in v_items_today, read for the stored item and market, never the model's words.
@@ -23,7 +24,7 @@ PROMOTED_SQL = (
     "SELECT c.forecast_id, c.item_id, c.market, c.rule, c.target, c.horizon, c.issue_date, c.resolve_date, "
     "l.label, p.run_id AS score_run_id, p.scored_at "
     "FROM intelligence_42_core.v_forecasts_current c "
-    "JOIN (SELECT s.rule, s.target, s.horizon, s.promotion_eligible, s.run_id, s.scored_at "
+    "JOIN (SELECT s.rule, s.target, s.horizon, s.promotion_eligible, s.run_id, s.scored_at, s.query_id, s.week_end "
     "FROM intelligence_42_agent.forecast_score s "
     "QUALIFY ROW_NUMBER() OVER (PARTITION BY s.rule, s.target, s.horizon "
     "ORDER BY s.scored_at DESC, s.run_id DESC) = 1) p "
@@ -33,6 +34,9 @@ PROMOTED_SQL = (
     "QUALIFY ROW_NUMBER() OVER (PARTITION BY t.item_id, t.market ORDER BY t.metric_date DESC) = 1) l "
     "ON l.item_id = c.item_id AND l.market = c.market "
     "WHERE p.promotion_eligible IS TRUE AND c.predicted_arrival IS TRUE AND c.observed_arrival IS NULL AND c.resolve_date >= @today "
+    "AND p.query_id = CONCAT('core/eval/sql/forecast_rows.sql?d=', "
+    "FORMAT_DATE('%Y-%m-%d', DATE_ADD(p.week_end, INTERVAL 1 DAY)), "
+    f"'&resolution_rule_version={RESOLUTION_RULE_VERSION}') "
     "AND c.forecast_id IN UNNEST(SPLIT(@forecast_ids, ',')) "
     "ORDER BY c.forecast_id"
 )

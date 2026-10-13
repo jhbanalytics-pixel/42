@@ -51,8 +51,8 @@ sourced AS (
 -- Distinct creators of the item's local posts: located in the market (the market_scope.sql rule) or sourced
 -- above and not located in another market by that rule, by a creator not on the suppression list. Rank only: it is
 -- not selected, so nothing downstream reads it.
-local_first AS (
-  SELECT pi.item_id, COUNT(DISTINCT IFNULL(ps.creator_id, ps.post_id)) creators
+local_creators AS (
+  SELECT DISTINCT pi.item_id, ps.platform, IFNULL(ps.creator_id, ps.post_id) creator_id
   FROM {core}.post_observations po
   JOIN {core}.post_items pi ON pi.post_id = po.post_id
   JOIN {core}.posts ps ON ps.post_id = po.post_id
@@ -64,8 +64,11 @@ local_first AS (
           AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'))
       OR (sourced.post_id IS NOT NULL
           AND NOT IFNULL(ps.geo_market != @market AND ps.geo_confidence >= 0.7
-                         AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)))
-  GROUP BY pi.item_id),
+                         AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)))),
+local_first AS (
+  SELECT item_id, COUNT(*) creators FROM local_creators
+  WHERE creator_id IS NOT NULL
+  GROUP BY item_id),
 ordered AS (
 SELECT s.*, cm.kind map_kind, cm.status map_status, cm.label, cm.canonical_key, fs.first_seen,
   seen.platforms seen_platforms,

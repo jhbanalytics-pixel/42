@@ -433,7 +433,7 @@ function Credits({credits}){
             </Scroll>
             {isFigure(credits.total) && <p className="cv42-line">Total: <Fig figure={credits.total} /> credits charged</p>}
           </>
-        : <p className="cv42-line">No credits charged on this day.</p>}
+        : <p className="cv42-line">{credits && Array.isArray(credits.rows) ? 'No credits charged on this day.' : 'Credits could not be read for this day.'}</p>}
     </section>
   );
 }

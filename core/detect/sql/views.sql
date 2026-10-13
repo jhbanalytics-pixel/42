@@ -156,8 +156,8 @@ WITH o AS (                 -- each post once per item, market and lane group, d
   SELECT pi.item_id, po.market, po.post_id,
     po.lane_class IN ('unbiased_rank', 'panel') AS measured, MIN(po.observed_date) first_day
   FROM {core}.post_observations po
-  JOIN {core}.post_items pi ON pi.post_id = po.post_id
-  WHERE po.observed_date BETWEEN DATE_SUB(d, INTERVAL 27 DAY) AND d
+  JOIN {core}.tvf_post_items(d) pi ON pi.post_id = po.post_id AND (pi.market IS NULL OR pi.market = po.market)
+  WHERE po.observed_date <= d
     AND po.lane_class != 'legacy' AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
   GROUP BY pi.item_id, po.market, po.post_id, measured),
 p AS (
@@ -176,7 +176,8 @@ p AS (
   LEFT JOIN (               -- append-only, so one row per post with the cautious value of each field
     SELECT pe0.post_id, MAX(pe0.near_dup_size) near_dup_size, LOGICAL_OR(pe0.sponsored) sponsored
     FROM {core}.post_enrichment pe0 GROUP BY pe0.post_id
-  ) pe ON pe.post_id = o.post_id),
+  ) pe ON pe.post_id = o.post_id
+  WHERE o.first_day >= DATE_SUB(d, INTERVAL 27 DAY)),
 cr3 AS (                    -- measured lanes: this 3-day window and the one before
   SELECT p.item_id, p.market, p.creator_id, LOGICAL_OR(p.flagged) flagged,
     COUNTIF(p.first_day > DATE_SUB(d, INTERVAL 3 DAY)) n3,
@@ -284,6 +285,9 @@ SELECT f.market, COUNT(*) placebo_items,
 FROM found f JOIN rise r ON r.item_id = f.item_id AND r.market = f.market
 GROUP BY f.market;
 
+CREATE OR REPLACE VIEW {core}.v_post_items_by_state_date AS
+{counted_state_links};
+
 CREATE OR REPLACE VIEW {core}.v_item_market_scope AS
 WITH state_keys AS (
   SELECT DISTINCT metric_date, item_id, market
@@ -295,7 +299,8 @@ WITH state_keys AS (
     LOGICAL_OR(IFNULL(po.lane, '') != 'confirm') beyond_confirm
   FROM state_keys s
   JOIN {core}.post_observations po ON po.market = s.market
-  JOIN {core}.post_items pi ON pi.post_id = po.post_id AND pi.item_id = s.item_id
+  JOIN {core}.v_post_items_by_state_date pi ON pi.metric_date = s.metric_date
+    AND pi.post_id = po.post_id AND pi.item_id = s.item_id AND (pi.market IS NULL OR pi.market = s.market)
   WHERE po.observed_date BETWEEN DATE_SUB(s.metric_date, INTERVAL 6 DAY) AND s.metric_date
     AND po.lane_class != 'legacy'
     AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')

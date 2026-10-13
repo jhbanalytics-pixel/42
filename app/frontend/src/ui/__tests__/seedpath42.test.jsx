@@ -3,6 +3,11 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {SeedPathResult, suggestionTerms, normaliseTerm, validSeedPathPayload} from '../../seedpath.jsx';
 
 const fig = (value, unit) => ({value, unit, query_id: 'q_seed_path', run_id: 'r1', result_hash: 'sha256:x'});
+test('platform daily axes must share the same dates before charting', () => {
+  const bad = structuredClone(data);
+  bad.platforms[1].daily.points[0].date = '2026-08-31';
+  expect(validSeedPathPayload(bad, 'amapiano', 'za')).toBe(false);
+});
 const points = (counts) => counts.map((posts, i) => ({date: '2026-09-0' + (i + 1), posts}));
 const platform = (id, name, first, counts, before = false) => ({
   platform: id, name, first_seen: fig(first, 'first sighting day'), before_window: before,

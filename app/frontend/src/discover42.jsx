@@ -270,7 +270,8 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
         clearTimeout(slowTimer);
         if (ctrl.signal.aborted) return;
         const body = data || {};
-        setLoad({state: 'ready', data: body, items: list(body.items), cursor: body.next_cursor || null});
+        setLoad({state: 'ready', data: body, items: list(body.items), cursor: body.next_cursor || null,
+          scope: {market, kind, states, platforms}});
         if (body.filters) setFilters({kinds: list(body.filters.kinds), states: list(body.filters.states), platforms: list(body.filters.platforms)});
       })
       .catch((error) => {
@@ -385,10 +386,10 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
           {active > 0 && <button type="button" className="d42-clear" onClick={clear}>Clear filters</button>}
         </p>
         <Radar market={market} kind={kind} states={states} platforms={platforms} onAuth={onAuth} onNote={setRadarNote} />
-        <Feed sortControl={<Choice id="d42-sort" name="sort" label="Sort by" value={sort} onChange={setSort} options={SORTS} />} load={load} market={market} filtered={active > 0} kind={kind} states={states} platforms={platforms} more={more} onMore={loadMore} onClear={clear}
+        <Feed sortControl={<Choice id="d42-sort" name="sort" label="Sort by" value={sort} onChange={setSort} options={SORTS} />} load={load} market={load.scope?.market || market} filtered={load.scope ? Boolean(load.scope.kind || load.scope.states.length || load.scope.platforms.length) : active > 0} kind={load.scope?.kind ?? kind} states={load.scope?.states || states} platforms={load.scope?.platforms || platforms} more={more} onMore={loadMore} onClear={clear}
           onRetry={() => setFeedTick((t) => t + 1)} onAuth={onAuth} watch={watch}
           radarSaysGrowth={SAYS_GROWTH_WAIT.test(radarNote)} />
-        {load.state === 'ready' && <HeldBack held={load.data.held_back} market={market} date={load.data.date} onAuth={onAuth} watch={watch} />}
+        {load.state === 'ready' && <HeldBack held={load.data.held_back} market={load.scope?.market || market} date={load.data.date} onAuth={onAuth} watch={watch} />}
       </div>
       {watch.dialog}
     </section>
@@ -451,7 +452,7 @@ function Feed({sortControl, load, market, filtered, kind, states, platforms, mor
   return (
     <>
       {moreBusy && <p className="t42-status" role="status" aria-live="polite" data-feed-status="">{moreStatus}</p>}
-      {refreshing && <p className="t42-status" role="status" aria-live="polite" data-feed-status="">{load.slow ? 'Updating is taking longer than usual.' : 'Updating results'}</p>}
+      {refreshing && <p className="t42-status" role="status" aria-live="polite" data-feed-status="">{load.slow ? 'Updating is taking longer than usual.' : 'Updating results.'} Earlier results remain visible until the new selection loads.</p>}
       <section className={'d42-feed' + (refreshing ? ' d42-dim' : '')} id="d42-feed" aria-label="Trends" aria-busy={moreBusy || refreshing ? 'true' : undefined}>
         <div className="d42-trends-head">
           <h2 className="d42-title">Trends</h2>
@@ -503,11 +504,11 @@ function Feed({sortControl, load, market, filtered, kind, states, platforms, mor
 function HeldBack({held, market, date, onAuth, watch}){
   const [open, setOpen] = useState(null);
   const items = held ? list(held.items) : [];
-  const count = held && typeof held.count === 'number' ? held.count : items.length;
+  const count = held && Number.isInteger(held.count) && held.count >= 0 ? held.count : items.length > 0 ? items.length : null;
   return (
     <section className="t42-section d42-held" data-section="held-back">
       <h2 className="d42-title">Held back</h2>
-      <p className="t42-line-text">{count > 0 ? count + ' held back' : 'Nothing held back.'}</p>
+      <p className="t42-line-text">{count === null ? 'Hold information was not returned.' : count > 0 ? count + ' held back' : 'Nothing held back.'}</p>
       {items.length > 0 && (
         <ul className="t42-rows">
           {items.map((h) => {
@@ -560,7 +561,7 @@ function Radar({market, kind, states, platforms, onAuth, onNote}){
     fetchRadar(market, kind, {state: states, platform: platforms, signal: ctrl.signal})
       .then((data) => {
         clearTimeout(slowTimer);
-        if (!ctrl.signal.aborted) setLoad({state: 'ready', data: data || {}, kind});
+        if (!ctrl.signal.aborted) setLoad({state: 'ready', data: data || {}, kind, market});
       })
       .catch((error) => {
         clearTimeout(slowTimer);
@@ -585,11 +586,12 @@ function Radar({market, kind, states, platforms, onAuth, onNote}){
   else if (load.state === 'error') body = <p className="t42-status">Radar could not load.</p>;
   else if (list(load.data.points).filter((p) => isFigure(p.reach)).length === 0) return null;
   /* The words follow the rows on screen, which are the kind last read. */
-  else body = <RadarBody data={load.data} market={market} kind={load.kind || ''} />;
+  else body = <RadarBody data={load.data} market={load.market} kind={load.kind || ''} />;
 
   return (
     <section className={'t42-section d42-radar' + (load.refreshing ? ' d42-dim' : '')} data-section="radar" aria-label="Radar" aria-busy={load.refreshing ? 'true' : undefined}>
       <h2 className="d42-title">Radar</h2>
+      {load.refreshing && market !== 'ALL' && <p className="t42-status" role="status">Updating Radar. Earlier results remain visible until the new selection loads.</p>}
       {body}
     </section>
   );
@@ -606,8 +608,8 @@ function radarNote(market, load){
 function RadarBody({data, market, kind}){
   const points = list(data.points).filter((p) => isFigure(p.reach));
   const plotted = points.filter((p) => isFigure(p.growth));
-  const heldCount = typeof data.held_back_count === 'number' ? data.held_back_count : 0;
-  const held = <p className="t42-line-text d42-radar-held">{heldCount > 0 ? heldCount + ' held back, not plotted' : 'Nothing held back'}</p>;
+  const heldCount = Number.isInteger(data.held_back_count) && data.held_back_count >= 0 ? data.held_back_count : null;
+  const held = <p className="t42-line-text d42-radar-held">{heldCount === null ? 'Hold count was not returned.' : heldCount > 0 ? heldCount + ' held back, not plotted' : 'Nothing held back'}</p>;
   if (points.length === 0){
     return <>{data.note && <p className="t42-line-text">{data.note}</p>}<p className="t42-status">No trends to plot.</p>{held}</>;
   }

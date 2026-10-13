@@ -69,6 +69,7 @@ from urllib.parse import urlparse
 import yaml
 
 from core.collect.x_discovery import discovery_quote, project_discovery
+from core.collect.parse import validate_data
 
 log = logging.getLogger(__name__)
 
@@ -619,7 +620,10 @@ def split_vendor_labels(body):
     for row in rows:
         found = {}
         if isinstance(row, dict):
-            found = dict(row.pop("vendor_labels", None) or {})
+            existing = row.pop("vendor_labels", None)
+            if existing is not None and not isinstance(existing, dict):
+                raise ValueError("vendor_labels must be an object")
+            found = dict(existing or {})
             for key in LABEL_KEYS:
                 if key in row:
                     found[key] = row.pop(key)
@@ -668,6 +672,8 @@ def _items(body):
 
 def _is_empty(body):
     data = body.get("data") if isinstance(body, dict) else None
+    if not isinstance(data, (dict, list)):
+        raise ValueError("supplier data must be an object or list")
     if not data:
         return True
     lists = _item_lists(data)
@@ -928,10 +934,15 @@ class SocialCrawlClient:
     def _served(self, route, phash, body):
         if route == "twitter/ai-search":
             body = project_discovery(body)
-        body, items, labels = split_vendor_labels(body)
-        if isinstance(body, dict) and body.get("success") is False:
+        try:
+            body, items, labels = split_vendor_labels(body)
+            if isinstance(body, dict) and body.get("success") is False:
+                return Result("error", route, phash, 200, 0, 0, True, body,
+                              reason="recorded supplier response reports failure", failure="vendor_error")
+            validate_data(route, body.get("data") if isinstance(body, dict) else None)
+        except (TypeError, ValueError):
             return Result("error", route, phash, 200, 0, 0, True, body,
-                          reason="recorded supplier response reports failure", failure="vendor_error")
+                          reason="recorded supplier response is not parseable", failure="parse")
         return Result("cached", route, phash, 200, 0, 0, True, body, items, labels)
 
     def _over_cap(self, quote):
@@ -1005,8 +1016,12 @@ class SocialCrawlClient:
         elif status in (502, 503):
             outcome, charge, reason, failure = "refunded", vendor, f"HTTP {status} is refunded", "http_5xx"
         elif status is not None and 200 <= status < 300 and body and body.get("success") is not False:
-            outcome = "empty" if _is_empty(body) else "ok"
-            charge = (quote if reported is None else reported) if outcome == "empty" else billed
+            try:
+                validate_data(route, body.get("data"))
+                outcome = "empty" if _is_empty(body) else "ok"
+                charge = (quote if reported is None else reported) if outcome == "empty" else billed
+            except ValueError:
+                outcome, charge, failure, reason = "error", billed, "parse", "supplier data is not parseable"
         else:
             outcome, charge = "error", billed
             if not failure:
@@ -1024,7 +1039,11 @@ class SocialCrawlClient:
             if outcome == "ok" and (not isinstance(data, dict) or not isinstance(data.get("sources"), list)):
                 outcome, failure, reason = "error", "parse", "X discovery sources are not a list"
             body = project_discovery(body)
-        stored, items, labels = split_vendor_labels(body) if body else (None, [], [])
+        try:
+            stored, items, labels = split_vendor_labels(body) if body else (None, [], [])
+        except (TypeError, ValueError):
+            stored, items, labels = body, [], []
+            outcome, failure, reason = "error", "parse", "supplier response is not parseable"
         # The ledger row goes first, so a failing raw_responses insert never leaves a paid call unledgered.
         self._write_ledger(call, calls=1, quoted=quote, charged=charge, cache_hit=False,
                            posts_new=len(items) if outcome == "ok" else 0)

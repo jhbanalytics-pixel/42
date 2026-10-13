@@ -93,7 +93,8 @@ WARM_UP = dict(FRESH, creators3=5, posts3=8, top_creator_share3=.25)    # floors
 
 def state(item, when, st, market="ZA", found=None, run_id=None, eligible=True, state_raw=None, **extra):
     return {"metric_date": when, "market": market, "item_id": item, "state": st, "state_raw": state_raw or st,
-            "found_platforms": found, "eligible": eligible, "run_id": run_id or f"detect-{when:%Y%m%d}", **extra}
+            "found_platforms": found, "eligible": eligible, "run_id": run_id or f"detect-{when:%Y%m%d}",
+            "rule_version": "detect-fixture-current", **extra}
 
 
 def sig(item, when, ratio, market="ZA", platform="tiktok", significant=True, test="nb", obs_prior=10,

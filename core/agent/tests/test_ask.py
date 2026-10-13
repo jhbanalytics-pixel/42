@@ -455,9 +455,11 @@ def test_real_run_accounts_for_a_failed_k4_rewrite(fail_rewrite):
     run = caught.value.run
     rewrite = {"input_tokens": 0, "output_tokens": 0, "usd": 0.0}
     if fail_rewrite == "unknown":
-        rewrite = {"input_tokens": K4_REWRITE_INPUT_TOKENS,
+        call = next(call for call in h.model.calls if call["schema"] is K4_REWRITE_SCHEMA)
+        admitted_input = writer._input_token_upper_bound(writer.K4_REWRITE_SYSTEM, call["user"], K4_REWRITE_SCHEMA)
+        rewrite = {"input_tokens": admitted_input,
                    "output_tokens": reserve_output(ask.MODEL, K4_REWRITE_MAX_TOKENS),
-                   "usd": ask.call_usd(ask.MODEL, K4_REWRITE_INPUT_TOKENS, K4_REWRITE_MAX_TOKENS)}
+                   "usd": ask.call_usd(ask.MODEL, admitted_input, K4_REWRITE_MAX_TOKENS)}
     assert run["tokens"] == {"input": 1000 + 2000 + 100 + rewrite["input_tokens"],
                              "output": 300 + 500 + 20 + rewrite["output_tokens"]}
     assert run["model_usd"] == pytest.approx(0.02 + 0.0135 + 0.0006 + rewrite["usd"] + SEARCH_EMBED_USD)

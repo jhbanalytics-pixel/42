@@ -17,7 +17,8 @@ from typing import Callable
 from core.agent import ask, timings
 from core.agent.context import Refused, RunContext
 from core.agent.model_budget import BudgetRefused
-from core.agent.toolset import DESCRIPTIONS, SCHEMAS, TOOL_NAMES, build_functions, fence_for_model, guard, run_plain
+from core.agent.toolset import (DESCRIPTIONS, SCHEMAS, TOOL_NAMES, build_functions, fence_error_for_model,
+                                fence_for_model, guard, run_plain)
 from core.llm.gemini import GeminiModel, usage_of
 
 log = logging.getLogger(__name__)
@@ -315,6 +316,7 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
     history = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
     result = {"note": "", "tokens": {"input": 0, "output": 0}, "usd": 0.0, "stopped": False}
     texts: list[str] = []
+    incomplete_reason = None
     failures: dict[str, int] = {}
     extra_at_start = ctx.model_usd_extra  # model spend inside tools counts against the tier's budget too
     for turn in range(tier["max_turns"]):
@@ -400,11 +402,18 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                     time.sleep(RETRY_WAIT_S)
             if budget_note:
                 texts.append(budget_note)
+                if not result["stopped"]:
+                    incomplete_reason = "the research model budget was reached"
                 break
             usage = _budget_usage(response, options.model)
             if usage is None:
                 model_budget.settle(reservation, None)
                 ctx.research_usd += reservation.ceiling_micros / 1_000_000
+                result["tokens"]["input"] += reservation.input_bound
+                result["tokens"]["output"] += reservation.output_bound
+                result["usd"] += reservation.ceiling_micros / 1_000_000
+                result["usage_unknown"] = True
+                span.set(input=reservation.input_bound, output=reservation.output_bound, reserved=1)
                 result["stopped"] = True
                 _, parts = _parts(response)
                 texts += [p.text for p in parts if getattr(p, "text", None) and not getattr(p, "thought", False)]
@@ -413,6 +422,7 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
             span.set(**timings.token_attrs(usage))
             usage_safe = model_budget.settle(reservation, usage)
         else:
+            input_bound = _input_bound(options.model, history, config)
             span = recorder.begin("model_call", "research_turn", purpose="research_turn", model=options.model,
                                   attempt=1)
             try:
@@ -422,7 +432,12 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                 raise
             span.end(status="ok")
             usage = usage_of(response, options.model)
+            if usage.get("usage_unknown"):
+                usage = ask._usage_or_reserve(usage, options.model, input_bound, RESEARCH_MAX_OUTPUT_TOKENS)
+                result["usage_unknown"] = True
             span.set(**timings.token_attrs(usage))
+            if usage.get("reserved"):
+                span.set(reserved=1)
             usage_safe = True
         result["tokens"]["input"] += usage["input_tokens"]
         result["tokens"]["output"] += usage["output_tokens"]
@@ -432,6 +447,10 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
         content, parts = _parts(response)
         calls = [p.function_call for p in parts if getattr(p, "function_call", None)]
         texts += [p.text for p in parts if getattr(p, "text", None) and not getattr(p, "thought", False)]
+        if result.get("usage_unknown"):
+            result["stopped"] = True
+            texts.append("Research stopped: usage was unavailable, so its per-call estimate was retained.")
+            break
         if not usage_safe:
             result["stopped"] = True
             texts.append("Research stopped: the model budget or per-call reservation was reached.")
@@ -480,7 +499,8 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                 ask._found(emit, ctx)
                 answers.append(types.Part(function_response=types.FunctionResponse(
                     id=getattr(call, "id", None), name=name,
-                    response={"error": out} if is_error else {"output": fence_for_model(name, out)})))
+                    response={"error": fence_error_for_model(out)} if is_error else
+                    {"output": fence_for_model(name, out)})))
         history.append(types.Content(role="user", parts=answers))
         log.info("ask research turn: run %s, turn %d, model %.1f s, tools %.1f s, %d calls", ctx.run_id, turn + 1,
                  model_seconds, clock() - turn_started - model_seconds, len(calls))
@@ -490,6 +510,16 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
             break
         if result["usd"] + ctx.model_usd_extra - extra_at_start >= tier["max_budget_usd"]:
             texts.append("Research stopped: the tier's model budget for this question is spent.")
+            incomplete_reason = "the research model budget was reached"
             break
+    else:
+        incomplete_reason = "the turn limit was reached"
+    if incomplete_reason:
+        gap = {"what": "A researcher reached its limit before finishing",
+               "searched": "Only the recorded tool results from its completed turns are available",
+               "why": f"Research coverage is incomplete because {incomplete_reason}"}
+        if gap not in ctx.research_gaps:
+            ctx.research_gaps.append(gap)
+        texts.append(f"Research coverage is incomplete: {incomplete_reason} before a final research note.")
     result["note"] = "\n".join(texts)
     return result

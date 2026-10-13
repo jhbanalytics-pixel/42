@@ -1,10 +1,11 @@
 -- The cultural_map topics a clustering run can match (BUILD.md 2.2, DATA.md section 4), with what the match votes
 -- read. Parameter: @run_date DATE.
--- Every current topic row with a centroid is a candidate, whatever its status, so a rejected topic that comes
+-- Every current topic row is read, whatever its status, so a rejected topic that comes
 -- back is matched and stays rejected instead of reappearing as new. If two rows of one item are still open, the
 -- newest valid_from is read.
+-- Malformed centroids stay visible: the runtime isolates them and holds uncertain new identities.
 -- The profile comes from the item's clusters in the 90 days to @run_date: keywords from its latest cluster, and
--- its ten commonest hashtags (lower case, no #), ten commonest sounds and fifty commonest creators across those
+-- its ten commonest canonical hashtags (NFKC and casefold, no #), ten commonest sounds and fifty commonest creators across those
 -- clusters' member posts. An item with no cluster in that window has NULL lists (BigQuery returns them to the
 -- client as empty arrays) and is matched on its centroid, its last_seen and nothing else.
 -- recent_members: the member posts of the item's clusters of @market on the day before @run_date (Q14: the two
@@ -20,7 +21,7 @@ WITH cur AS (
     cm.first_seen_market, cm.first_seen_platform, cm.last_seen, cm.recurrences, cm.lifecycle, cm.status,
     cm.rejected_until, cm.valid_from
   FROM `ogilvy-trends-v2.intelligence_42_core.cultural_map` AS cm
-  WHERE cm.valid_to IS NULL AND cm.kind = 'topic' AND ARRAY_LENGTH(cm.centroid) > 0
+  WHERE cm.valid_to IS NULL AND cm.kind = 'topic'
   QUALIFY ROW_NUMBER() OVER (PARTITION BY cm.item_id ORDER BY cm.valid_from DESC) = 1
 ),
 recent AS (
@@ -43,7 +44,8 @@ member_posts AS (
     ON p.post_id = m.post_id AND p.post_date >= DATE_SUB(@run_date, INTERVAL 492 DAY)
 ),
 facets AS (
-  SELECT mp.item_id, 'hashtag' AS facet, LOWER(LTRIM(h, '#')) AS value
+  SELECT mp.item_id, 'hashtag' AS facet,
+    TRIM(NORMALIZE_AND_CASEFOLD(LTRIM(NORMALIZE(TRIM(h), NFKC), '#'), NFKC)) AS value
   FROM member_posts AS mp
   CROSS JOIN UNNEST(mp.hashtags) AS h
   UNION ALL

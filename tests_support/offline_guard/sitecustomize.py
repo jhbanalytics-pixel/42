@@ -695,8 +695,9 @@ PWSH_PASTE = re.compile(
 
 def _inside(path, roots):
     try:
-        path = os.path.normcase(os.path.abspath(os.fsdecode(path)))
+        path = os.path.normcase(os.path.realpath(os.fsdecode(path)))
         for root in roots:
+            root = os.path.normcase(os.path.realpath(root))
             if os.path.commonpath([path, root]) == root:
                 return True
     except (TypeError, ValueError):

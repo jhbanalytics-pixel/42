@@ -804,7 +804,9 @@ def test_failed_rewrite_calls_keep_prior_usage_and_reserve_only_unknown_usage(ct
         expected["output_tokens"] += reserve_output("gemini-3.8-flash", output_cap)
         expected["usd"] += (input_cap * price["input"]
                             + reserve_output("gemini-3.8-flash", output_cap) * price["output"]) / 1_000_000
-    assert caught.value.usage == pytest.approx(expected)
+    assert {key: caught.value.usage[key] for key in expected} == pytest.approx(expected)
+    if not known_zero:
+        assert caught.value.usage["usage_unknown"] and caught.value.usage["reserved"]
 
 
 def test_stop_aware_model_refusal_before_rewrite_dispatch_adds_no_reserved_spend(ctx):

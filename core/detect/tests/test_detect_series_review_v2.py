@@ -8,7 +8,7 @@ from core.detect.tests.test_detect_backtest import BacktestClient
 from core.detect.tests.test_detect_series_weekday import CANDIDATE, database, desk_world, switched
 
 
-@pytest.mark.parametrize("versions", [(CANDIDATE,), ("stats-1", CANDIDATE), (None,),
+@pytest.mark.parametrize("versions", [(CANDIDATE,), (stats.RULE_VERSION, CANDIDATE), (None,),
                                       ("unknown-rule",), (None, "unknown-rule", CANDIDATE)])
 @pytest.mark.parametrize("requested", [None, CANDIDATE])
 def test_requested_replay_version_matches_effective_weekday_model(monkeypatch, versions, requested):
@@ -26,7 +26,7 @@ def test_requested_replay_version_matches_effective_weekday_model(monkeypatch, v
 
     monkeypatch.setattr(stats, "series_test_rows", capture)
     result = backtest.replay(inputs, D, 1, **({"rule_version": requested} if requested else {}))
-    expected = requested or "stats-1"
+    expected = requested or stats.RULE_VERSION
     factor = 17 / 9 if requested else 1.0
     assert result["rule_version"] == expected
     assert observed and all(r["rule_version"] == expected for r in observed)
@@ -56,7 +56,7 @@ def test_default_replay_keeps_mixed_force_keys_eligible_without_using_candidate_
     result = backtest.replay(inputs, D, 1)
     assert set(result["keys"]) == {"ZA|facebook|panel", "ZA|instagram|panel"}
     assert all(k["tested"] == 1 for k in result["keys"].values())
-    assert seen and all(r["rule_version"] == result["rule_version"] == "stats-1" for r in seen)
+    assert seen and all(r["rule_version"] == result["rule_version"] == stats.RULE_VERSION for r in seen)
     assert all(r["weekday_factor"] == 1.0 for r in seen)
     con.close()
 
@@ -78,7 +78,7 @@ def test_default_cli_with_retained_candidate_switch_uses_and_reports_legacy(monk
                          core="core", agent="agent") == 0
     [path] = list(tmp_path.glob("*.json"))
     report = json.loads(path.read_text(encoding="utf-8"))
-    assert report["rule_version"] == "stats-1" and report["applied"] is False
-    assert seen and all(r["rule_version"] == "stats-1" and r["weekday_factor"] == 1.0 for r in seen)
+    assert report["rule_version"] == stats.RULE_VERSION and report["applied"] is False
+    assert seen and all(r["rule_version"] == stats.RULE_VERSION and r["weekday_factor"] == 1.0 for r in seen)
     assert len(duck.query(con, "SELECT * FROM {core}.test_switch")) == 1
     con.close()

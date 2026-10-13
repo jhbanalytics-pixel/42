@@ -605,6 +605,32 @@ test('a refused Edit again keeps the frozen version on screen with the server\'s
 
 const STALE = 'This dossier changed since you opened it. Reload to see the latest version.';
 
+test('a conflict reload keeps an unsaved title and note for review against the latest draft', async () => {
+  const theirs = draft();
+  theirs.version = 2;
+  theirs.title = 'Their draft';
+  let reads = 0;
+  serve([
+    ['PUT', '/api/dossiers/d_fixture01', json(409, {error: 'stale_version', message: STALE})],
+    ['GET', '/api/dossiers/d_fixture01', () => json(200, ++reads === 1 ? draft() : theirs)],
+  ]);
+  await act(async () => root.render(<DossierPage dossierId="d_fixture01" onAuth={() => {}} />));
+  await until(() => button('Save title'), 'the draft');
+  await act(async () => {
+    typeInto(host.querySelector('input[name="title"]'), 'My unsaved title');
+    typeInto(host.querySelector('textarea'), 'My unsaved note');
+  });
+  await click(button('Save title'));
+  await until(() => button('Reload'), 'the conflict');
+  await click(button('Reload'));
+  await until(() => text().includes('Draft version 2'), 'the latest draft');
+  expect(host.querySelector('h1').textContent).toBe('Their draft');
+  expect(host.querySelector('input[name="title"]').value).toBe('My unsaved title');
+  expect(host.querySelector('textarea').value).toBe('My unsaved note');
+  expect(text()).toContain('Unsaved text was kept');
+  expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(1);
+});
+
 test('Edit again on a frozen version another tab has moved past shows the server\'s words and Reload, which opens the latest version', async () => {
   const theirs = draft();
   theirs.version = 3;

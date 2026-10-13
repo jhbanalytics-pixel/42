@@ -232,6 +232,16 @@ class Store:
                 for h in rows:
                     if rid is not None and h["run_id"] == rid:
                         out[(h["market"], h["series"], h["protocol"])][d] = h
+            zero_previous = {
+                (h["day"] - timedelta(days=1), h["market"], h["series"], h.get("route"), h["lane_class"])
+                for days in out.values() for h in days.values() if h.get("invalid_reason") == "zero_yield"
+            }
+            for days in out.values():
+                for d, h in days.items():
+                    key = (d, h["market"], h["series"], h.get("route"), h["lane_class"])
+                    if (key in zero_previous and h["valid"] and (h.get("calls") or 0) > 0
+                            and h.get("calls_ok") == h["calls"] and h["items"] == 0):
+                        days[d] = {**h, "valid": False, "invalid_reason": "zero_yield"}
             self._health[t] = out
         return self._health[t]
 
@@ -480,7 +490,8 @@ def _replay_day(store, t, tally, rule_version=RULE_VERSION):
     if not signal:
         return
     totals, weeks = store.totals(t), store.first_weeks(t, series)
-    force_rows = store.switched_by(store.cutoff(t))
+    force_rows = [row for row in store.switched_by(store.cutoff(t))
+                  if row.get("rule_version") in (RULE_VERSION, stats.SERIES_RULE_VERSION)]
     force = stats.in_force(force_rows, t)
     if rule_version == RULE_VERSION:
         force_rows = [{**row, "rule_version": RULE_VERSION} for row in force_rows]
@@ -688,6 +699,8 @@ def reviewed(path, as_of, sha256, today):
                          f"more than {MAX_AGE_DAYS} days before {today.isoformat()}")
     if results.get("thresholds") != THRESHOLDS:
         raise ValueError(f"{path.name} was not judged by the thresholds in force: {results.get('thresholds')!r}")
+    if results.get("rule_version") != RULE_VERSION:
+        raise ValueError(f"backtest rule version {results.get('rule_version')!r} cannot write {RULE_VERSION} rows")
     _run_id(results)
     return results, digest
 

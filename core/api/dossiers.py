@@ -265,6 +265,8 @@ def recheck(body, record):
                 why.append(f"its {key.replace('_', ' ')} differs from the source")
         if [n.get("result_hash") for n in claim["numbers"]] != [n.get("result_hash") for n in src.get("numbers") or []]:
             why.append("a figure's result_hash differs from the source")
+        elif claim["numbers"] != (src.get("numbers") or []):
+            why.append("a figure's value, unit or provenance differs from the source")
         if not claim["evidence_ids"]:
             why.append("it cites no evidence")
         for eid in claim["evidence_ids"]:

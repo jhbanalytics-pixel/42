@@ -226,6 +226,26 @@ def test_friday_subset_is_ten_verbatim_questions_one_per_family():
     assert all(e["vars"]["expected_answerability"] == "answerable" for e in friday)
 
 
+def test_question_set_fingerprint_covers_definitions_and_ignores_question_order():
+    questions = [
+        {"vars": {"id": "SYN-01", "family": "now", "markets": ["ZA"], "window_days": 7,
+                  "question": "Synthetic question one"}},
+        {"vars": {"id": "SYN-02", "family": "history", "markets": ["KE"], "window_days": 30,
+                  "question": "Synthetic question two"}},
+    ]
+
+    def fingerprint(rows):
+        return score_run.score({"results": {"results": []}}, rows, run_meta=REPLAY,
+                               expected=[q["vars"]["id"] for q in rows])["run"].get("question_set_hash")
+
+    original = fingerprint(questions)
+    assert original.startswith("sha256:")
+    assert fingerprint(list(reversed(questions))) == original
+    revised = copy.deepcopy(questions)
+    revised[0]["vars"]["question"] = "Changed synthetic question one"
+    assert fingerprint(revised) != original
+
+
 def only_now(export):
     return only(export, {"NOW-01", "NOW-02", "NOW-03", "AUT-01"})
 

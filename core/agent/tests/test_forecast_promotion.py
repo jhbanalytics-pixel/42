@@ -6,6 +6,7 @@ import sqlglot
 from sqlglot import exp
 
 from core.agent.forecast_promotion import PROMOTED_SQL, promoted_forecasts, publishable_line
+from core.detect.forecasts import RESOLUTION_RULE_VERSION
 from core.agent.tools.sql_query import HIDDEN_TABLES, MAX_BYTES_BILLED, check_sql
 
 TODAY = date(2026, 10, 2)
@@ -36,9 +37,10 @@ def forecast(fid, *, rule="ask_v1", target="reach_rising", horizon=7, resolve=da
     return (fid, "item_x", "ZA", target, date(2026, 10, 2), horizon, rule, prob, prob >= 0.5, False, resolve, observed)
 
 
-def score(rule, target, horizon, eligible, scored_at):
+def score(rule, target, horizon, eligible, scored_at, query_id=None):
     return (date(2026, 9, 21), date(2026, 9, 27), f"learn_{scored_at:%d%H}", scored_at, rule, target, horizon,
-            eligible)
+            eligible, query_id if query_id is not None else
+            f"core/eval/sql/forecast_rows.sql?d=2026-09-28&resolution_rule_version={RESOLUTION_RULE_VERSION}")
 
 
 def item_row(item, market, day, label):
@@ -56,7 +58,7 @@ def con_with(forecasts, scores, items=()):
                 "market VARCHAR, target VARCHAR, issue_date DATE, horizon BIGINT, rule VARCHAR, prob DOUBLE, "
                 "predicted_arrival BOOLEAN, persistence_arrival BOOLEAN, resolve_date DATE, observed_arrival BOOLEAN)")
     con.execute("CREATE TABLE intelligence_42_agent.forecast_score (week_start DATE, week_end DATE, run_id VARCHAR, "
-                "scored_at TIMESTAMP, rule VARCHAR, target VARCHAR, horizon BIGINT, promotion_eligible BOOLEAN)")
+                "scored_at TIMESTAMP, rule VARCHAR, target VARCHAR, horizon BIGINT, promotion_eligible BOOLEAN, query_id VARCHAR)")
     con.execute("CREATE TABLE intelligence_42_agent.v_items_today (item_id VARCHAR, market VARCHAR, metric_date DATE, "
                 "label VARCHAR)")
     if items:
@@ -65,7 +67,7 @@ def con_with(forecasts, scores, items=()):
         con.executemany("INSERT INTO intelligence_42_core.v_forecasts_current VALUES "
                         "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", forecasts)
     if scores:
-        con.executemany("INSERT INTO intelligence_42_agent.forecast_score VALUES (?, ?, ?, ?, ?, ?, ?, ?)", scores)
+        con.executemany("INSERT INTO intelligence_42_agent.forecast_score VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", scores)
     return con
 
 
@@ -77,6 +79,30 @@ def test_the_reader_sql_is_fixed_read_only_and_names_only_the_forecast_tables():
                       "intelligence_42_core.v_forecasts_current"]
     selected = {c.alias_or_name for c in tree.selects}
     assert "prob" not in selected and "observed_arrival" not in selected
+
+
+@pytest.mark.parametrize('qid', ['', 'core/eval/sql/forecast_rows.sql?d=2026-09-28',
+    f'core/eval/sql/forecast_rows.sql?d=2026-09-29&resolution_rule_version={RESOLUTION_RULE_VERSION}',
+    f'prefix-core/eval/sql/forecast_rows.sql?d=2026-09-28&resolution_rule_version={RESOLUTION_RULE_VERSION}',
+    f'core/eval/sql/forecast_rows.sql?d=2026-09-28&resolution_rule_version={RESOLUTION_RULE_VERSION}-suffix'])
+def test_legacy_or_inexact_scoring_receipt_cannot_promote(qid):
+    con = con_with([forecast(FID['a'])],
+                   [score('ask_v1', 'reach_rising', 7, True, datetime(2026, 10, 1), query_id=qid)])
+    try:
+        wh = DuckWarehouse(con)
+        assert wh.run(PROMOTED_SQL, {'today': TODAY, 'forecast_ids': FID['a']}, MAX_BYTES_BILLED) == []
+    finally:
+        con.close()
+
+
+def test_newer_legacy_score_does_not_resurrect_older_current_promotion():
+    con = con_with([forecast(FID['a'])],
+        [score('ask_v1', 'reach_rising', 7, True, datetime(2026, 9, 30)),
+         score('ask_v1', 'reach_rising', 7, True, datetime(2026, 10, 1), query_id='legacy')])
+    try:
+        assert DuckWarehouse(con).run(PROMOTED_SQL, {'today': TODAY, 'forecast_ids': FID['a']}, MAX_BYTES_BILLED) == []
+    finally:
+        con.close()
 
 
 def test_no_ids_reads_nothing():

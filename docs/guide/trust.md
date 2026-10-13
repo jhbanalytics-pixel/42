@@ -97,7 +97,7 @@ Post identity uses the platform and a native post id, or a canonical URL when no
 
 ## 9. Measuring itself
 
-A 30-question set across ten families and three markets (`core/eval/questions.yaml`) is scored in replay mode from cached responses, so evaluation spends no live credits. Assertions include citation integrity, an evidence floor and the no-age-lens rule. A weekly quality score (0 to 100 per market) combines eval pass rate, claim support, honest gaps, forecast skill and reviewed precision; any part without enough data is marked insufficient, never zero. The detection scorecard on Coverage reports time to detect, lead time, precision, recall, breadth and cost per confirmed trend.
+A 30-question set across ten families and three markets (`core/eval/questions.yaml`) is scored in replay mode from cached responses, so evaluation spends no live credits. Assertions include citation integrity, an evidence floor and the no-age-lens rule. Weekly quality writes an ALL row and separate ZA, NG and KE rows. ALL may score eval pass rate and honest gaps alongside claim support, forecast skill and reviewed precision. The market rows mark the cross-market eval pass rate and honest gaps insufficient, so they can score only claim support, forecast skill and reviewed precision. The score averages sufficient parts; unavailable parts remain insufficient, not zero. Treat it as a partial indicator, not complete quality assurance. The detection scorecard on Coverage reports time to detect, lead time, precision, recall, breadth and cost per confirmed trend.
 
 ## Known gaps
 

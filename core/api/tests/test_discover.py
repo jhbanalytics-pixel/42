@@ -2229,9 +2229,9 @@ def test_a_g10_hold_on_a_topic_a_busy_model_left_unexplained_says_the_model_was_
     assert _g10_hold_words(fx, {"failed_reason": NOT_RUN_REASONS[0]}) == "Not explained in time: the model was busy"
 
 
-def test_a_g10_hold_on_a_topic_the_model_never_reached_says_so_when_the_brief_says_not_run(fx):
+def test_a_generic_not_run_g10_hold_uses_cause_neutral_words(fx):
     assert _g10_hold_words(fx, {"explanation_status": "not_run", "failed_reason": None}) == (
-        "Not explained: the model did not get to this topic")
+        "Not explained: no complete explanation is available for this topic")
 
 
 @pytest.mark.parametrize("held_item", [None, {"failed_reason": None}, {"explanation_status": "explained"}])
@@ -2323,7 +2323,7 @@ def test_a_hold_is_worded_from_the_brief_card_when_the_brief_has_one():
         == ("failed_checks", "x")  # the card is the brief's record of the item; the held item is only the fallback
     held = {"rule": "G10", "reason": "explanation_failed", "reason_text": "Explanation failed its checks"}
     for card, words in (({"explanation_status": "not_run", "failed_reason": busy}, "Not explained in time: the model was busy"),
-                        ({"explanation_status": "not_run"}, "Not explained: the model did not get to this topic"),
+                        ({"explanation_status": "not_run"}, "Not explained: no complete explanation is available for this topic"),
                         ({"explanation_status": "failed_checks", "failed_reason": "x"}, "The explanation did not pass our checks")):
         status, failed = discover._hold_basis(card, None)
         assert plain_reason(dict(held, **({"failed_reason": failed} if failed else {})), status)["reason_text"] == words

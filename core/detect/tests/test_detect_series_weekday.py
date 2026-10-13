@@ -11,7 +11,7 @@ from core.detect.tests.test_detect_backtest import BacktestClient
 from core.detect.tests.test_detect_states import World
 from core.detect.tests.test_detect_stats import StatsClient
 
-CANDIDATE = "stats-2-series"
+CANDIDATE = stats.SERIES_RULE_VERSION
 KEY = "ZA|facebook|panel"
 
 
@@ -46,7 +46,7 @@ def database(world):
     return con
 
 
-def switched(version="stats-1", when=None):
+def switched(version=stats.RULE_VERSION, when=None):
     return {"market": "ZA", "platform": "facebook", "lane_class": "panel", "switched_on": when or day(56),
             "backtest_run_id": "accepted-fixture", "rule_version": version}
 
@@ -68,20 +68,19 @@ def test_candidate_uses_own_series_and_protocol_for_all_route_isolation_cases(ca
     con.close()
 
 
-@pytest.mark.parametrize("version", ["stats-1", None, "unrecognised-rule"])
 @pytest.mark.parametrize("case, expected", [("desk", 1.0), ("named", 13 / 25), ("null", 1.0)])
-def test_existing_missing_and_unknown_versions_keep_current_factors(version, case, expected):
+def test_current_primary_version_keeps_platform_factors(case, expected):
     con = database(desk_world(case))
-    [row] = live_rows(con, [switched(version)])
+    [row] = live_rows(con, [switched(stats.RULE_VERSION)])
     assert row["weekday_factor"] == pytest.approx(expected)
-    assert row["rule_version"] == "stats-1"
+    assert row["rule_version"] == stats.RULE_VERSION
     con.close()
 
 
 def test_future_candidate_does_not_change_an_existing_switch():
     con = database(desk_world())
     [row] = live_rows(con, [switched(), switched(CANDIDATE, D + timedelta(days=1))])
-    assert row["weekday_factor"] == 1.0 and row["rule_version"] == "stats-1"
+    assert row["weekday_factor"] == 1.0 and row["rule_version"] == stats.RULE_VERSION
     con.close()
 
 
@@ -138,7 +137,7 @@ def test_candidate_does_not_change_a_named_platform_panel():
     rows = {r["item_id"]: r for r in live_rows(con, [switched(CANDIDATE)])}
     assert rows["desk-0"]["weekday_factor"] == pytest.approx(17 / 9)
     assert rows["named"]["weekday_factor"] == pytest.approx(13 / 25)
-    assert rows["named"]["rule_version"] == "stats-1"
+    assert rows["named"]["rule_version"] == stats.RULE_VERSION
     con.close()
 
 
@@ -174,10 +173,10 @@ def test_offline_candidate_replay_isolates_routes_and_tests_injected_spikes(monk
 def test_default_replay_and_native_cli_keep_current_rule(tmp_path):
     con = database(desk_world())
     inputs = backtest.load(BacktestClient(con), D, 1, core="core", agent="agent")
-    assert backtest.replay(inputs, D, 1)["rule_version"] == "stats-1"
+    assert backtest.replay(inputs, D, 1)["rule_version"] == stats.RULE_VERSION
     assert backtest.main(["--as-of", str(D), "--days", "1"], client=BacktestClient(con), out_dir=tmp_path,
                          core="core", agent="agent") == 0
     assert duck.query(con, "SELECT * FROM {core}.test_switch") == []
     [saved] = list(tmp_path.glob("*.json"))
-    assert json.loads(saved.read_text(encoding="utf-8"))["rule_version"] == "stats-1"
+    assert json.loads(saved.read_text(encoding="utf-8"))["rule_version"] == stats.RULE_VERSION
     con.close()

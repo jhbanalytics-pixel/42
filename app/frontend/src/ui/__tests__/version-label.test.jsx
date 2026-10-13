@@ -29,8 +29,8 @@ const VERSION_TEXT = readFileSync(join(REPO, 'VERSION'), 'utf8');
 const CHANGELOG = readFileSync(join(REPO, 'CHANGELOG.md'), 'utf8');
 const HEAD = execFileSync('git', ['log', '-1', '--format=%H'], {cwd: REPO, encoding: 'utf8'}).trim();
 
-/* A placeholder sha: no live build pairs 2.3.0 with a real commit yet. */
-const BUILT = Object.freeze({version: '2.3.0', sha: '0123456789ab', changelog: CHANGELOG});
+const HISTORICAL_CHANGELOG = CHANGELOG.slice(CHANGELOG.indexOf('## 2.3.0'));
+const BUILT = Object.freeze({version: '2.3.0', sha: '0123456789ab', changelog: HISTORICAL_CHANGELOG});
 const realFetch = globalThis.fetch;
 
 let host = null;
@@ -70,7 +70,7 @@ async function phoneCheck(ahead = minutes(6)){
    pinned. */
 const DATE = /^\d{1,2} (?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}$/;
 function expectUpcomingShape(entry){
-  expect(entry.version).toBe('2.3.0');
+  expect(entry.version).toBe('2.4.0');
   if (entry.next) expect(entry.when).toBe('Next, not live yet');
   else expect(entry.when).toMatch(DATE);
   expect(entry.lines.length).toBeGreaterThan(0);
@@ -84,8 +84,8 @@ function expectUpcomingShape(entry){
    and extra lines added under the release line, so a test holds whether or
    not the bind has dated the entry yet. */
 function withNewestHeading(heading, extra = ''){
-  return CHANGELOG.replace(/^## 2\.3\.0 \([^)\n]*\)$/m, heading).replace(
-    /(\n## 2\.3\.0 [^\n]*\n\nRelease D0[^\n]*\n\n)/, (match) => match + extra);
+  return CHANGELOG.replace(/^## 2\.4\.0 \([^)\n]*\)$/m, heading).replace(
+    /(\n## 2\.4\.0 [^\n]*\n\nRelease Alpha[^\n]*\n\n)/, (match) => match + extra);
 }
 const hiddenOrInert = (node) => { for (let at = node; at; at = at.parentElement) if (at.hidden || at.hasAttribute('inert')) return at; return null; };
 
@@ -134,9 +134,9 @@ afterEach(() => {
 afterAll(() => { GlobalRegistrator.unregister(); });
 
 describe('the release files', () => {
-  test('VERSION holds 2.3.0 and nothing else', () => {
-    expect(VERSION_TEXT.trim()).toBe('2.3.0');
-    expect(VERSION_TEXT).toMatch(/^2\.3\.0\r?\n?$/);
+  test('VERSION holds 2.4.0 and nothing else', () => {
+    expect(VERSION_TEXT.trim()).toBe('2.4.0');
+    expect(VERSION_TEXT).toMatch(/^2\.4\.0\r?\n?$/);
   });
 
   /* The lead's numbering ruling of 12 October 2026, word for word. */
@@ -164,50 +164,53 @@ describe('the release files', () => {
     }
   });
 
-  test('the changelog lists 2.3.0 next, then Release C, B and A, each with its date and plain lines', () => {
+  test('the changelog lists Alpha next, then D0, C, B and A with their dates and plain lines', () => {
     const releases = parseChangelog(CHANGELOG);
-    expect(releases.map((r) => r.version)).toEqual(['2.3.0', '2.2.0', '2.1.0', '2.0.0']);
+    expect(releases.map((r) => r.version)).toEqual(['2.4.0', '2.3.0', '2.2.0', '2.1.0', '2.0.0']);
     expectUpcomingShape(releases[0]);
-    expect(releases.slice(1).map((r) => r.next)).toEqual([false, false, false]);
-    expect(releases[0].summary).toMatch(/\bD0\b/);
+    expect(releases.slice(1).map((r) => r.next)).toEqual([false, false, false, false]);
+    expect(releases[0].summary).toMatch(/\bAlpha\b/);
+    expect(releases[1].when).toBe('12 October 2026');
+    expect(releases[1].summary).toMatch(/\bD0\b/);
     /* The line naming a release stays true once it is live: release state
        is the heading's alone, and the panel reads it against VERSION. */
     for (const release of releases) expect(release.summary).not.toMatch(/\bnext\b|not live/i);
-    expect(releases[1].when).toBe('11 October 2026');
-    expect(releases[1].summary).toContain('Release C');
-    expect(releases[1].summary).toContain('rel-d0aebe7-01');
-    expect(releases[1].summary).toMatch(/website/i);
-    expect(releases[1].summary).toMatch(/Ask/);
     expect(releases[2].when).toBe('11 October 2026');
-    expect(releases[2].summary).toContain('Release B');
-    expect(releases[2].summary).toContain('rel-89d4629-01');
-    expect(releases[2].summary).toMatch(/jobs/i);
-    expect(releases[3].summary).toContain('Release A');
-    expect(releases[3].summary).toContain('rel-3710c5e-01');
+    expect(releases[2].summary).toContain('Release C');
+    expect(releases[2].summary).toContain('rel-d0aebe7-01');
+    expect(releases[2].summary).toMatch(/website/i);
+    expect(releases[2].summary).toMatch(/Ask/);
+    expect(releases[3].when).toBe('11 October 2026');
+    expect(releases[3].summary).toContain('Release B');
+    expect(releases[3].summary).toContain('rel-89d4629-01');
+    expect(releases[3].summary).toMatch(/jobs/i);
+    expect(releases[4].summary).toContain('Release A');
+    expect(releases[4].summary).toContain('rel-3710c5e-01');
     for (const release of releases) expect(release.lines.length).toBeGreaterThan(0);
-    expect(releases[1].lines).toContain('Instagram and X show their official marks.');
-    expect(releases[2].lines).toContain('Stored runs record which build produced them.');
-    expect(releases[3].lines).toContain('Today and Fieldwork read the culture desk and its kept creators in both the old and the new stored shape.');
-    expect(releases.slice(1).map((r) => r.updates)).toEqual([[], [], []]);
+    expect(releases[2].lines).toContain('Instagram and X show their official marks.');
+    expect(releases[3].lines).toContain('Stored runs record which build produced them.');
+    expect(releases[4].lines).toContain('Today and Fieldwork read the culture desk and its kept creators in both the old and the new stored shape.');
+    expect(releases[1].updates.map((u) => u.when)).toEqual(['12 October 2026']);
+    expect(releases.slice(2).map((r) => r.updates)).toEqual([[], [], []]);
   });
 
   test('the newest entry passes its shape check dated or undated, with any number of lines', () => {
     const bound = withNewestHeading;
     for (const text of [
       CHANGELOG,
-      bound('## 2.3.0 (next, not live yet)'),
-      bound('## 2.3.0 (next, not live yet)', '- One more line.\n- And another.\n'),
-      bound('## 2.3.0 (20 October 2026)', '- One more line.\n- And another.\n'),
+      bound('## 2.4.0 (next, not live yet)'),
+      bound('## 2.4.0 (next, not live yet)', '- One more line.\n- And another.\n'),
+      bound('## 2.4.0 (20 October 2026)', '- One more line.\n- And another.\n'),
     ]){
       expectUpcomingShape(parseChangelog(text)[0]);
     }
-    const undated = parseChangelog(bound('## 2.3.0 (next, not live yet)'))[0];
+    const undated = parseChangelog(bound('## 2.4.0 (next, not live yet)'))[0];
     expect(undated.next).toBe(true);
     expect(undated.when).toBe('Next, not live yet');
-    const dated = parseChangelog(bound('## 2.3.0 (20 October 2026)', ''))[0];
+    const dated = parseChangelog(bound('## 2.4.0 (20 October 2026)', ''))[0];
     expect(dated.next).toBe(false);
     expect(dated.when).toBe('20 October 2026');
-    expect(() => expectUpcomingShape(parseChangelog(bound('## 2.3.0 (soon)', ''))[0])).toThrow();
+    expect(() => expectUpcomingShape(parseChangelog(bound('## 2.4.0 (soon)', ''))[0])).toThrow();
     expect(() => expectUpcomingShape({...parseChangelog(CHANGELOG)[0], lines: []})).toThrow();
     expect(() => expectUpcomingShape({...parseChangelog(CHANGELOG)[0], lines: ['A line ' + '-'.repeat(2) + ' with a double hyphen.']})).toThrow();
   });
@@ -238,7 +241,7 @@ describe('the release files', () => {
 describe('the build', () => {
   test('releaseFacts reads VERSION, the changelog and the short sha of the checkout', () => {
     const facts = releaseFacts();
-    expect(facts.version).toBe('2.3.0');
+    expect(facts.version).toBe('2.4.0');
     expect(facts.changelog).toBe(CHANGELOG);
     expect(facts.sha).toBe(HEAD.slice(0, 12));
   });
@@ -292,6 +295,18 @@ describe('shaDiffers', () => {
 });
 
 describe('the version line and What\'s new', () => {
+  test('the Alpha build marks 2.4.0 as This version and retains the D0 history', () => {
+    render(<VersionNote release={{...BUILT, version: '2.4.0', changelog: CHANGELOG}} />);
+    expect(versionButton().querySelector('.rail42-version-name').textContent).toBe('42 v2.4.0');
+    click(versionButton());
+    const entries = [...panel().querySelectorAll('.rail42-whatsnew-release')];
+    expect(entries.map((e) => e.querySelector('.rail42-whatsnew-version').textContent)).toEqual(['2.4.0', '2.3.0', '2.2.0', '2.1.0', '2.0.0']);
+    expect(entries[0].querySelector('.rail42-whatsnew-current').textContent).toBe('This version');
+    expect(entries[0].textContent).not.toContain('Next, not live yet');
+    expect(entries[1].textContent).toContain('Release D0');
+    expect(entries[1].textContent).toContain('12 October 2026');
+    expect(entries[1].querySelector('.rail42-whatsnew-current')).toBeNull();
+  });
   test('nothing renders when the build carries no version', () => {
     render(<VersionNote release={null} />);
     expect(host.innerHTML).toBe('');
@@ -330,14 +345,14 @@ describe('the version line and What\'s new', () => {
     expect(entries.map((e) => e.querySelector('.rail42-whatsnew-version').textContent)).toEqual(['2.3.0', '2.2.0', '2.1.0', '2.0.0']);
     expect(entries[1].querySelector('.rail42-whatsnew-when').textContent).toBe('11 October 2026');
     const lines = entries.map((entry) => [...entry.querySelectorAll(':scope > .rail42-whatsnew-lines > li')].map((li) => li.textContent));
-    expect(lines[0]).toEqual(parseChangelog(CHANGELOG)[0].lines);
+    expect(lines[0]).toEqual(parseChangelog(HISTORICAL_CHANGELOG)[0].lines);
     expect(lines[0].length).toBeGreaterThan(0);
     const updates = [...entries[0].querySelectorAll(':scope > .rail42-whatsnew-update')].map((block) => ({
       title: block.querySelector(':scope > .rail42-whatsnew-heading > .rail42-whatsnew-update-title').textContent,
       when: block.querySelector(':scope > .rail42-whatsnew-heading > .rail42-whatsnew-when').textContent,
       lines: [...block.querySelectorAll(':scope > .rail42-whatsnew-lines > li')].map((li) => li.textContent),
     }));
-    expect(updates).toEqual(parseChangelog(CHANGELOG)[0].updates);
+    expect(updates).toEqual(parseChangelog(HISTORICAL_CHANGELOG)[0].updates);
     expect(updates.map(({title, when}) => `${title} (${when})`)).toEqual(['Jobs update (12 October 2026)']);
     expect(updates[0].lines.length).toBeGreaterThan(0);
     expect(lines[1]).toContain('Instagram and X show their official marks.');
@@ -359,18 +374,18 @@ describe('the version line and What\'s new', () => {
   });
 
   test('an entry above the running version, and only that, reads Next, not live yet', () => {
-    render(<VersionNote release={{...BUILT, version: '2.2.0', changelog: withNewestHeading('## 2.3.0 (next, not live yet)')}} />);
+    render(<VersionNote release={{...BUILT, changelog: withNewestHeading('## 2.4.0 (next, not live yet)')}} />);
     click(versionButton());
     const entries = [...panel().querySelectorAll('.rail42-whatsnew-release')];
     expect(entries[0].querySelector('.rail42-whatsnew-when').textContent).toBe('Next, not live yet');
     expect(entries[0].querySelector('.rail42-whatsnew-current')).toBeNull();
-    expect(entries[1].querySelector('.rail42-whatsnew-when').textContent).toBe('11 October 2026');
+    expect(entries[1].querySelector('.rail42-whatsnew-when').textContent).toBe('12 October 2026');
     expect(entries[1].querySelector('.rail42-whatsnew-current').textContent).toBe('This version');
     expect(entries.slice(1).some((entry) => entry.textContent.includes('Next, not live yet'))).toBe(false);
     /* Once the bind dates the entry, the same page shows the date instead. */
     flushSync(() => root.unmount());
     root = createRoot(host);
-    render(<VersionNote release={{...BUILT, version: '2.2.0', changelog: withNewestHeading('## 2.3.0 (20 October 2026)')}} />);
+    render(<VersionNote release={{...BUILT, changelog: withNewestHeading('## 2.4.0 (20 October 2026)')}} />);
     click(versionButton());
     const dated = [...panel().querySelectorAll('.rail42-whatsnew-release')];
     expect(dated[0].querySelector('.rail42-whatsnew-when').textContent).toBe('20 October 2026');

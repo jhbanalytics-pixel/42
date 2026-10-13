@@ -78,6 +78,16 @@ def test_two_whole_weeks_under_the_new_rule_are_comparable(con):
     assert (got["locality_basis"], got["comparable_with_previous_week"]) == (V2, True)
 
 
+def test_equal_locality_with_different_detection_math_is_not_comparable(con):
+    basis_rows(con, week({-7: V2, 0: V2}))
+    con.execute("UPDATE core.item_state SET rule_version = 'old-math' WHERE metric_date = ?", [WEEK - timedelta(days=7)])
+    got = regime(con)
+    assert got['locality_basis'] == got['previous_week_basis'] == V2
+    assert got['detection_rule_version'] == 'detect-fixture-current'
+    assert got['previous_detection_rule_version'] == 'old-math'
+    assert got['comparable_with_previous_week'] is False
+
+
 def test_a_week_with_no_state_rows_has_no_basis_and_is_not_comparable(con):
     basis_rows(con, week({-7: "v1"}))
     got = regime(con)
@@ -93,7 +103,7 @@ def test_another_market_and_a_failed_detect_run_do_not_count(con):
 
 def test_every_figure_of_every_row_carries_the_marker_and_the_scorecard_rule_version_moved(world):  # noqa: F811
     for row in world["rows"].values():
-        assert row["rule_version"] == "scorecard-2"
+        assert row["rule_version"] == "scorecard-3-detection-epoch"
         for name in FIGURES:
             marker = row[name]["regime"]
             assert marker["comparable_with_previous_week"] in (True, False)

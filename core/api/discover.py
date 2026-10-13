@@ -543,12 +543,14 @@ def _series(rows, end):
     groups = {}
     for r in rows:
         r = dict(r, platform=canon_platform(r.get("platform")))
-        g = groups.setdefault((r.get("platform") or "", r["series"]), {"row": r, "values": {}})
+        key = (r.get("platform") or "", r["series"], str(r.get("series_id") or ""), str(r.get("protocol") or ""))
+        g = groups.setdefault(key, {"row": r, "values": {}})
         g["values"][str(r.get("day") or r.get("date"))] = r.get("value")
     out = []
-    for (_, _), g in sorted(groups.items()):
+    for _, g in sorted(groups.items()):
         r = g["row"]
         out.append({"platform": r.get("platform"), "series": r["series"], "series_words": _series_name(r),
+                    **{k: r[k] for k in ("series_id", "protocol") if r.get(k)},
                     "unit": r.get("unit") or SERIES_UNITS.get(r.get("lane_class"), "a day"),
                     "points": [{"date": d, "value": g["values"].get(d), "expected_low": None, "expected_high": None}
                                for d in days]})

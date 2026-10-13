@@ -2358,3 +2358,33 @@ test('opening an answer passes its market up and back down without holding it ag
   await until(() => calls.some((call) => call.path === '/api/ask'), 'the follow-up ask');
   expect(calls.find((call) => call.path === '/api/ask').body.market).toBe('KE');
 });
+
+
+for (const reopen of [false, true]){
+  test(`a ${reopen ? 'reopened' : 'fresh'} Ask keeps the terminal polling record without a redundant read`, async () => {
+    const record = clone(completeRecord);
+    let reads = 0;
+    const stub = async (url, init = {}) => {
+      const path = String(url);
+      calls.push({path, method: init.method || 'GET'});
+      if (path === '/api/ask') return json(202, {ask_id: record.ask_id});
+      if (path.endsWith('/events')) return json(502, {message: 'Stream unavailable'});
+      if (path === '/api/ask/' + record.ask_id){
+        reads += 1;
+        if (reopen && reads === 1) return json(200, {...record, status: 'running', answer: null});
+        if (reads === (reopen ? 2 : 1)) return json(200, record);
+        return json(503, {message: 'Redundant read failed'});
+      }
+      return json(404, {});
+    };
+    globalThis.fetch = stub;
+    window.fetch = stub;
+    await render({query: reopen ? {follow: record.ask_id} : {}});
+    if (!reopen) await askByTyping(record.question);
+    await until(() => host.querySelector('.ask42-answer') || text().includes('Redundant read failed'), 'the terminal result');
+    expect(host.querySelector('.ask42-answer')).not.toBeNull();
+    expect(text()).toContain(record.answer.short_answer);
+    expect(reads).toBe(reopen ? 2 : 1);
+    expect(calls.filter((call) => call.path === '/api/ask')).toHaveLength(reopen ? 0 : 1);
+  });
+}

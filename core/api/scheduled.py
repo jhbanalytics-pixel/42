@@ -10,6 +10,7 @@ Run: py -3.13 -m core.api.scheduled [--live]
 import argparse
 import json
 import logging
+import math
 import os
 import secrets
 import sys
@@ -60,7 +61,8 @@ def precheck(tier, spent, share):
     `spent` is {"scheduled": credits, "credits": credits under ASK_DAILY, "model_usd": dollars}; `share` is
     SCHEDULED_DAILY, or None in a dry run without it, when the share is not checked."""
     most = TIERS[tier]
-    if not spent or not all(_number(spent.get(k)) for k in ("scheduled", "credits", "model_usd")):
+    if not spent or not all(_number(spent.get(k)) and math.isfinite(spent[k]) and spent[k] >= 0
+                            for k in ("scheduled", "credits", "model_usd")):
         return SPEND_UNKNOWN
     if share is not None and share - spent["scheduled"] < most["credits"]:
         return SHARE_SPENT

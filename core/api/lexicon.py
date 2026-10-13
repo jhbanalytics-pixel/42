@@ -10,6 +10,7 @@ compares its last 7 days with the 7 before. Every number is a Figure with the qu
 import datetime as dt
 import re
 
+from core.api import privacy
 from core.api.discover import BadRequest, figure
 from core.api.seedpath import _keyword, _market
 from core.api.today import LABELS
@@ -93,12 +94,17 @@ def build_lexicon(store, market):
                                                 "hashtags it records.")
         return body
     first_collect = store.first_ok_collect_date()
+    hidden = privacy.read_hidden(store)
     warming = first_collect is None or str(first_collect) > prior_from
     rid = run["run_id"]
     terms = []
+    withheld = False
     for r in rows:
         label = _label(r)
         if not _shown(r) or label is None or not r.get("posts_window"):
+            continue
+        if privacy.mask(label, hidden) != label:
+            withheld = True
             continue
         scope = {"item_id": r["item_id"], "market": market}
         hashed = [dict(scope, start=start, end=end, posts=r["posts_window"])]
@@ -120,8 +126,9 @@ def build_lexicon(store, market):
     body["truncated"] = len(terms) > TERM_LIMIT or len(rows) >= read_limit
     body["terms"] = terms[:TERM_LIMIT]
     if not body["terms"]:
-        body.update(status="empty", message=f"42 has not recorded posts for any word or hashtag in "
-                                            f"{LABELS[market]} in the last {DAYS} days.")
+        message = ("No words or hashtags are available to show after the current privacy checks." if withheld else
+                   f"42 has not recorded posts for any word or hashtag in {LABELS[market]} in the last {DAYS} days.")
+        body.update(status="empty", message=message)
         return body
     body["notes"].append("Posts are counted on the days 42 linked them to the word or hashtag, as the topic pages "
                          "count them. First seen is the day 42 first recorded the item in any market.")

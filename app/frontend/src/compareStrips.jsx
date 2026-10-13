@@ -23,7 +23,8 @@ export const COMPARE_FIELDS = Object.freeze([
 const QUALITY_KEYS = new Set(['velocity', 'novelty', 'breadth', 'independence', 'history', 'geo_confidence']);
 
 function receiptLabel(count){
-  const value = Number.isFinite(count) ? count : 0;
+  if (!Number.isInteger(count) || count < 0) return 'unavailable';
+  const value = count;
   return `${value} receipt${value === 1 ? '' : 's'}`;
 }
 

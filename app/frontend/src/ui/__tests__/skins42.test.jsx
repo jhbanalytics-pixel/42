@@ -81,6 +81,15 @@ const DOSSIERS = {dossiers: [
   {dossier_id: 'd_other001', version: 1, state: 'draft', title: 'Not a skin report', created_at: '2026-09-28T10:00:00+02:00', source_ask_id: 'a_other001', frozen_version: null},
 ], next_before: null};
 const DRAFT = {investigation_id: 'i_new_report', status: 'draft', plan: {sub_questions: []}, estimate: {credits: 300, model_usd: 1, minutes: 10}, budget_left: {credits: 900, model_usd: 5}};
+test('an incomplete archive receipt keeps confirmation and active skin', async () => {
+  await mountPage(pageRoutes([['/api/skins/' + SKIN.skin_id + '/archive', reply(200, {})]]));
+  click(button(host, 'Archive'));
+  click(button(host.querySelector('[data-part="archive-confirm"]'), 'Archive this skin'));
+  await settle();
+  expect(host.querySelector('[data-part="archive-confirm"]')).not.toBeNull();
+  expect(host.querySelector('[data-part="archive-confirm"] [role="alert"]')).not.toBeNull();
+  expect(text()).not.toContain('This skin is archived.');
+});
 
 function serve(routes){
   globalThis.fetch = async (url, init) => {

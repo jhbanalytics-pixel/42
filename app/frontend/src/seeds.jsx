@@ -46,7 +46,7 @@ const LABEL = {
 
 const record = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v) => typeof v === 'string';
-const isFigure = (v) => record(v) && typeof v.value === 'number' && text(v.query_id);
+const isFigure = (v) => record(v) && Number.isFinite(v.value) && text(v.query_id) && !!v.query_id.trim();
 const figureOrNull = (v) => v === null || v === undefined || isFigure(v);
 
 function validSeed(s, numbers){
@@ -63,9 +63,11 @@ export function validSeedsPayload(value, market = 'ZA'){
   const q = value.queue;
   const r = value.results;
   if (q !== null && !(record(q) && Array.isArray(q.seeds) && q.seeds.every((s) => validSeed(s, ['credits']))
-      && Array.isArray(q.lanes) && isFigure(q.seeds_total) && figureOrNull(q.credits_total))) return false;
+      && Array.isArray(q.lanes) && q.lanes.every((l) => record(l) && (l.lane == null || text(l.lane)) && isFigure(l.seeds))
+      && isFigure(q.seeds_total) && figureOrNull(q.credits_total))) return false;
   if (r !== null && !(record(r) && Array.isArray(r.seeds) && r.seeds.every((s) => validSeed(s, ['posts', 'new_creators']))
-      && Array.isArray(r.lanes) && record(r.totals) && isFigure(r.totals.seeds))) return false;
+      && Array.isArray(r.lanes) && r.lanes.every((l) => record(l) && (l.lane == null || text(l.lane)) && isFigure(l.seeds) && figureOrNull(l.posts))
+      && record(r.totals) && isFigure(r.totals.seeds))) return false;
   return true;
 }
 

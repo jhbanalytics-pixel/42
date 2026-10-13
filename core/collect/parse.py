@@ -72,6 +72,7 @@ spec-shaped fixtures (parse_spec.json) in the probed envelope.
 
 from __future__ import annotations
 
+import math
 import re
 from datetime import UTC, date, datetime
 from functools import lru_cache
@@ -81,7 +82,7 @@ from zoneinfo import ZoneInfo
 
 import yaml
 
-from core.collect.ids import post_id
+from core.collect.ids import canonical_url, post_id
 
 CONFIG = Path(__file__).resolve().parents[1] / "config"
 VENDOR = "socialcrawl"
@@ -169,6 +170,24 @@ HASHTAG = re.compile(r"#(\w+)")
 OFFSET_SPACE = re.compile(r"\s+(?=[+-]\d{2}:?\d{2}$)")
 
 
+def validate_data(route, data):
+    if not isinstance(data, (dict, list)):
+        raise ValueError(f"{route} needs data as an object or list")
+    if not isinstance(data, dict):
+        return
+    family = ROUTES.get(route, (None,))[0]
+    keys = ITEM_KEYS if family in ("rank", "board", "panel", "search", "watch", "location", "restat") else ("items",)
+    for key in keys:
+        if key in data and not isinstance(data[key], list):
+            raise ValueError(f"{route} needs data.{key} as a list")
+    if route == "search/multi" and isinstance(data.get("sources"), dict):
+        for source in data["sources"].values():
+            if isinstance(source, dict):
+                for key in ITEM_KEYS:
+                    if key in source and not isinstance(source[key], list):
+                        raise ValueError(f"{route} needs source.{key} as a list")
+
+
 def parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_fn,
           lane=None, seed_key=None, pull_seq=None, protocol=None, profile_cache=None, curated=False):
     return _parse(route, params, market, body, fetched_at, run_id, item_id_fn=item_id_fn, geo_fn=geo_fn,
@@ -230,6 +249,7 @@ def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_f
         "handle": _first(params, "handle", "username"), "creators": [], "profile_cache": profile_cache,
     }
     data = body.get("data")
+    validate_data(route, data)
     if route in ("youtube/search/advanced", "tiktok/location/posts"):
         if not isinstance(data, dict) or not isinstance(data.get("items"), list):
             raise ValueError(f"{route} needs data.items as a list")
@@ -425,7 +445,7 @@ def _number(node, *keys):
         return None
     try:
         return int(value) if value is not None else None
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -582,7 +602,8 @@ def _duration(media, content, node):
     value = _first(media, "duration", "duration_s") or _first(content, "duration_seconds") \
         or _first(node, "duration", "duration_s")
     try:
-        return float(value) if value is not None else None
+        number = float(value) if value is not None else None
+        return number if number is not None and math.isfinite(number) else None
     except (TypeError, ValueError):
         return None
 
@@ -675,7 +696,7 @@ def board_hashtag(row):
     """The tag on a hashtags/popular row, bare or in the {computed, post} envelope: a name key, else the post
     text, else the /tag/<name> path of its url."""
     node = _dict(_dict(row).get("post")) or _dict(row)
-    path = [part for part in urlsplit(str(node.get("url") or "")).path.split("/") if part]
+    path = [part for part in urlsplit(canonical_url(node.get("url")) or "").path.split("/") if part]
     return _first(node, "hashtag_name", "hashtag", "name", "title") or _first(_dict(node.get("content")), "text") \
         or (path[1] if len(path) == 2 and path[0] == "tag" else None)
 
@@ -720,7 +741,7 @@ def _curve(out, ctx, market, platform, item_id, series, points):
         except ValueError:
             moment = parse_time(when)
             day = _local_day(moment, market) if moment else None
-        if day is None or isinstance(value, bool) or not isinstance(value, (int, float)):
+        if day is None or isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
             continue
         out["counters"].append(_counter(
             ctx, market=market, platform=platform, item_id=item_id, series=series, lane_class="unbiased_counter",
@@ -787,5 +808,5 @@ def _restat(out, ctx, row):
 
 
 def _platform_of(url):
-    host = (urlsplit(url).hostname or "") if isinstance(url, str) else ""
+    host = urlsplit(canonical_url(url) or "").hostname or ""
     return next((name for suffix, name in HOSTS.items() if host == suffix or host.endswith("." + suffix)), None)

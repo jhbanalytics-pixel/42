@@ -338,7 +338,9 @@ def discover_creators(ctx: RunContext, warehouse: Warehouse, question: str) -> d
         }
         post_sql = (
             f"SELECT {CREATOR_POST_COLUMNS} {POSTS_JOIN}{_source_sightings_join('p', 'since', 'until')}"
-            f"WHERE p.post_date BETWEEN @since AND @until AND {topic_filter} "
+            "WHERE p.post_date BETWEEN DATE_SUB(@since, INTERVAL 1 DAY) AND DATE_ADD(@until, INTERVAL 1 DAY) "
+            "AND COALESCE(DATE(p.published_at, 'Africa/Johannesburg'), p.post_date) BETWEEN @since AND @until "
+            f"AND {topic_filter} "
             f"AND ({' OR '.join(identity_filter)}) "
             "ORDER BY COALESCE(p.published_at, TIMESTAMP(p.post_date)) DESC, p.platform, p.creator_id, p.post_id "
             "LIMIT @post_limit"
@@ -448,12 +450,12 @@ def _has_terms(query) -> bool:
 
 
 def _search_dates(ctx: RunContext, since, until) -> tuple[dt.date, dt.date, tuple | None]:
-    default_since, default_until = resolve_dates("last 7 days", ctx.as_of)
+    window = (ctx.window_start, ctx.window_end) if ctx.window_start and ctx.window_end else None
+    default_since, default_until = window or resolve_dates("last 7 days", ctx.as_of)
     since = default_since if since is None else _day(since, "since")
     until = default_until if until is None else _day(until, "until")
     if since > until:
         raise Refused(f"since {since} is after until {until}.")
-    window = (ctx.window_start, ctx.window_end) if ctx.window_start and ctx.window_end else None
     if window:
         since, until = max(since, window[0]), min(until, window[1])
         if since > until:
@@ -481,7 +483,8 @@ def _keyword_sql(ctx: RunContext, query: str, since, until, shared: dict, filter
     """The keyword leg's SQL and parameters. tag_terms are alternatives to the query that match the hashtags column
     only (the co-occurring tags). Raises Refused for more than MAX_TERMS terms in all."""
     params = {"since": since, "until": until, **shared, "limit": limit}
-    where = ["p.post_date BETWEEN @since AND @until"]
+    where = ["p.post_date BETWEEN DATE_SUB(@since, INTERVAL 1 DAY) AND DATE_ADD(@until, INTERVAL 1 DAY)",
+             "COALESCE(DATE(p.published_at, 'Africa/Johannesburg'), p.post_date) BETWEEN @since AND @until"]
     condition = _match(_terms(query, params, strip_hash=True), test)
     if tag_terms:
         used = sum(1 for k in params if k.startswith("term_"))
@@ -512,16 +515,21 @@ def _semantic_sql(ctx: RunContext, query: str, since, until, shared: dict, filte
     params = {"q": query, "since": since, "until": until, "k": k, **shared}
     if ctx.market:
         params["market"] = ctx.market
+    platform_args = [f"@{name}" for name in shared if name.startswith("platform_")]
+    cohort_platforms = f"[{', '.join(platform_args)}]" if platform_args else "CAST(NULL AS ARRAY<STRING>)"
+    cohort_author = "@author" if "author" in shared else "CAST(NULL AS STRING)"
     sql = (
         "SELECT s.post_id, s.platform, s.url, s.creator_id, COALESCE(c.handle, s.creator_id) AS handle, "
         "s.published_at, d.post_date, s.geo_market, d.geo_source, s.text, s.engagement, s.distance, "
         "c.home_market, o.source_sightings "
-        f"FROM intelligence_42_agent.tvf_search_posts(@q, {'@market' if ctx.market else 'NULL'}, @since, @until, @k) s "
+        f"FROM intelligence_42_agent.tvf_search_posts_scoped(@q, {'@market' if ctx.market else 'NULL'}, "
+        f"@since, @until, @k, {cohort_platforms}, {cohort_author}, @min_engagement) s "
         "LEFT JOIN intelligence_42_core.creators c ON c.platform = s.platform AND c.creator_id = s.creator_id "
         # the function returns no post_date, the day a post with no published_at falls back to; the read of posts is
         # pruned to the same dates the function searched
         "LEFT JOIN (SELECT post_id, post_date, geo_source FROM intelligence_42_core.posts "
-        "WHERE post_date BETWEEN @since AND @until) d ON d.post_id = s.post_id "
+        "WHERE post_date BETWEEN DATE_SUB(@since, INTERVAL 1 DAY) AND DATE_ADD(@until, INTERVAL 1 DAY)) "
+        "d ON d.post_id = s.post_id "
         f"{_source_sightings_join('s', 'since', 'until')}"
         f"WHERE {' AND '.join(f.format(a='s') for f in filters)} "
         "ORDER BY s.distance, s.post_id"
@@ -787,7 +795,8 @@ def _store_scope(ctx: RunContext, platforms, window=None) -> tuple[str, str, dic
     window (since, until) when given."""
     since, until = window or _store_window(ctx)
     params = {"since": since, "until": until, "profile_source": PROFILE_SOURCE}
-    where = ["p.post_date BETWEEN @since AND @until"]
+    where = ["p.post_date BETWEEN DATE_SUB(@since, INTERVAL 1 DAY) AND DATE_ADD(@until, INTERVAL 1 DAY)",
+             "COALESCE(DATE(p.published_at, 'Africa/Johannesburg'), p.post_date) BETWEEN @since AND @until"]
     names = []
     for platform in platforms or ():
         for stored in dict.fromkeys((platform, STORED_PLATFORMS.get(platform, platform))):

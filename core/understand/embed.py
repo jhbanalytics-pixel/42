@@ -107,12 +107,17 @@ def windows(run_date, days):
     return out
 
 
-def _counts_row(result, name="embed"):
+def _counts_row(result, name="embed", required=()):
     rows = result.get("rows") if isinstance(result, dict) else result
     rows = list(rows or [])
-    if not rows:
-        raise RuntimeError(f"{name}.sql returned no counts row")
-    return dict(rows[0])
+    if len(rows) != 1:
+        raise RuntimeError(f"{name}.sql returned {len(rows)} counts rows instead of one counts row")
+    row = dict(rows[0])
+    for key in required:
+        value = row.get(key)
+        if type(value) is not int or value < 0:
+            raise RuntimeError(f"{name}.sql counts row has invalid {key}")
+    return row
 
 
 def spend_today(execute, now) -> tuple[float, float]:
@@ -208,7 +213,8 @@ def run_embed(execute, *, run_date, days=1, slice_limit=SLICE_LIMIT, book=None, 
                     correction = book(round(-ceiling, 6), "embed_correction")
                     totals["booked_usd"] = round(totals["booked_usd"] + correction, 6)
                 break
-            row = _counts_row(execute(embed_sql, {"from_date": start, "to_date": end, "max_rows": max_rows}))
+            row = _counts_row(execute(embed_sql, {"from_date": start, "to_date": end, "max_rows": max_rows}),
+                              required=COUNTS)
             for key in COUNTS:
                 totals[key] += int(row.get(key) or 0)
             totals["model_usd"] = _usd(totals["tokens"])
@@ -236,5 +242,6 @@ def run_embed(execute, *, run_date, days=1, slice_limit=SLICE_LIMIT, book=None, 
             totals["index"], totals["index_error"] = "failed", f"{type(err).__name__}: {first}"
     if unindexable := int(row.get("unindexable") or 0):
         totals["index_unindexable_rows"] = unindexable
+    execute(load("tvf_search_posts_scoped"), {})
     execute(load("tvf_search_posts"), {})
     return totals

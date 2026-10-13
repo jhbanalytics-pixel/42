@@ -46,7 +46,8 @@ SELECT ps.post_id, l.item_id, s.market, ps.platform, ps.url, cr.handle, ps.creat
 FROM linked l
 JOIN seen s ON s.post_id = l.post_id
 JOIN {core}.posts ps ON ps.post_id = l.post_id
-LEFT JOIN (SELECT c.creator_id, c.handle FROM {core}.creators c) cr ON cr.creator_id = ps.creator_id
+LEFT JOIN (SELECT c.creator_id, c.platform, c.handle FROM {core}.creators c) cr
+  ON cr.creator_id = ps.creator_id AND cr.platform = ps.platform
 LEFT JOIN clip cl ON cl.post_id = l.post_id;
 
 -- An item's series in one market, one row per series and day over the last days days, ending on the item's

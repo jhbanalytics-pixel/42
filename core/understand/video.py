@@ -377,7 +377,9 @@ def read_clip(post, model, sc_client, *, fetch_bytes=fetch_image, question=None,
                 request_timeout_s=seconds)
         except Exception as exc:
             if on_billed is not None:
-                on_billed(getattr(exc, "usage", None))
+                usage = ({"usage_unknown": True} if getattr(exc, "reserve_model_estimate", False)
+                         else getattr(exc, "usage", None))
+                on_billed(usage)
                 exc.video_billed = True
             raise
         if on_billed is not None:
@@ -530,7 +532,8 @@ def _run(execute, counts, *, run_date, run_id, day, clock, model, sc_client, fet
         try:
             read = read_clip(post, model, sc_client, fetch_bytes=fetch_bytes,
                              timeout=lambda: deadline - monotonic(),
-                             on_billed=lambda usage: _spend(execute, counts, run_id, day, usage))
+                             on_billed=lambda usage: _spend(execute, counts, run_id, day, usage,
+                                                           unknown_estimate=est_usd(post)))
             streak = 0
         except Exception as exc:
             counts["failed"] += 1
@@ -568,9 +571,14 @@ def clip_error(err) -> str:
     return f"{type(err).__name__}: {line}"[:300]
 
 
-def _spend(execute, counts, run_id, day, usage) -> None:
+def _spend(execute, counts, run_id, day, usage, unknown_estimate=0.0) -> None:
     """Add a call's usd to model_usd and book it in runs at once (what video_clip, which video_today.sql counts)."""
-    usd = round(_number((usage or {}).get("usd")), 6) if isinstance(usage, dict) else 0.0
+    unknown = isinstance(usage, dict) and usage.get("usage_unknown")
+    usd = round(unknown_estimate, 6) if unknown else (
+        round(_number((usage or {}).get("usd")), 6) if isinstance(usage, dict) else 0.0)
+    if unknown:
+        counts["unknown_spend"] = True
+        counts["unknown_spend_estimate_usd"] = round(counts.get("unknown_spend_estimate_usd", 0.0) + usd, 6)
     if usd <= 0:
         return
     counts["model_usd"] = round(counts["model_usd"] + usd, 6)

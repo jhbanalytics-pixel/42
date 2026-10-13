@@ -150,3 +150,11 @@ def test_production_deploys_nothing_until_deploy_jobs_takes_a_project():
     wf = load(PRODUCTION)
     assert "deploy_jobs.py" not in runs(wf).replace("core/setup/deploy_jobs.py deploys", "")
     assert steps(wf)[-1]["run"].rstrip().endswith("exit 1")
+
+
+def test_tests_gate_runs_for_main_pushes_and_pull_requests():
+    active_tests = ROOT / ".github" / "workflows" / "tests.yml"
+    events = triggers(load(active_tests))
+    expected = {"main", "full-42", "release/**"}
+    assert set(events["push"]["branches"]) == expected
+    assert set(events["pull_request"]["branches"]) == expected

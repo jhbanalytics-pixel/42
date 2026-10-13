@@ -852,7 +852,7 @@ test('an empty answer still renders the heading and says nothing matched', async
   await mount({}, [['/api/', reply(200, {})]]);
   expect(host.querySelector('h1').textContent).toBe('Discover');
   expect(text()).toContain('No trends have cleared the checks in South Africa yet.');
-  expect(text()).toContain('Nothing held back.');
+  expect(text()).toContain('Hold information was not returned.');
   expect(host.innerHTML).not.toContain('undefined');
 });
 

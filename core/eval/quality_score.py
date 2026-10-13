@@ -10,10 +10,9 @@ file's bytes) and row_count how many rows or questions that was. A part below it
 and points are None, never 0, and it does not count. With no sufficient part there is no score.
 
 change against last week is given only when last week's current row counted the same parts AND its replay had the
-same question count and question set hash, so a part joining or leaving, or a different question set, never reads
-as improvement. The question set hash is the sha256 of the sorted question ids in the score_run file: score_run
-does not record which questions file it read, so the ids it scored stand in for that file. previous_run_id names
-last week's row whenever there was one, change or not.
+same question count and question set hash, so a part joining or leaving, a missing fingerprint, or a changed question
+definition never reads as improvement. score_run hashes the full question definitions in id order. previous_run_id
+names last week's row whenever there was one, change or not.
 
 Parts and their points:
     eval_pass_rate  share of replay questions passing every rubric check, from the latest valid score_run file
@@ -41,17 +40,18 @@ EXISTS); --dry-run prints the rows and creates and writes nothing.
 import argparse
 import hashlib
 import json
+import re
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from core.agent.context import result_hash
 from core.eval import forecast_score, review
 from core.eval.forecast_score import load, query_id, read, rows_hash
 
 RESULTS = Path(__file__).resolve().parent / "results"
 MARKETS = ("ALL", "ZA", "NG", "KE")
 PARTS = ("eval_pass_rate", "claim_support", "honest_gaps", "forecast_skill", "precision")
+QUESTION_SET_HASH = re.compile(r"^sha256:[0-9a-f]{64}$")
 MIN_EVAL_QUESTIONS = 10   # the Friday replay subset, core/eval/friday.yaml
 MIN_CLAIMS = 30           # one week's random claim sample, TRUST.md section 6
 # Starting choices, not set by the spec: recalibrate once a few weeks of scored data show how much these parts move
@@ -105,10 +105,11 @@ def replay_key(scores, week_start):
     found = latest_run(scores, week_start)
     if not found:
         return {"questions": None, "question_set_hash": None}
-    body = found[1]
-    ids = body.get("questions")
-    return {"questions": body["run"]["questions"],
-            "question_set_hash": result_hash(sorted(ids)) if isinstance(ids, dict) else None}
+    run = found[1].get("run") or {}
+    fingerprint = run.get("question_set_hash")
+    if not isinstance(fingerprint, str) or not QUESTION_SET_HASH.fullmatch(fingerprint):
+        fingerprint = None
+    return {"questions": run.get("questions"), "question_set_hash": fingerprint}
 
 
 def no_score_reason(scores):
@@ -179,13 +180,18 @@ def precision(card_rows, market, qid, source, note):
 def _regime(markers):
     """The locality regime a precision part rests on (C4 v3 section 11.4), from the markers of the Figures it pools: it may
     be compared with last week's only when every one of them says so. None when none carries a marker (rows written
-    under the first scorecard rule), which leaves the comparison as it was."""
-    markers = [m for m in markers if isinstance(m, dict)]
-    if not markers:
+    under the first scorecard rule), which withholds comparison through the method fingerprint."""
+    if not markers or any(not isinstance(m, dict) for m in markers):
         return None
-    return {"comparable_with_previous_week": all(m.get("comparable_with_previous_week") is True for m in markers),
+    epochs = [m.get("detection_rule_version") for m in markers]
+    valid_epochs = all(isinstance(e, str) and e and e != "mixed" for e in epochs)
+    return {"comparable_with_previous_week": (valid_epochs
+            and all(m.get("comparable_with_previous_week") is True
+                    and m.get("previous_detection_rule_version") == m.get("detection_rule_version")
+                    for m in markers)),
             "locality_basis": sorted({str(m.get("locality_basis")) for m in markers}),
-            "previous_week_basis": sorted({str(m.get("previous_week_basis")) for m in markers})}
+            "previous_week_basis": sorted({str(m.get("previous_week_basis")) for m in markers}),
+            "detection_rule_version": sorted(set(epochs)) if valid_epochs else None}
 
 
 def time_to_detect(card_rows, market, qid, source, note):
@@ -211,10 +217,18 @@ def _change(score, counted, replay, prev, regime=None):
                       f"(this week {regime.get('locality_basis')}, last week {regime.get('previous_week_basis')})")
     if prev["counted"] != ",".join(counted):
         return None, f"last week counted {prev['counted'] or 'nothing'}, this week counted {','.join(counted)}"
-    if (prev["questions"], prev["question_set_hash"]) != (replay["questions"], replay["question_set_hash"]):
+    if prev["questions"] != replay["questions"]:
+        return None, (f"last week's replay had {prev['questions']} questions; this week's had {replay['questions']}")
+    if not prev["question_set_hash"] or not replay["question_set_hash"]:
+        return None, "question set fingerprint is missing for this week or last week"
+    if prev["question_set_hash"] != replay["question_set_hash"]:
         return None, (f"last week's replay had {prev['questions']} questions, question set "
                       f"{prev['question_set_hash']}; this week's had {replay['questions']}, question set "
                       f"{replay['question_set_hash']}")
+    if not prev.get("method_fingerprint") or not replay.get("method_fingerprint"):
+        return None, "mathematical method fingerprint is missing for this week or last week"
+    if prev["method_fingerprint"] != replay["method_fingerprint"]:
+        return None, "mathematical method fingerprint differs from last week"
     return score - prev["score"], None
 
 
@@ -239,10 +253,25 @@ def score_market(market, *, week_start, scores, replay, labels, feedback_qid, fe
     counted = [name for name in PARTS if not parts[name]["insufficient"]]
     score = sum(parts[name]["points"] for name in counted) / len(counted) if counted else None
     prev = previous.get(market)
-    change, change_reason = _change(score, counted, replay, prev, parts["precision"].get("regime"))
+    regime = parts["precision"].get("regime")
+    methods = {"version": "weekly-quality-2-method-lineage", "counted": counted}
+    fingerprint = None
+    if "precision" not in counted or (regime and regime.get("detection_rule_version")
+                                     and regime["detection_rule_version"] != "mixed"):
+        if "precision" in counted:
+            methods["precision"] = {k: regime.get(k) for k in ("locality_basis", "detection_rule_version")}
+        if "forecast_skill" in counted:
+            methods["forecast_skill"] = {
+                "resolution_rule_version": forecast_score.RESOLUTION_RULE_VERSION,
+                "model_rules": sorted({r["rule"] for r in forecasts
+                                       if market in ("ALL", r["market"])
+                                       and r.get("resolution_rule_version") == forecast_score.RESOLUTION_RULE_VERSION})}
+        fingerprint = "sha256:" + hashlib.sha256(json.dumps(methods, sort_keys=True).encode("utf-8")).hexdigest()
+    change, change_reason = _change(score, counted, {**replay, "method_fingerprint": fingerprint}, prev, regime)
     return {"market": market, "score": score, "counted": counted, "change": change, "change_reason": change_reason,
             "previous_run_id": prev["run_id"] if prev else None, **replay, "parts": parts,
-            "context": {"time_to_detect": time_to_detect(cards, market, cards_qid, cards_source, cards_note)}}
+            "context": {"time_to_detect": time_to_detect(cards, market, cards_qid, cards_source, cards_note),
+                        "method_fingerprint": fingerprint, "methods": methods}}
 
 
 def _source(rows):

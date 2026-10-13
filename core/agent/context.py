@@ -54,6 +54,7 @@ class RunContext:
     queries: dict = field(default_factory=dict)   # query_id -> {"sql", "params", "rows", "result_hash", "purpose"}
     evidence: dict = field(default_factory=dict)  # post_id -> evidence record (rubric.md section 1 shape)
     events: list = field(default_factory=list)    # step events for the API's server-sent events
+    research_gaps: list = field(default_factory=list)  # code-recorded incomplete research, independent of draft text
     # {"route", "params", "status"} per SocialCrawl client call, search and enrichment, in call order. Never streamed:
     # the params hold model-written query text, so they stay out of events. The gap checks read them.
     sc_calls: list = field(default_factory=list)
@@ -115,6 +116,7 @@ class RunContext:
         for eid, record in lane.evidence.items():
             self.evidence.setdefault(eid, record)
         self.events += lane.events
+        self.research_gaps += [gap for gap in lane.research_gaps if gap not in self.research_gaps]
         self.sc_calls += lane.sc_calls
         self.enriched |= lane.enriched
         self.transcripts.update(lane.transcripts)

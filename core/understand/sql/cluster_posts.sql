@@ -23,7 +23,11 @@ WITH seen AS (
 vectors AS (
   SELECT e.post_id, e.embedding
   FROM `ogilvy-trends-v2.intelligence_42_core.post_enrichment` AS e
-  WHERE ARRAY_LENGTH(e.embedding) > 0
+  WHERE ARRAY_LENGTH(e.embedding) = 768
+    AND NOT EXISTS (
+      SELECT 1 FROM UNNEST(e.embedding) AS value
+      WHERE value IS NULL OR IS_NAN(value) OR IS_INF(value) OR ABS(value) > 3.4028234663852886e38
+    )
     AND e.post_id IN (SELECT s.post_id FROM seen AS s)
   QUALIFY ROW_NUMBER() OVER (PARTITION BY e.post_id ORDER BY e.embedding[OFFSET(0)]) = 1
 )

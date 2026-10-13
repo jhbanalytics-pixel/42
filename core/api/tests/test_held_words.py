@@ -121,11 +121,17 @@ def test_a_topic_a_busy_model_left_unexplained_says_so(busy):
     assert out["reason_raw"] == "Explanation failed its checks" and out["failed_reason"] == busy
 
 
-# N23: a topic the model never reached is held under the brief job's G10 reason, but no check ran on it.
-def test_a_topic_the_model_never_reached_is_not_said_to_have_failed_checks():
+# A generic G10 reason plus not_run is ambiguous: a model call may have failed before an explanation was completed.
+def test_an_ambiguous_not_run_g10_hold_does_not_claim_the_model_never_reached_the_topic():
     out = plain_reason({"reason_text": "Explanation failed its checks", "explanation_status": "not_run"})
-    assert out["reason_text"] == "Not explained: the model did not get to this topic"
+    assert out["reason_text"] == "Not explained: no complete explanation is available for this topic"
     assert out["reason_raw"] == "Explanation failed its checks"
+
+
+def test_an_explicit_never_reached_reason_is_preserved():
+    raw = "Not explained: the run stopped before this topic was reached"
+    out = plain_reason({"reason_text": raw, "explanation_status": "not_run"})
+    assert out == {"reason_text": raw, "explanation_status": "not_run"}
 
 
 @pytest.mark.parametrize("status", ["failed_checks", "explained", None])

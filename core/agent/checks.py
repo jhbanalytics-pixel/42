@@ -1371,6 +1371,53 @@ def _recorded_problem(n, ctx):
         return f"number {value!r} is not numeric"
     if not any(_matches(value, cell) for cell in _cells(query["rows"])):
         return f"number {value} is not in the recorded result of {qid}"
+    places = list(_number_places(value, query["rows"]))
+    unit_words = re.findall(r"[a-z]+", str(n.get("unit") or "").lower())
+    unit_kind = unit_measure = None
+    count_units = {word[:-1] if word.endswith("s") else word for word in COUNT_NOUNS.split("|")}
+    count_units -= {"million", "billion", "thousand"}
+    ratio_units = {"ratio", "ratios", "percent", "percentage", "rate", "rates", "proportion", "proportions",
+                   "fraction", "fractions", "multiple", "multiples", "times", "x"}
+    prefixes = {"a", "an", "the", "number", "count", "counts", "total", "reported", "recorded", "estimated",
+                "unique"}
+    context = {"in", "on", "at", "of", "for", "per", "during", "across", "over", "within", "from", "the",
+               "a", "an", "this", "last", "past", "usual", "average", "daily", "weekly", "monthly", "total",
+               "unique", "distinct", "count", "counts"}
+    start = next((index for index, word in enumerate(unit_words) if word not in prefixes), len(unit_words))
+    if start < len(unit_words):
+        word = unit_words[start]
+        if word in ratio_units:
+            unit_kind = "ratio"
+        else:
+            measure = word[:-1] if word.endswith("s") else word
+            if measure in count_units:
+                unit_kind, unit_measure = "count", measure
+        if (unit_kind and start + 1 < len(unit_words) and unit_words[start + 1] not in context):
+            unit_kind = unit_measure = None
+    named_places = [place for place in places if place[0] is not None
+                    and any(isinstance(part, str) for part in place[0])]
+    if unit_kind and named_places:
+        ratio_columns = {"ratio", "share", "percent", "percentage", "rate", "time", "x", "proportion",
+                         "fraction", "multiple"}
+        known_columns = count_units | ratio_columns
+        unknown_place = any(place[0] is None or not any(isinstance(part, str) for part in place[0])
+                            for place in places)
+        measured_places = []
+        for place in named_places:
+            column_words = {word[:-1] if word.endswith("s") else word
+                            for part in place[0] if isinstance(part, str)
+                            for word in re.findall(r"[a-z]+", part.lower())}
+            if column_words & known_columns:
+                measured_places.append((place, column_words))
+            else:
+                unknown_place = True
+        matched = []
+        for place, column_words in measured_places:
+            if (unit_kind == "ratio" and column_words & ratio_columns
+                    or unit_kind == "count" and unit_measure in column_words):
+                matched.append(place)
+        if measured_places and not unknown_place and not matched:
+            return f"number {value}: unit {n.get('unit')!r} does not match a recorded result column in {qid}"
     return None
 
 

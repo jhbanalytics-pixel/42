@@ -9,6 +9,7 @@ import datetime as dt
 import re
 from collections import Counter
 
+from core.api import privacy
 from core.api.discover import BadRequest, _cards, figure
 from core.api.store import cap_refused
 from core.api.today import LABELS, MARKETS, PLATFORM_WORDS
@@ -88,6 +89,10 @@ def _empty(term, market, status, message, run=None, start=None, end=None):
 
 def build_seed_path(store, keyword, market):
     term, market = _keyword(keyword), _market(market)
+    hidden = privacy.read_hidden(store)
+    shown_term = privacy.mask(term, hidden)
+    if shown_term != term:
+        return _empty(shown_term, market, "not_ready", privacy.PEOPLE_UNAVAILABLE)
     run = store.latest_aggregate_run()
     if run is None:
         return _empty(term, market, "not_ready", "Seed path fills after 42's first daily count of posts has finished.")
@@ -138,7 +143,8 @@ def build_seed_path(store, keyword, market):
     seen = {}
     for p in posts:
         for w in _words(p, term):
-            seen.setdefault(w, []).append(p["post_id"])
+            if hidden is not None and privacy.mask(w, hidden) == w:
+                seen.setdefault(w, []).append(p["post_id"])
     ranked = sorted(((w, ids) for w, ids in seen.items() if len(ids) >= MIN_SUPPORT), key=lambda x: (-len(x[1]), x[0]))
     body["side_words"] = [{"word": w, "posts": fig(len(ids), "matching posts with this word",
                                                    [dict(scope, word=w, post_ids=sorted(ids))])}
@@ -150,7 +156,8 @@ def build_seed_path(store, keyword, market):
             linked.setdefault(item_id, []).append(p["post_id"])
     detect = store.latest_detect_run(until=end) if linked else None
     if detect is not None:
-        cards = {r["item_id"]: (r, c, h) for r, c, h in _cards(store, detect, market)[0] if r["market"] == market}
+        cards = {r["item_id"]: (r, c, h) for r, c, h in _cards(store, detect, market, hidden)[0]
+                 if r["market"] == market}
         topics = []
         for item_id, ids in linked.items():
             if item_id not in cards or cards[item_id][0].get("kind") in HIDDEN_KINDS:
@@ -166,9 +173,11 @@ def build_seed_path(store, keyword, market):
     body["truncated"] = truncated
     body["notes"] = ["Matched as a whole word or hashtag in post text and video transcripts, so it may include "
                      "unrelated uses of the same word."]
+    if hidden is None:
+        body["notes"].append("Side words are unavailable because 42 could not check its hidden-people list.")
     if any(p["before_window"] for p in body["platforms"]):
         body["notes"].append(f"Some first sightings are older than the {DAYS} days the daily counts cover.")
     if truncated:
         body["notes"].append(f"Only the first {ROW_LIMIT} matching posts in the window were read for the daily "
                              "counts, side words and topics.")
-    return body
+    return privacy.mask(body, hidden)

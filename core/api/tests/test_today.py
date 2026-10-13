@@ -2207,7 +2207,7 @@ def test_a_zero_yield_series_is_worded_as_a_source_that_answered_but_returned_no
 
 # The brief payload carries explanation_status on held items (failed_checks or not_run). A G10 hold is worded from it.
 G10_CASES = [
-    ({"explanation_status": "not_run", "failed_reason": None}, "Not explained: the model did not get to this topic"),
+    ({"explanation_status": "not_run", "failed_reason": None}, "Not explained: no complete explanation is available for this topic"),
     ({"explanation_status": "not_run", "failed_reason": "BUSY"}, "Not explained in time: the model was busy"),
     ({"explanation_status": "failed_checks", "failed_reason": "A claim was not supported by its posts"},
      "The explanation did not pass our checks"),

@@ -42,6 +42,7 @@ EXPECTED_OBJECTS = [
     "intelligence_42_core.tvf_series_signal",
     "intelligence_42_core.tvf_item_window",
     "intelligence_42_core.tvf_placebo_base",
+    "intelligence_42_core.v_post_items_by_state_date",
     "intelligence_42_core.v_item_market_scope",
 ]
 

@@ -391,7 +391,14 @@ class SyncRunner:
             except Exception as exc:
                 out, usage = None, getattr(exc, "usage", None)
                 self.streak = self.streak + 1 if outage(exc) else 0
+                if getattr(exc, "reserve_model_estimate", False):
+                    return RunResult(outputs + [_output(post["post_id"], out, None)],
+                                     skipped=[p["post_id"] for p in posts[i + 1:]],
+                                     unknown_spend_usd=est_usd(post, batched=False))
             outputs.append(_output(post["post_id"], out, usage))
+            if usage and usage.get("usage_unknown"):
+                return RunResult(outputs, skipped=[p["post_id"] for p in posts[i + 1:]],
+                                 unknown_spend_usd=est_usd(post, batched=False))
         return RunResult(outputs, model_unavailable=self.streak >= OUTAGE_STREAK)
 
     def _run_gemini(self, posts, *, deadline, monotonic, clock, day):
@@ -436,6 +443,10 @@ class SyncRunner:
                     output, usage = self.model.complete_json(
                         system=system(), user=prompt(post), schema=schema(),
                         model=MODEL, max_tokens=MAX_TOKENS, request_timeout_s=request_timeout_s)
+                    if usage and usage.get("usage_unknown"):
+                        stopped.set()
+                        return (index, _output(post["post_id"], output, None), True,
+                                est_usd(post, batched=False), False, retries, None)
                     return index, _output(post["post_id"], output, usage), True, 0.0, False, retries, None
                 except Exception as exc:
                     usage = getattr(exc, "usage", None)

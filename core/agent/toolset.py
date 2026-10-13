@@ -282,6 +282,10 @@ def fence_for_model(name: str, text: str) -> str:
     return json.dumps(data, default=str, ensure_ascii=False)
 
 
+def fence_error_for_model(text: str) -> str:
+    return _fence(text)
+
+
 def run_plain(name: str, fn, args: dict) -> tuple[str, bool]:
     """(text, is_error): the tool's result as JSON, or its error in words safe to show the model."""
     try:

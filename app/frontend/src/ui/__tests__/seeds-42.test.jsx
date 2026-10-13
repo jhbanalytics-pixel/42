@@ -58,6 +58,27 @@ const PAYLOAD = {
 };
 
 const reply = (status, body) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
+test('malformed lane figures are refused before rendering the queue', () => {
+  const bad = structuredClone(PAYLOAD);
+  bad.queue.lanes = [{lane: 'expansion'}];
+  expect(validSeedsPayload(bad, 'ZA')).toBe(false);
+});
+test('an unnamed producer lane remains readable as other searches', () => {
+  const payload = structuredClone(PAYLOAD);
+  payload.queue.lanes[0].lane = null;
+  expect(validSeedsPayload(payload, 'ZA')).toBe(true);
+});
+test('unknown aggregate yields render as unrecorded while known seed rows remain readable', async () => {
+  const payload = structuredClone(PAYLOAD);
+  payload.results.totals.posts = null;
+  payload.results.totals.new_creators = null;
+  payload.results.lanes[0].posts = null;
+  expect(validSeedsPayload(payload, 'ZA')).toBe(true);
+  await mount(() => reply(200, payload));
+  expect(host.textContent).toContain('Not recorded');
+  expect(host.textContent).toContain('#fixture_za_heritage');
+  expect(host.textContent).not.toContain('Seeds could not load');
+});
 const settle = async () => { for (let i = 0; i < 10; i += 1) await new Promise((resolve) => setTimeout(resolve, 0)); };
 
 async function mount(answer, props = {}){

@@ -532,7 +532,7 @@ function PlanEditor({plan, onSave, onCancel, onAuth}){
     <form className="inv42-section inv42-edit" data-section="plan" onSubmit={submit} noValidate aria-labelledby="inv42-edit-title">
       <h2 className="inv42-section-title" id="inv42-edit-title">Edit the plan</h2>
       {subs.map((sub, index) => (
-        <fieldset className="inv42-edit-sub" key={sub.id} data-edit-sub={sub.id}>
+        <fieldset className="inv42-edit-sub" key={sub.id} data-edit-sub={sub.id} disabled={state.busy}>
           <legend className="ask42-label">{'Sub-question ' + (index + 1)}</legend>
           <label className="ask42-label" htmlFor={'inv42-text-' + sub.id}>Question</label>
           <textarea id={'inv42-text-' + sub.id} className="ask42-input" rows={2} maxLength={500} value={sub.text} onChange={(event) => change(sub.id, {text: event.target.value})} />
@@ -558,7 +558,7 @@ function PlanEditor({plan, onSave, onCancel, onAuth}){
       <div className="ask42-form-row">
         <p className="inv42-line">{plural(subs.length, 'researcher')}, one per sub-question</p>
         <label className="inv42-check">
-          <input id="inv42-gap-round" type="checkbox" checked={gapRound} onChange={() => setGapRound((value) => !value)} />
+          <input id="inv42-gap-round" type="checkbox" checked={gapRound} disabled={state.busy} onChange={() => setGapRound((value) => !value)} />
           Run a gap round after the first pass
         </label>
       </div>

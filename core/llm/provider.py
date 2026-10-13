@@ -105,14 +105,21 @@ def price_for(model: str) -> dict:
 
 
 def _gemini_price(model: str) -> dict:
-    try:
-        inp, out = float(os.environ["GEMINI_PRICE_INPUT_PER_M"]), float(os.environ["GEMINI_PRICE_OUTPUT_PER_M"])
+    keys = ("GEMINI_PRICE_INPUT_PER_M", "GEMINI_PRICE_OUTPUT_PER_M")
+    if any(key in os.environ for key in keys):
+        try:
+            inp, out = (float(os.environ[key]) for key in keys)
+        except (KeyError, ValueError):
+            raise PriceUnset("GEMINI_PRICE_INPUT_PER_M and GEMINI_PRICE_OUTPUT_PER_M must both be finite "
+                             "nonnegative numbers") from None
+        if not all(math.isfinite(value) and value >= 0 for value in (inp, out)):
+            raise PriceUnset("GEMINI_PRICE_INPUT_PER_M and GEMINI_PRICE_OUTPUT_PER_M must both be finite "
+                             "nonnegative numbers")
         return {"input": inp, "output": out, "cached": inp / 10}
-    except (KeyError, ValueError):
-        if model in GEMINI_LIST_PRICES:
-            return GEMINI_LIST_PRICES[model]
-        raise PriceUnset(f"{model} has no price: set GEMINI_PRICE_INPUT_PER_M and GEMINI_PRICE_OUTPUT_PER_M "
-                         "(USD per million tokens, from the Vertex AI price page)") from None
+    if model in GEMINI_LIST_PRICES:
+        return GEMINI_LIST_PRICES[model]
+    raise PriceUnset(f"{model} has no price: set GEMINI_PRICE_INPUT_PER_M and GEMINI_PRICE_OUTPUT_PER_M "
+                     "(USD per million tokens, from the Vertex AI price page)") from None
 
 
 def make_model(project: str | None = None, timeout_s: float | None = None):

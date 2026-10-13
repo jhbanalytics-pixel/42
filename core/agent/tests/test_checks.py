@@ -325,6 +325,26 @@ def test_k2_value_not_in_recorded_rows_cuts(draft, ctx, wh):
     assert verdict(verdicts, "c1", "K2")["verdict"] == "cut"
 
 
+def test_k2_rejects_a_number_pinned_to_a_different_measure(draft, ctx, wh):
+    _, valid_verdicts = run(draft, ctx, wh)
+    assert verdict(valid_verdicts, "c1", "K2")["verdict"] == "pass"
+    draft["claims"][0]["text"] = draft["claims"][0]["text"].replace("412 posts", "412 views")
+    draft["claims"][0]["numbers"][0]["unit"] = "views"
+    answer, verdicts = run(draft, ctx, wh)
+    assert verdict(verdicts, "c1", "K2")["verdict"] == "cut"
+    assert "c1" not in claim_ids(answer)
+
+
+def test_k2_leaves_a_unit_unproven_when_the_value_has_a_generic_alias(draft, ctx):
+    rows = [dict(ROWS[0], value=412), ROWS[1]]
+    ctx = make_ctx(rows=rows)
+    draft = make_draft(ctx)
+    draft["claims"][0]["text"] = draft["claims"][0]["text"].replace("412 posts", "412 views")
+    draft["claims"][0]["numbers"][0]["unit"] = "views"
+    _, verdicts = run(draft, ctx, FakeWarehouse(rows))
+    assert verdict(verdicts, "c1", "K2")["verdict"] == "pass"
+
+
 @pytest.mark.parametrize("ratio,expected", [(2.75, "pass"), (2.72, "cut")])
 def test_k2_ratio_tolerance_is_two_percent(ratio, expected):
     rows = [{"day": "2026-09-27", "posts": 412, "ratio": ratio}]

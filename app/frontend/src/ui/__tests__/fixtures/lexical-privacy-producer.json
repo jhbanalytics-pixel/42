@@ -1,0 +1,260 @@
+{
+  "lexicon_withheld": {
+    "market": "ZA",
+    "market_name": "South Africa",
+    "status": "empty",
+    "message": "No words or hashtags are available to show after the current privacy checks.",
+    "query_id": "q_lexicon",
+    "run_id": "r_aggregate_20260930_01",
+    "window": {
+      "from": "2026-09-03",
+      "to": "2026-09-30",
+      "days": 28,
+      "week": {
+        "from": "2026-09-24",
+        "to": "2026-09-30"
+      },
+      "prior_week": {
+        "from": "2026-09-17",
+        "to": "2026-09-23"
+      }
+    },
+    "kinds": [
+      "meme",
+      "hashtag"
+    ],
+    "terms": [],
+    "truncated": false,
+    "notes": []
+  },
+  "seedpath_withheld": {
+    "keyword": "***",
+    "market": "ZA",
+    "market_name": "South Africa",
+    "status": "not_ready",
+    "message": "People view unavailable.",
+    "query_id": "q_seed_path",
+    "run_id": null,
+    "window": null,
+    "matched_posts": null,
+    "platforms": [],
+    "side_words": [],
+    "side_words_min_posts": 2,
+    "topics": [],
+    "truncated": false,
+    "notes": []
+  },
+  "seedpath_phrase_withheld": {
+    "keyword": "dance ***",
+    "market": "ZA",
+    "market_name": "South Africa",
+    "status": "not_ready",
+    "message": "People view unavailable.",
+    "query_id": "q_seed_path",
+    "run_id": null,
+    "window": null,
+    "matched_posts": null,
+    "platforms": [],
+    "side_words": [],
+    "side_words_min_posts": 2,
+    "topics": [],
+    "truncated": false,
+    "notes": []
+  },
+  "seedpath_success": {
+    "keyword": "amapiano",
+    "market": "ZA",
+    "market_name": "South Africa",
+    "status": "ok",
+    "message": null,
+    "query_id": "q_seed_path",
+    "run_id": "r_aggregate_20260930_01",
+    "window": {
+      "from": "2026-09-03",
+      "to": "2026-09-30",
+      "days": 28
+    },
+    "matched_posts": {
+      "value": 2,
+      "unit": "matching posts in 28 days",
+      "query_id": "q_seed_path",
+      "run_id": "r_aggregate_20260930_01",
+      "result_hash": "sha256:5247f8bc697b8c19debdb2797666b0e6835e53bec11cbdcab98cd33a8d8a2708"
+    },
+    "platforms": [
+      {
+        "platform": "tiktok",
+        "name": "TikTok",
+        "first_seen": {
+          "value": "2026-09-20",
+          "unit": "first sighting day",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_20260930_01",
+          "result_hash": "sha256:8f9b157ad237e95f45c2730e5d8e7b3ce359f4659cebc018f7836780afaf2411"
+        },
+        "before_window": false,
+        "posts_all_time": {
+          "value": 2,
+          "unit": "matching posts, all time",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_20260930_01",
+          "result_hash": "sha256:8f9b157ad237e95f45c2730e5d8e7b3ce359f4659cebc018f7836780afaf2411"
+        },
+        "posts_in_window": {
+          "value": 2,
+          "unit": "matching posts in 28 days",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_20260930_01",
+          "result_hash": "sha256:b46e98aab71804c7d21a87ea3a0e6abe9ad26f7a2e0a1145f804df320c435895"
+        },
+        "daily": {
+          "unit": "matching posts a day",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_20260930_01",
+          "points": [
+            {
+              "date": "2026-09-03",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-04",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-05",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-06",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-07",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-08",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-09",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-10",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-11",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-12",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-13",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-14",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-15",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-16",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-17",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-18",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-19",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-20",
+              "posts": 2
+            },
+            {
+              "date": "2026-09-21",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-22",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-23",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-24",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-25",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-26",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-27",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-28",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-29",
+              "posts": 0
+            },
+            {
+              "date": "2026-09-30",
+              "posts": 0
+            }
+          ]
+        }
+      }
+    ],
+    "side_words": [
+      {
+        "word": "dance",
+        "posts": {
+          "value": 2,
+          "unit": "matching posts with this word",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_20260930_01",
+          "result_hash": "sha256:3bff6f22a37816401ea31f3bf13517f88c1ad9ac648488e82c9e07792dea9004"
+        }
+      },
+      {
+        "word": "hiddenfixtureother",
+        "posts": {
+          "value": 2,
+          "unit": "matching posts with this word",
+          "query_id": "q_seed_path",
+          "run_id": "r_aggregate_20260930_01",
+          "result_hash": "sha256:247c1e2402303b5eeeda89f5da820f8e589acd565ebfe0f1961a934b4b628846"
+        }
+      }
+    ],
+    "side_words_min_posts": 2,
+    "topics": [],
+    "truncated": false,
+    "notes": [
+      "Matched as a whole word or hashtag in post text and video transcripts, so it may include unrelated uses of the same word."
+    ]
+  }
+}

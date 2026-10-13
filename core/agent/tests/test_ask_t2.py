@@ -634,10 +634,11 @@ def test_a_researcher_that_fails_retains_every_dispatched_call_cost():
             return {"note": "", "tokens": {"input": 1, "output": 1}, "usd": 0.01}
 
     h = t2(Broken(parties=4))
-    with pytest.raises(RuntimeError) as err:
-        h.run(tier="T2")
-    assert err.value.run["model_usd"] >= 4 * ask.call_usd(ask.MODEL, 200000, 90000)
-    assert err.value.run["credits"] == 1.0  # the TikTok researcher's call still counts
+    out = h.run(tier="T2")
+    assert out["run"]["model_usd"] >= 4 * ask.call_usd(ask.MODEL, 200000, 90000)
+    assert out["run"]["credits"] == 1.0  # the TikTok researcher's call still counts
+    assert out["answer"]["status"] != "complete"
+    assert any("researcher" in gap["what"].lower() for gap in out["answer"]["gaps"])
 
 
 # Both research loops honour a researcher's own limits

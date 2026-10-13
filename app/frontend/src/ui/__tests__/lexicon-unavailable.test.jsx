@@ -71,7 +71,7 @@ test('any other failed desk read is still the error frame with Try again', async
    link was drawn as "This action is not available." Open Discover on an empty
    read is a button that moves the hash instead. */
 test('an empty read offers a working Open Discover', async () => {
-  await mount(() => reply(200, {lexicon: [], freshness: null}));
+  await mount(() => reply(200, {market: 'ZA', status: 'empty', terms: []}));
   expect(host.querySelector('[data-state-frame="empty"]') !== null).toBe(true);
   expect(host.textContent).not.toContain('This action is not available.');
   const discover = [...host.querySelectorAll('button')].find((b) => b.textContent === 'Open Discover');

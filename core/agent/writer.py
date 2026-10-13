@@ -427,7 +427,10 @@ def _pack(ctx: RunContext, records: list[dict]) -> tuple[list[str], dict]:
 
 
 def _add_usage(total: dict, usage: dict) -> dict:
-    return {k: total.get(k, 0) + usage.get(k, 0) for k in ("input_tokens", "output_tokens", "usd")}
+    summed = {k: total.get(k, 0) + usage.get(k, 0) for k in ("input_tokens", "output_tokens", "usd")}
+    if total.get("usage_unknown") or usage.get("usage_unknown"):
+        summed.update(usage_unknown=True, reserved=True)
+    return summed
 
 
 def _input_token_upper_bound(system: str, user: str, schema: dict) -> int:
@@ -445,11 +448,15 @@ def _valid_usage(usage) -> bool:
 
 def _usage_or_reserve(usage, model: str, input_tokens: int, max_tokens: int) -> dict:
     if _valid_usage(usage):
-        return {k: usage[k] for k in ("input_tokens", "output_tokens", "usd")}
+        kept = {k: usage[k] for k in ("input_tokens", "output_tokens", "usd")}
+        if usage.get("usage_unknown"):
+            kept.update(usage_unknown=True, reserved=True)
+        return kept
     price = price_for(model)
     output_tokens = reserve_output(model, max_tokens)
     return {"input_tokens": input_tokens, "output_tokens": output_tokens,
-            "usd": (input_tokens * price["input"] + output_tokens * price["output"]) / 1_000_000}
+            "usd": (input_tokens * price["input"] + output_tokens * price["output"]) / 1_000_000,
+            "usage_unknown": True, "reserved": True}
 
 
 def _failed_call_usage(exc, model: str, input_tokens: int, max_tokens: int) -> dict:
@@ -487,6 +494,8 @@ def write_answer(model: Model, *, question: str, as_of, market, window: str, ctx
         f"Market: {market or 'not set'}. Window: {window}. As of: {as_of}.",
         f"Source gaps already known: {json.dumps(list(gaps), ensure_ascii=False)}",
         f"Failed sources (context only; code writes their gaps): {json.dumps(failed, ensure_ascii=False)}",
+        "Research coverage (metadata only; code preserves these gaps): "
+        f"{json.dumps(ctx.research_gaps, ensure_ascii=False)}",
         "Excluded evidence records are coverage metadata only, not evidence. Do not cite listed ids, even if query "
         "rows contain them. Exclusion counts support no claim or number: "
         f"{json.dumps(exclusions, ensure_ascii=False)}",

@@ -497,11 +497,12 @@ def api_compare(
 
 @gated.get("/api/seed-path")
 def api_seed_path(keyword: str | None = None, market: str | None = None) -> dict:
-    from core.api import fast, seedpath, store
+    from core.api import fast, privacy, seedpath, store
 
     try:
-        return seedpath.build_seed_path(fast.prefetch(store.get_store(), fast.seed_path_plan, keyword, market),
-                                        keyword, market)
+        with privacy.one_read():
+            return seedpath.build_seed_path(fast.prefetch(store.get_store(), fast.seed_path_plan, keyword, market),
+                                            keyword, market)
     except seedpath.BadRequest as exc:
         raise ApiError(400, "bad_request", str(exc)) from exc
 
@@ -1236,8 +1237,15 @@ app.include_router(gated)
     "/api/{path:path}",
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
     include_in_schema=False,
+    dependencies=[Depends(auth.require_passcode)],
 )
-async def api_unknown(path: str):
+@app.api_route(
+    "/api",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+    include_in_schema=False,
+    dependencies=[Depends(auth.require_passcode)],
+)
+async def api_unknown(path: str = ""):
     raise ApiError(404, "not_found", "No such API route.")
 
 

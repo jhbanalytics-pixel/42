@@ -5,7 +5,7 @@ import sqlglot
 from sqlglot import exp
 
 
-SQL_PATH = Path(__file__).resolve().parents[1] / "sql" / "tvf_search_posts.sql"
+SQL_PATH = Path(__file__).resolve().parents[1] / "sql" / "tvf_search_posts_scoped.sql"
 SINCE = date(2026, 9, 22)
 UNTIL = date(2026, 9, 28)
 

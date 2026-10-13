@@ -27,8 +27,8 @@ SIGNAL_SQL = "SELECT * FROM {core}.tvf_series_signal(@d)"
 SWITCH_SQL, TOTALS_SQL, FIRST_WEEK_SQL = sqlrun.split(
     (Path(__file__).parent / "sql" / "stats.sql").read_text(encoding="utf-8"))
 
-RULE_VERSION = "stats-1"
-SERIES_RULE_VERSION = "stats-2-series"
+RULE_VERSION = "stats-3-distinct-item-prior-health"
+SERIES_RULE_VERSION = "stats-4-series-distinct-item-prior-health"
 Q_MAX = 0.05
 TESTABLE = ("short", "ok")
 NB_LANES = ("unbiased_counter", "panel")
@@ -56,7 +56,8 @@ def in_force(switch_rows, d):
     """(market, platform, lane_class) pairs with a test_switch row switched on by day d. The rows are those
     SWITCH_SQL returns, which only holds rows whose backtest run was accepted."""
     return {(s["market"], s["platform"], s["lane_class"]) for s in switch_rows
-            if s.get("switched_on") is not None and s["switched_on"] <= d}
+            if s.get("rule_version") in (RULE_VERSION, SERIES_RULE_VERSION)
+            and s.get("switched_on") is not None and s["switched_on"] <= d}
 
 
 def _key(row):
@@ -125,18 +126,20 @@ def _prior_keys(r):
 
 def cold_start_prior(first_weeks):
     """A function from a series row to its mu_prior: the 90th percentile of first-week means of its kind,
-    market, platform and series, pooling across platforms and then markets while under 20 items."""
+    market, platform and series, pooling across platforms then markets while under 20 distinct items.
+    The percentile retains the first-week series means without combining an item's values."""
     import numpy as np
-    levels = [defaultdict(list) for _ in range(3)]
+    levels = [defaultdict(lambda: defaultdict(list)) for _ in range(3)]
     for w in first_weeks:
         for level, key in zip(levels, _prior_keys(w)):
-            level[key].append(float(w["first_week_mean"]))
+            level[key][w["item_id"]].append(float(w["first_week_mean"]))
 
     def prior(row):
         vals = []
         for level, key in zip(levels, _prior_keys(row)):
-            vals = level.get(key, [])
-            if len(vals) >= PRIOR_ITEMS:
+            items = level.get(key, {})
+            vals = [value for item_values in items.values() for value in item_values]
+            if len(items) >= PRIOR_ITEMS:
                 break
         return float(np.percentile(vals, 90)) if vals else None
 

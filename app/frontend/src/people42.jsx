@@ -99,7 +99,7 @@ function FigureWords({figure, missing}){
 }
 
 /* One read, its loading, passcode, not-found and failure states. */
-function useRead(read, deps, onAuth, timeoutMs = 0){
+function useRead(read, deps, onAuth, timeoutMs = 30000){
   const [load, setLoad] = useState({state: 'loading'});
   const [tick, setTick] = useState(0);
   const authRef = useRef(onAuth);

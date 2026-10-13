@@ -12,6 +12,22 @@ At bind for every release, the version entry's lines are re-derived from the mer
 
 The newest release comes first, and VERSION at the root of the repository holds its number. Each version is a heading with the version and the date in brackets, or "next, not live yet" until the date is written in, then one line naming the release and one plain line per change. A jobs update is a "### Jobs update" heading with its date in brackets under its version, followed by its own lines. The panel in the menu marks the version the page runs as This version.
 
+## 2.4.0 (next, not live yet)
+
+Release Alpha, data quality, trend identity and research reliability.
+
+- Today's checked cards consolidate fragments only when their event and date agree. Uncertain fragments stay held, with unsupported explanations removed.
+- Brief support and critic checks retry a 504 once within the existing time and spending limits.
+- Ask keeps usable research when one research lane fails and marks the missing coverage. Completed polling results remain available even if a later read would fail.
+- Semantic searches apply platform, account and engagement filters before selecting their closest results. Historical searches use the question's dates and the publication window.
+- Detection excludes old recollected posts from fresh signals and applies dated topic links to historical counts.
+- Forecast and quality comparisons require matching calculation versions. Historical outcomes from older rules remain unresolved under the new rules.
+- Collection rejects malformed provider replies without reporting a false empty result. Embeddings require complete, finite vectors before matching.
+- Accounts posting are counted separately by platform. Search location no longer implies a source's market.
+- Missing model usage keeps an explicit spending estimate. Missing counts and spending on the website remain unknown.
+- Dossier reloads preserve drafts, saved figures retain their source checks, and hidden evidence stays excluded from lexical searches.
+- Discover retains the context of its displayed results during a failed refresh. Timed out reads offer another attempt and discard late replies.
+
 ## 2.3.0 (12 October 2026)
 
 Release D0, the website and Ask.

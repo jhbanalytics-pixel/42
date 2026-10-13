@@ -104,8 +104,15 @@ export function TopicPage42({itemId, market, onAuth, onCreateWatch}){
   useEffect(() => {
     const ctrl = new AbortController();
     setLoad({state: 'loading'});
+    setSpike(null);
+    const timer = setTimeout(() => {
+      if (ctrl.signal.aborted) return;
+      setLoad({state: 'error', message: 'The 42 service did not answer.'});
+      ctrl.abort();
+    }, 30000);
     fetchTopic(itemId, market, {signal: ctrl.signal})
       .then((data) => {
+        clearTimeout(timer);
         if (ctrl.signal.aborted) return;
         setLoad({state: 'ready', data});
         const day = hashDay(window.location.hash, itemId, data && data.series);
@@ -113,6 +120,7 @@ export function TopicPage42({itemId, market, onAuth, onCreateWatch}){
         if (day) forgetHashDay();
       })
       .catch((error) => {
+        clearTimeout(timer);
         if (ctrl.signal.aborted) return;
         if (error && error.auth){
           setLoad({state: 'auth'});
@@ -123,7 +131,7 @@ export function TopicPage42({itemId, market, onAuth, onCreateWatch}){
           setLoad({state: 'error', message: error && error.status ? error.message : 'The 42 service did not answer.'});
         }
       });
-    return () => ctrl.abort();
+    return () => { clearTimeout(timer); ctrl.abort(); };
   }, [itemId, market, tick]);
 
   if (load.state === 'loading'){
@@ -251,9 +259,11 @@ function Series({series, onDay}){
         ? <ul className="tp42-series">
             {rows.map((s) => {
               const points = Array.isArray(s.points) ? s.points : [];
-              const words = s.series_words || platformWord(s.platform);
+              const ambiguous = rows.filter((r) => r.platform === s.platform && r.series === s.series).length > 1;
+              const name = s.series_words || platformWord(s.platform);
+              const words = ambiguous && s.protocol ? name + ' (' + s.protocol + ')' : name;
               return (
-                <li key={s.platform + ':' + s.series} className="tp42-series-row">
+                <li key={JSON.stringify([s.platform, s.series, s.series_id || '', s.protocol || ''])} className="tp42-series-row" data-series-id={s.series_id || undefined} data-protocol={s.protocol || undefined}>
                   <span className="tp42-series-name">{words}</span>
                   {measured(points).length < 3
                     ? <span className="tp42-series-young">{youngSeries(points, s.unit)}</span>

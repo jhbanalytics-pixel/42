@@ -148,6 +148,22 @@ def test_recheck_passes_on_an_untouched_source():
     assert dossiers.recheck(draft(record), record) == []
 
 
+@pytest.mark.parametrize("field,value", [
+    ("value", 999999), ("unit", "invented units"),
+    ("query_id", "q_unrelated"), ("run_id", "r_unrelated"),
+])
+@pytest.mark.parametrize("changed_side", ["dossier", "source"])
+def test_recheck_refuses_changed_figure_with_unchanged_result_hash(field, value, changed_side):
+    record = source()
+    body = draft(record)
+    number = (by_id(body)["c1"]["numbers"][0] if changed_side == "dossier"
+              else record["answer"]["claims"][0]["numbers"][0])
+    number[field] = value
+    problems = dossiers.recheck(body, record)
+    assert [problem["claim_id"] for problem in problems] == ["c1"]
+    assert "figure" in problems[0]["reason"]
+
+
 def test_recheck_names_a_quote_that_left_its_evidence_text():
     record = source()
     body = draft(record)

@@ -39,6 +39,11 @@ _NAME = re.compile(r"CREATE\s+OR\s+REPLACE\s+(?:TABLE\s+FUNCTION|VIEW)\s+([\w.]+
 
 
 def render(sql, core=CORE, agent=AGENT):
+    if "{counted_links}" in sql:
+        sql = sql.replace("{counted_links}", counted_links_body("SELECT d metric_date"))
+    if "{counted_state_links}" in sql:
+        sql = sql.replace("{counted_state_links}", counted_links_body(
+            "SELECT DISTINCT metric_date FROM {core}.v_item_state_current WHERE market IN ('ZA', 'NG', 'KE')"))
     return sql.replace("{core}", core).replace("{agent}", agent)
 
 
@@ -107,6 +112,10 @@ def _code(piece):
 def statements(core=CORE, agent=AGENT):
     """The CREATE statements of views.sql with dataset names filled in, in file order."""
     return [_strip_leading_comments(s) for s in split(render(VIEWS_SQL.read_text(encoding="utf-8"), core, agent))]
+
+
+def counted_links_body(dates):
+    return (Path(__file__).parent / "sql" / "counted_links.sql").read_text(encoding="utf-8").replace("{link_dates}", dates)
 
 
 def _strip_leading_comments(stmt):

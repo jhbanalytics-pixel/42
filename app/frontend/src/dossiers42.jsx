@@ -381,7 +381,7 @@ export function DossierPage({dossierId, onAuth}){
     }
     setTitle((current) => {
       const typed = current.trim();
-      return typed && typed !== before && typed !== (next.title || '') ? current : next.title || '';
+      return typed !== before && typed !== (next.title || '') ? current : next.title || '';
     });
     const notes = Object.fromEntries(next.claims.map((claim) => [claim.claim_id, claim.note || null]));
     setNoteDrafts((current) => Object.fromEntries(Object.entries(current)
@@ -418,7 +418,11 @@ export function DossierPage({dossierId, onAuth}){
   }
 
   function reload(){
-    return write(async () => show(await getDossier(dossierId)), (error) => ({message: failureWords(error, 'This dossier could not be read.'), stale: true}));
+    const hadUnsaved = title.trim() !== (view?.title || '') || Object.keys(noteDrafts).length > 0;
+    return write(async () => {
+      show(await getDossier(dossierId), true);
+      if (hadUnsaved) setNotice('Unsaved text was kept. Review it against the latest version before saving.');
+    }, (error) => ({message: failureWords(error, 'This dossier could not be read.'), stale: true}));
   }
 
   const claims = readable(view) ? view.claims : [];

@@ -170,8 +170,18 @@ def _check(record):
     answer = record.get("answer")
     if not isinstance(answer, dict):
         raise ExportRefused("not_ready", "This ask has no answer to export.")
-    evidence = {item.get("id"): item for item in answer.get("evidence") or []}
+    rows = answer.get("evidence") or []
+    if not isinstance(rows, list) or any(
+        not isinstance(item, dict) or not isinstance(item.get("id"), str) or not item["id"]
+        for item in rows
+    ):
+        raise ExportRefused("not_ready", "This answer has malformed evidence identities.")
+    evidence = {item["id"]: item for item in rows}
+    if len(evidence) != len(rows):
+        raise ExportRefused("not_ready", "This answer's evidence identities do not resolve uniquely.")
     for claim in answer.get("claims") or []:
+        if claim.get("check") == "cut":
+            raise ExportRefused("not_ready", f"Claim {claim.get('id')} was cut by its checks.")
         if not claim.get("evidence_ids"):
             raise ExportRefused("not_ready", f"Claim {claim.get('id')} cites no evidence.")
         for evidence_id in claim["evidence_ids"]:

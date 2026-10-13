@@ -10,10 +10,16 @@ const WRONG_KEY = 'Access not recognised. Check the key and try again.';
    failure of this attempt, such as a saved key the server turned down.
    onRetry draws Try again for a check that could not be completed. failed is
    the older flag for one wrong key. */
-export function PasscodeScreen({onSubmit, failed, failure = null, notice = '', onRetry = null, retrying = false}){
+export function PasscodeScreen({onSubmit, failed, failure = null, notice = '', onRetry = null, retrying = false, checking = false}){
   const [v, setV] = useState('');
   const inputRef = useRef(null);
   const [accessFirst, setAccessFirst] = useState(false);
+  const busy = checking || retrying;
+  const wasBusy = useRef(false);
+  useEffect(() => {
+    if (wasBusy.current && !busy) inputRef.current?.focus();
+    wasBusy.current = busy;
+  }, [busy]);
   useEffect(() => { if (inputRef.current) inputRef.current.focus(); }, []);
   useEffect(() => {
     const query = inputRef.current?.ownerDocument?.defaultView?.matchMedia('(max-width: 760px)');
@@ -69,8 +75,9 @@ export function PasscodeScreen({onSubmit, failed, failure = null, notice = '', o
 
       <form
         className="gate-v4-form"
+        aria-busy={busy}
         style={{'--gate-entry-progress': progress}}
-        onSubmit={(e) => { e.preventDefault(); const c = v.trim(); if (c) onSubmit(c); }}
+        onSubmit={(e) => { e.preventDefault(); const c = v.trim(); if (c && !busy) onSubmit(c); }}
       >
         <label htmlFor="gate-passcode">Access key</label>
         <input
@@ -78,25 +85,26 @@ export function PasscodeScreen({onSubmit, failed, failure = null, notice = '', o
           ref={inputRef}
           type="password"
           value={v}
+          disabled={busy}
           onChange={(e) => setV(e.target.value)}
           aria-describedby="gate-status"
           autoComplete="current-password"
         />
         <span className="gate-v4-progress" aria-hidden="true" />
-        <button type="submit" className="gate-v4-submit">Enter 42 <span aria-hidden="true">→</span></button>
+        <button type="submit" className="gate-v4-submit" disabled={busy}>{busy ? 'Checking access' : 'Enter 42'} <span aria-hidden="true">→</span></button>
       </form>
 
       <p
         key={attempt}
         id="gate-status"
         className={'gate-v4-status' + (alertWords ? ' is-error' : '')}
-        role={alertWords ? 'alert' : 'status'}
-        aria-live={alertWords ? 'assertive' : 'polite'}
+        role={!busy && alertWords ? 'alert' : 'status'}
+        aria-live={!busy && alertWords ? 'assertive' : 'polite'}
       >
-        {alertWords || notice || 'Protected Ogilvy team access.'}
+        {busy ? 'Checking your access key.' : alertWords || notice || 'Protected Ogilvy team access.'}
         {alertWords && attempt > 1 && <span className="sr-only"> Attempt {attempt}.</span>}
       </p>
-      {onRetry && <button type="button" className="gate-v4-retry" disabled={retrying} onClick={onRetry}>Try again</button>}
+      {onRetry && <button type="button" className="gate-v4-retry" disabled={busy} onClick={onRetry}>Try again</button>}
     </aside>
   );
   return (

@@ -20,6 +20,11 @@ let host = null;
 let root = null;
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
+test('missing credits are unavailable rather than proof of no charge', async () => {
+  await mount({...clone(coverageFixture), credits: null});
+  expect(section('credits').textContent).toContain('Credits could not be read');
+  expect(section('credits').textContent).not.toContain('No credits charged');
+});
 const reply = (status, body) => ({ok: status >= 200 && status < 300, status, json: async () => body});
 
 function serve(answer){

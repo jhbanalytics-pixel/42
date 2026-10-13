@@ -13,7 +13,7 @@ AGENT = f"{PROJECT_DB}.intelligence_42_agent"
 TABLES = {
     "forecasts": "forecast_id VARCHAR, item_id VARCHAR, market VARCHAR, target VARCHAR, issue_date DATE, "
                  "horizon BIGINT, rule VARCHAR, prob DOUBLE, predicted_arrival BOOLEAN, "
-                 "persistence_arrival BOOLEAN, resolve_date DATE, observed_arrival BOOLEAN",
+                 "persistence_arrival BOOLEAN, resolve_date DATE, observed_arrival BOOLEAN, resolution_rule_version VARCHAR",
     "feedback": 'who VARCHAR, what VARCHAR, reason VARCHAR, "at" TIMESTAMP',
     "engine_scorecard": "week_start DATE, week_end DATE, market VARCHAR, run_id VARCHAR, rule_version VARCHAR, "
                         "time_to_detect JSON, lead_time JSON, precision JSON, recall JSON, breadth_platforms JSON, "

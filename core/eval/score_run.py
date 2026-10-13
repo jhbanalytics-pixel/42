@@ -14,6 +14,7 @@ stand-ins, so the llm-rubric component shape is still unverified.
 """
 
 import argparse
+import hashlib
 import json
 import math
 import re
@@ -199,6 +200,10 @@ def _gate(ids):
 def score(results_json, questions, *, run_meta, expected):
     """expected: ids that must be in the export; each one absent is a failed question."""
     by_id = {q["vars"]["id"]: q for q in questions}
+    canonical_questions = sorted(questions, key=lambda q: q["vars"]["id"])
+    question_set_hash = "sha256:" + hashlib.sha256(
+        json.dumps(canonical_questions, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
     entries = (results_json.get("results") or {}).get("results") or []
     runs = {}
     for entry in entries:
@@ -294,6 +299,7 @@ def score(results_json, questions, *, run_meta, expected):
         and all(f["result"] != "fail" for f in family_scores.values())
         and all(g["pass"] for g in gates.values()),
         "questions": len(scored),
+        "question_set_hash": question_set_hash,
         "legacy_note": f"{len(legacy_ids)} of {len(scored)} questions have windows over {LEGACY_DAYS} days; each {LEGACY}: {', '.join(legacy_ids)}"
         if legacy_ids
         else None,

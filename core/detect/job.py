@@ -44,7 +44,8 @@ def rule_version_for(authority):
     """The version of the rule that writes item_state.eligible: warmup-1 while detect's own geo_status does, warmup-2
     once the retained locality_v2 row does (C4 v3 section 7.2), so a reader that groups by it sees the break. The
     n21-near-dup token marks the rows written once near_dup_size is written and its share flag is live."""
-    return ("warmup-1" if authority == "v1" else "warmup-2") + "+n21-near-dup"
+    return (("warmup-1" if authority == "v1" else "warmup-2")
+            + "+n21-near-dup+math-20261013-freshness-distinct-prior-health")
 
 
 RULE_VERSION = rule_version_for(LOCALITY_AUTHORITY)
@@ -106,6 +107,25 @@ def apply_waves(client, core=sqlrun.CORE, agent=sqlrun.AGENT):
     """Create or replace v_item_waves (sql/waves.sql), which state.sql reads; views.sql must come first."""
     for stmt in sqlrun.split(sqlrun.render((SQL / "waves.sql").read_text(encoding="utf-8"), core, agent)):
         client.query(stmt).result()
+
+
+def apply_counted_links(client, core=sqlrun.CORE, agent=sqlrun.AGENT):
+    try:
+        client.query(sqlrun.render("""
+SELECT pi.post_id, pi.item_id, pi.via, pi.linked_on, pi.link_market,
+  e.post_id, e.item_id, e.ended_on, l.post_id, l.item_id, l.linked_on, l.link_market
+FROM {core}.post_items pi
+CROSS JOIN {core}.post_item_end e
+CROSS JOIN {core}.post_item_lineage l
+LIMIT 0
+""", core, agent)).result()
+        name = f"{core}.tvf_post_items"
+        matches = [s for s in sqlrun.locality_view_statements(core, agent) if sqlrun.object_name(s) == name]
+        if len(matches) != 1:
+            raise RuntimeError("Expected exactly one authoritative dated post-item resolver")
+        client.query(matches[0]).result()
+    except Exception as e:
+        raise RuntimeError(f"Data issue: dated post-item resolver unavailable: {type(e).__name__}: {e}") from e
 
 
 def _step(client, stage, d, agent, work):
@@ -404,6 +424,7 @@ def run(client, d, *, chain, rule_version=RULE_VERSION, core=sqlrun.CORE, agent=
     detect = chain.begin("detect", d)
     counts = {}
     try:
+        apply_counted_links(client, core, agent)
         sqlrun.apply_views(client, core, agent)
         apply_waves(client, core, agent)
         counts["locality_views"] = apply_locality_views_step(client, core, agent)

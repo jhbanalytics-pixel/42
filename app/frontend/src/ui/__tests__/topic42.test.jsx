@@ -808,3 +808,64 @@ test('a neutral Topic label is not the heading of the topic page', async () => {
   expect(host.querySelector('h1.tp42-heading').textContent).toBe('A topic not yet named');
   expect(host.querySelector('.tp42-sub').textContent).toContain('Topic 4558a7fe');
 });
+
+test('a pending topic drill-down times out, rejects late evidence and retries', async () => {
+  const nativeSet = globalThis.setTimeout;
+  const nativeClear = globalThis.clearTimeout;
+  const timers = [];
+  globalThis.setTimeout = (callback, delay, ...args) => {
+    if (delay !== 30000) return nativeSet(callback, delay, ...args);
+    const timer = {callback, cleared: false}; timers.push(timer); return timer;
+  };
+  globalThis.clearTimeout = (timer) => {
+    if (timers.includes(timer)) timer.cleared = true;
+    else nativeClear(timer);
+  };
+  try {
+    let release;
+    let attempts = 0;
+    serve(() => ++attempts === 1 ? new Promise((resolve) => { release = resolve; }) : reply(200, topicFixture));
+    flushSync(() => root.render(<TopicPage42 itemId={ITEM} market="ZA" />));
+    await settle();
+    expect(timers).toHaveLength(1);
+    flushSync(() => timers[0].callback());
+    await settle();
+    expect(text()).toContain('The 42 service did not answer.');
+    expect(calls[0].init.signal.aborted).toBe(true);
+    release(reply(200, topicFixture));
+    await settle();
+    expect(host.querySelector('[role="alert"]')).not.toBeNull();
+    click(button('Try again'));
+    await settle();
+    expect(calls).toHaveLength(2);
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(timers[1].cleared).toBe(true);
+  } finally {
+    globalThis.setTimeout = nativeSet;
+    globalThis.clearTimeout = nativeClear;
+  }
+});
+
+test('same platform and series with separate protocols retain authoritative stream identity', async () => {
+  const topic = clone(topicFixture);
+  const base = topic.series[0];
+  topic.series = [
+    {...base, series_id: 'stream', protocol: 'search', points: base.points.map((p) => ({...p, value: 2}))},
+    {...base, series_id: 'stream', protocol: 'feed', points: base.points.map((p) => ({...p, value: 7}))},
+  ];
+  const errors = [];
+  const original = console.error;
+  console.error = (...args) => { errors.push(args.join(' ')); };
+  try {
+    await mount(topic);
+    const rows = [...section('series').querySelectorAll('.tp42-series-row')];
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.dataset.protocol)).toEqual(['search', 'feed']);
+    expect(rows.map((r) => r.dataset.seriesId)).toEqual(['stream', 'stream']);
+    expect(rows[0].textContent).toContain('search');
+    expect(rows[1].textContent).toContain('feed');
+    expect(rows[0].querySelector('svg').getAttribute('aria-label')).toContain('2');
+    expect(rows[1].querySelector('svg').getAttribute('aria-label')).toContain('7');
+    expect(errors.some((message) => /same key/.test(message))).toBe(false);
+  } finally { console.error = original; }
+});

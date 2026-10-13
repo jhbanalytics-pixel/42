@@ -386,7 +386,11 @@ export function SkinPage42({skinId, onAuth}){
     archiveSkin(skin.skin_id)
       .then((next) => {
         if (!live.current) return;
-        setLoad({state: 'ready', skin: next && next.skin_id ? next : {...skin, status: 'archived'}});
+        if (!next || next.skin_id !== skin.skin_id || next.status !== 'archived') {
+          setAction({status: 'archive-error', message: 'Archive was not confirmed. Reload this skin before trying again.'});
+          return;
+        }
+        setLoad({state: 'ready', skin: {...skin, ...next}});
         setConfirming(false);
         setAction({status: 'idle'});
       })

@@ -27,6 +27,7 @@ A date is a day and a month ("11 Oct", "10 October", "October 4", "2026-10-01");
 
 import re
 import unicodedata
+from datetime import date
 
 from core.brief.specificity import MIN_EVIDENCE
 from core.detect.geo import COUNTRIES, PLACES
@@ -170,9 +171,19 @@ def _marked(word):
 
 def shared_names(a, b):
     """How many names two sets share, each name counted once on each side."""
-    left = sum(1 for x in a if any(_match(x, y) for y in b))
-    right = sum(1 for y in b if any(_match(x, y) for x in a))
-    return min(left, right)
+    matches = {}
+
+    def assign(x, seen):
+        for y in b:
+            if y in seen or not _match(x, y):
+                continue
+            seen.add(y)
+            if y not in matches or assign(matches[y], seen):
+                matches[y] = x
+                return True
+        return False
+
+    return sum(assign(x, set()) for x in a)
 
 
 def _all_but_dates(a, b):
@@ -213,3 +224,136 @@ def near(a, b):
 
 def same_event(a, b):
     return reason(a, b) is not None
+
+
+def fixture_anchor(text, market, brief_date, *, checked=False, allow_undated=False):
+    """A checked, explicitly dated football fixture; unsupported event wording stays unresolved."""
+    if checked is not True or market not in {"ZA", "NG", "KE"} or not isinstance(text, str):
+        return None
+    parts = re.split(r"\blikely because\b", text, flags=re.I)
+    if len(parts) != 2:
+        return None
+    lead, cause = parts
+    competitions = [c for c in ("Premier League", "MTN8") if re.search(r"\b" + c + r"\b", text, re.I)]
+    if len(competitions) != 1 or re.search(
+            r"\b(?:boycott\w*|cancel\w*|postpon\w*|abandon\w*|protest\w*|transfer\w*|sign\w*|"
+            r"injur\w*|train\w*|announc\w*|arrest\w*|detain\w*|sack\w*|fire\w*|died|death|"
+            r"not|never|would|will|could|may|might)\b", cause, re.I):
+        return None
+    competition = competitions[0]
+    if len(dates(cause)) > 1:
+        return None
+    proper = r"[A-Z][\w'’-]*(?:\s+[A-Z][\w'’-]*){0,4}"
+    day_text = r"(?:\d{1,2}(?:st|nd|rd|th)?\s+" + _MONTH + r"|" + _MONTH + r"\s+\d{1,2})(?:,?\s+20\d{2})?"
+    modifier = (r"(?:\s+(?:in\s+(?:the\s+)?" + competition +
+                r"(?:\s+(?:football\s+)?(?:match|fixture|final|semi-final|quarter-final))?"
+                r"|at\s+(?:Anfield|Wembley(?: Stadium)?|Moses Mabhida Stadium)))*")
+    event_phrases = (
+        proper + r"\s+(?:beat|defeated|played(?: against)?|faced|met|drew with)\s+(?:rivals?\s+)?" + proper,
+        r"(?:match|fixture|final)\s+(?:between|involving)\s+" + proper + r"\s+(?:and|against|vs\.?|versus)\s+" + proper +
+            r"\s+(?:took place|was played|was held|occurred|happened)",
+        proper + r"\s+claimed\s+(?:the\s+)?" + competition + r"\s+(?:football\s+)?final\s+(?:over|against)\s+" + proper,
+        competition + r"\s+(?:Cup\s+)?(?:football\s+)?(?:[Ff]inal|[Ff]inale)\s+(?:took place|was played|was held)",
+    )
+    # Bind the date to explicit fixture syntax, never to another clause's discussion, season or posting time.
+    timed = [m.group("event_date") for phrase in event_phrases
+             for m in re.finditer(r"\b" + phrase + modifier +
+                 r"\s+on\s+(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+)?"
+                 r"(?P<event_date>" + day_text + r")\b", cause)]
+    dated = set().union(*(dates(t) for t in timed)) if timed else set()
+    if re.search(r"\b(?:fixture|match|final)\s+(?:took place|was played|was held)\b", lead, re.I):
+        return None
+    if len(dated) > 1 or (not dated and not allow_undated):
+        return None
+    years = {int(y) for timed_text in timed for y in re.findall(r"\b(20\d{2})\b", timed_text)}
+    if len(years) > 1:
+        return None
+    try:
+        reference = date.fromisoformat(str(brief_date))
+        month, day = next(iter(dated)) if dated else (None, None)
+        event_date = date(next(iter(years), reference.year), month, day).isoformat() if dated else None
+    except (ValueError, TypeError):
+        return None
+    qualifiers = sides(text)
+    stage = stages(text)
+    # Unknown extra names, including venue names not in the gazetteer, refuse an anchor.
+    actor_context = text
+    without_competition = re.sub(r"\b" + competition + r"\b(?:\s+Cup\s+Final)?", " ", actor_context, flags=re.I)
+    without_competition = re.sub(r"\b(?:[A-Z][a-z]+\s+){1,4}Stadium\b", " ", without_competition)
+    explicit = []
+    action_matches = 0
+    for index, pattern in enumerate((
+            r"(?P<a>" + proper + r")\s+(?:beat|defeated|played(?: against)?|faced|met|drew with)\s+(?:rivals?\s+)?(?P<b>" + proper + r")",
+            r"\b(?:match|fixture|final)\s+(?:between|involving)\s+(?:clubs? including\s+)?(?P<a>" + proper + r")\s+(?:and|against|vs\.?|versus)\s+(?P<b>" + proper + r")")):
+        for match in re.finditer(pattern, text):
+            if index == 0:
+                action_matches += 1
+            if re.match(r"\s+(?:and|against|vs\.?|versus)\s+" + proper, text[match.end():]):
+                return None
+            explicit.append(tuple(sorted((str(_fold(match.group("a"))), str(_fold(match.group("b")))))))
+    if action_matches > 1 or len(set(explicit)) > 1 or re.search(
+            r"\b(?:reverse fixture|reverse match|rematch|return fixture|twice|another match|another fixture|both legs)\b",
+            cause, re.I):
+        return None
+    actors = ({tuple(a.split()) for a in explicit[0]} if explicit else names("Event: " + without_competition))
+    actors = {a for a in actors if a not in {("final",), ("finale",), ("cup", "final")}}
+    if len(actors) != 2:
+        return None
+    folded = str(_fold(cause))
+    actor_words = sorted(" ".join(a) for a in actors)
+    winner = None
+    relation = False
+    for a, b in (actor_words, actor_words[::-1]):
+        pa, pb = re.escape(a), re.escape(b)
+        result = re.search(r"\b" + pa + r"\s+(beat|defeated)\s+(?:rivals?\s+)?" + pb + r"\b", folded)
+        played = re.search(r"\b" + pa + r"\s+(?:played(?: against)?|faced|met|drew with)\s+" + pb + r"\b", folded)
+        fixture = re.search(r"\b(?:match|fixture|final)\s+(?:between|involving)\s+" + pa +
+                            r"\s+(?:and|against|vs\.?|versus)\s+" + pb + r"\b", folded)
+        claimed = re.search(r"\b" + pa + r"\s+claimed\s+(?:the\s+)?" + re.escape(competition.casefold()) +
+                            r"\s+(?:football\s+)?final\s+(?:over|against)\s+(?:rivals including\s+)?" + pb + r"\b", folded)
+        if result or claimed:
+            winner = a
+        relation |= bool(result or played or fixture or claimed)
+    if not relation:
+        neutral_final = re.match(r"\s*(?:of\s+)?(?:the\s+)?" + competition +
+                                 r"\s+(?:Cup\s+)?(?:football\s+)?(?:final|finale)\s+"
+                                 r"(?:at|on|took place|takes place)\b", cause, re.I)
+        if not (explicit or neutral_final):
+            return None
+    venues = sorted({str(_fold(m.group(1))) for m in re.finditer(r"\bat\s+(" + proper + r")", cause)})
+    return {"kind": "sports_fixture", "market": market, "date": event_date, "competition": competition,
+            "actors": actor_words, "side": sorted(qualifiers), "stage": sorted(stage), "winner": winner,
+            "venues": venues}
+
+
+def fixture_reason(a, b, *, allow_undated=False):
+    """Only code-produced fixture anchors can authorize the bounded publication path."""
+    keys = {"kind", "market", "date", "competition", "actors", "side", "stage", "winner", "venues"}
+    for value in (a, b):
+        if not isinstance(value, dict) or set(value) != keys or value.get("kind") != "sports_fixture":
+            return None
+        if (value.get("market") not in {"ZA", "NG", "KE"} or value.get("competition") not in {"Premier League", "MTN8"}
+                or not isinstance(value.get("actors"), list) or len(value["actors"]) != 2
+                or not all(isinstance(x, str) and x for x in value["actors"])
+                or not isinstance(value.get("side"), list) or not isinstance(value.get("stage"), list)
+                or not isinstance(value.get("venues"), list)
+                or not all(isinstance(x, str) for k in ("side", "stage", "venues") for x in value[k])
+                or value.get("winner") is not None and not isinstance(value["winner"], str)
+                or len(set(value["actors"])) != 2):
+            return None
+        if value["date"] is not None or not allow_undated:
+            try:
+                date.fromisoformat(value["date"])
+            except (ValueError, TypeError):
+                return None
+    if any(a[k] != b[k] for k in ("market", "competition", "side", "stage")):
+        return None
+    if a["date"] != b["date"] and (not allow_undated or a["date"] and b["date"]):
+        return None
+    if a["venues"] and b["venues"] and a["venues"] != b["venues"]:
+        return None
+    if shared_names({tuple(x.split()) for x in a["actors"]}, {tuple(x.split()) for x in b["actors"]}) != 2:
+        return None
+    if a["winner"] and b["winner"] and not _match(tuple(a["winner"].split()), tuple(b["winner"].split())):
+        return None
+    return {"kind": "sports_fixture", "date": a["date"], "competition": a["competition"]}

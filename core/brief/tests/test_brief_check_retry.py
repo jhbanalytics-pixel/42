@@ -3,7 +3,7 @@ run's deadline; a second non-return holds the card with 'check did not complete'
 network, no spend."""
 
 import json
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -22,6 +22,21 @@ BLOCKED = "gemini-3.8-flash blocked the request or reply (finish reason SAFETY)"
 
 class RateLimitError(Exception):
     pass
+
+
+# What google-genai 2.25.0 raises for an HTTP 5xx: errors.APIError.raise_error and raise_error_async build a
+# ServerError from the status code, so code is that code, and status is the error body's status (13 Oct 2026: Vertex
+# sent 504 DEADLINE_EXCEEDED on 22 of the brief's 153 calls).
+SERVER = {"504": (504, "DEADLINE_EXCEEDED", "Deadline expired before operation could complete."),
+          "500": (500, "INTERNAL", "Internal error encountered."),
+          "503": (503, "UNAVAILABLE", "The service is currently unavailable.")}
+
+
+def server_error(kind):
+    from google.genai import errors
+
+    code, status, message = SERVER[kind]
+    return errors.ServerError(code, {"error": {"code": code, "status": status, "message": message}})
 
 
 def run(model, **kw):
@@ -45,6 +60,8 @@ def outcome(kind, usd=0.0):
         exc = RuntimeError("gemini-3.8-flash hit max_tokens=400; the JSON is truncated")
     elif kind == "rate":
         exc = RateLimitError("429 RESOURCE_EXHAUSTED")
+    elif kind in SERVER:
+        exc = server_error(kind)
     else:
         return kind
     exc.usd = usd
@@ -227,6 +244,75 @@ def test_a_timeout_with_an_unresolved_auth_or_cleanup_flag_is_not_retried(flag):
     assert run(Scripted([good()], script={"support": [plain, "ok"]}))["reason"] is None
 
 
+# A 504 from the model service is a call that gave nothing back (13 Oct 2026), and gets the same one further attempt.
+# Other server errors keep their handling: they are never tried again.
+
+
+@pytest.mark.parametrize("phase, calls", [("support", 5), ("critic", 2)])
+def test_a_504_on_a_check_is_tried_once_more_and_publishes_when_it_answers(phase, calls):
+    model = Scripted([good()], script={phase: ["504", "ok"]})
+    result = run(model)
+    assert result["reason"] is None and result["numbers_only"] is False
+    assert model.count(phase) == calls and model.count("writer") == 1
+    assert failed_rows(result) == []
+
+
+def test_two_504s_on_a_check_hold_the_card_as_a_check_that_did_not_complete():
+    model = Scripted([good()], script={"support": ["504", "504"]})
+    result = run(model)
+    assert result["reason"] == "check_incomplete" and result["numbers_only"] is True
+    assert model.count("support") == 2 and model.count("critic") == 0
+    [row] = failed_rows(result)
+    assert (row["claim_id"], row["rule"], row["verdict"], row["checker"]) == ("c1", "K4", "cut", "model")
+    assert job.failed_reason(result) == "Check did not complete"
+
+
+def test_a_504_when_the_deadline_leaves_no_room_is_not_tried_again():
+    model = Scripted([good()], script={"support": ["504", "ok"]})
+    result = run(model, retry_guard=lambda: False)
+    assert result["reason"] == "model_error" and "504 DEADLINE_EXCEEDED" in result["error"]
+    assert model.count("support") == 1 and failed_rows(result) == []
+
+
+def test_a_504_on_the_writer_call_is_not_tried_again():
+    model = Scripted([good()], script={"writer": ["504"]})
+    result = run(model)
+    assert result["reason"] == "model_error"
+    assert model.count("writer") == 1
+
+
+@pytest.mark.parametrize("kind", ["500", "503"])
+def test_another_server_error_is_never_tried_again(kind):
+    model = Scripted([good()], script={"support": [kind, "ok"]})
+    result = run(model)
+    assert result["reason"] == "model_error"
+    assert model.count("support") == 1 and failed_rows(result) == []
+
+
+@pytest.mark.parametrize("flag", ["auth_unresolved", "request_cleanup_failed"])
+def test_a_504_with_an_unresolved_auth_or_cleanup_flag_is_not_retried(flag):
+    exc = server_error("504")
+    setattr(exc, flag, True)
+    model = Scripted([good()], script={"support": [exc, "ok"]})
+    result = run(model)
+    assert result["reason"] == "model_error"
+    assert model.count("support") == 1 and failed_rows(result) == []
+
+
+def test_only_the_sdks_server_error_with_code_504_counts_as_no_answer():
+    from google.genai import errors
+
+    assert explain._no_answer(server_error("504"))
+    # The code is the HTTP status the SDK was handed; a body that is not JSON gives status the reason phrase.
+    assert explain._no_answer(errors.ServerError(504, {"message": "upstream", "status": "Gateway Timeout"}))
+    assert not explain._no_answer(server_error("500")) and not explain._no_answer(server_error("503"))
+    assert not explain._no_answer(errors.ServerError(500, {"error": {"code": 500, "status": "DEADLINE_EXCEEDED"}}))
+    assert not explain._no_answer(errors.ClientError(429, {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED"}}))
+    assert not explain._no_answer(errors.ClientError(408, {"error": {"code": 408, "status": "DEADLINE_EXCEEDED"}}))
+    assert not explain._no_answer(type("ServerError", (Exception,), {"code": 504})("504 DEADLINE_EXCEEDED"))
+    assert not explain._no_answer(RuntimeError("504 DEADLINE_EXCEEDED"))
+
+
 # The retry is inside the budget guard and the deadline.
 
 
@@ -370,6 +456,68 @@ def test_the_job_gives_the_retry_the_runs_deadline():
     assert list(model.dispatched.values()) == [1]
 
 
+def test_one_504_in_the_job_publishes_and_sends_the_retry_once():
+    model = FlakyJobModel(1, kind="504")
+    r = brief(world(n=1), model=model)
+    assert sorted(model.dispatched.values()) == [2, 2, 2]
+    assert not [c for c in checks(r) if "did not complete" in c["reason"]]
+    for m in ("ZA", "NG", "KE"):
+        p = payload(r, m)
+        assert [c["explained"] for c in p["cards"]] == [True] and p["held_back"]["count"] == 0
+
+
+def test_two_504s_in_the_job_hold_each_card_with_the_same_held_reason_as_before():
+    model = FlakyJobModel(2, kind="504")
+    r = brief(world(n=1), model=model)
+    assert sorted(model.dispatched.values()) == [2, 2, 2]
+    for m in ("ZA", "NG", "KE"):
+        p = payload(r, m)
+        assert p["cards"] == []
+        [item] = held_items(r, m).values()
+        assert item["reason"] == "explanation_failed"
+        assert item["failed_reason"] == "Check did not complete"
+    assert len([c for c in checks(r) if c["reason"] == "Support check: check did not complete"]) == 3
+    assert r.chain.finished[0]["status"] == "ok"
+
+
+@pytest.mark.parametrize("cutoff", ["deadline", "time_limit"])
+def test_a_504_that_ends_past_the_cutoff_is_not_tried_again(cutoff):
+    start = datetime.combine(D, time(5, 0), SAST)
+    now = {"t": start}
+    past = (datetime.combine(D, time(6, 15), SAST) if cutoff == "deadline"
+            else start + job.collect_chain.TIMEOUTS["brief"] - job.FINISH_MARGIN)
+    assert past <= datetime.combine(D, time(6, 15), SAST)
+    model = FlakyJobModel(1, kind="504", on_fail=lambda: now.update(t=past))
+    r = brief(world(n=1), model=model, clock=lambda: now["t"])
+    assert list(model.dispatched.values()) == [1]
+    for m in ("ZA", "NG", "KE"):
+        assert payload(r, m)["cards"] == []
+    assert not [c for c in checks(r) if "did not complete" in c["reason"]]
+
+
+def test_the_retry_guard_closes_at_the_runs_time_limit(monkeypatch):
+    from core.brief.tests.test_brief_job import FakeChain
+
+    seen = []
+
+    def fake_explain(row, pack, **kw):
+        seen.append(kw["retry_guard"])
+        return {"reason": None, "usage_usd": 0.0, "checks": [], "numbers_only": False, "explanation": "x"}
+
+    monkeypatch.setattr(job, "explain_trend", fake_explain)
+    started = datetime.combine(D, time(4, 0), SAST)
+    limit = started + job.collect_chain.TIMEOUTS["brief"] - job.FINISH_MARGIN
+    now = {"t": started}
+    cand = {"market": "ZA", "row": {"item_id": "i1"}, "pack": {}, "rerun": None}
+    job._explain_all([cand], model=object(), base_usd=0.0, spend={"usd": 0.0}, clock=lambda: now["t"],
+                     chain=FakeChain(), d=D, workers=1, started=started)
+    [guard] = seen
+    now["t"] = limit - timedelta(seconds=1)
+    assert guard() is True
+    now["t"] = limit
+    assert guard() is False
+
+
 def test_check_incomplete_is_one_of_the_failed_check_reasons():
     assert "check_incomplete" in job.FAILED_CHECKS
     assert "check_incomplete" in retained.REASON_CODES
@@ -393,3 +541,8 @@ def test_the_job_hands_each_explanation_a_retry_guard_that_follows_the_deadline(
     assert guard() is True
     now["t"] = datetime.combine(D, time(6, 15), SAST)
     assert guard() is False
+
+
+def test_the_briefs_rule_version_names_the_504_retry_after_the_event_shadow():
+    tokens = job.RULE_VERSION.split("+")
+    assert tokens[-2:] == ["e-one-event-shadow", "brief-504-retry"]

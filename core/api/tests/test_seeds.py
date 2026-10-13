@@ -306,3 +306,63 @@ def test_a_yield_never_recorded_is_not_shown_as_zero():
     assert results["totals"]["new_creators"] is None
     assert all(lane["new_creators"] is None for lane in results["lanes"])
     assert results["totals"]["posts"]["value"] > 0
+
+
+@pytest.mark.parametrize("column", ["yield_posts", "yield_new_creators", "credits_estimate"])
+@pytest.mark.parametrize("bad", [None, -1, float("nan"), float("inf"), float("-inf"), True])
+def test_incomplete_or_invalid_seed_values_never_become_complete_totals(column, bad):
+    class Incomplete(FixtureStore):
+        def seed_queue(self, *args):
+            rows = super().seed_queue(*args)
+            grain = "queued" if column == "credits_estimate" else "yield"
+            target = next(r for r in rows if r["grain"] == grain and r.get("lane") == "expansion")
+            return [dict(r, **{column: bad}) if r is target else r for r in rows]
+
+    body = seeds.build_seeds(Incomplete(), "ZA")
+    if column == "credits_estimate":
+        assert body["queue"]["credits_total"] is None
+        assert next(lane for lane in body["queue"]["lanes"] if lane["lane"] == "expansion")["credits"] is None
+    else:
+        field = "posts" if column == "yield_posts" else "new_creators"
+        assert body["results"]["totals"][field] is None
+        assert next(lane for lane in body["results"]["lanes"] if lane["lane"] == "expansion")[field] is None
+    assert body["status"] == "ok"
+    json.dumps(body, allow_nan=False)
+
+
+def test_recorded_zero_values_remain_measured_figures():
+    class Zero(FixtureStore):
+        def seed_queue(self, *args):
+            return [dict(r, credits_estimate=0, yield_posts=0, yield_new_creators=0)
+                    for r in super().seed_queue(*args)]
+
+    body = seeds.build_seeds(Zero(), "ZA")
+    assert body["queue"]["credits_total"]["value"] == 0
+    assert body["results"]["totals"]["posts"]["value"] == 0
+    assert body["results"]["totals"]["new_creators"]["value"] == 0
+
+
+@pytest.mark.parametrize("column", ["yield_posts", "yield_new_creators", "credits_estimate"])
+def test_all_missing_seed_measurements_remain_unknown(column):
+    class Missing(FixtureStore):
+        def seed_queue(self, *args):
+            return [dict(r, **{column: None}) for r in super().seed_queue(*args)]
+
+    body = seeds.build_seeds(Missing(), "ZA")
+    if column == "credits_estimate":
+        assert body["queue"]["credits_total"] is None
+    else:
+        field = "posts" if column == "yield_posts" else "new_creators"
+        assert body["results"]["totals"][field] is None
+
+
+@pytest.mark.parametrize("column", ["yield_posts", "yield_new_creators"])
+def test_fractional_post_or_creator_counts_are_not_complete_measurements(column):
+    class Fractional(FixtureStore):
+        def seed_queue(self, *args):
+            return [dict(r, **{column: 1.5}) for r in super().seed_queue(*args)]
+
+    body = seeds.build_seeds(Fractional(), "ZA")
+    field = "posts" if column == "yield_posts" else "new_creators"
+    assert body["results"]["totals"][field] is None
+    assert all(row[field] is None for row in body["results"]["seeds"])

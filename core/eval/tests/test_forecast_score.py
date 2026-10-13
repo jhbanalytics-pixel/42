@@ -24,7 +24,7 @@ def row(i, *, prob, persistence, observed, rule="logistic_v1", target="reach_ris
     return {"forecast_id": fid, "item_id": f"item{i}", "market": market, "target": target, "issue_date": issue,
             "horizon": horizon, "rule": rule, "prob": prob, "predicted_arrival": prob >= 0.5,
             "persistence_arrival": persistence, "resolve_date": issue + timedelta(days=horizon),
-            "observed_arrival": observed}
+            "observed_arrival": observed, "resolution_rule_version": forecast_score.RESOLUTION_RULE_VERSION}
 
 
 def good_cohort(n_each=100, **kw):
@@ -198,7 +198,7 @@ def test_run_reads_the_current_row_of_each_closed_forecast(warehouse):
     [c] = out["cohorts"]
     assert c["n"] == 200 and c["unresolved"] == 0
     assert c["skill"] == pytest.approx(0.87)
-    assert c["query_id"] == "core/eval/sql/forecast_rows.sql?d=2026-09-28"
+    assert c["query_id"] == "core/eval/sql/forecast_rows.sql?d=2026-09-28&resolution_rule_version=" + forecast_score.RESOLUTION_RULE_VERSION
 
 
 def test_dry_run_writes_nothing(warehouse):
@@ -220,7 +220,7 @@ def test_a_real_run_creates_the_table_once_and_appends_every_run(warehouse):
     first = [r for r in stored if r["target"] == "reach_rising"][0]
     assert first["week_start"] == WEEK and first["week_end"] == date(2026, 9, 27)
     assert first["skill"] == pytest.approx(0.87) and first["promotion_eligible"] is True
-    assert first["n"] == 200 and first["query_id"] == "core/eval/sql/forecast_rows.sql?d=2026-09-28"
+    assert first["n"] == 200 and first["query_id"] == "core/eval/sql/forecast_rows.sql?d=2026-09-28&resolution_rule_version=" + forecast_score.RESOLUTION_RULE_VERSION
     assert first["row_count"] == 230 and first["result_hash"].startswith("sha256:")
     assert first["no_baseline"] == 0 and first["no_prob"] == 0
     thin = [r for r in stored if r["target"] == "cross_market"][0]

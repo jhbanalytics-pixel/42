@@ -49,6 +49,28 @@ def hidden_record(handle="@Fixture_NG_Hidden"):
             "thumbnail_url": f"https://example.invalid/thumb/{HIDDEN_POST}.jpg", "creator_tier": "macro"}
 
 
+def test_held_projection_drops_unvalidated_claim_text_in_legacy_shape():
+    base = FixtureStore()
+    rows = deepcopy(base.briefs(D30))
+    row = next(r for r in rows if r["market"] == "ZA")
+    row["payload"]["held_back"]["items"].append({
+        "item_id": "synthetic_fragment", "title": "Synthetic fixture", "rule": "G3",
+        "reason": "not_confirmed", "reason_text": "Possible duplicate event: its event date is unknown",
+        "event_fragment": {"status": "possible_duplicate", "reference_item_id": "synthetic_known", "missing": ["event_date"]},
+        "evidence": [hidden_record()], "evidence_ids": [HIDDEN_POST], "numbers": [],
+        "explanation": "distinct private sentence", "explanation_claim_ids": ["hidden_claim"],
+        "claims": [{"id": "hidden_claim", "text": "distinct private sentence", "label": "observed",
+                    "kind": "observation", "evidence_ids": [HIDDEN_POST]}],
+    })
+    store = Patched(briefs=lambda day: deepcopy(rows) if day == D30 else base.briefs(day))
+    response = today.build_today(store, D30)
+    held = next(h for m in response["markets"] if m["market"] == "ZA"
+                for h in m["held_back"]["items"] if h["item_id"] == "synthetic_fragment")
+    assert not held["evidence"]
+    assert "distinct private sentence" not in json.dumps(held)
+    assert not {"claims", "explanation", "explanation_claim_ids"} & set(held)
+
+
 def with_hidden_posts(base):
     """The 30 September briefs with the hidden creator's post on the ZA step card and on a ZA held item, and their
     handle in another author's post text."""

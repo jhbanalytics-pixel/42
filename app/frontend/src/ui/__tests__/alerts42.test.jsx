@@ -81,6 +81,13 @@ function typeInto(element, value){
 }
 const option = (scope, words) => [...scope.querySelectorAll('label')].find((l) => l.textContent.includes(words)).querySelector('input');
 const row = (id) => host.querySelector('[data-watch="' + id + '"]');
+test('an incomplete pause receipt retains the watch and offers retry', async () => {
+  await mount([['/api/watches/w_1/pause', reply(200, {})], ...standard()]);
+  click(button(row('w_1'), 'Pause'));
+  await settle();
+  expect(button(row('w_1'), 'Pause')).toBeDefined();
+  expect(row('w_1').querySelector('[role="alert"]')).not.toBeNull();
+});
 const posted = (path) => calls.filter((c) => c.url === path && c.init.method === 'POST');
 const bodyOf = (call) => JSON.parse(call.init.body);
 

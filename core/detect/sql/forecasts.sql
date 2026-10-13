@@ -4,10 +4,12 @@
 -- with the same forecast_id and observed_arrival set. Nothing here updates, replaces or removes a row.
 
 -- name: current_view
--- The current row of each forecast: its resolution row once one exists, else its issue row. Engine rows
--- (rule logistic_v1) and the agent's log_forecast rows (rule ask_v1) share the table and the view.
+-- The current row of each forecast: its resolution row once one exists, else its issue row. Engine and Ask rows
+-- share the table and view. Legacy outcomes remain in history but are unresolved for the current validity rule.
 CREATE OR REPLACE VIEW {core}.v_forecasts_current AS
-SELECT f.* FROM {agent}.forecasts f
+SELECT f.* REPLACE (
+  IF(f.resolution_rule_version = '{resolution_rule_version}', f.observed_arrival, NULL) AS observed_arrival)
+FROM {agent}.forecasts f
 WHERE f.forecast_id IS NOT NULL
 QUALIFY ROW_NUMBER() OVER (PARTITION BY f.forecast_id ORDER BY f.observed_arrival IS NULL, f.issue_date) = 1;
 
@@ -34,11 +36,12 @@ SELECT DISTINCT f.forecast_id FROM {agent}.forecasts f WHERE f.issue_date = @d;
 -- reads: in its own market, for every target, the main platform (G1) and every platform the item has a series on
 -- there from the issue day to resolve_date, since state.sql derives Rising from all of them; for cross_market also,
 -- in each other market, every platform the item has a series on there and the main platform where it has measured
--- health rows in the window. persist_50 also needs a value of its main series on every day from issue_date - 6 to
--- resolve_date, so a NULL or missing day never lowers v7. The main series is the one on the item's latest state row
--- up to the issue day; a forecast without one stays open. Only rows whose outcome can be read are returned.
--- Known gaps: significance in another market or GLOBAL that feeds Rising in state.sql (other, 3 days) is not
--- checked for validity, and aggregate and coaction runs are not required.
+-- health rows in the window. For reach_rising, it also validates other-market inputs from issue_date - 1 through
+-- resolve_date and GLOBAL inputs from issue_date + 1 through resolve_date, matching state.sql's Rising lookback.
+-- persist_50 also needs a value of its main series on every day from issue_date - 6 to resolve_date, so a NULL or
+-- missing day never lowers v7. The main series is the one on the item's latest state row up to the issue day; a
+-- forecast without one stays open. Only rows whose outcome can be read are returned. Aggregate and coaction runs
+-- are not required.
 WITH cur AS (
   SELECT f.* FROM {agent}.forecasts f
   WHERE f.issue_date BETWEEN @since AND @d
@@ -105,8 +108,34 @@ pairs AS (
   LEFT JOIN good g ON g.market = r.market AND g.platform = r.platform
     AND g.day > o.issue_date AND g.day <= o.resolve_date
   GROUP BY r.forecast_id, r.market, r.platform, o.issue_date, o.resolve_date),
+state_reads AS (             -- external series that can drive a reach_rising state
+  SELECT DISTINCT o.forecast_id, t.market, t.platform,
+    IF(t.market = 'GLOBAL', DATE_ADD(o.issue_date, INTERVAL 1 DAY),
+       DATE_SUB(o.issue_date, INTERVAL 1 DAY)) start_date,
+    o.resolve_date
+  FROM o
+  JOIN {core}.v_series_test_current t ON t.item_id = o.item_id
+  WHERE o.target = 'reach_rising' AND t.platform IS NOT NULL
+    AND t.metric_date BETWEEN @since AND @d
+    AND ((t.market NOT IN (o.market, 'GLOBAL')
+          AND t.metric_date BETWEEN DATE_SUB(o.issue_date, INTERVAL 1 DAY) AND o.resolve_date)
+      OR (t.market = 'GLOBAL' AND t.metric_date > o.issue_date AND t.metric_date <= o.resolve_date))),
+state_pairs AS (
+  SELECT r.forecast_id, r.market, r.platform,
+    COUNT(g.day) = DATE_DIFF(r.resolve_date, r.start_date, DAY) + 1 complete
+  FROM state_reads r
+  LEFT JOIN good g ON g.market = r.market AND g.platform = r.platform
+    AND g.day BETWEEN r.start_date AND r.resolve_date
+  GROUP BY r.forecast_id, r.market, r.platform, r.start_date, r.resolve_date),
+state_whole AS (
+  SELECT o.forecast_id, IFNULL(LOGICAL_AND(p.complete), TRUE) complete
+  FROM o LEFT JOIN state_pairs p ON p.forecast_id = o.forecast_id
+  GROUP BY o.forecast_id),
 whole AS (
-  SELECT pairs.forecast_id FROM pairs GROUP BY pairs.forecast_id HAVING LOGICAL_AND(pairs.complete)),
+  SELECT pairs.forecast_id FROM pairs
+  JOIN state_whole sw ON sw.forecast_id = pairs.forecast_id
+  GROUP BY pairs.forecast_id
+  HAVING LOGICAL_AND(pairs.complete) AND LOGICAL_AND(sw.complete)),
 reach AS (                  -- reach_rising: Rising or Peaking on a window day
   SELECT o.forecast_id, LOGICAL_OR(st.state IN ('rising', 'peaking')) hit
   FROM o JOIN st ON st.item_id = o.item_id AND st.market = o.market
@@ -150,6 +179,7 @@ persist AS (                -- v7 on every window day at half the issue day's v7
 res AS (
   SELECT o.forecast_id, o.item_id, o.market, o.target, o.issue_date, o.horizon, o.rule, o.prob,
     o.predicted_arrival, o.persistence_arrival, o.resolve_date,
+    '{resolution_rule_version}' resolution_rule_version,
     CASE o.target
       WHEN 'reach_rising' THEN IFNULL(r.hit, FALSE)
       WHEN 'cross_market' THEN c.forecast_id IS NOT NULL
@@ -165,9 +195,9 @@ SELECT res.* FROM res WHERE res.observed_arrival IS NOT NULL;
 -- Append issue and resolution rows. An issue row is left out when its forecast_id is already in the table; a
 -- resolution row when the forecast already has one. A rerun adds nothing.
 INSERT INTO {agent}.forecasts (forecast_id, item_id, market, target, issue_date, horizon, rule, prob,
-  predicted_arrival, persistence_arrival, resolve_date, observed_arrival)
+  predicted_arrival, persistence_arrival, resolve_date, observed_arrival, resolution_rule_version)
 SELECT n.forecast_id, n.item_id, n.market, n.target, n.issue_date, n.horizon, n.rule, n.prob,
-  n.predicted_arrival, n.persistence_arrival, n.resolve_date, n.observed_arrival
+  n.predicted_arrival, n.persistence_arrival, n.resolve_date, n.observed_arrival, n.resolution_rule_version
 FROM UNNEST(@rows) n
 WHERE NOT EXISTS (
   SELECT 1 FROM {agent}.forecasts f
@@ -177,6 +207,6 @@ WHERE NOT EXISTS (
 -- name: scoring
 -- The current row of every engine forecast whose window has closed, resolved or not, for the weekly score.
 SELECT c.forecast_id, c.item_id, c.market, c.target, c.issue_date, c.horizon, c.rule, c.prob,
-  c.predicted_arrival, c.persistence_arrival, c.resolve_date, c.observed_arrival
+  c.predicted_arrival, c.persistence_arrival, c.resolve_date, c.observed_arrival, c.resolution_rule_version
 FROM {core}.v_forecasts_current c
 WHERE c.rule = @rule AND c.resolve_date < @d;

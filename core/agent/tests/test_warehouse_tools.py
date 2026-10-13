@@ -282,7 +282,7 @@ def sem(post_id, distance, creator=""):
 def tvf_args(sql):
     tree = sqlglot.parse_one(sql, dialect="bigquery")
     (table,) = [t for t in tree.find_all(exp.Table) if isinstance(t.this, exp.Func)]
-    assert f"{table.db}.{table.this.name}" == "intelligence_42_agent.tvf_search_posts"
+    assert f"{table.db}.{table.this.name}" == "intelligence_42_agent.tvf_search_posts_scoped"
     return table.this.expressions
 
 
@@ -294,13 +294,13 @@ def test_search_posts_runs_semantic_tvf_with_named_parameters_only(ctx):
     check_sql(sql)
     tree = sqlglot.parse_one(sql, dialect="bigquery")
     assert sorted(f"{t.db}.{t.name or t.this.name}" for t in tree.find_all(exp.Table)) == [
-        "intelligence_42_agent.tvf_search_posts", "intelligence_42_core.creators", "intelligence_42_core.posts",
+        "intelligence_42_agent.tvf_search_posts_scoped", "intelligence_42_core.creators", "intelligence_42_core.posts",
         "intelligence_42_core.v_post_source_markets"]
     assert "DROP" not in sql and "braai" not in sql.lower()
     args = tvf_args(sql)
-    assert len(args) == 5
-    assert all(isinstance(a, (exp.Parameter, exp.Null)) for a in args)
-    assert [a.name for a in args if isinstance(a, exp.Parameter)] == ["q", "since", "until", "k"]
+    assert len(args) == 8
+    assert all(isinstance(a, (exp.Parameter, exp.Null)) for a in args[:5])
+    assert [a.name for a in args[:5] if isinstance(a, exp.Parameter)] == ["q", "since", "until", "k"]
     assert isinstance(args[1], exp.Null) and "market" not in params
     assert params["q"] == INJECTION
     assert params["since"] == date(2026, 9, 1) and params["until"] == date(2026, 9, 10)
@@ -314,8 +314,8 @@ def test_search_posts_semantic_market_is_a_parameter(ctx):
     sql, params = wh.runs[1][0], wh.runs[1][1]
     check_sql(sql)
     args = tvf_args(sql)
-    assert all(isinstance(a, exp.Parameter) for a in args)
-    assert [a.name for a in args] == ["q", "market", "since", "until", "k"]
+    assert all(isinstance(a, exp.Parameter) for a in args[:5])
+    assert [a.name for a in args[:5]] == ["q", "market", "since", "until", "k"]
     assert params["market"] == "KE"
     assert params["k"] == 2 * MAX_POSTS
 

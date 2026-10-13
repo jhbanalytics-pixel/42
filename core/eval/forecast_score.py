@@ -31,6 +31,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from core.agent.context import result_hash
+from core.detect.forecasts import RESOLUTION_RULE_VERSION, verified_resolution
 from core.eval.forecast_cohort import review_arrival_cohort
 
 SQL_DIR = Path(__file__).resolve().parent / "sql"
@@ -41,7 +42,8 @@ SKILL_UNIT = ("Brier skill against persistence: 1 minus the forecast's summed sq
 
 
 def load(name):
-    return (SQL_DIR / f"{name}.sql").read_text(encoding="utf-8")
+    return (SQL_DIR / f"{name}.sql").read_text(encoding="utf-8").replace(
+        "{resolution_rule_version}", RESOLUTION_RULE_VERSION)
 
 
 def query_id(name, **params):
@@ -69,7 +71,8 @@ def closed_rows(execute, d):
     """The current row of every forecast whose window closed before d, a note if the table is absent, and the
     query_id of the read."""
     rows, note = read(execute, "forecast_rows", {"d": d}, "intelligence_42_agent.forecasts")
-    return rows, note, query_id("forecast_rows", d=d.isoformat())
+    return rows, note, query_id("forecast_rows", d=d.isoformat(),
+                                resolution_rule_version=RESOLUTION_RULE_VERSION)
 
 
 def _has_prob(r):
@@ -87,6 +90,7 @@ def _brier(pairs):
 def cohort(rows, *, query_id, minimum=MINIMUM):
     """Score one rule, target and horizon cohort. result_hash and row_count are left to score(), which has the
     whole read."""
+    rows = [verified_resolution(r) for r in rows]
     usable = [r for r in rows if _scorable(r)]
     review = review_arrival_cohort([{
         "forecast_id": r["forecast_id"], "forecast_issued": f"{str(r['issue_date'])[:10]}T00:00:00Z",
@@ -130,6 +134,7 @@ def score(rows, *, query_id, minimum=MINIMUM):
 def pooled_skill(rows, *, query_id, result_hash, row_count, minimum=MINIMUM):
     """One skill Figure over every resolved row given, whatever its rule, target or horizon. result_hash and
     row_count describe the whole read the rows were taken from."""
+    rows = [verified_resolution(r) for r in rows]
     done = [r for r in rows if _scorable(r) and r["observed_arrival"] is not None]
     n = len(done)
     fig = {"value": None, "unit": SKILL_UNIT, "query_id": query_id, "result_hash": result_hash,

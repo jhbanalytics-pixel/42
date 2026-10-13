@@ -873,6 +873,41 @@ def pwsh(*words):
     return ["pwsh", *words]
 
 
+@pytest.mark.parametrize("serialized", [False, True])
+def test_pwsh_driver_paths_use_the_same_canonical_temp_root(guard, tmp_path, monkeypatch, serialized):
+    root = str(tmp_path)
+    alias = root + "-alias"
+    realpath = os.path.realpath
+
+    def canonical(path):
+        return realpath(root if os.path.normcase(path) == os.path.normcase(alias) else path)
+
+    monkeypatch.setattr(guard.os.path, "realpath", canonical)
+    monkeypatch.setattr(guard, "_temp_roots", lambda: [os.path.normcase(alias)])
+    command = pwsh("-NoProfile", "-NonInteractive", "-File", str(tmp_path / "driver.ps1"),
+                   "-Config", str(tmp_path / "config.json"))
+    args = subprocess.list2cmdline(command) if serialized else command
+    allowed(guard, "subprocess.Popen", (command[0], args, None, KEEPS_GUARD))
+
+
+@pytest.mark.parametrize("serialized", [False, True])
+@pytest.mark.parametrize("victim", ["driver", "config"])
+def test_pwsh_driver_symlink_outside_the_temp_root_is_refused(guard, tmp_path, monkeypatch, serialized, victim):
+    driver = str(tmp_path / "driver.ps1")
+    config = str(tmp_path / "config.json")
+    link = driver if victim == "driver" else config
+    realpath = os.path.realpath
+
+    def canonical(path):
+        return realpath(str(tmp_path.parent / "outside.ps1") if os.path.normcase(path) == os.path.normcase(link) else path)
+
+    monkeypatch.setattr(guard.os.path, "realpath", canonical)
+    monkeypatch.setattr(guard, "_temp_roots", lambda: [os.path.normcase(str(tmp_path))])
+    command = pwsh("-NoProfile", "-File", driver, "-Config", config)
+    args = subprocess.list2cmdline(command) if serialized else command
+    refused(guard, "subprocess.Popen", (command[0], args, None, KEEPS_GUARD))
+
+
 def test_pwsh_may_run_a_driver_file_in_the_repository_or_the_temporary_directory(guard):
     driver = os.path.join(tempfile.gettempdir(), "pytest-of-ci", "driver.ps1")
     config = os.path.join(tempfile.gettempdir(), "pytest-of-ci", "config.json")
@@ -926,8 +961,10 @@ def test_pwsh_may_run_a_paste_function_defined_by_the_repositorys_paste_text(gua
     ["env", "pwsh", "-NoProfile", "-Command", "iwr x"],
     ["xargs", "pwsh", "-NoProfile", "-Command", "iwr x"],
     ["find", ".", "-exec", "pwsh", "-NoProfile", "-Command", "iwr x", ";"]])
-def test_pwsh_started_any_other_way_is_refused(guard, command):
-    refused(guard, "subprocess.Popen", (command[0], command, None, KEEPS_GUARD))
+@pytest.mark.parametrize("serialized", [False, True])
+def test_pwsh_started_any_other_way_is_refused(guard, command, serialized):
+    args = subprocess.list2cmdline(command) if serialized else command
+    refused(guard, "subprocess.Popen", (command[0], args, None, KEEPS_GUARD))
 
 
 def test_pwsh_started_through_env_keeps_the_same_rules(guard):

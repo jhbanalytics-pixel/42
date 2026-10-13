@@ -8,6 +8,7 @@ import math
 import random
 import re
 import sys
+import unicodedata
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -633,6 +634,9 @@ def duck_execute(con, calls=None):
         for statement in sqlglot.parse(text, read="bigquery"):
             if statement is None:
                 continue
+            for node in reversed(list(statement.find_all(exp.Normalize))):
+                name = "f42_casefold" if node.args.get("is_casefold") else "f42_normalize"
+                node.replace(exp.Anonymous(this=name, expressions=[node.this.copy()]))
             duck = statement.sql("duckdb")
             used = {k: v for k, v in params.items() if re.search(rf"\${k}\b", duck)}
             result = cur.execute(duck, used)
@@ -662,6 +666,10 @@ def core_db():
     import duckdb
 
     con = duckdb.connect()
+    con.create_function("f42_normalize", lambda value: unicodedata.normalize("NFKC", value),
+                        ["VARCHAR"], "VARCHAR")
+    con.create_function("f42_casefold", lambda value: unicodedata.normalize("NFKC", value.casefold()),
+                        ["VARCHAR"], "VARCHAR")
     con.execute(f"ATTACH ':memory:' AS {PROJECT_DB}")
     con.execute(f"CREATE SCHEMA {CORE}")
     con.execute(f"CREATE TABLE {CORE}.posts (post_id VARCHAR, platform VARCHAR, creator_id VARCHAR, text VARCHAR, "
@@ -967,7 +975,7 @@ def test_unknown_market_is_refused():
 
 
 def test_a_post_with_two_vector_rows_reads_the_same_one_whatever_the_insert_order():
-    low, high = [0.1, 0.9, 0.3], [0.7, 0.2, 0.3]
+    low, high = [0.1, 0.9, 0.3] + [0.0] * 765, [0.7, 0.2, 0.3] + [0.0] * 765
     picked = []
     for order in ((high, low), (low, high)):
         con = core_db()
@@ -988,7 +996,7 @@ def uppercase_market_db():
     for post_id, market in rows:
         con.execute(f"INSERT INTO {CORE}.posts VALUES (?, 'tiktok', 'cr_1', 'kota', [], NULL, ?)", [post_id, DAY])
         con.execute(f"INSERT INTO {CORE}.post_observations VALUES (?, ?, ?)", [post_id, DAY, market])
-        con.execute(f"INSERT INTO {CORE}.post_enrichment VALUES (?, ?)", [post_id, [1.0, 0.0, 0.0]])
+        con.execute(f"INSERT INTO {CORE}.post_enrichment VALUES (?, ?)", [post_id, [1.0, 0.0, 0.0] + [0.0] * 765])
     return con
 
 

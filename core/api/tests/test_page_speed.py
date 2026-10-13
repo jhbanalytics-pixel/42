@@ -415,7 +415,7 @@ def test_a_seed_path_plan_for_a_bad_keyword_or_market_reads_nothing():
 
 PAGES_19 = [
     ("seed path", lambda s: fast.prefetch(s, fast.seed_path_plan, "amapiano", "ZA"),
-     lambda s: __import__("core.api.seedpath", fromlist=["x"]).build_seed_path(s, "amapiano", "ZA"), 10, 4),
+     lambda s: __import__("core.api.seedpath", fromlist=["x"]).build_seed_path(s, "amapiano", "ZA"), 9, 4),
     ("communities NG", lambda s: fast.prefetch(s, fast.communities_plan, "NG"),
      lambda s: people.build_communities(s, "NG"), 9, 6),
     ("history item", lambda s: fast.prefetch(s, fast.history_item_plan, STEP, "ZA"),

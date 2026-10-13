@@ -97,7 +97,7 @@ function WeekChart({terms}){
   );
 }
 
-export function DecodePanel({region, term, entry, window: win}){
+export function DecodePanel({region, term, entry, window: win, incomplete = false}){
   /* Demo polish, 2 October 2026: no empty box repeats "Tap a term" before a
      term is picked; the page lead already says it. */
   if (!term) return null;
@@ -124,7 +124,7 @@ export function DecodePanel({region, term, entry, window: win}){
             {known.first_seen && <p className="lex-fact">First recorded by 42 on {longDate(known.first_seen)}, in any market.</p>}
           </>
         ) : (
-          <p className="lex-fact">&ldquo;{term}&rdquo; is not among the words and hashtags listed for {where} in the last {days} days. Seed path can still look for it in the posts.</p>
+          <p className="lex-fact">&ldquo;{term}&rdquo; is not among the words and hashtags listed for {where} in the last {days} days. {incomplete ? 'Terms outside this selection remain unknown. ' : ''}Seed path can still look for it in the posts.</p>
         )}
         <div className="lex-meta lex-meta--section">What it means</div>
         {def
@@ -184,6 +184,10 @@ export function LexiconPage({region, term, session, onAuth}){
   const data = res.state === 'ready' && record(res.data) ? res.data : null;
   const notReady = (res.state === 'error' && (res.code === 'not_ready' || res.code === 'http_409')) || (data && data.status === 'not_ready');
   const terms = data && !notReady && Array.isArray(data.terms) ? data.terms.filter(validTerm) : [];
+  const invalidRows = Array.isArray(data?.terms) ? data.terms.length - terms.length : 0;
+  const invalid = readable && res.state === 'ready' && !notReady
+    && (!data || !Array.isArray(data.terms) || ((invalidRows > 0 || data.truncated === true) && terms.length === 0));
+  const incomplete = invalidRows > 0 || data?.truncated === true;
   const win = data && record(data.window) ? data.window : null;
   const days = win && Number.isSafeInteger(win.days) ? win.days : DAYS;
   const [sel, setSel] = useState(term || null);
@@ -209,7 +213,7 @@ export function LexiconPage({region, term, session, onAuth}){
   };
 
   return (
-    <div className="lexicon-page" data-lexicon-state={readable ? res.state : 'choose'}>
+    <div className="lexicon-page" data-lexicon-state={!readable ? 'choose' : invalid ? 'invalid' : incomplete ? 'incomplete' : res.state}>
       <div className="reveal">
         {/* Shell consistency, 2 October 2026: the menu's noun is the title and
             the old headline leads the sentence under it. */}
@@ -236,17 +240,20 @@ export function LexiconPage({region, term, session, onAuth}){
           <StateView {...routeStateView({state: 'empty', title: 'The lexicon is not ready yet', body: (data && data.message) || res.message || '42 has not finished its first daily count of posts.', nextAction: 'Open Today', actions: [{id: 'today', label: 'Open Today', onClick: () => go('/pulse')}]})} />
         </div>
       )}
-      {readable && data && !notReady && !terms.length && (
+      {readable && data && !notReady && !invalid && !terms.length && (
         <div className="lex-state" data-state-frame="empty">
-          <StateView {...routeStateView({state: 'empty', title: 'No words or hashtags recorded here yet', body: data.message || ('42 has not recorded posts for any word or hashtag in ' + where + ' in the last ' + days + ' days.'), nextAction: 'Open Discover', actions: [{id: 'discover', label: 'Open Discover', onClick: () => go('/explore')}]})} />
+          <StateView {...routeStateView({state: 'empty', title: 'No words or hashtags available to show', body: data.message || ('42 has not recorded posts for any word or hashtag in ' + where + ' in the last ' + days + ' days.'), nextAction: 'Open Discover', actions: [{id: 'discover', label: 'Open Discover', onClick: () => go('/explore')}]})} />
         </div>
       )}
       {unavailable && <div className="lex-state" data-state-frame="unavailable"><StateView {...routeStateView({state: 'error', title: 'The lexicon is not available yet', body: 'The lexicon is not served in this version, so no term counts were read.', code: res.code, nextAction: 'Open Today', actions: [{id: 'today', label: 'Open Today', onClick: () => go('/pulse')}]})} /></div>}
       {res.state === 'error' && !unavailable && !notReady && <div className="lex-state" data-state-frame="error"><StateView {...routeStateView({state: 'error', title: 'The lexicon could not be read', body: 'Try again in a moment.', code: res.code, actions: [{id: 'retry', kind: 'button', label: 'Try again', onClick: retry}]})} /></div>}
+      {invalid && <div className="lex-state" data-state-frame="invalid"><StateView {...routeStateView({state: 'error', title: 'The lexicon could not be verified', body: 'The returned term counts are missing or invalid. Coverage for this market remains unknown.', actions: [{id: 'retry', kind: 'button', label: 'Try again', onClick: retry}]})} /></div>}
+      {readable && res.state === 'auth' && <div className="lex-state" data-state-frame="auth"><StateView {...routeStateView({state: 'error', title: 'Enter the passcode to read the lexicon', body: 'No term counts were read.'})} /></div>}
 
       {terms.length > 0 && (
         <div className={'lex-shell' + (selTerm ? '' : ' lex-shell--solo')}>
           <div className="lex-terms">
+            {incomplete && <p className="lex-notes" data-lexicon-incomplete role="status">{data.truncated ? 'This is a limited selection of terms. ' : ''}{invalidRows > 0 ? invalidRows + ' returned ' + (invalidRows === 1 ? 'term could' : 'terms could') + ' not be verified and ' + (invalidRows === 1 ? 'is' : 'are') + ' omitted. ' : ''}Terms outside this selection remain unknown.</p>}
             <div className="lex-group-head">
               <span className="lex-group-name">{where}</span>
               {win && <span className="lex-meta">{longDate(win.from)} to {longDate(win.to)}</span>}
@@ -274,7 +281,7 @@ export function LexiconPage({region, term, session, onAuth}){
             )}
           </div>
 
-          <DecodePanel region={market} term={selTerm} entry={entry} window={win} />
+          <DecodePanel region={market} term={selTerm} entry={entry} window={win} incomplete={incomplete} />
           {!selTerm && <LexGuide days={days} />}
         </div>
       )}

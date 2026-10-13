@@ -33,6 +33,14 @@ const signal = (over = {}) => ({
 });
 
 describe('Compare as aligned strips', () => {
+  test('missing or invalid receipt counts stay unavailable while a measured zero stays zero', () => {
+    for (const count of [undefined, null, NaN, -1, 0.5]){
+      const signals = [signal({receiptCount: count}), signal({receiptCount: 0})];
+      const row = buildComparisonRows(signals).find((item) => item.key === 'receipts');
+      expect(row.values).toEqual(['unavailable', '0 receipts']);
+      expect(renderToStaticMarkup(<ComparisonStrip signals={signals} />)).toContain('data-value="unavailable"');
+    }
+  });
   test('the field order is published once and every column follows it', () => {
     expect(COMPARE_FIELDS.map((field) => field.key)).toEqual([
       'market',

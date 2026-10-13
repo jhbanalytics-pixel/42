@@ -191,7 +191,7 @@ describe('Fieldwork rendered roster', () => {
     const seen = text(html);
     expect(seen).toContain('No collection record for this day yet');
     expect(seen).toContain('Not recorded yet');
-    expect(seen).toContain('None charged');
+    expect(seen).toContain('Spend not recorded');
     /* Restated, design audit 2 October 2026: the calls cell no longer carries
        the words "calls came back", so the check is on any "N of N" count. */
     expect(seen).not.toMatch(/\b\d+ of \d+\b/);

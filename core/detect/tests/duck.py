@@ -173,7 +173,7 @@ CREATE TABLE core.media (sha256 VARCHAR, post_id VARCHAR, gcs_uri VARCHAR, kind 
 CREATE TABLE agent.forecasts (
   forecast_id VARCHAR NOT NULL, item_id VARCHAR, market VARCHAR, target VARCHAR, issue_date DATE,
   horizon BIGINT, rule VARCHAR, prob DOUBLE, predicted_arrival BOOLEAN, persistence_arrival BOOLEAN,
-  resolve_date DATE, observed_arrival BOOLEAN);
+  resolve_date DATE, observed_arrival BOOLEAN, resolution_rule_version VARCHAR);
 
 -- One JSON Figure per metric.
 CREATE TABLE agent.engine_scorecard (
@@ -290,6 +290,9 @@ def connect(views=True):
     con.execute("CREATE SCHEMA core; CREATE SCHEMA agent;")
     con.execute(TABLES)
     if views:
+        for stmt in sqlrun.locality_view_statements(core="core", agent="agent"):
+            if sqlrun.object_name(stmt) == "core.tvf_post_items":
+                con.execute(create_statement(stmt))
         for stmt in sqlrun.statements(core="core", agent="agent"):
             con.execute(create_statement(stmt))
         for stmt in sqlrun.locality_view_statements(core="core", agent="agent"):

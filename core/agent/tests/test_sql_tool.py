@@ -283,7 +283,8 @@ def test_check_sql_accepts_plain_builtin_functions(sql):
 
 
 def test_allowed_tvfs_are_the_two_agent_table_functions():
-    assert ALLOWED_TVFS == {"intelligence_42_agent.tvf_search_posts", "intelligence_42_agent.tvf_item_timeseries"}
+    assert ALLOWED_TVFS == {"intelligence_42_agent.tvf_search_posts", "intelligence_42_agent.tvf_search_posts_scoped",
+                            "intelligence_42_agent.tvf_item_timeseries"}
 
 
 @pytest.mark.parametrize(

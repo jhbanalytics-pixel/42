@@ -278,6 +278,8 @@ def _held_item(c):
     # A post-floor hold says at which stage of the pack it fell below the floor (pack_order.hold_detail).
     if c.get("held_reason_detail"):
         held["held_reason_detail"] = c["held_reason_detail"]
+    if c.get("event_fragment"):
+        held["event_fragment"] = c["event_fragment"]
     return held
 
 

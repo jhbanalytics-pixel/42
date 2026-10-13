@@ -11,7 +11,7 @@ import json
 from functools import lru_cache
 
 from core.api.discover import figure
-from core.api.today import INVALID_WORDS, LABELS, MARKETS, _series_name, invalid_code
+from core.api.today import INVALID_WORDS, LABELS, MARKETS, _latest_run, _series_name, invalid_code
 
 SAST = dt.timezone(dt.timedelta(hours=2))
 GLOBAL = "GLOBAL"
@@ -454,12 +454,7 @@ def next_collection(now):
 
 def _collect_run(store, day):
     runs = store.runs("collect", day) or []
-    if not runs:
-        return None
-    # A run appends rows; the latest finished one carries the status.
-    latest = max(runs, key=lambda r: (r.get("finished_at") is not None, str(r.get("finished_at") or ""),
-                                      str(r.get("started_at") or "")))
-    return latest
+    return _latest_run(runs)
 
 
 def _credits(rows, plan, plan_hold):

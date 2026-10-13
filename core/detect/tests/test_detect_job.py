@@ -242,7 +242,7 @@ def test_run_end_to_end_writes_steps_and_state_for_the_detect_run(con):
     # the rule version is the version of the locality authority constant (rule_version_for pins both values)
     assert {r["rule_version"] for r in state.values()} == {job.RULE_VERSION} == {job.rule_version_for(job.LOCALITY_AUTHORITY)}
     # N21 writes near_dup_size, so item_state rows written after it are marked apart from earlier ones
-    assert job.RULE_VERSION == "warmup-1+n21-near-dup"
+    assert job.RULE_VERSION == "warmup-1+n21-near-dup+math-20261013-freshness-distinct-prior-health"
     assert state["new"]["state"] == "new_to_42"
     assert counts["item_state"] == 2
 
@@ -259,7 +259,7 @@ def test_run_applies_views_then_waves_and_never_creates_or_removes_a_table(con):
     job.run(client, D, chain=FakeChain(con), core="core", agent="agent")
     creates = [_strip_leading_comments(s) for s in client.sql if _strip_leading_comments(s).upper().startswith("CREATE OR")]
     names = [sqlrun.object_name(s) for s in creates]
-    assert names == ([sqlrun.object_name(s) for s in sqlrun.statements("core", "agent")] + ["core.v_item_waves"]
+    assert names == (["core.tvf_post_items"] + [sqlrun.object_name(s) for s in sqlrun.statements("core", "agent")] + ["core.v_item_waves"]
                      + [sqlrun.object_name(s) for s in sqlrun.locality_view_statements("core", "agent")]
                      + ["core.v_item_spread"]
                      + [sqlrun.object_name(s) for s in sqlrun.agent_statements("core", "agent")]

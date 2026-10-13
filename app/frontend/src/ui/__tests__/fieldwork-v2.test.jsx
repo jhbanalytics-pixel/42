@@ -13,6 +13,25 @@ const days = JSON.parse(readFileSync(new URL('./fixtures/fieldwork42_days.json',
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ');
 const render = (payload) => text(renderToStaticMarkup(<FieldworkPage payload={payload} />));
+test('missing spend and call counts remain unknown', () => {
+  const payload = clone(days.ready);
+  delete payload.credits.spent;
+  const source = payload.markets[0].sources.find((s) => s.health);
+  delete source.health.calls;
+  delete source.health.calls_ok;
+  expect(render(payload)).toContain('Spend not recorded');
+  expect(rowText(payload, source.series)).not.toContain('0 of 0');
+  expect(rowText(payload, source.series)).toContain('Not recorded');
+});
+test('an invalid market roster renders a readable error instead of crashing', () => {
+  expect(render({...clone(days.ready), markets: [null]})).toContain('not with a source list this page can read');
+});
+test('a recorded zero spend is still shown as zero', () => {
+  const payload = clone(days.ready);
+  payload.credits.spent.value = 0;
+  expect(render(payload)).toContain('0 of');
+  expect(render(payload)).not.toContain('Spend not recorded');
+});
 
 /* Restated, design audit 2 October 2026: each source is now a table row, so
    a row ends at its closing tr, not at the closing li of the old list. */

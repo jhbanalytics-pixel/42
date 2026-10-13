@@ -101,9 +101,8 @@ def test_a_non_topic_link_passes_unchanged(con):
 
 
 def test_the_observation_scan_is_bounded_to_the_28_day_window():
-    text = (SQL / "locality_views.sql").read_text(encoding="utf-8")
-    text = text[text.index("TABLE FUNCTION {core}.tvf_post_items"):]      # the counted-link function only
-    assert "o.observed_date BETWEEN DATE_SUB(d, INTERVAL 27 DAY) AND d" in text
+    text = next(s for s in sqlrun.locality_view_statements() if sqlrun.object_name(s).endswith(".tvf_post_items"))
+    assert "o.observed_date BETWEEN DATE_SUB(ds.metric_date, INTERVAL 27 DAY) AND ds.metric_date" in text
 
 
 def test_a_tie_between_two_links_of_the_same_rank_goes_to_the_lower_item_id(con):

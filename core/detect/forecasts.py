@@ -48,7 +48,7 @@ and horizon is promoted.
 weekly_score imports the packaged core.eval.forecast_cohort helper and scores the engine rule alone; learn does not
 call it.
 
-The rule (RULE, logistic_v1) is a logistic rule: prob = 1 / (1 + exp(-(intercept + sum of coefficient x
+The rule (RULE, logistic_v2-detect-math-20261013) is a logistic rule: prob = 1 / (1 + exp(-(intercept + sum of coefficient x
 feature))), predicted_arrival = prob >= 0.5. DATA.md, ENGINE.md, TRUST.md and SPEC.md give no features or
 coefficients, so COEFFICIENTS is a hand-set starting prior, to be replaced by BQML LOGISTIC_REG once 500 forecasts
 have resolved (DATA.md section 6). Features, from item_state on the issue day and the main series' series_test row:
@@ -76,7 +76,8 @@ from .sqlrun import AGENT, CORE, query
 SQL = Path(__file__).parent / "sql" / "forecasts.sql"
 _NAME = re.compile(r"^--\s*name:\s*(\w+)\s*$", re.MULTILINE)
 
-RULE = "logistic_v1"
+RULE = "logistic_v2-detect-math-20261013"
+RESOLUTION_RULE_VERSION = "resolution-2-external-state-validity"
 TARGETS = ("reach_rising", "cross_market", "persist_50")
 HORIZONS = (7, 14)
 WATCHED = ("emerging", "rising")
@@ -98,13 +99,14 @@ COEFFICIENTS = {                      # starting prior, set by hand; see the mod
 FORECAST_FIELDS = (("forecast_id", "STRING"), ("item_id", "STRING"), ("market", "STRING"), ("target", "STRING"),
                    ("issue_date", "DATE"), ("horizon", "INT64"), ("rule", "STRING"), ("prob", "FLOAT64"),
                    ("predicted_arrival", "BOOL"), ("persistence_arrival", "BOOL"), ("resolve_date", "DATE"),
-                   ("observed_arrival", "BOOL"))
+                   ("observed_arrival", "BOOL"), ("resolution_rule_version", "STRING"))
 
 
 def statements():
     """The named statements of forecasts.sql, dataset placeholders left in."""
     out = {}
-    for piece in sqlrun.split(SQL.read_text(encoding="utf-8")):
+    for piece in sqlrun.split(SQL.read_text(encoding="utf-8").replace(
+            "{resolution_rule_version}", RESOLUTION_RULE_VERSION)):
         m = _NAME.search(piece)
         out[m.group(1)] = sqlrun._strip_leading_comments(piece[m.end():])
     return out
@@ -167,7 +169,8 @@ def issue_rows(d, candidates):
                             "item_id": c["item_id"], "market": c["market"], "target": target, "issue_date": d,
                             "horizon": h, "rule": RULE, "prob": p, "predicted_arrival": p >= 0.5,
                             "persistence_arrival": persistence(target, c),
-                            "resolve_date": d + timedelta(days=h), "observed_arrival": None})
+                            "resolve_date": d + timedelta(days=h), "observed_arrival": None,
+                            "resolution_rule_version": None})
     return out
 
 
@@ -207,6 +210,11 @@ def _brier(pairs):
     return sum((p - o) ** 2 for p, o in pairs) / len(pairs) if pairs else None
 
 
+def verified_resolution(row):
+    return {**row, "observed_arrival": row.get("observed_arrival")
+            if row.get("resolution_rule_version") == RESOLUTION_RULE_VERSION else None}
+
+
 def score(rows, minimum_comparable_sample=MINIMUM_COMPARABLE_SAMPLE):
     """Score each target and horizon cohort through forecast_cohort.review_arrival_cohort, with Brier scores for
     the rule and for persistence over the resolved rows. A cohort is promotion eligible when review_arrival_cohort
@@ -215,7 +223,8 @@ def score(rows, minimum_comparable_sample=MINIMUM_COMPARABLE_SAMPLE):
     from core.eval.forecast_cohort import review_arrival_cohort
 
     groups = defaultdict(list)
-    for r in rows:
+    for source in rows:
+        r = verified_resolution(source)
         groups[(r["target"], r["horizon"])].append(r)
     cohorts = {}
     for (target, horizon), rs in sorted(groups.items()):

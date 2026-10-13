@@ -20,6 +20,11 @@ firsts AS (                 -- first sighting per post, market, lane class and p
   UNION ALL
   SELECT s.post_id, s.market, '_any', NULL, NULL, MIN(s.observed_date)
   FROM s WHERE s.lane_class != 'legacy' GROUP BY s.post_id, s.market),
+links AS (
+  SELECT DISTINCT pit.post_id, pit.item_id, fi.market
+  FROM {core}.tvf_post_items(@d) pit
+  JOIN firsts fi ON fi.post_id = pit.post_id AND (pit.market IS NULL OR pit.market = fi.market)
+  WHERE fi.first_day = @d),
 f AS (
   SELECT fi.post_id, fi.market, fi.lane_class, fi.series, fi.protocol, pi.item_id,
     IF(fi.lane_class = '_any', '_all', ps.platform) platform,
@@ -29,7 +34,7 @@ f AS (
     IFNULL(ps.geo_confidence >= 0.7 AND UPPER(ps.geo_market) = fi.market, FALSE) geo_local
   FROM firsts fi
   JOIN {core}.posts ps ON ps.post_id = fi.post_id
-  JOIN (SELECT DISTINCT pit.post_id, pit.item_id FROM {core}.post_items pit) pi ON pi.post_id = fi.post_id
+  JOIN links pi ON pi.post_id = fi.post_id AND pi.market = fi.market
   LEFT JOIN (
     SELECT creator_id, MAX(IFNULL(coord_score, 0)) coord_score
     FROM {core}.creators GROUP BY creator_id

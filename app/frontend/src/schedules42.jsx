@@ -139,7 +139,11 @@ function Schedules({picked = '', schedules, onRetry, onChange, onAuth}){
     (paused ? resumeSchedule : pauseSchedule)(id)
       .then((next) => {
         if (!live.current) return;
-        onChange(next && next.schedule_id ? next : {...schedule, status: paused ? 'active' : 'paused'});
+        if (!next || next.schedule_id !== id || next.status !== (paused ? 'active' : 'paused')) {
+          setRows((r) => ({...r, [id]: {error: 'The change was not confirmed. Reload the schedules before trying again.'}}));
+          return;
+        }
+        onChange(next);
         setRows((r) => ({...r, [id]: {}}));
       })
       .catch((error) => {

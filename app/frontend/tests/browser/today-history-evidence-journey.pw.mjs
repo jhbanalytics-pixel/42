@@ -198,6 +198,10 @@ test('Today cited posts and held evidence lead to the saved History finding and 
   await expect(page).toHaveURL(/#\/today\?date=2026-09-30$/);
   await expect(main.locator('[data-today-loaded]')).toBeVisible();
 
+  const leftOut = za.locator('details[data-section="left-out"] > summary');
+  await expect(leftOut).toContainText('2 held back by our checks');
+  await leftOut.click();
+
   const heldBack = za.locator('section[data-section="held-back"]');
   const heldButton = heldBack.getByRole('button', {name: heldItem.title, exact: true});
   const heldPanelId = 't42-held-' + heldItem.item_id;

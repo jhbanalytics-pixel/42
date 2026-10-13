@@ -12,6 +12,7 @@ only ever counted, as a creator account; a suppressed creator is not counted at 
 carry a public figure's name, as topic labels do on every page, and is listed like any topic.
 """
 import datetime as dt
+import math
 import re
 
 from core.api.discover import BadRequest, figure
@@ -128,10 +129,17 @@ def _seed(row, mapped, market):
             "platforms": _platforms(row.get("template"), row.get("kind"))}
 
 
+def _measured(value, count=False):
+    return (isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(value) and value >= 0 and (not count or value % 1 == 0))
+
+
 def _sum(rows, col):
-    # Review, 3 October 2026: rows with no value recorded give None, never 0, so the page says Not recorded.
-    values = [r.get(col) for r in rows if r.get(col) is not None]
-    return sum(values) if values else None
+    values = [r.get(col) for r in rows]
+    if not values or not all(_measured(v, count=col.startswith("yield_")) for v in values):
+        return None
+    total = sum(values)
+    return total if _measured(total) else None
 
 
 def _queue(rows, people, cmap, market, truncated, today):
@@ -141,6 +149,8 @@ def _queue(rows, people, cmap, market, truncated, today):
     hashed = {id(r): _scope(r, market, id(r) in people) for r in rows}
 
     def fig(value, unit, part):
+        if not _measured(value):
+            return None
         return figure(value, unit, QUEUE_ID, None, [hashed[id(r)] for r in part])
 
     listed = []
@@ -178,6 +188,8 @@ def _results(rows, people, cmap, market, truncated):
     hashed = {id(r): _scope(r, market, id(r) in people) for r in rows}
 
     def fig(value, unit, part):
+        if not _measured(value, count=True):
+            return None
         return figure(value, unit, RESULTS_ID, None, [hashed[id(r)] for r in part])
 
     def counts(part, what):

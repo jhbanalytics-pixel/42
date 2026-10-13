@@ -376,7 +376,7 @@ def test_row_5_plans_a_five_credit_call_for_every_configured_hub():
         hubs = [str(h) for h in config["markets"][market.lower()]["instagram_locations"]["values"]]
         assert [c.params["location_id"] for c in calls if c.market == market] == hubs
     for call in calls:
-        assert call.row == "5" and call.source_market == call.market
+        assert call.row == "5" and call.source_market is None
         assert call.hold() == 5
     assert planned["total"] == 1891  # 1830 and one row 14i reel search in the room left
     skips = [s for s in planned["skipped"] if s["route"] == "instagram/location/posts"]
@@ -1837,19 +1837,19 @@ def test_main_writes_the_local_rows_through_the_existing_writers_and_counts_them
 
 
 @pytest.mark.parametrize("market", ["ZA", "NG", "KE"])
-def test_configured_instagram_location_call_carries_its_listed_market(market):
+def test_configured_instagram_location_call_does_not_claim_a_source_market(market):
     config = job.load_config()
     calls, _ = job.harvest_calls(market, TUESDAY, config)
     call = [c for c in calls if c.route == "instagram/location/posts"][0]
     assert call.params["location_id"] in config["markets"][market.lower()]["instagram_locations"]["values"]
-    assert call.source_market == market
     run = job.Collected("source-market-test")
     runner = job._Runner(None, run, fake_item_id, FakeGeo(), lambda: NOW, None, {}, TUESDAY)
     stored, items, labels = split_vendor_labels(body_for(call.route, call.params, call.market))
     result = Result("ok", call.route, "hash", 200, call.hold(), call.hold(), False, stored, items, labels)
     parsed = runner._parse(call, result, NOW)
     assert parsed["observations"]
-    assert {(o["source_market"], o["source_region"]) for o in parsed["observations"]} == {(market, None)}
+    assert {(o["source_market"], o["source_region"]) for o in parsed["observations"]} == {(None, None)}
+    assert call.source_market is None
 
 
 def test_row_5_health_key_names_the_location_it_read():

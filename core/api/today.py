@@ -1005,6 +1005,8 @@ def _held_item(item, creator_labels):
     platforms = ([canon_platform(platform) for platform in raw_platforms if isinstance(platform, str)]
                  if isinstance(raw_platforms, list) else None)
     out = dict(item, title=_item_title(item, evidence, creator_labels))
+    for key in ("claims", "explanation", "explanation_claim_ids"):
+        out.pop(key, None)
     if "count_line" in item:
         out["count_line"] = _one_count(item["count_line"])
     if "platform" in item:

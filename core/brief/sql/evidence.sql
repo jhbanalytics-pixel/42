@@ -92,7 +92,7 @@ r AS (
           AND source_market_by_post.source_market = @market) local_flag,
     NOT IFNULL(NULLIF(ps.geo_market, '') != @market AND ps.geo_confidence >= 0.7
                AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE) showable_flag,
-    ROW_NUMBER() OVER (PARTITION BY IFNULL(ps.creator_id, ps.post_id)
+    ROW_NUMBER() OVER (PARTITION BY ps.platform, IFNULL(ps.creator_id, ps.post_id)
                        ORDER BY mm.post_id IS NULL, s.measured DESC, IFNULL(ps.engagement, 0) DESC, ps.post_id) creator_rank
   FROM s
   JOIN {core}.posts ps ON ps.post_id = s.post_id

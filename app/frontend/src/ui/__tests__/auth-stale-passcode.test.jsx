@@ -389,6 +389,28 @@ test('C08 Log out removes any stale marker with the key', async () => {
   expect(localStorage.getItem(REASON_KEY)).toBeNull();
 });
 
+test('W2 one pending sign-in blocks repeated submits and announces progress', async () => {
+  const gate = deferred();
+  serve({verify: () => gate.promise});
+  mount();
+  await settle();
+  await submit(GOOD_KEY);
+  const form = passcodeInput().closest('form');
+  flushSync(() => form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})));
+  await settle();
+  expect(verifyCalls()).toHaveLength(1);
+  expect(form.getAttribute('aria-busy')).toBe('true');
+  expect(button('Checking access').disabled).toBe(true);
+  expect(passcodeInput().disabled).toBe(true);
+  expect(text()).toContain('Checking your access key.');
+  gate.resolve(unauthorized());
+  await settle();
+  expect(passcodeInput().disabled).toBe(false);
+  expect(button('Enter 42').disabled).toBe(false);
+  expect(alertText()).toContain(WRONG_COPY);
+  expect(document.activeElement).toBe(passcodeInput());
+});
+
 test('C09 two wrong submits in a row clear the field and change the alert both times', async () => {
   serve({verify: unauthorized});
   mount();

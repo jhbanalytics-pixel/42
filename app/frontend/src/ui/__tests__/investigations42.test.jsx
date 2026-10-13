@@ -165,6 +165,23 @@ async function openDraft(body = draft(), extra = []){
   await until(() => host.querySelector('h1'), 'the investigation to load');
 }
 
+test('plan fields wait for a pending save and become editable again after failure', async () => {
+  let finish;
+  await openDraft(draft(), [
+    ['PUT', '/api/investigations/' + ID + '/plan', () => new Promise((resolve) => { finish = resolve; })],
+  ]);
+  await press('Edit plan');
+  await press('Save plan');
+  await until(() => finish, 'the save request');
+  expect(host.querySelector('fieldset[data-edit-sub]').disabled).toBe(true);
+  expect(host.querySelector('#inv42-gap-round').disabled).toBe(true);
+  await act(async () => finish(json(503, {message: 'Save unavailable'})));
+  await until(() => alertText().includes('Save unavailable'), 'the failed save');
+  expect(host.querySelector('fieldset[data-edit-sub]').disabled).toBe(false);
+  expect(host.querySelector('#inv42-gap-round').disabled).toBe(false);
+  expect(host.querySelector('textarea').value).toBe(PLAN.sub_questions[0].text);
+});
+
 /* ---------------- api42 ---------------- */
 
 test('the investigation reads and writes use the contract paths, bodies and the passcode', async () => {

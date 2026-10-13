@@ -70,13 +70,17 @@ def two_items(con, *, shared=3):
     link(con, "za_b", [f"za_a_p{k}" for k in range(1, shared + 1)])
 
 
-def test_two_cards_of_one_event_are_recorded_and_both_stay_cards():
+def test_shadow_records_the_pair_and_publication_holds_the_undated_event_fragment():
     con = world(n=0)
     two_items(con)
     r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": MTN8_2}), confirm=FakeConfirm())
-    assert za_cards(r) == ["za_b", "za_a"]
-    assert [c["also"] for c in all_cards(payload(r, "ZA"))] == [[], []]
-    assert payload(r, "ZA")["held_back"]["count"] == 0
+    assert za_cards(r) == ["za_b"]
+    assert [c["also"] for c in all_cards(payload(r, "ZA"))] == [[]]
+    assert payload(r, "ZA")["held_back"]["count"] == 1
+    held = payload(r, "ZA")["held_back"]["items"][0]
+    assert held["item_id"] == "za_a"
+    assert held["event_fragment"]["reference_item_id"] == "za_b"
+    assert held["event_fragment"]["missing"] == ["event_date"]
     assert shadow(r)["ZA"] == {"judged": 2, "merges": [
         {"kept": "za_b", "item_id": "za_a", "shared_posts": 3, "shared_names": 3, "date": ["10-10"]}], "near": []}
     assert shadow(r)["NG"] == shadow(r)["KE"] == {"judged": 0, "merges": [], "near": []}
@@ -105,7 +109,8 @@ def test_the_kept_card_is_the_one_today_shows_first_when_breadth_and_worth_disag
     add_item(con, "ZA", "za_b", 0.96, label="sundowns pirates", creators3=6, posts3=18)
     link(con, "za_b", [f"za_a_p{k}" for k in range(1, 4)])
     r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": MTN8_2}), confirm=FakeConfirm())
-    assert za_cards(r) == ["za_b", "za_a"]
+    assert za_cards(r) == ["za_b"]
+    assert payload(r, "ZA")["held_back"]["items"][0]["item_id"] == "za_a"
     assert [(m["kept"], m["item_id"]) for m in shadow(r)["ZA"]["merges"]] == [("za_b", "za_a")]
     assert shadow(r)["ZA"]["merges"][0]["kept"] == za_cards(r)[0]
 

@@ -938,21 +938,35 @@ def _gap_prompt(prompt: str, queries: list[str], followups: list[dict], credits:
 def _research_lanes(deps: Deps, jobs: list[tuple], setup: ResearchSetup, progress: Progress,
                     should_stop: Callable[[], bool], ctx: RunContext, client: _Counted) -> dict:
     """Run each (lane, prompt, lane client) job on deps.research in its own thread, then merge every lane into ctx in
-    job order, a failed one's spend included, and raise the first failure. Returns research's contract, summed."""
+    job order, a failed one's spend included. Keep successful research with explicit coverage gaps; all-failed and
+    shared model-budget failures still raise. Returns research's contract, summed."""
     with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
         futures = [pool.submit(deps.research, lane, prompt, replace(setup, client=lane_client), progress, should_stop)
                    for lane, prompt, lane_client in jobs]
-    results, failed = [], None
-    for future in futures:
+    results, failures = [], []
+    for index, future in enumerate(futures):
         try:
             results.append(future.result())
         except Exception as exc:
-            failed = failed or exc
+            failures.append((index, exc))
     for lane, _, lane_client in jobs:
         ctx.merge(lane)
         client.items += lane_client.items
-    if failed is not None:
-        raise failed
+    if failures:
+        fatal = next((exc for _, exc in failures if isinstance(exc, _StopRequested)), None)
+        if fatal is not None or not results or ctx.model_budget is not None and ctx.model_budget.stopped:
+            raise fatal or failures[0][1]
+        for index, exc in failures:
+            lane, _, lane_client = jobs[index]
+            platforms = sorted({platform_label(route.split("/", 1)[0]) for route in lane_client.routes or []})
+            ctx.research_gaps.append({
+                "what": f"A researcher did not finish ({', '.join(platforms) or 'assigned research'})",
+                "searched": "Only its recorded results and the other researchers' completed results are available",
+                "why": "Research coverage is incomplete; a failed search is not evidence of absence"})
+            if ctx.model_budget is None:
+                results.append({"note": "", "tokens": {"input": 0, "output": 0},
+                                "usd": lane.budget["max_budget_usd"]})
+        progress.step("note", "Some research did not finish; checking the evidence already found")
     return {"note": "\n\n".join(r["note"] for r in results if r.get("note")),
             "tokens": {k: sum(int(r["tokens"].get(k) or 0) for r in results) for k in ("input", "output")},
             "usd": sum(float(r.get("usd") or 0.0) for r in results),
@@ -1439,8 +1453,15 @@ class _StopAwareModel:
         self.keep_room = keep_room
 
     def _checked_usage(self, usage):
+        if isinstance(usage, dict) and usage.get("usage_unknown"):
+            return None
         complete = getattr(self.model, "usage_is_complete", None)
         return usage if not callable(complete) or complete() else None
+
+    @staticmethod
+    def _reserved_usage(reservation):
+        return {"input_tokens": reservation.input_bound, "output_tokens": reservation.output_bound,
+                "usd": reservation.ceiling_micros / 1_000_000, "usage_unknown": True, "reserved": True}
 
     def _span(self, kwargs, attempt, last_end):
         """The model_call span for one attempt at this call; its purpose comes from the schema the call asks for."""
@@ -1489,7 +1510,13 @@ class _StopAwareModel:
                 span.end(status=timing.failure_status(cause))
                 raise
             span.end(status="ok")
+            if isinstance(result, tuple) and len(result) == 2 and self._checked_usage(result[1]) is None:
+                input_bound = _input_token_upper_bound(kwargs["system"], kwargs["user"], kwargs["schema"])
+                usage = _usage_or_reserve(None, kwargs["model"], input_bound, kwargs["max_tokens"])
+                result = (result[0], usage)
             span.set(**timing.token_attrs(result[1] if isinstance(result, tuple) and len(result) == 2 else None))
+            if isinstance(result, tuple) and len(result) == 2 and result[1].get("reserved"):
+                span.set(reserved=1)
             return result
         from core.agent.gemini_research import BUSY_WAITS_S, RETRY_WAIT_S, busy_refusal, server_error, wait_busy
 
@@ -1549,6 +1576,9 @@ class _StopAwareModel:
                     self.model_budget.settle(reservation, usage, stop_unknown=False)
                     retry = retry and self.model_budget.affords(
                         kwargs["model"], [(input_bound, kwargs["max_tokens"]), *self.keep_room])
+                if usage is None:
+                    cause.usage = self._reserved_usage(reservation)
+                    cause.reserve_model_estimate = True
                 if not retry:
                     raise
                 server_failed += 1
@@ -1565,6 +1595,8 @@ class _StopAwareModel:
             exc.before_dispatch = False
             exc.model_budget_reason = "model_usage_unknown_or_outside_reserve"
             raise exc
+        if usage is None and isinstance(result, tuple) and len(result) == 2:
+            result = (result[0], self._reserved_usage(reservation))
         return result
 
 
@@ -2352,6 +2384,11 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                     deps.tables.insert(CLAIM_CHECKS, rows, row_ids=[f"{ask_id}:{r['claim_id']}:{r['rule']}:{i}"
                                                                     for i, r in enumerate(rows)])
 
+        for gap in ctx.research_gaps:
+            if gap not in answer["gaps"]:
+                answer["gaps"].append(dict(gap))
+        if ctx.research_gaps and answer["status"] == "complete":
+            answer["status"] = "partial"
         problems = validate_answer(answer)
         if problems:
             raise RuntimeError("The answer fails the contract: " + "; ".join(problems))

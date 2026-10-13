@@ -14,7 +14,8 @@ WHERE r.status = 'ok' AND r.stage IN ('collect', 'aggregate', 'stats', 'detect')
   AND DATE(r.finished_at) <= @as_of;
 
 -- Collection health from collect runs of the same day finished by @as_of.
-SELECT h.day, h.market, h.platform, h.series, h.protocol, h.lane_class, h.valid, h.units_ok, h.k, h.items, h.run_id
+SELECT h.day, h.market, h.platform, h.series, h.protocol, h.lane_class, h.valid, h.units_ok, h.k, h.items, h.run_id,
+  h.route, h.calls, h.calls_ok, h.invalid_reason
 FROM {core}.collection_health h
 JOIN {agent}.runs r ON r.run_id = h.run_id AND r.stage = 'collect' AND r.status = 'ok' AND r.run_date = h.day
 WHERE h.day BETWEEN @start AND @as_of AND DATE(r.finished_at) <= @as_of;

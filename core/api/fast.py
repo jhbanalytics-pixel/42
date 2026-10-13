@@ -382,14 +382,17 @@ def history_item_plan(p, item_id, market):
 def seed_path_plan(p, keyword, market):
     """seedpath.build_seed_path's reads: the aggregate run, then the matching posts beside the detect run and the
     cards its topics are named from (read only when a matching post links an item; started here beside the posts)."""
-    from core.api import seedpath
+    from core.api import privacy, seedpath
 
     try:
         term, market = seedpath._keyword(keyword), seedpath._market(market)
     except seedpath.BadRequest:
         return
     p.start("latest_aggregate_run")
-    _hidden_start(p)
+    p.start("hidden_people_rows")
+    hidden = privacy.read_hidden(p)
+    if privacy.mask(term, hidden) != term:
+        return
     p.start("first_ok_collect_date")
     run = p.peek("latest_aggregate_run")
     if not run:
@@ -397,7 +400,6 @@ def seed_path_plan(p, keyword, market):
     end = run["run_date"]
     p.start("seed_path_posts", market, [term], _days_before(end, seedpath.DAYS - 1), end, seedpath.ROW_LIMIT + 1)
     p.start("latest_detect_run", until=end)
-    _hidden_then(p)
     detect = p.peek("latest_detect_run", until=end)
     if detect:
         _run_cards(p, detect, market)

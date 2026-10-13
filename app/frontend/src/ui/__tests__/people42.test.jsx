@@ -688,3 +688,24 @@ test('a language code outside the list reads as a name or as another language', 
   expect(row.textContent).toContain('German, Another language');
   expect(row.textContent).not.toMatch(/qqq|\(de\)/);
 });
+
+for (const [what, element, payload] of [
+  ['creator', <CreatorPage42 creatorId="c_ng_macro" market="NG" />, fixture.creator],
+  ['community', <CommunityPage42 communityId={COMMUNITY} market="NG" />, fixture.community],
+]) {
+  test('a pending ' + what + ' drill-down times out and ignores late evidence', async () => {
+    const timers = trackCommunitiesTimeout();
+    try {
+      let release;
+      await mount(element, () => new Promise((resolve) => { release = resolve; }));
+      expect(timers.scheduled).toHaveLength(1);
+      flushSync(() => timers.fire());
+      await settle();
+      expect(host.querySelector('[role="alert"]').textContent).toBe('The 42 service did not answer.');
+      expect(calls[0].init.signal.aborted).toBe(true);
+      release(reply(200, payload));
+      await settle();
+      expect(host.querySelector('[role="alert"]')).not.toBeNull();
+    } finally { timers.restore(); }
+  });
+}

@@ -13,7 +13,7 @@ import pytest
 import sqlglot
 from sqlglot import exp
 
-from core.eval import quality_score, review
+from core.eval import forecast_score, quality_score, review
 from core.eval.tests.test_forecast_score import good_cohort, row
 
 WEEK = date(2026, 9, 21)
@@ -23,7 +23,8 @@ SQL_DIR = Path(__file__).resolve().parents[1] / "sql"
 
 
 def score_file(tmp, day, *, questions=10, failed=(), thin=0, honest=0, false_refusals=0, valid=True, ids=None,
-               with_ids=True):
+               with_ids=True, question_set_hash="auto"):
+    question_ids = ids or [f"Q{i:02d}" for i in range(questions)]
     body = {
         "run": {"date": day, "valid": valid, "questions": questions, "mode": "replay", "live_credits_spent": 0},
         "failed_questions": list(failed),
@@ -31,7 +32,12 @@ def score_file(tmp, day, *, questions=10, failed=(), thin=0, honest=0, false_ref
         "gates": {"false_full_refusals": {"count": false_refusals, "ids": [], "pass": not false_refusals}},
     }
     if with_ids:
-        body["questions"] = {qid: {} for qid in (ids or [f"Q{i:02d}" for i in range(questions)])}
+        body["questions"] = {qid: {} for qid in question_ids}
+    if question_set_hash == "auto":
+        canonical = json.dumps(sorted(question_ids), separators=(",", ":"))
+        question_set_hash = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    if question_set_hash is not None:
+        body["run"]["question_set_hash"] = question_set_hash
     path = Path(tmp) / f"score-{day}.json"
     path.write_text(json.dumps(body), encoding="utf-8")
     return path
@@ -56,6 +62,8 @@ def scorecard(market, precision, n, *, run_id="learn-1", ttd=4.0, week=WEEK, com
     (False) be compared with the week before; None leaves the marker off, as a row of the first scorecard rule does."""
     regime = {} if comparable is None else {"regime": {"locality_basis": "v1" if comparable else "mixed",
                                                        "previous_week_basis": "v1",
+                                                       "detection_rule_version": "detect-fixture-current",
+                                                       "previous_detection_rule_version": "detect-fixture-current",
                                                        "comparable_with_previous_week": comparable}}
     return {"week_start": week, "week_end": week + timedelta(days=6), "market": market, "run_id": run_id,
             "rule_version": "scorecard-1",
@@ -146,7 +154,7 @@ def test_forecast_skill_is_pooled_per_market_and_needs_200_resolved(warehouse, t
     assert rows["ZA"]["parts"]["forecast_skill"]["value"] == pytest.approx(0.87)
     assert rows["ZA"]["parts"]["forecast_skill"]["points"] == pytest.approx(93.5)
     assert rows["NG"]["parts"]["forecast_skill"]["insufficient"] is True
-    assert rows["ALL"]["parts"]["forecast_skill"]["query_id"] == "core/eval/sql/forecast_rows.sql?d=2026-09-28"
+    assert rows["ALL"]["parts"]["forecast_skill"]["query_id"] == "core/eval/sql/forecast_rows.sql?d=2026-09-28&resolution_rule_version=" + forecast_score.RESOLUTION_RULE_VERSION
 
 
 def test_precision_comes_from_the_latest_engine_scorecard_run_and_time_to_detect_is_shown_not_scored(
@@ -259,6 +267,28 @@ def test_change_is_withheld_when_the_replay_question_count_differs(warehouse, tm
     assert top["change"] is None and "12 questions" in top["change_reason"]
 
 
+def test_change_is_withheld_when_question_definitions_change_under_the_same_ids(warehouse, tmp_path):
+    wh = warehouse()
+    ids = [f"Q{i:02d}" for i in range(10)]
+    score_file(tmp_path, "2026-09-18", failed=["Q00"], ids=ids,
+               question_set_hash="sha256:" + "a" * 64)
+    score_file(tmp_path, "2026-09-25", failed=[], ids=ids,
+               question_set_hash="sha256:" + "b" * 64)
+    quality_score.run(wh.execute, WEEK - timedelta(days=7), scores=tmp_path, dry_run=False, now=NOW)
+    top = by_market(quality_score.run(wh.execute, WEEK, scores=tmp_path, dry_run=True, now=NOW))["ALL"]
+    assert top["change"] is None and "question set" in top["change_reason"]
+
+
+def test_change_is_withheld_when_question_set_fingerprint_is_missing(warehouse, tmp_path):
+    wh = warehouse()
+    ids = [f"Q{i:02d}" for i in range(10)]
+    score_file(tmp_path, "2026-09-18", failed=["Q00"], ids=ids, question_set_hash=None)
+    score_file(tmp_path, "2026-09-25", failed=[], ids=ids, question_set_hash=None)
+    quality_score.run(wh.execute, WEEK - timedelta(days=7), scores=tmp_path, dry_run=False, now=NOW)
+    top = by_market(quality_score.run(wh.execute, WEEK, scores=tmp_path, dry_run=True, now=NOW))["ALL"]
+    assert top["change"] is None and "fingerprint" in top["change_reason"]
+
+
 # Writing
 
 def test_dry_run_writes_nothing(warehouse, tmp_path):
@@ -321,9 +351,9 @@ def test_the_change_is_withheld_when_the_precision_regime_is_not_comparable_with
         assert rows[market]["change"] is None and "regime" in rows[market]["change_reason"]
 
 
-def test_a_week_without_a_regime_marker_is_not_withheld(warehouse, tmp_path):
+def test_a_week_without_a_regime_marker_withholds_change(warehouse, tmp_path):
     top = two_weeks(warehouse(), tmp_path, None)["ZA"]
-    assert top["change"] is not None
+    assert top["change"] is None and "method" in top["change_reason"]
 
 
 def test_the_precision_part_carries_its_regime(warehouse, tmp_path):

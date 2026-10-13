@@ -196,10 +196,22 @@ test('History opens a saved Ask by GET without posting a new Ask or opening even
   await expect(page).toHaveURL(new RegExp('#/ask\\?follow=' + savedAsk.ask_id + '$'));
 
   const answer = page.locator('#main-content').getByRole('article').first();
-  await expect(answer.getByRole('heading', {level: 2, name: savedAsk.question, exact: true})).toBeVisible();
+  const question = answer.locator('.ask42-question');
+  await expect(question).toHaveText(savedAsk.question);
+  await expect(question).toHaveAccessibleName(savedAsk.question);
   await expect(answer).toContainText(savedAsk.answer.short_answer);
+  await page.reload();
+  await expect(page).toHaveURL(new RegExp('#/ask\\?follow=' + savedAsk.ask_id + '$'));
+  const restoredAnswer = page.locator('#main-content').getByRole('article').first();
+  const restoredQuestion = restoredAnswer.locator('.ask42-question');
+  await expect(restoredQuestion).toHaveText(savedAsk.question);
+  await expect(restoredQuestion).toHaveAccessibleName(savedAsk.question);
+  await expect(restoredAnswer).toContainText(savedAsk.answer.short_answer);
   expect(state.api.filter((request) => request.path === '/api/ask/' + savedAsk.ask_id))
-    .toEqual([expect.objectContaining({method: 'GET', status: 200})]);
+    .toEqual([
+      expect.objectContaining({method: 'GET', status: 200}),
+      expect.objectContaining({method: 'GET', status: 200}),
+    ]);
   expect(state.modelPosts).toEqual([]);
   expect(state.eventStreams).toEqual([]);
   await expectFixtureBoundary(state);

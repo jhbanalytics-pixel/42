@@ -16,7 +16,8 @@ from core.agent.context import Refused, RunContext
 
 PROJECT = "ogilvy-trends-v2"
 ALLOWED_DATASETS = ("intelligence_42_core", "intelligence_42_agent")
-ALLOWED_TVFS = {"intelligence_42_agent.tvf_search_posts", "intelligence_42_agent.tvf_item_timeseries"}  # DATA.md 7
+ALLOWED_TVFS = {"intelligence_42_agent.tvf_search_posts", "intelligence_42_agent.tvf_search_posts_scoped",
+                "intelligence_42_agent.tvf_item_timeseries"}  # DATA.md 7
 MAX_BYTES_BILLED = 2_000_000_000
 MAX_ROWS = 500
 QUERY_PREVIEW_ROWS = 10
@@ -454,7 +455,7 @@ class BigQueryWarehouse:
                 statements = []
             semantic = any(
                 isinstance(table.this, exp.Func)
-                and table.this.name.casefold().rsplit(".", 1)[-1] == "tvf_search_posts"
+                and table.this.name.casefold().rsplit(".", 1)[-1] in ("tvf_search_posts", "tvf_search_posts_scoped")
                 for statement in statements if statement is not None
                 for table in statement.find_all(exp.Table)
             )
@@ -544,7 +545,8 @@ def _dispatch_query(ctx: RunContext, warehouse: Warehouse, sql: str, params: dic
     if "tvf_search_posts" in sql.casefold():
         for table in sqlglot.parse_one(sql, dialect="bigquery").find_all(exp.Table):
             function = table.this
-            if isinstance(function, exp.Func) and function.name.casefold().rsplit(".", 1)[-1] == "tvf_search_posts":
+            if (isinstance(function, exp.Func)
+                    and function.name.casefold().rsplit(".", 1)[-1] in ("tvf_search_posts", "tvf_search_posts_scoped")):
                 content = function.expressions[0]
                 if isinstance(content, exp.Parameter):
                     text = (params or {}).get(content.name)

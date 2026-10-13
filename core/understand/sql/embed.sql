@@ -16,7 +16,7 @@
 -- sighted in its days that is still unembedded, the failed ones and those past @max_rows alike.
 -- A post by a creator on the suppression list (v_suppressed_creators) is left out of the window like a post past
 -- 400 days: its text never goes to the model and it is not counted as skipped. A post with no creator_id stays.
--- BigQuery tables store a NULL array as an empty one, so "has an embedding" is ARRAY_LENGTH > 0.
+-- A complete embedding has 768 finite Float32-representable elements. Empty and malformed vectors remain eligible for embedding.
 -- The last statement returns the counts: embedded, failed, skipped (no text, or embedded already), chars_sent,
 -- the characters of content sent to the model, and tokens, the input tokens the spend correction is priced from:
 -- each row's token_count in ml_generate_embedding_statistics as Vertex reports it, or, where a row reports none,
@@ -34,7 +34,11 @@ FROM `ogilvy-trends-v2.intelligence_42_core.posts` AS p
 LEFT JOIN (
   SELECT DISTINCT e.post_id
   FROM `ogilvy-trends-v2.intelligence_42_core.post_enrichment` AS e
-  WHERE ARRAY_LENGTH(e.embedding) > 0
+  WHERE ARRAY_LENGTH(e.embedding) = 768
+    AND NOT EXISTS (
+      SELECT 1 FROM UNNEST(e.embedding) AS value
+      WHERE value IS NULL OR IS_NAN(value) OR IS_INF(value) OR ABS(value) > 3.4028234663852886e38
+    )
 ) AS done
   ON done.post_id = p.post_id
 -- The post_date bound keeps each window from scanning all of posts. Sightings of posts older than 400 days
@@ -62,7 +66,11 @@ CREATE TEMP TABLE IF NOT EXISTS generated AS
 SELECT
   g.post_id,
   g.ml_generate_embedding_result AS embedding,
-  COALESCE(g.ml_generate_embedding_status, '') = '' AND ARRAY_LENGTH(g.ml_generate_embedding_result) = 768 AS ok,
+  COALESCE(g.ml_generate_embedding_status, '') = '' AND ARRAY_LENGTH(g.ml_generate_embedding_result) = 768
+    AND NOT EXISTS (
+      SELECT 1 FROM UNNEST(g.ml_generate_embedding_result) AS value
+      WHERE value IS NULL OR IS_NAN(value) OR IS_INF(value) OR ABS(value) > 3.4028234663852886e38
+    ) AS ok,
   COALESCE(
     SAFE_CAST(JSON_VALUE(g.ml_generate_embedding_statistics, '$.token_count') AS INT64),
     LEAST(CAST(CEIL(BYTE_LENGTH(g.content) / 3) AS INT64), 2048)

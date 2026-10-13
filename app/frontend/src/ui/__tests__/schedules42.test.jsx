@@ -40,6 +40,14 @@ const S3 = {
   last_run: null, skip_reason: null,
 };
 const SCHEDULES = {schedules: [S1, S2, S3]};
+test('an incomplete schedule pause receipt retains the active row', async () => {
+  await mount([['/api/schedules/' + S1.schedule_id + '/pause', reply(200, {})], ...standard()]);
+  const saved = host.querySelector('[data-schedule="' + S1.schedule_id + '"]');
+  click(button(saved, 'Pause'));
+  await settle();
+  expect(button(saved, 'Pause')).toBeDefined();
+  expect(saved.querySelector('[role="alert"]')).not.toBeNull();
+});
 
 /* Every test answers fetch from a route table: the first matching prefix. */
 function serve(routes){

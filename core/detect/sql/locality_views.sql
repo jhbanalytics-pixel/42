@@ -1,5 +1,5 @@
--- The SQL side of the locality_v2 reader (C4 v3 section 7.1, appendix F2). Applied by core/detect/job.py after
--- views.sql; it reads v_good_runs, so views.sql must come first.
+-- The counted-link function is installed before detection views. The locality views are applied afterwards
+-- because their current-run reader needs v_good_runs.
 --
 -- v_item_locality_checked: the rows of item_locality that passed write-time verification (a verification row for the
 -- same key, written by core/detect/locality.py only after Python recounted the key's members), at the pinned metric
@@ -16,40 +16,11 @@
 -- first, then the market run, then the pooled run, ties to the lower item id; a link counts from linked_on and
 -- until its post_item_end. Every row written before linked_on existed, and every link that is not a topic link,
 -- passes through unchanged with a NULL market, so no count of history moves. The scan of post_observations is
--- bounded to the 28 days ending at d. Read by the locality_v2 members statement.
--- It is applied here and not with views.sql because it reads the tables the locality DDL adds (post_items.linked_on,
--- post_item_lineage, post_item_end), and views.sql is applied inside detect's main try: a release that lands the image before
--- that DDL then fails the locality step only, never detect (C4 v3 section 10).
+-- bounded to the 28 days ending at d. Its rules come from counted_links.sql, also used by historical market scope.
+-- Detection now requires the dated-link columns and lineage/end tables. The job preflights them and fails with
+-- a data issue before counting if they are absent. This does not require the optional locality result tables.
 CREATE OR REPLACE TABLE FUNCTION {core}.tvf_post_items(d DATE) AS
-WITH raw AS (
-  SELECT pi.post_id, pi.item_id, pi.via, pi.link_market, pi.linked_on
-  FROM {core}.post_items pi
-  WHERE pi.linked_on IS NULL OR pi.linked_on <= d
-  UNION ALL
-  SELECT l.post_id, l.item_id, 'lineage', l.link_market, l.linked_on
-  FROM {core}.post_item_lineage l
-  WHERE l.linked_on <= d),
-live AS (
-  SELECT r.* FROM raw r
-  WHERE NOT EXISTS (SELECT 1 FROM {core}.post_item_end e
-                    WHERE e.post_id = r.post_id AND e.item_id = r.item_id AND e.ended_on <= d)),
-seen AS (
-  SELECT DISTINCT o.post_id, o.market FROM {core}.post_observations o
-  WHERE o.observed_date BETWEEN DATE_SUB(d, INTERVAL 27 DAY) AND d),
-dated AS (
-  SELECT l.post_id, l.item_id, s.market,
-    CASE l.via WHEN 'lineage' THEN 0 WHEN 'cluster' THEN 1 ELSE 2 END prec
-  FROM live l
-  JOIN seen s ON s.post_id = l.post_id
-  WHERE l.linked_on IS NOT NULL AND l.via IN ('cluster', 'cluster_pan', 'lineage')
-    AND (l.link_market IS NULL OR l.link_market = s.market)),
-winner AS (
-  SELECT t.post_id, t.item_id, t.market FROM dated t
-  QUALIFY ROW_NUMBER() OVER (PARTITION BY t.post_id, t.market ORDER BY t.prec, t.item_id) = 1)
-SELECT l.post_id, l.item_id, l.via, CAST(NULL AS STRING) market
-FROM live l WHERE l.linked_on IS NULL OR l.via NOT IN ('cluster', 'cluster_pan', 'lineage')
-UNION ALL
-SELECT w.post_id, w.item_id, 'topic', w.market FROM winner w;
+SELECT post_id, item_id, via, market FROM ({counted_links});
 
 CREATE OR REPLACE VIEW {core}.v_item_locality_checked AS
 WITH c AS (

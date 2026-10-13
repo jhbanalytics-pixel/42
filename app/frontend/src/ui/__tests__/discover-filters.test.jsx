@@ -108,6 +108,40 @@ const base = (page = pageWith(['#alpha', '#beta']), radar = radarWith(['Ayanda',
   ['/api/discover', reply(200, page)],
 ];
 
+test('retained feed and Radar links keep their fetched market until the new market arrives', async () => {
+  let release;
+  let releaseRadar;
+  const prior = pageWith(['#prior']);
+  delete prior.items[0].market;
+  await mount([
+    ['/api/discover/radar', (url) => url.includes('market=NG') ? new Promise((resolve) => { releaseRadar = resolve; }) : reply(200, radarWith(['Prior radar']))],
+    ['/api/discover', (url) => url.includes('market=NG') ? new Promise((resolve) => { release = resolve; }) : reply(200, prior)],
+  ]);
+  click(tab('Markets', 'Nigeria'));
+  await settle();
+  expect(host.querySelector('.d42-feed .tc-title-link').getAttribute('href')).toContain('market=ZA');
+  expect(host.querySelector('[data-section="radar"] tbody th a').getAttribute('href')).toContain('market=ZA');
+  expect(host.querySelector('[data-feed-status]').textContent).toContain('Earlier results');
+  const fresh = pageWith(['#fresh']);
+  delete fresh.items[0].market;
+  release(reply(200, fresh));
+  releaseRadar(reply(200, radarWith(['Fresh radar'])));
+  await settle();
+  expect(host.querySelector('.d42-feed .tc-title-link').getAttribute('href')).toContain('market=NG');
+  expect(host.querySelector('[data-section="radar"] tbody th a').getAttribute('href')).toContain('market=NG');
+});
+
+test('missing hold counts stay unknown in the feed and Radar', async () => {
+  const page = pageWith(['#alpha']);
+  delete page.held_back;
+  const radar = radarWith(['Ayanda']);
+  delete radar.held_back_count;
+  await mount(base(page, radar));
+  expect(host.querySelector('[data-section="held-back"]').textContent).toContain('Hold information was not returned');
+  expect(host.querySelector('.d42-radar-held').textContent).toContain('Hold count was not returned');
+  expect(text()).not.toContain('Nothing held back');
+});
+
 test('the API paths carry several states and platforms as repeated keys and leave empty ones off', async () => {
   serve([['/api/', reply(200, {})]]);
   await fetchDiscover({market: 'ZA', kind: 'creator', state: ['emerging', 'rising'], platform: ['youtube', 'x'], sort: 'order', limit: 50});

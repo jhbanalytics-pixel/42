@@ -36,18 +36,27 @@ export function validSeedPathPayload(value, keyword, market){
   const term = normaliseTerm(keyword);
   const scope = String(market || '').toLowerCase();
   if (!record(value) || !term || !MARKETS.includes(scope)) return false;
-  if (value.keyword !== term || String(value.market || '').toLowerCase() !== scope) return false;
+  if (String(value.market || '').toLowerCase() !== scope) return false;
   if (!STATUSES.includes(value.status) || typeof value.query_id !== 'string') return false;
   if (![value.platforms, value.side_words, value.topics].every(Array.isArray)) return false;
+  if (value.keyword !== term) {
+    return value.status === 'not_ready' && value.message === 'People view unavailable.'
+      && typeof value.keyword === 'string' && value.keyword.includes('***')
+      && value.matched_posts === null && value.window === null && value.run_id === null
+      && value.platforms.length === 0 && value.side_words.length === 0 && value.topics.length === 0;
+  }
   if (value.status !== 'ok') return typeof value.message === 'string' && !!value.message.trim();
   if (!record(value.window) || !isDate(value.window.from) || !isDate(value.window.to) || !isFigure(value.matched_posts)) return false;
   if (!value.platforms.length) return false;
   const days = value.platforms[0]?.daily?.points?.length;
+  const axis = value.platforms[0]?.daily?.points;
   return value.platforms.every((p) => record(p) && typeof p.platform === 'string' && typeof p.name === 'string'
       && isFigure(p.first_seen) && isDate(p.first_seen.value) && typeof p.before_window === 'boolean'
       && isFigure(p.posts_in_window) && count(p.posts_in_window.value)
       && record(p.daily) && typeof p.daily.query_id === 'string' && Array.isArray(p.daily.points)
-      && p.daily.points.length === days && p.daily.points.every((d) => record(d) && isDate(d.date) && count(d.posts)))
+      && days > 0 && p.daily.points.length === days
+      && p.daily.points.every((d, index) => record(d) && isDate(d.date) && count(d.posts) && d.date === axis[index].date
+        && (index === 0 || d.date > p.daily.points[index - 1].date)))
     && value.side_words.every((w) => record(w) && typeof w.word === 'string' && !!w.word && isFigure(w.posts))
     && value.topics.every((t) => record(t) && typeof t.item_id === 'string' && !!t.item_id && typeof t.title === 'string' && isFigure(t.posts));
 }
@@ -367,7 +376,7 @@ export function SeedPathPage({session, onAuth, initialKeyword, initialMarket, se
 
         {d && d.status !== 'ok' && (
           <EmptyState
-            title={STATUS_TITLES[d.status](d.keyword, where)}
+            title={d.status === 'not_ready' && d.message === 'People view unavailable.' ? 'Seed path is unavailable' : STATUS_TITLES[d.status](d.keyword, where)}
             body={d.status === 'no_match'
               ? d.message + ' Seed path looks in post text, video transcripts and hashtags. Try another spelling or another market.'
               : d.message}

@@ -293,8 +293,7 @@ def harvest_calls(market, day, config, *, x_trends=False, override=False):
     # Under a cap override the hubs take turns, one a day, so the expansion rows keep their share.
     hubs = [locations[day.toordinal() % len(locations)]] if override and locations else locations
     for hub in map(str, hubs):
-        calls.append(Call("5", "instagram/location/posts", {"location_id": hub}, market, "sweep", seed_key=hub,
-                          source_market=market))
+        calls.append(Call("5", "instagram/location/posts", {"location_id": hub}, market, "sweep", seed_key=hub))
     if not locations:
         skipped.append({"row": "5", "route": "instagram/location/posts", "market": market,
                         "series": "ig_location", "protocol": "instagram/location/posts",
@@ -1168,7 +1167,6 @@ class _Runner:
         if call.route == "tiktok/song/videos" and call.seed is None:
             self.run.song_curve_sample_skipped += adoption_sample_points(result.body)
         listed_key = "pageId" if call.route == "facebook/profile/posts" else \
-            "location_id" if call.route == "instagram/location/posts" else \
             "subreddit" if call.route == "reddit/subreddit" else None
         listed_source = listed_key and call.params.get(listed_key)
         curated_source = call.route == "prism/profiles" and call.params.get("items")
