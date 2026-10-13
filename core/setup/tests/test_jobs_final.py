@@ -76,6 +76,23 @@ def test_nothing_the_paste_or_a_helper_writes_exists_before_its_action_and_every
     assert b"\r\n" in log and log.decode("utf-8").splitlines()[-1] == "dry run only; nothing created"
 
 
+def test_fixture_installer_source_requires_the_actual_clean_bound_commit(tmp_path, monkeypatch):
+    from core.setup.tests.e2e_shim import fixture_source
+
+    run = EndToEnd(tmp_path, monkeypatch).make_packet()
+    bound = run.bench.bindings_value()
+    monkeypatch.chdir(run.bench.repo)
+    assert dict(fixture_source(bound))["core/schema/agent.sql"] == (run.bench.repo / "core/schema/agent.sql").read_text(encoding="utf-8")
+    for field in ("target", "tree"):
+        with pytest.raises(so.Stop) as stopped:
+            fixture_source({**bound, field: "0" * 40})
+        assert stopped.value.code == "SOURCE"
+    (run.bench.repo / "unreviewed.txt").write_text("synthetic dirty source", encoding="utf-8")
+    with pytest.raises(so.Stop) as stopped:
+        fixture_source(bound)
+    assert stopped.value.code == "SOURCE"
+
+
 def test_the_whole_release_candidate_update_and_rollback_runs_through_the_real_paste_to_each_readback(tmp_path, monkeypatch):
     run = EndToEnd(tmp_path, monkeypatch).make_packet()
     bench = run.bench
@@ -85,13 +102,13 @@ def test_the_whole_release_candidate_update_and_rollback_runs_through_the_real_p
     # JobsCandidate: build, freeze, validate, snapshot, schema apply, readbacks, receipt
     candidate = ok(run.paste("JobsCandidate"))
     assert candidate.played == ["gcloud config list", "bound_readback.py BeforeAnyWrite", "deploy_jobs.py --build", "bound_readback.py FreezeJobs",
-                                "durable_effects_check.py validate", "jobs_run.py snapshot", "core.schema.apply",
+                                "durable_effects_check.py validate", "jobs_run.py snapshot", "jobs_run.py warehouse-install",
                                 "durable_effects_check.py readbacks", "jobs_run.py schema-receipt"]
     state = run.state()
     assert state["schema_applied"] is True
     folder = run.run_folder("JobsCandidate")
     assert sorted(path.name for path in folder.glob("*.exit.txt")) == sorted(
-        f"{name}.exit.txt" for name in ("helper-BeforeAnyWrite-0", "jobs-build", "helper-FreezeJobs-0", "durable-validate", "snapshot", "schema-apply",
+        f"{name}.exit.txt" for name in ("helper-BeforeAnyWrite-0", "jobs-build", "helper-FreezeJobs-0", "durable-validate", "snapshot", "warehouse-install",
                                         "durable-readbacks", "schema-receipt"))
     assert all(path.read_text(encoding="utf-8-sig").strip() == "0" for path in folder.glob("*.exit.txt"))
     assert re.fullmatch(r"[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}\r?\n?", (folder / "build-id.txt").read_text(encoding="utf-8"))
@@ -135,7 +152,14 @@ def test_the_paste_orders_the_schema_apply_before_its_readbacks_and_the_receipt_
     run = EndToEnd(tmp_path, monkeypatch).make_packet()
     candidate = ok(run.paste("JobsCandidate"))
     played = candidate.played
-    assert played.index("core.schema.apply") < played.index("durable_effects_check.py readbacks") < played.index("jobs_run.py schema-receipt")
+    assert played.index("jobs_run.py warehouse-install") < played.index("durable_effects_check.py readbacks") < played.index("jobs_run.py schema-receipt")
+    writes = run.state()["ddl_calls"]
+    first_warehouse = next(i for i, (kind, _) in enumerate(writes) if kind == "warehouse")
+    assert first_warehouse > 0 and all(kind == "schema" for kind, _ in writes[:first_warehouse])
+    assert all(kind == "warehouse" for kind, _ in writes[first_warehouse:])
+    durable = json.loads(run.bench.durable.read_text(encoding="utf-8"))
+    assert {e["statement_ref"] for e in durable["effects"] if e["apply_kind"] == "schema"} <= {sql for _, sql in writes[:first_warehouse]}
+    assert [sql for _, sql in writes[first_warehouse:]] == [e["statement_ref"] for e in durable["effects"] if e["apply_kind"] == "warehouse_install"]
     (run.bench.packet / "schema-readback-receipt.json").unlink()
     update = run.paste("JobsUpdate")
     assert update.returncode != 0 and update.played == ["gcloud config list", "bound_readback.py BeforeJobsUpdate"]
@@ -145,7 +169,10 @@ def test_the_paste_orders_the_schema_apply_before_its_readbacks_and_the_receipt_
 def test_a_schema_apply_that_leaves_the_columns_missing_stops_at_the_readbacks_and_leaves_no_receipt(tmp_path, monkeypatch):
     run = EndToEnd(tmp_path, monkeypatch, apply_noop=True).make_packet()
     candidate = run.paste("JobsCandidate")
-    assert candidate.returncode != 0 and candidate.played[-1] == "durable_effects_check.py readbacks" and "jobs_run.py schema-receipt" not in candidate.played
+    assert candidate.returncode != 0 and candidate.played[-1] == "jobs_run.py warehouse-install" and "jobs_run.py schema-receipt" not in candidate.played
+    assert "stamp" not in run.state()["live"]["columns"]["ogilvy-trends-v2.intelligence_42_agent.runs"]
+    assert "ogilvy-trends-v2.intelligence_42_core.item_locality" not in run.state()["live"]["tables"]
+    assert not any(kind == "warehouse" for kind, _ in run.state()["ddl_calls"])
     assert not (run.bench.packet / "schema-readback-receipt.json").exists()
     update = run.paste("JobsUpdate")
     assert update.returncode != 0 and set(run.job_images().values()) == {jw.ROLLBACK_DIGEST}

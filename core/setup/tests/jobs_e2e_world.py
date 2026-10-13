@@ -52,7 +52,13 @@ def a80_live():
             kind = schema_apply.kind(statement)
             if kind in ("table", "view"):
                 tables[schema_apply.statement_name(statement)] = schema_apply.view_body(statement) if kind == "view" else None
-    return {"datasets": {schema_apply.statement_name(s) for s in head if schema_apply.is_schema(s)}, "tables": tables}
+    from core.setup.release import jobs_effects
+
+    statements = [s for name in ("agent.sql", "core.sql") for s in schema_apply.split_statements(sql[name])]
+    columns = {name: jobs_effects.final_columns(statements, name.removeprefix("ogilvy-trends-v2."))
+               for name, body in tables.items() if body is None}
+    return {"datasets": {schema_apply.statement_name(s) for s in head if schema_apply.is_schema(s)}, "tables": tables,
+            "columns": columns}
 
 
 class PackedPaste(JobsPasteWorld):
@@ -131,6 +137,15 @@ class EndToEnd:
         self.cli(b.producer_argv())
         self.run_producer("baseline")
         b.write_durable()
+        from core.setup import durable_effects_check
+
+        durable = json.loads(b.durable.read_text(encoding="utf-8"))
+        durable["reviewed_by"] = "Synthetic E2E reviewer"
+        for effect in durable["effects"]:
+            for name, verdict in effect["compat"].items():
+                verdict.update(verdict="pass", test=f"synthetic E2E {name} fixture")
+        durable["manifest_sha256"] = durable_effects_check.manifest_hash(durable)
+        b.durable.write_text(json.dumps(durable, indent=2) + "\n", encoding="utf-8")
         self.apply_dry_run()
         self.cli(b.bind_argv())
         self.cli(b.lock_argv())

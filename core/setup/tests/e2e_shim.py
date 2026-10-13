@@ -19,6 +19,7 @@ import io
 import os
 import pickle
 import re
+import subprocess
 import sys
 import time
 import types
@@ -41,19 +42,16 @@ class ColumnsBq:
     def dry_run(self, sql, params=None):
         return 0
 
-    def query(self, sql, params=None, max_bytes=None):
-        from core.setup.tests.test_jobs_effects import COLUMNS
+    def definition(self, target):
+        from core.schema import release_install
 
+        return release_install.definition(WarehouseBq(self.state), target)[0]
+
+    def query(self, sql, params=None, max_bytes=None):
         match = re.search(r"\.(\w+)\.INFORMATION_SCHEMA\.COLUMNS` WHERE table_name = '(\w+)'", sql)
         assert match, sql
         table = f"{match.group(1)}.{match.group(2)}"
-        final = COLUMNS.get(table, [])
-        if self.state["schema_applied"]:
-            columns = final
-        else:
-            added = {"stamp", "span_sha256", "reason_code", "linked_on", "link_market"}
-            existing = table in ("intelligence_42_agent.runs", "intelligence_42_agent.claim_checks", "intelligence_42_core.post_items")
-            columns = [c for c in final if c not in added] if existing else []
+        columns = self.state["live"]["columns"].get("ogilvy-trends-v2." + table, [])
         return [{"column_name": c} for c in columns]
 
 
@@ -98,12 +96,99 @@ class ApplyBq:
         if not (job_config is not None and job_config.dry_run):
             kind, name = apply.kind(sql), apply.statement_name(sql)
             if kind == "table":
-                self.live["tables"].setdefault(name, None)
+                from core.setup.release import jobs_effects
+
+                if name not in self.live["tables"]:
+                    self.live["tables"][name] = None
+                    self.live.setdefault("columns", {})[name] = sorted(jobs_effects.create_columns(sql))
+            elif kind == "alter":
+                from core.setup.release import jobs_effects
+
+                added = jobs_effects.ADD_COLUMN.search(sql)
+                columns = self.live.setdefault("columns", {}).setdefault(name, [])
+                if added and added.group(1) not in columns:
+                    columns.append(added.group(1))
+                    columns.sort()
             elif kind == "view":
                 self.live["tables"].setdefault(name, apply.view_body(sql))
             elif kind == "schema":
                 self.live["datasets"].add(name)
         return _Job([])
+
+
+class WarehouseBq(ApplyBq):
+    def __init__(self, state):
+        super().__init__(state["live"])
+        self.state = state
+        self.objects = state.setdefault("warehouse_objects", {})
+
+    def get_table(self, target):
+        from google.api_core.exceptions import NotFound
+
+        api = self.objects.get(target)
+        if api is None:
+            if target not in self.live["tables"]:
+                raise NotFound(target)
+            project, dataset, name = target.split(".")
+            body = self.live["tables"][target]
+            api = {"type": "VIEW" if body else "TABLE", "view": {"query": body},
+                   "tableReference": {"projectId": project, "datasetId": dataset, "tableId": name}, "etag": "synthetic"}
+        return types.SimpleNamespace(to_api_repr=lambda: api, view_query=api.get("view", {}).get("query"))
+
+    def get_routine(self, target):
+        return self.get_table(target)
+
+    def query(self, sql, job_config=None, location=None):
+        from core.schema import release_install
+
+        dry = bool(job_config and job_config.dry_run)
+        replace = sql.startswith("CREATE OR REPLACE")
+        if not dry and not sql.lstrip().startswith("SELECT"):
+            self.state.setdefault("ddl_calls", []).append(("warehouse" if replace else "schema", sql))
+        if not dry and self.state.get("apply_noop"):
+            return _Job([])
+        if replace:
+            if not dry:
+                definition = release_install.expected_definition(sql)
+                dataset, name = definition["target"].split(".")
+                reference = {"projectId": release_install.PROJECT, "datasetId": dataset}
+                if definition["kind"] == "view":
+                    api = {"type": "VIEW", "view": {"query": definition["body"]},
+                           "tableReference": {**reference, "tableId": name}, "etag": "synthetic"}
+                else:
+                    api = {"routineType": definition["routineType"], "language": "SQL", "arguments": definition["arguments"],
+                           "definitionBody": definition["body"], "routineReference": {**reference, "routineId": name}, "etag": "synthetic"}
+                self.objects[release_install.PROJECT + "." + definition["target"]] = api
+            return _Job([])
+        result = super().query(sql, job_config=job_config, location=location)
+        if not dry and not sql.lstrip().startswith("SELECT"):
+            self.state["schema_applied"] = True
+            self.state["applied_at_call"] = self.state["calls"]
+        return result
+
+
+class DefinitionBq:
+    def __init__(self, delegate, state):
+        self.delegate, self.state = delegate, state
+
+    def __getattr__(self, name):
+        return getattr(self.delegate, name)
+
+    def definition(self, target):
+        from core.schema import release_install
+
+        return release_install.definition(WarehouseBq(self.state), target)[0]
+
+
+def fixture_source(bound):
+    from core.setup import durable_effects_check
+    from core.setup.release import jobs_run
+
+    root = Path.cwd()
+    read = lambda *args: subprocess.check_output(["git", "-C", str(root), *args]).decode("utf-8").strip()
+    jobs_run.require(read("rev-parse", "HEAD") == bound["target"] and read("rev-parse", "HEAD^{tree}") == bound["tree"]
+                     and not read("status", "--porcelain=v1"), "SOURCE", "Synthetic fixture source differs from its bound commit")
+    return durable_effects_check.git_tree_files(bound["target"], cwd=root)
 
 
 class BuildSession:
@@ -166,13 +251,16 @@ def run_command(state, argv):
         from core.setup import durable_effects_check as de
 
         # The files of the bound commit are read by the real git archive, from the repository the paste was started in.
-        return bound_readback.main(args, reader_factory=lambda timeouts: cloud, bq_factory=lambda bound: fixture.bq_client(), now=clock.now,
+        return bound_readback.main(args, reader_factory=lambda timeouts: cloud,
+                                   bq_factory=lambda bound: DefinitionBq(fixture.bq_client(), state), now=clock.now,
                                    head_files_factory=lambda bound: de.git_tree_files(bound["target"], "core", os.getcwd()))
     if name == "jobs_run.py":
         from core.setup.release import jobs_run
 
-        return jobs_run.main(args, adapter_factory=lambda timeouts: cloud, bq_factory=lambda bound: fixture.bq_client(), now=clock.now,
-                             console=lambda: True, wall=time.time)
+        return jobs_run.main(args, adapter_factory=lambda timeouts: cloud,
+                             bq_factory=lambda bound: DefinitionBq(fixture.bq_client(), state), now=clock.now,
+                             console=lambda: True, wall=time.time, source_factory=fixture_source,
+                             warehouse_factory=lambda: WarehouseBq(state))
     if name == "durable_effects_check.py":
         from core.setup import durable_effects_check
 

@@ -185,9 +185,14 @@ def test_capture_baseline_j_needs_a_timeout_a_destination_a_readback_and_a_retir
 
 def paste_bound_properties():
     text = JOBS_PASTE.read_text(encoding="utf-8")
-    named = set(re.findall(r"\$(?:Script:)?[Bb]ound\.([A-Za-z_]+)", text)) - {"PSObject"}
+    named = set(re.findall(r"\$(?:Script:)?[Bb]ound\.([A-Za-z_][A-Za-z0-9_]*)", text)) - {"PSObject"}
     listed = re.search(r"foreach \(\$key in @\(([^)]*)\)\)", text)
     return named | set(re.findall(r"'([A-Za-z]+)'", listed.group(1)))
+
+
+def test_paste_binding_collector_preserves_numeric_suffixes():
+    found = paste_bound_properties()
+    assert "durableManifestSha256" in found and "durableManifestSha" not in found
 
 
 def library_bound_keys():
