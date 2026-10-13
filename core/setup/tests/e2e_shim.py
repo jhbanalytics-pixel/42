@@ -185,7 +185,8 @@ def fixture_source(bound):
     from core.setup.release import jobs_run
 
     root = Path.cwd()
-    read = lambda *args: subprocess.check_output(["git", "-C", str(root), *args]).decode("utf-8").strip()
+    def read(*args):
+        return subprocess.check_output(["git", "-C", str(root), *args]).decode("utf-8").strip()
     jobs_run.require(read("rev-parse", "HEAD") == bound["target"] and read("rev-parse", "HEAD^{tree}") == bound["tree"]
                      and not read("status", "--porcelain=v1"), "SOURCE", "Synthetic fixture source differs from its bound commit")
     return durable_effects_check.git_tree_files(bound["target"], cwd=root)
