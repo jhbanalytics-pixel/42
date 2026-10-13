@@ -110,6 +110,13 @@ class TestEveryLiveWorkflow:
         assert used
         assert all(SHA.match(u) for u in used), used
 
+    def test_job_environment_expressions_do_not_use_the_runner_context(self, path):
+        data, _ = load(path)
+        for name, job in data["jobs"].items():
+            text = "\n".join(strings(job.get("env") or {}))
+            expressions = re.findall(r"\$\{\{(.*?)\}\}", text, flags=re.S)
+            assert not any(re.search(r"\brunner\b", expression) for expression in expressions), name
+
     def test_checkout_keeps_no_credential_in_the_git_config(self, path):
         data, _ = load(path)
         checkouts = [step for _, step in steps(data) if step.get("uses", "").startswith("actions/checkout@")]
@@ -271,9 +278,13 @@ def test_the_core_job_pins_a_floor_on_the_number_of_tests_that_ran():
 
 def test_a_refusal_the_tests_did_not_ask_for_fails_the_core_job():
     data = core_workflow()
-    assert data["jobs"]["core"]["env"]["CORE_OFFLINE_GUARD_LOG"]
     checks = [s for _, s in steps(data) if "ci_guard_refusals.py" in s.get("run", "")]
     assert len(checks) == 1
+    guarded = core_pytest_steps(data) + ops_pytest_steps(data) + [("core", checks[0])]
+    assert {
+        effective_env(data, job_name, step)["CORE_OFFLINE_GUARD_LOG"]
+        for job_name, step in guarded
+    } == {"${{ runner.temp }}/offline-guard.jsonl"}
     assert checks[0].get("if") == "always()"
     assert '"${CORE_OFFLINE_GUARD_LOG}"' in checks[0]["run"]
     assert "|| true" not in checks[0]["run"] and not checks[0].get("continue-on-error")

@@ -39,7 +39,7 @@ APPLY_PHASES = ("before_candidate", "with_candidate", "after_promotion")
 # The fixed allowlist of how an effect reaches the world. `schema` runs core.schema.apply; the three Cloud Run kinds are
 # steps the candidate deploy and the Pin already perform; `code` is a shape the shipped image writes, with nothing to run;
 # `job_image` is the move of the 14 job definitions to the frozen jobs digest, which JobsUpdate performs (W8-REL-B 3.3).
-APPLY_KINDS = ("schema", "tag_add", "traffic_pin", "env_set", "code", "job_image")
+APPLY_KINDS = ("schema", "tag_add", "traffic_pin", "env_set", "code", "job_image", "warehouse_install")
 RECOVERY_KINDS = ("none_needed", "compensating_statement", "flag_off")
 HELPER_PHASES = ("BeforeAnyWrite", "Freeze", "BeforeCandidate", "BeforeSmoke", "AfterSmoke", "BeforePromotion", "AfterAgentPromotion",
                  "AfterPromotion", "BeforeRollback", "AfterRollback", "BeforeRetire", "AfterRetire",
@@ -47,7 +47,7 @@ HELPER_PHASES = ("BeforeAnyWrite", "Freeze", "BeforeCandidate", "BeforeSmoke", "
 # helper_phase: a Cloud Run effect is read back by a phase of the release helper (services-only, or mode jobs), not by BigQuery.
 # chain_manifest: an effect only the first chain on the new image can show, read back later from that chain's evidence manifest;
 # run_readbacks lists it as deferred and neither passes nor fails it.
-READBACK_KINDS = ("information_schema_columns", "row_count_since_marker", "helper_phase", "chain_manifest")
+READBACK_KINDS = ("information_schema_columns", "row_count_since_marker", "helper_phase", "chain_manifest", "warehouse_definition")
 READBACK_KEYS = {"kind", "target", "expected_result_sha256"}
 COMPAT_KEYS = ("a80_readers", "a80_writers", "a80_ddl_writers", "candidate_readers_old_records", "candidate_writers_old_readers")
 EFFECT_FIELDS = ("effect_id", "kind", "target", "change", "apply_order", "apply_phase", "owner", "statement_ref", "statement_sha256", "apply_kind",
@@ -269,6 +269,14 @@ def validate_effect(effect, label):
         problems.append(f"{label}: native_readback names a phase the helper does not have")
     elif readback["kind"] == "chain_manifest" and (effect["kind"], effect["apply_kind"]) != ("view", "code"):
         problems.append(f"{label}: a chain_manifest readback is for a view applied as code, not for kind {str(effect['kind'])[:40]!r}")
+    if effect['apply_kind'] == 'warehouse_install':
+        if (effect['kind'], effect['change'], effect['apply_phase']) != ('view', 'replace_view', 'before_candidate'):
+            problems.append(f'{label}: warehouse_install has an unknown effect shape')
+        if not isinstance(readback, dict) or readback.get('kind') != 'warehouse_definition' or not re.fullmatch(
+                r'(view|routine):intelligence_42_(core|agent)\.\w+', str(readback.get('target', ''))):
+            problems.append(f'{label}: warehouse_install requires a typed warehouse definition')
+    elif isinstance(readback, dict) and readback.get('kind') == 'warehouse_definition':
+        problems.append(f'{label}: warehouse definition is only for warehouse_install')
     if effect["kind"] == "schema" and isinstance(readback, dict) and readback.get("kind") != "information_schema_columns":
         problems.append(f"{label}: a schema effect must carry an information_schema_columns readback, not a helper phase or a deferred read")
     compat = effect["compat"]
@@ -397,6 +405,11 @@ class BigQuery:
         config = self._bq.QueryJobConfig(maximum_bytes_billed=max_bytes, query_parameters=params or [])
         return [dict(row) for row in self._client.query(sql, job_config=config).result()]
 
+    def definition(self, target):
+        from core.schema import release_install
+
+        return release_install.definition(self._client, target)[0]
+
 
 def readback_sql(readback):
     """The fixed template for a typed native readback, and its parameters. Identifiers are validated, never interpolated raw."""
@@ -422,6 +435,11 @@ def run_readbacks(manifest, bq, bytes_cap=10 * 1024 * 1024):
             continue
         if effect["native_readback"]["kind"] == "chain_manifest":
             results.append({"effect_id": effect["effect_id"], "chain_manifest": effect["native_readback"]["target"], "deferred": True, "matches": None})
+            continue
+        if effect['native_readback']['kind'] == 'warehouse_definition':
+            got = sha_text(canonical(bq.definition(effect['native_readback']['target'])))
+            results.append({'effect_id': effect['effect_id'], 'result_sha256': got,
+                            'matches': got == effect['native_readback']['expected_result_sha256']})
             continue
         sql, params = readback_sql(effect["native_readback"])
         require(bq.dry_run(sql, params) <= bytes_cap, f"effect {effect['effect_id']}: the readback exceeds its bytes cap")

@@ -606,7 +606,7 @@ def schema_receipt_body(bound, durable):
     the readback hash that manifest expects. JobsCandidate's durable readbacks step must have found exactly these hashes."""
     effects = []
     for effect in durable.get("effects", []):
-        if not isinstance(effect, dict) or effect.get("apply_kind") != "schema":
+        if not isinstance(effect, dict) or effect.get("apply_kind") not in ("schema", "warehouse_install"):
             continue
         expected = (effect.get("native_readback") or {}).get("expected_result_sha256")
         require(isinstance(effect.get("effect_id"), str) and isinstance(expected, str) and SHA256.match(expected), "SCHEMA_RECEIPT",
@@ -619,7 +619,18 @@ def schema_receipt_body(bound, durable):
 def check_schema_receipt(bound):
     """JobsUpdate needs the receipt JobsCandidate's readbacks left (JS-04, B-C2). Nothing in the file is taken on its word: the body is
     compared with the one the pinned durable manifest produces, and the hash the bindings bind is compared with that body's hash."""
-    expected = schema_receipt_body(bound, load_durable(bound))
+    durable = load_durable(bound)
+    from core.schema import release_install
+
+    if any(e.get('apply_kind') == release_install.APPLY_KIND for e in durable['effects']):
+        runs = sorted(p for p in (Path(bound['releaseDir']) / 'runs').glob('*')
+                      if p.is_dir() and any(p.glob('warehouse-install-*.json')))
+        require(bool(runs), 'WAREHOUSE_RECEIPT', 'No warehouse install run receipts exist')
+        try:
+            release_install.require_receipts(durable, runs[-1], bound['release_id'])
+        except ValueError as error:
+            raise Stop('WAREHOUSE_RECEIPT', str(error)) from None
+    expected = schema_receipt_body(bound, durable)
     digest = so.fingerprint(expected)
     require(digest == bound["schemaReadbackReceiptSha256"], "SCHEMA_RECEIPT",
             "The receipt hash the bindings bind is not the hash of the receipt this durable manifest requires")
@@ -636,6 +647,19 @@ def check_schema_receipt(bound):
     return digest
 
 
+def check_warehouse_definitions(bound, bq):
+    durable = load_durable(bound)
+    effects = [e for e in durable['effects'] if e.get('apply_kind') == 'warehouse_install']
+    if not effects:
+        return
+    require(callable(getattr(bq, 'definition', None)), 'WAREHOUSE_READBACK', 'No native warehouse definition reader is available')
+    for effect in effects:
+        observed = bq.definition(effect['native_readback']['target'])
+        got = de.sha_text(de.canonical(observed))
+        require(got == effect['native_readback']['expected_result_sha256'],
+                'WAREHOUSE_READBACK', 'An installed warehouse prerequisite differs from the reviewed source')
+
+
 def check_candidate(rel):
     """JobsUpdate runs on the day of JobsCandidate (Q5) and inside maxCandidateAgeHours of it."""
     candidate = rel.last_readback("BeforeAnyWrite")
@@ -650,6 +674,7 @@ def phase_before_jobs_update(rel, phase, result):
     digest = rel.manifest()
     check_candidate(rel)
     rel.observations["schema_receipt"] = {"path": Path(rel.bound["schemaReadbackReceiptPath"]).name, "sha256": check_schema_receipt(rel.bound)}
+    check_warehouse_definitions(rel.bound, rel.bq)
     check_services(rel)
     check_registry_digest(rel, digest)
     states = job_states(rel, digest)

@@ -16,7 +16,6 @@ from google.api_core.exceptions import NotFound
 from google.cloud import bigquery
 
 from .. import aggregate, learn, runs, scorecard, sqlrun
-from core.detect.forecast_rules import RESOLUTION_RULE_VERSION
 from core.understand.tests.test_live_failures_20261009 import ROUND_TRIP, BadRequest, bq_number_refused
 
 from . import duck
@@ -283,8 +282,7 @@ def forecast(i, *, prob, observed, target="reach_rising", horizon=7, rule="logis
     return {"forecast_id": f"{rule}-{target}-{horizon}-{market}-{i}", "item_id": f"item{i}", "market": market,
             "target": target, "issue_date": issue, "horizon": horizon, "rule": rule, "prob": prob,
             "predicted_arrival": prob >= 0.5, "persistence_arrival": True,
-            "resolve_date": issue + timedelta(days=horizon), "observed_arrival": observed,
-            "resolution_rule_version": RESOLUTION_RULE_VERSION if observed is not None else None}
+            "resolve_date": issue + timedelta(days=horizon), "observed_arrival": observed}
 
 
 def beats_persistence(n_each=100):
@@ -310,8 +308,7 @@ def test_learn_scores_the_closed_forecasts_into_forecast_score_with_promotion_el
     assert (stored["week_start"], stored["week_end"]) == (WEEK, WEEK_END)
     assert (stored["rule"], stored["target"], stored["horizon"], stored["n"]) == ("logistic_v1", "reach_rising", 7, 200)
     assert stored["skill"] == pytest.approx(0.87) and stored["promotion_eligible"] is True
-    assert stored["query_id"] == ("core/eval/sql/forecast_rows.sql?d=2026-10-05"
-                                  f"&resolution_rule_version={RESOLUTION_RULE_VERSION}")
+    assert stored["query_id"] == "core/eval/sql/forecast_rows.sql?d=2026-10-05"
     counts = json.loads(run["counts"])
     assert run["status"] == "ok"
     assert counts["forecast_score"]["written"] == 1 and counts["forecast_score"]["run_id"] == stored["run_id"]
@@ -373,18 +370,6 @@ def test_with_no_forecasts_at_all_forecast_score_gets_no_row_and_learn_is_ok(con
     [run] = learn_runs(con)
     assert run["status"] == "ok" and score_rows(con, "forecast_score") == []
     assert json.loads(run["counts"])["forecast_score"]["written"] == 0
-
-
-@pytest.mark.parametrize("epoch", [None, "resolution-1"])
-def test_resolved_forecasts_from_an_untrusted_epoch_never_earn_promotion(con, epoch):
-    con.execute(SCORE_TABLES)
-    duck.load(con, "agent.forecasts", [{**r, "resolution_rule_version": epoch} for r in beats_persistence()])
-    assert main(con) == 0
-    [cohort] = score_rows(con, "forecast_score")
-    assert cohort["n"] == 0 and cohort["unresolved"] == 200 and cohort["skill"] is None
-    assert cohort["promotion_eligible"] is False
-    [run] = learn_runs(con)
-    assert json.loads(run["counts"])["forecast_score"]["promotion_eligible"] == []
 
 
 def test_missing_score_tables_are_scored_and_printed_but_never_created(con, capsys):

@@ -173,7 +173,7 @@ CREATE TABLE core.media (sha256 VARCHAR, post_id VARCHAR, gcs_uri VARCHAR, kind 
 CREATE TABLE agent.forecasts (
   forecast_id VARCHAR NOT NULL, item_id VARCHAR, market VARCHAR, target VARCHAR, issue_date DATE,
   horizon BIGINT, rule VARCHAR, prob DOUBLE, predicted_arrival BOOLEAN, persistence_arrival BOOLEAN,
-  resolve_date DATE, observed_arrival BOOLEAN, resolution_rule_version VARCHAR);
+  resolve_date DATE, observed_arrival BOOLEAN);
 
 -- One JSON Figure per metric.
 CREATE TABLE agent.engine_scorecard (

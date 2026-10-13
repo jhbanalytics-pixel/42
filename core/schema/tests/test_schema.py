@@ -471,7 +471,6 @@ def test_no_banned_text_in_schema_package():
 
 
 ALTERS = [
-    ("forecasts", "resolution_rule_version", "STRING"),
     ("runs", "model_usd", "FLOAT64"),
     ("runs", "stamp", "JSON"),
     ("claim_checks", "reason", "STRING"),

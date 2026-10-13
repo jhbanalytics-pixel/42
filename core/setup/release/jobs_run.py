@@ -53,6 +53,7 @@ def rollback_hint(window):
 TOKEN_NAME = "update-token.json"
 TOKEN_MAX_AGE_SECONDS = 60
 TOKEN_FUTURE_SKEW_SECONDS = 5
+WAREHOUSE_TOKEN_NAME = 'warehouse-token.json'
 
 
 def stdin_is_console():
@@ -89,6 +90,77 @@ def consume_update_token(bound, evidence, wall):
     require(isinstance(body, dict) and body.get("schema_version") == 1 and body.get("release_id") == bound["release_id"]
             and re.fullmatch(r"[0-9a-f]{32}", str(body.get("token"))) is not None, "UPDATE_TOKEN", "The update token is not for this release")
     path.unlink()
+
+
+def consume_warehouse_token(bound, evidence, wall):
+    path = Path(evidence) / WAREHOUSE_TOKEN_NAME
+    require(path.is_file() and not path.is_symlink(), 'WAREHOUSE_TOKEN', 'The paste wrote no warehouse token after DEPLOY')
+    age = wall() - path.stat().st_mtime
+    require(-TOKEN_FUTURE_SKEW_SECONDS <= age <= TOKEN_MAX_AGE_SECONDS, 'WAREHOUSE_TOKEN', 'Warehouse token expired')
+    body = json.loads(path.read_text(encoding='utf-8-sig'))
+    expected = {'schema_version': 1, 'action': 'warehouse-install', 'release_id': bound['release_id'],
+                'target': bound['target'], 'tree': bound['tree'],
+                'durable_manifest_sha256': bound['durableManifestSha256']}
+    require(isinstance(body, dict) and set(body) == set(expected) | {'token'}
+            and all(body.get(k) == v for k, v in expected.items())
+            and re.fullmatch(r'[0-9a-f]{32}', str(body.get('token'))) is not None,
+            'WAREHOUSE_TOKEN', 'Warehouse token does not bind this action and reviewed source')
+    path.unlink()
+
+
+def warehouse_source(bound):
+    from core.setup import durable_effects_check as de
+
+    root = Path(__file__).resolve().parents[3]
+    def read(*args):
+        return subprocess.check_output(['git', '-C', str(root), *args]).decode('utf-8').strip()
+    require(read('rev-parse', 'HEAD') == bound['target'] and read('rev-parse', 'HEAD^{tree}') == bound['tree']
+            and not read('status', '--porcelain=v1'), 'SOURCE', 'Warehouse installer needs the clean bound source')
+    return de.git_tree_files(bound['target'], cwd=root)
+
+
+def run_warehouse_install(bound, evidence, *, source_files, client_factory, quiet, now):
+    from core.schema import release_install
+    from core.setup import durable_effects_check as de
+    from core.setup.release import jobs_effects, jobs_source
+
+    durable = jo.load_durable(bound)
+    problems = de.validate_manifest(durable)
+    require(not problems, 'WAREHOUSE_MANIFEST', problems[0] if problems else '')
+    require(durable['source'] == {'commit': bound['target'], 'tree': bound['tree']},
+            'SOURCE', 'Warehouse manifest names another source')
+    require(durable['generated_from']['base'] == jobs_effects.A80, 'WAREHOUSE_MANIFEST',
+            'Schema inventory baseline differs from the fixed existing release contract')
+    head = dict(source_files)
+    old = dict(de.git_tree_files(jobs_effects.A80, cwd=Path(__file__).resolve().parents[3]))
+    head_texts = [head['core/schema/' + p] for p in jobs_source.sql_file_names(source_files)]
+    old_texts = [old['core/schema/' + p] for p in jobs_source.sql_file_names(list(old.items()))]
+    schema_problems = de.check_schema_effects(durable, head_texts, old_texts)
+    require(not schema_problems, 'WAREHOUSE_MANIFEST', schema_problems[0] if schema_problems else '')
+    specs = release_install.statements(source_files)
+    require(bool(specs), 'WAREHOUSE_MANIFEST', 'No fixed Alpha prerequisite set exists at this source')
+    try:
+        release_install.validate_effects(durable, specs)
+    except ValueError as error:
+        raise Stop('WAREHOUSE_MANIFEST', str(error)) from None
+    require(isinstance(durable.get('reviewed_by'), str) and bool(durable['reviewed_by'].strip()),
+            'WAREHOUSE_COMPAT', 'The warehouse durable manifest has no named review')
+    for effect in durable['effects']:
+        if effect.get('apply_kind') in ('schema', release_install.APPLY_KIND):
+            require(all(isinstance(effect['compat'].get(k), dict) and effect['compat'][k].get('verdict') == 'pass'
+                        and bool(effect['compat'][k].get('test')) for k in de.COMPAT_KEYS),
+                    'WAREHOUSE_COMPAT', 'Warehouse old/candidate reader and writer compatibility is not proved')
+    client = client_factory()
+    release_install.apply_schema(client, source_files, durable, evidence, release_id=bound['release_id'], quiet=quiet, now=now)
+    release_install.install(client, specs, durable, evidence, release_id=bound['release_id'], quiet=quiet, now=now)
+    return specs
+
+
+def warehouse_client():
+    from google.cloud import bigquery
+    from core.schema import release_install
+
+    return bigquery.Client(project=release_install.PROJECT, location=release_install.LOCATION)
 
 
 class JobsAdapter:
@@ -251,7 +323,14 @@ def run_schema_receipt(bound, evidence, *, now):
     and a schema effect counts only when the hash it reports is the one the pinned durable manifest expects: its `matches` flag is not
     believed. The receipt is exactly the body the manifest produces, so the hash the bindings bind can be set before the run."""
     jo.validate_jobs_bindings(bound)
-    expected = jo.schema_receipt_body(bound, jo.load_durable(bound))
+    durable = jo.load_durable(bound)
+    from core.schema import release_install
+
+    try:
+        release_install.require_receipts(durable, evidence, bound['release_id'])
+    except ValueError as error:
+        raise Stop('WAREHOUSE_RECEIPT', str(error)) from None
+    expected = jo.schema_receipt_body(bound, durable)
     digest = so.fingerprint(expected)
     require(digest == bound["schemaReadbackReceiptSha256"], "SCHEMA_RECEIPT",
             "The receipt hash the bindings bind is not the hash of the receipt this durable manifest requires")
@@ -282,6 +361,7 @@ def run_update(bound, adapter, bq_client, evidence, *, now, sleep=None):
     jo.validate_jobs_bindings(bound)
     baseline = jo.load_baseline_j(bound)
     jo.check_schema_receipt(bound)
+    jo.check_warehouse_definitions(bound, bq_client)
     digest = jo.frozen_digest(bound["releaseDir"])
     started = now()
     require(jo.window_open(bound, started), "WINDOW", "JobsUpdate runs only inside the bound window")
@@ -422,14 +502,15 @@ def run_rollback(bound, adapter, evidence, *, now):
     return log
 
 
-def main(argv=None, adapter_factory=None, bq_factory=None, now=None, console=None, wall=None):
+def main(argv=None, adapter_factory=None, bq_factory=None, now=None, console=None, wall=None,
+         warehouse_factory=None, source_factory=None):
     parser = argparse.ArgumentParser(description="Release B update orchestrator.")
     parser.add_argument("action", choices=plan.JOBS_RUN_ACTIONS)
     parser.add_argument("--bindings", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     args = parser.parse_args(argv)
     clock = now or (lambda: dt.datetime.now(dt.timezone.utc))
-    if args.action == "update" and not (console or stdin_is_console)():
+    if args.action in ("update", "warehouse-install") and not (console or stdin_is_console)():
         print("STOP: NOT_INTERACTIVE: the update verb is run by the paste at a console, after DEPLOY; rollback and snapshot need neither",
               file=sys.stderr)
         return 1
@@ -441,6 +522,21 @@ def main(argv=None, adapter_factory=None, bq_factory=None, now=None, console=Non
         if args.action == "schema-receipt":
             run_schema_receipt(bound, args.evidence, now=clock)
             print("schema-receipt: written")
+            return 0
+        if args.action == 'warehouse-install':
+            consume_warehouse_token(bound, args.evidence, wall or time.time)
+            files = (source_factory or warehouse_source)(bound)
+            holder = {}
+            def quiet():
+                (source_factory or warehouse_source)(bound)
+                if not holder:
+                    from core.setup.release.bound_readback import _default_bq
+                    holder['adapter'] = (adapter_factory or GcloudJobs)(bound['readTimeoutSeconds'])
+                    holder['bq'] = (bq_factory or _default_bq)(bound)
+                run_snapshot(bound, holder['adapter'], holder['bq'], args.evidence, now=clock)
+            run_warehouse_install(bound, args.evidence, source_files=files,
+                                  client_factory=warehouse_factory or warehouse_client, quiet=quiet, now=clock)
+            print('warehouse-install: completed with native definition readbacks')
             return 0
         adapter = (adapter_factory or GcloudJobs)(bound["readTimeoutSeconds"])
         if args.action == "rollback":

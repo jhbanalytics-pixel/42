@@ -31,9 +31,10 @@ def head():
     return git(ROOT, "rev-parse", "HEAD")
 
 
-# The storage the checkout is held to. The range below carries the checkout's own schema on both sides, so it cannot see a storage change in
-# the tree; these pins do. Both were measured on the tree of the live jobs commit 1cfda9c (the schema statements are the same at 3710c5e and
-# c31d1c6). A release that changes the schema or a file the jobs own fails here until the pin is changed on purpose, in that release.
+# Historical storage pins for A, C, D0 and the live jobs release. The synthetic services range below proves only its own unchanged storage.
+C_COMMIT = "d0aebe767b064af2f5ea770875d13077b4208f6c"
+D0_COMMIT = "c31d1c6e964da3c4bd9b56a58ccbf416284b33b1"
+LIVE_JOBS_COMMIT = "1cfda9ce3a7a3774a5f3621b9bde82e30167e232"
 LIVE_SCHEMA_SHA256 = "008cf325c71801846bc8a2b1693cc199f5d87edc6f113a984d0c13b03abb5349"
 LIVE_JOB_OWNED_FILES = 420
 LIVE_JOB_OWNED_SHA256 = "150edf8b9e81b61760f69bea6eb8ce0dcd2bc80d03003ead289f444155492acb"
@@ -49,14 +50,34 @@ def job_owned_blobs(repo, rev):
     return sorted(rows)
 
 
-def test_the_tree_holds_the_schema_statements_of_the_live_commits():
-    texts = dp.schema_texts(dec.git_tree_files(head(), "core", ROOT))
+@pytest.mark.parametrize("commit", [A, C_COMMIT, D0_COMMIT, LIVE_JOBS_COMMIT])
+def test_the_tree_holds_the_schema_statements_of_the_live_commits(commit):
+    texts = dp.schema_texts(dec.git_tree_files(commit, "core", ROOT))
     assert texts and dec.sha_text("\n".join(dec.schema_statements(texts))) == LIVE_SCHEMA_SHA256
 
 
 def test_the_tree_holds_every_sql_and_job_owned_file_of_the_live_jobs_commit():
-    rows = job_owned_blobs(ROOT, "HEAD")
+    rows = job_owned_blobs(ROOT, LIVE_JOBS_COMMIT)
     assert len(rows) == LIVE_JOB_OWNED_FILES and dec.sha_text("\n".join(rows)) == LIVE_JOB_OWNED_SHA256
+
+
+@pytest.mark.parametrize("base,commit", [(A, C_COMMIT), (C_COMMIT, D0_COMMIT)])
+def test_recorded_c_and_d0_release_ranges_pass_the_real_services_only_storage_guard(base, commit):
+    manifest = dp.build_manifest(ROOT, commit, base, "Albert Meintjes")
+    assert dec.validate_manifest(manifest) == []
+    proof = manifest["no_storage_change"]["proof"]
+    assert proof["base"] == base and proof["head"] == commit
+    assert proof["schema_statements_added"] == 0 and proof["changed_sql_or_job_owned"] == []
+    assert proof["schema_sha256"] == {"base": LIVE_SCHEMA_SHA256, "head": LIVE_SCHEMA_SHA256}
+    assert job_owned_blobs(ROOT, base) == job_owned_blobs(ROOT, commit)
+
+
+def test_current_changed_jobs_tree_is_refused_as_a_services_only_release():
+    tip = head()
+    changed = dp.changed_paths(ROOT, LIVE_JOBS_COMMIT, tip)
+    assert any(path.endswith(".sql") or path.startswith(dp.JOB_OWNED) for path in changed)
+    with pytest.raises(dp.Refused, match="claim of no storage change is false"):
+        dp.build_manifest(ROOT, tip, LIVE_JOBS_COMMIT, "Albert Meintjes")
 
 
 # The services release range the manifest is built for, in a repository of its own. Its base holds the files of the checkout's HEAD under

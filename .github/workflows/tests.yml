@@ -40,8 +40,6 @@ jobs:
   core:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    env:
-      CORE_OFFLINE_GUARD_LOG: ${{ runner.temp }}/offline-guard.jsonl
     steps:
       # Full history, because a core test reads a file from origin/full-42 with git show.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -68,6 +66,7 @@ jobs:
       # The guard is on PYTHONPATH for this step only: the install step above needs the network.
       - name: Run the core suite under the offline guard
         env:
+          CORE_OFFLINE_GUARD_LOG: ${{ runner.temp }}/offline-guard.jsonl
           PYTHONPATH: ${{ github.workspace }}/tests_support/offline_guard
           F42_REQUIRE_OFFLINE_GUARD: "1"
         run: python -m pytest core -q -p no:cacheprovider -ra --junitxml="${RUNNER_TEMP}/core-junit.xml"
@@ -79,6 +78,7 @@ jobs:
       - name: Run the ops partition under the offline guard
         if: always()
         env:
+          CORE_OFFLINE_GUARD_LOG: ${{ runner.temp }}/offline-guard.jsonl
           PYTHONPATH: ${{ github.workspace }}/tests_support/offline_guard
           F42_REQUIRE_OFFLINE_GUARD: "1"
         run: python -m pytest ops/tests/test_replay_a80.py ops/tests/test_funnel_scoreboard.py -q -p no:cacheprovider -ra --junitxml="${RUNNER_TEMP}/ops-junit.xml"
@@ -125,6 +125,8 @@ jobs:
       # A refusal the product code catches and carries on from leaves the suite green, so the log is checked here.
       - name: Fail on any offline guard refusal the tests did not ask for
         if: always()
+        env:
+          CORE_OFFLINE_GUARD_LOG: ${{ runner.temp }}/offline-guard.jsonl
         run: python tests_support/ci_guard_refusals.py "${CORE_OFFLINE_GUARD_LOG}"
 
   frontend:

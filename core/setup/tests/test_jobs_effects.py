@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from core.schema import apply
+from core.schema import release_install
 from core.schema.tests.test_schema import parse_create
 from core.setup import durable_effects_check as de
 from core.setup.release import jobs_effects as je
@@ -25,7 +26,6 @@ OWNER = {"lane": 3, "person": "Albert Meintjes"}
 
 # The final column list of each table the release creates or changes, pinned as literals from core/schema at this checkout.
 COLUMNS = {
-    "intelligence_42_agent.forecasts": ['forecast_id', 'horizon', 'issue_date', 'item_id', 'market', 'observed_arrival', 'persistence_arrival', 'predicted_arrival', 'prob', 'resolution_rule_version', 'resolve_date', 'rule', 'target'],
     "intelligence_42_agent.runs": ['answer', 'calls', 'counts', 'credits', 'error', 'finished_at', 'model_usd', 'outcome', 'plan', 'question', 'record', 'run_date', 'run_id', 'seconds', 'stage', 'stamp', 'started_at', 'status', 'tier', 'tokens'],
     "intelligence_42_agent.claim_checks": ['answer_or_brief_id', 'checker', 'claim_id', 'reason', 'reason_code', 'rule', 'run_id', 'span_sha256', 'verdict'],
     "intelligence_42_core.post_items": ['item_id', 'link_market', 'linked_on', 'post_id', 'via'],
@@ -38,19 +38,19 @@ COLUMNS = {
 }
 # effect id -> table of the statement, in apply order
 SCHEMA_IDS = [
-    ("E-RUNS-DDL", "intelligence_42_agent.runs"), ("E-FORECASTS-DDL", "intelligence_42_agent.forecasts"),
+    ("E-RUNS-DDL", "intelligence_42_agent.runs"),
     ("E-CLAIM-DDL", "intelligence_42_agent.claim_checks"),
     ("E-POSTITEMS-DDL", "intelligence_42_core.post_items"), ("E-LOC-TABLES-1", "intelligence_42_core.item_locality"),
     ("E-LOC-TABLES-2", "intelligence_42_core.item_locality_post"), ("E-LOC-TABLES-3", "intelligence_42_core.item_locality_verified"),
     ("E-LOC-TABLES-4", "intelligence_42_core.post_item_lineage"), ("E-LOC-TABLES-5", "intelligence_42_core.post_item_end"),
-    ("E-EARLY", "intelligence_42_core.early_signal"), ("E-FORECASTS-RESOLUTION", "intelligence_42_agent.forecasts"),
+    ("E-EARLY", "intelligence_42_core.early_signal"),
     ("E-RUNS-STAMP", "intelligence_42_agent.runs"),
     ("E-CLAIM-SPAN", "intelligence_42_agent.claim_checks"), ("E-CLAIM-CODE", "intelligence_42_agent.claim_checks"),
     ("E-POSTITEMS-LINKED", "intelligence_42_core.post_items"), ("E-POSTITEMS-MARKET", "intelligence_42_core.post_items"),
 ]
 # Current changed objects in file and statement order.
-DDL_APPLY_ORDER = ["v_collection_health_current", "tvf_item_window", "v_post_items_by_state_date", "v_item_market_scope", "tvf_post_items", "v_item_locality_checked", "v_item_locality_current", "v_item_evidence", "v_forecasts_current"]
-CHANGED_DDL = ["tvf_item_window", "tvf_post_items", "v_collection_health_current", "v_forecasts_current", "v_item_evidence", "v_item_locality_checked", "v_item_locality_current", "v_item_market_scope", "v_post_items_by_state_date"]
+DDL_APPLY_ORDER = ["v_collection_health_current", "tvf_item_window", "v_post_items_by_state_date", "v_item_market_scope", "tvf_post_items", "v_item_locality_checked", "v_item_locality_current", "v_item_evidence"]
+CHANGED_DDL = ["tvf_item_window", "tvf_post_items", "v_collection_health_current", "v_item_evidence", "v_item_locality_checked", "v_item_locality_current", "v_item_market_scope", "v_post_items_by_state_date"]
 
 
 def sha(text):
@@ -94,11 +94,11 @@ def schema_effects(value):
 def test_js05_the_allowlists_gain_exactly_the_job_image_kind_the_six_phases_and_the_chain_manifest_readback():
     assert de.EFFECT_KINDS == ("schema", "view", "receipt", "reservation", "stored_answer", "config", "env", "secret", "cloud_run_tag",
                                "cloud_run_traffic", "job_image")
-    assert de.APPLY_KINDS == ("schema", "tag_add", "traffic_pin", "env_set", "code", "job_image")
+    assert de.APPLY_KINDS == ("schema", "tag_add", "traffic_pin", "env_set", "code", "job_image", "warehouse_install")
     assert de.HELPER_PHASES == ("BeforeAnyWrite", "Freeze", "BeforeCandidate", "BeforeSmoke", "AfterSmoke", "BeforePromotion",
                                 "AfterAgentPromotion", "AfterPromotion", "BeforeRollback", "AfterRollback", "BeforeRetire", "AfterRetire",
                                 "FreezeJobs", "BeforeJobsUpdate", "AfterJobsUpdate", "BeforeJobsRollback", "AfterJobsRollback")
-    assert de.READBACK_KINDS == ("information_schema_columns", "row_count_since_marker", "helper_phase", "chain_manifest")
+    assert de.READBACK_KINDS == ("information_schema_columns", "row_count_since_marker", "helper_phase", "chain_manifest", "warehouse_definition")
     assert de.CHANGES == ("create_table", "add_column", "create_view", "replace_view", "write_shape", "config_key", "env_set", "tag_add", "traffic_pin")
     assert de.APPLY_PHASES == ("before_candidate", "with_candidate", "after_promotion")
 
@@ -137,6 +137,11 @@ class ColumnsBQ:
 
     def __init__(self, drop=None):
         self.drop = drop
+        self.definitions = {s['definition']['kind'] + ':' + s['target']: s['definition']
+                            for s in release_install.statements(js.tree_from_disk(ROOT))}
+
+    def definition(self, target):
+        return self.definitions[target]
 
     def dry_run(self, sql, params=None):
         return 1
@@ -168,6 +173,12 @@ def test_js05_the_chain_manifest_readback_is_deferred_and_the_other_effects_are_
     class Recorder:
         def __init__(self):
             self.calls = []
+            self.definitions = {s['definition']['kind'] + ':' + s['target']: s['definition']
+                                for s in release_install.statements(js.tree_from_disk(ROOT))}
+
+        def definition(self, target):
+            self.calls.append(('metadata', target))
+            return self.definitions[target]
 
         def dry_run(self, sql, params=None):
             self.calls.append(("dry_run", sql))
@@ -182,8 +193,10 @@ def test_js05_the_chain_manifest_readback_is_deferred_and_the_other_effects_are_
     by_id = {r["effect_id"]: r for r in result["results"]}
     assert by_id["E-JOB-VIEWS"].get("deferred") is True and by_id["E-JOB-VIEWS"]["matches"] is None
     assert by_id["E-JOBS-IMAGE"]["helper_phase"] == "AfterJobsUpdate"
-    assert len([c for c in bq.calls if c[0] == "query"]) == 16  # one information_schema read per schema effect, none for the job effects
-    assert all("INFORMATION_SCHEMA.COLUMNS" in c[1] for c in bq.calls)
+    assert len([c for c in bq.calls if c[0] == "query"]) == 14  # one information_schema read per schema effect, none for the job effects
+    assert all("INFORMATION_SCHEMA.COLUMNS" in c[1] for c in bq.calls if c[0] != 'metadata')
+    assert [c[1] for c in bq.calls if c[0] == 'metadata'] == [
+        e['native_readback']['target'] for e in manifest['effects'] if e['apply_kind'] == 'warehouse_install']
 
 
 # JS-01: set equality of the new statements and the schema effects
@@ -199,7 +212,7 @@ def a80_texts(a80):
 def test_js01_there_are_fourteen_new_statements_and_fourteen_schema_effects_equal_to_them_by_hash(trees, manifest):
     head, a80 = trees
     new = de.new_statements(head_texts(head), a80_texts(a80))
-    assert len(new) == 16 and len(schema_effects(manifest)) == 16
+    assert len(new) == 14 and len(schema_effects(manifest)) == 14
     # independent derivation: apply.py's own loader for the head, and the same splitter over the a80 archive
     old = {sha(s) for text in a80_texts(a80) for s in apply.split_statements(text)}
     fresh = {sha(s) for s in apply.load_statements() if sha(s) not in old}
@@ -214,7 +227,8 @@ def test_js01_every_effect_text_hashes_to_its_sha_and_is_a_form_apply_recognises
 
 def test_js01_the_effect_ids_are_the_fourteen_of_the_contract_in_apply_order(manifest):
     assert [e["effect_id"] for e in sorted(schema_effects(manifest), key=lambda e: e["apply_order"])] == [i for i, _ in SCHEMA_IDS]
-    assert [e["effect_id"] for e in manifest["effects"] if e["kind"] != "schema"] == ["E-JOBS-IMAGE", "E-JOB-VIEWS"]
+    assert [e["effect_id"] for e in manifest["effects"] if e["kind"] != "schema"] == [
+        f'E-WAREHOUSE-{i:02d}' for i in range(1, 18)] + ["E-JOBS-IMAGE", "E-JOB-VIEWS"]
     assert "E-ITEMSTATE" not in {e["effect_id"] for e in manifest["effects"]}
 
 
@@ -383,16 +397,16 @@ def test_js11_apply_order_numbers_follow_the_order_apply_load_statements_and_run
            + [s for s in stmts if apply.kind(s) in ("alter", "view")])
     wanted = {sha(e["statement_ref"]) for e in schema_effects(manifest)}
     order = [sha(s) for s in ran if sha(s) in wanted]
-    assert len(order) == 16
+    assert len(order) == 14
     by_hash = {e["statement_sha256"]: e["apply_order"] for e in schema_effects(manifest)}
-    assert [by_hash[h] for h in order] == list(range(1, 17))
-    assert [e["apply_order"] for e in manifest["effects"] if e["kind"] != "schema"] == [17, 18]
+    assert [by_hash[h] for h in order] == list(range(1, 15))
+    assert [e["apply_order"] for e in manifest["effects"] if e["kind"] != "schema"] == list(range(15, 34))
 
 
 def test_js11_the_three_changed_create_texts_run_in_the_table_pass_before_every_alter(manifest):
     orders = {e["effect_id"]: e["apply_order"] for e in manifest["effects"]}
-    for create in ("E-RUNS-DDL", "E-FORECASTS-DDL", "E-CLAIM-DDL", "E-POSTITEMS-DDL", "E-EARLY"):
-        assert all(orders[create] < orders[alter] for alter in ("E-FORECASTS-RESOLUTION", "E-RUNS-STAMP", "E-CLAIM-SPAN", "E-CLAIM-CODE", "E-POSTITEMS-LINKED", "E-POSTITEMS-MARKET"))
+    for create in ("E-RUNS-DDL", "E-CLAIM-DDL", "E-POSTITEMS-DDL", "E-EARLY"):
+        assert all(orders[create] < orders[alter] for alter in ("E-RUNS-STAMP", "E-CLAIM-SPAN", "E-CLAIM-CODE", "E-POSTITEMS-LINKED", "E-POSTITEMS-MARKET"))
 
 
 # RB-C4: B applies runs.stamp and the claim_checks columns before any B job writes them
@@ -442,7 +456,7 @@ def test_rbc9_the_views_effect_follows_every_core_table_effect_and_lists_views_s
              "v_item_locality_current": 1}      # 0 views.sql, 1 locality_views.sql, read from the two files below
     primary = [n for n in listed if n in files]
     assert listed[:len(primary)] == primary
-    assert listed[len(primary):] == ["v_item_evidence", "v_forecasts_current"]
+    assert listed[len(primary):] == ["v_item_evidence"]
     assert [files[n] for n in primary] == sorted(files[n] for n in primary)
     views_sql = (ROOT / "core/detect/sql/views.sql").read_text(encoding="utf-8")
     locality_sql = (ROOT / "core/detect/sql/locality_views.sql").read_text(encoding="utf-8")
@@ -483,7 +497,20 @@ def test_rj3_re_declaring_all_fourteen_schema_effects_as_chain_manifest_is_refus
         victim["native_readback"] = {"kind": "chain_manifest", "target": "x", "expected_result_sha256": ""}
     seal(manifest)
     problems = de.validate_manifest(manifest)
-    assert len([p for p in problems if "information_schema_columns" in p]) == 16
+    assert len([p for p in problems if "information_schema_columns" in p]) == 14
+
+
+def test_registered_lineage_consumers_are_read_by_the_expanded_locality_sql():
+    from core.detect import sqlrun
+
+    source = (ROOT / 'core/detect/sql/locality_views.sql').read_text(encoding='utf-8')
+    assert '{counted_links}' in source
+    body = sqlrun.render(source)
+    for table in ('post_item_lineage', 'post_item_end'):
+        path, access = je.CONSUMERS[f'intelligence_42_core.{table}']
+        assert path == 'core/detect/sql/counted_links.sql' and access == 'read'
+        assert table in (ROOT / path).read_text(encoding='utf-8')
+        assert f'intelligence_42_core.{table}' in body
 
     class Recorder:
         calls = []

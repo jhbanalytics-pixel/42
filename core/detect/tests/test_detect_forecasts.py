@@ -69,9 +69,9 @@ def issue(con, d=D, run_id=RUN):
 
 
 def test_forecast_id_is_the_sha256_of_item_market_target_issue_date_horizon_and_rule():
-    key = "abc|ZA|reach_rising|2026-09-20|7|" + forecasts.RULE
+    key = "abc|ZA|reach_rising|2026-09-20|7|logistic_v1"
     assert forecasts.forecast_id("abc", "ZA", "reach_rising", D, 7) == hashlib.sha256(key.encode()).hexdigest()
-    assert forecasts.RULE == forecasts.RULE
+    assert forecasts.RULE == "logistic_v1"
     # the agent's log_forecast rule (ask_v1) gives a different id for the same forecast, so the two never clash
     assert forecasts.forecast_id("abc", "ZA", "reach_rising", D, 7, rule="ask_v1") != \
         forecasts.forecast_id("abc", "ZA", "reach_rising", D, 7)
@@ -137,7 +137,7 @@ def test_emerging_and_rising_items_get_six_forecasts_and_the_control_sample_abou
     assert counts["watched"] == 4 and counts["control"] == len(control)
     assert counts["issued"] == len(got) == 6 * (4 + len(control))
     for r in got:
-        assert r["issue_date"] == D and r["rule"] == forecasts.RULE and r["observed_arrival"] is None
+        assert r["issue_date"] == D and r["rule"] == "logistic_v1" and r["observed_arrival"] is None
         assert r["resolve_date"] == D + timedelta(days=r["horizon"])
         assert 0 < r["prob"] < 1 and r["predicted_arrival"] == (r["prob"] >= 0.5)
         assert r["forecast_id"] == forecasts.forecast_id(r["item_id"], r["market"], r["target"], D, r["horizon"])
@@ -272,7 +272,7 @@ class ResolveWorld:
         duck.load(con, "core.collection_health", [health(r, d, market=m, platform=p)
                                                   for d in days for m in MARKETS for p, r in ROUTES.items()])
 
-    def fc(self, item, target, market="ZA", horizon=7, issue_date=I, rule=forecasts.RULE, prob=0.6,
+    def fc(self, item, target, market="ZA", horizon=7, issue_date=I, rule="logistic_v1", prob=0.6,
            persistence=False, issue_state="emerging", main="tiktok"):
         """One issued forecast, with the item's state on the issue day and, unless main is None, its main series
         on that platform's route, tested on the issue day."""
@@ -364,8 +364,8 @@ def test_resolution_appends_observed_arrival_read_through_the_latest_good_runs(c
     # the resolution copies the issue row and sets observed_arrival; the issue row stays as it was
     pair = rows(con, "f.forecast_id = @f", {"f": ids["up"]})
     assert [r["observed_arrival"] for r in pair] == [None, True]
-    assert {k: v for k, v in pair[0].items() if k not in ("observed_arrival", "resolution_rule_version")} == \
-        {k: v for k, v in pair[1].items() if k not in ("observed_arrival", "resolution_rule_version")}
+    assert {k: v for k, v in pair[0].items() if k != "observed_arrival"} == \
+        {k: v for k, v in pair[1].items() if k != "observed_arrival"}
 
 
 def test_resolution_waits_until_after_resolve_date(con):
@@ -395,38 +395,6 @@ def test_a_failed_collection_day_in_the_window_leaves_the_forecast_unresolved(co
     resolve(con)
     got = resolved(con)
     assert ids["ngup"] not in got and ids["up"] in got
-
-
-@pytest.mark.parametrize("signal_market", ["NG", "GLOBAL"])
-def test_reach_rising_waits_for_invalid_external_signal_input(con, signal_market):
-    w = ResolveWorld(con)
-    fid = w.fc("external-signal", "reach_rising")
-    w.test("external-signal", signal_market, day(9))
-    w.state("external-signal", "rising", day(9))
-    if signal_market == "NG":
-        w.collect_again(day(9), {("NG", "feed_tiktok")})
-    else:
-        w.collect_again(day(9), extra=[health("feed_tiktok", day(9), market="GLOBAL", platform="tiktok",
-                                               valid=False)])
-
-    resolve(con)
-
-    assert fid not in resolved(con)
-
-
-@pytest.mark.parametrize("signal_market", ["NG", "GLOBAL"])
-def test_reach_rising_resolves_when_external_signal_inputs_are_complete(con, signal_market):
-    w = ResolveWorld(con)
-    fid = w.fc("complete-external-signal", "reach_rising")
-    w.test("complete-external-signal", signal_market, day(9))
-    w.state("complete-external-signal", "rising", day(9))
-    if signal_market == "GLOBAL":
-        duck.load(con, "core.collection_health", [
-            health("feed_tiktok", day(i), market="GLOBAL", platform="tiktok") for i in range(20, -1, -1)])
-
-    resolve(con)
-
-    assert resolved(con) == {fid: True}
 
 
 def test_the_items_own_platform_failing_holds_it_even_when_another_platform_was_valid(con):
@@ -643,12 +611,12 @@ def test_a_null_day_of_the_main_series_leaves_persist_50_unresolved(con):
 # (f): weekly scoring
 
 
-def cohort(n, target="reach_rising", horizon=7, rule=forecasts.RULE):
+def cohort(n, target="reach_rising", horizon=7, rule="logistic_v1"):
     """n resolved forecasts the rule gets right and persistence gets wrong."""
     return [{"forecast_id": f"{target}{horizon}{i}", "item_id": f"i{i}", "market": "ZA", "target": target,
              "issue_date": day(30), "horizon": horizon, "rule": rule, "prob": 0.8, "predicted_arrival": True,
              "persistence_arrival": False, "resolve_date": day(30) + timedelta(days=horizon),
-             "observed_arrival": True, "resolution_rule_version": forecasts.RESOLUTION_RULE_VERSION} for i in range(n)]
+             "observed_arrival": True} for i in range(n)]
 
 
 def test_scoring_is_never_promotion_eligible_below_200_comparable_rows():

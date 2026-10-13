@@ -22,7 +22,7 @@ Release Alpha, data quality, trend identity and research reliability.
 - Ask's number checks reject a count presented as posts per 1,000 accounts without a matching rate result.
 - Semantic searches apply platform, account and engagement filters before selecting their closest results. Historical searches use the question's dates and the publication window.
 - Detection excludes old recollected posts from fresh signals and applies dated topic links to historical counts.
-- Forecast and quality comparisons require matching calculation versions. Historical outcomes from older rules remain unresolved under the new rules.
+- Quality comparisons require matching question definitions and calculation methods.
 - Collection rejects malformed provider replies without reporting a false empty result. Embeddings require complete, finite vectors before matching.
 - Accounts posting are counted separately by platform. Search location no longer implies a source's market.
 - Missing model usage keeps an explicit spending estimate. Missing counts and spending on the website remain unknown.

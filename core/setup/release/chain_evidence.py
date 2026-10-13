@@ -103,6 +103,13 @@ class GoogleBq:
     def __init__(self, timeouts):
         self.timeout = timeouts["gcloud"]
 
+    def definition(self, target):
+        from google.cloud import bigquery
+        from core.schema import release_install
+
+        client = bigquery.Client(project=so.PROJECT, location=release_install.LOCATION)
+        return release_install.definition(client, target)[0]
+
     def _job(self, sql, params, *, dry_run, max_bytes=None):
         from google.cloud import bigquery
 

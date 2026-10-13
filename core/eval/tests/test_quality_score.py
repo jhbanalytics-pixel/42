@@ -13,7 +13,7 @@ import pytest
 import sqlglot
 from sqlglot import exp
 
-from core.eval import forecast_score, quality_score, review
+from core.eval import quality_score, review
 from core.eval.tests.test_forecast_score import good_cohort, row
 
 WEEK = date(2026, 9, 21)
@@ -154,7 +154,7 @@ def test_forecast_skill_is_pooled_per_market_and_needs_200_resolved(warehouse, t
     assert rows["ZA"]["parts"]["forecast_skill"]["value"] == pytest.approx(0.87)
     assert rows["ZA"]["parts"]["forecast_skill"]["points"] == pytest.approx(93.5)
     assert rows["NG"]["parts"]["forecast_skill"]["insufficient"] is True
-    assert rows["ALL"]["parts"]["forecast_skill"]["query_id"] == "core/eval/sql/forecast_rows.sql?d=2026-09-28&resolution_rule_version=" + forecast_score.RESOLUTION_RULE_VERSION
+    assert rows["ALL"]["parts"]["forecast_skill"]["query_id"] == "core/eval/sql/forecast_rows.sql?d=2026-09-28"
 
 
 def test_precision_comes_from_the_latest_engine_scorecard_run_and_time_to_detect_is_shown_not_scored(

@@ -24,7 +24,13 @@ from pathlib import Path
 
 SCHEMA_VERSION = 1
 REPO_FILES = (
-    "core/detect/forecast_rules.py",
+    "core/schema/release_install.py",
+    "core/detect/forecasts.py",
+    "core/detect/sql/views.sql",
+    "core/detect/sql/locality_views.sql",
+    "core/detect/sql/counted_links.sql",
+    "core/understand/sql/tvf_search_posts_scoped.sql",
+    "core/understand/sql/tvf_search_posts.sql",
     "core/setup/release/SERVICES-PASTE.ps1",
     "core/setup/release/JOBS-PASTE.ps1",
     "core/setup/release/chain_evidence.py",
@@ -144,6 +150,7 @@ REPO_FILES = (
     "core/understand/video.py",
 )
 TEST_FILES = (
+    "core/schema/tests/test_release_install.py",
     "core/setup/tests/cloud_world.py",
     "core/setup/tests/jobs_paste_world.py",
     "core/setup/tests/jobs_world.py",
@@ -210,7 +217,6 @@ TEST_FILES = (
     "core/setup/tests/test_jobs_baseline.py",
     "core/setup/tests/test_jobs_build.py",
     "core/setup/tests/test_jobs_effects.py",
-    "core/setup/tests/test_jobs_forecast_effects.py",
     "core/setup/tests/test_jobs_envscan.py",
     "core/setup/tests/test_jobs_final.py",
     "core/setup/tests/test_jobs_freeze.py",

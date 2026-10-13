@@ -16,11 +16,8 @@ CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_agent.findings` (
 CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_agent.forecasts` (
   forecast_id STRING NOT NULL, item_id STRING, market STRING, target STRING, issue_date DATE,
   horizon INT64, rule STRING, prob FLOAT64, predicted_arrival BOOL, persistence_arrival BOOL,
-  resolve_date DATE, observed_arrival BOOL, resolution_rule_version STRING)
+  resolve_date DATE, observed_arrival BOOL)
 PARTITION BY issue_date;
-
-ALTER TABLE `ogilvy-trends-v2.intelligence_42_agent.forecasts`
-ADD COLUMN IF NOT EXISTS resolution_rule_version STRING;
 
 CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_agent.feedback` (
   who STRING, what STRING, reason STRING, `at` TIMESTAMP);

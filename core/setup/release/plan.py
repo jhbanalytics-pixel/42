@@ -340,7 +340,7 @@ def deploy_call_allowed(argv):
 JOBS_REPO = jo.JOBS_REPO
 JOB_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 CHAIN_ROLES = ("baseline", "first-b")
-JOBS_RUN_ACTIONS = ("snapshot", "update", "rollback", "schema-receipt")
+JOBS_RUN_ACTIONS = ("snapshot", "update", "rollback", "schema-receipt", "warehouse-install")
 BUILD_BUCKET = "gs://ogilvy-trends-v2-f42-media-staging/build-source"
 BUILDS_URL = f"https://cloudbuild.googleapis.com/v1/projects/{PROJECT}/locations/{REGION}/builds"
 
@@ -361,6 +361,7 @@ class JobsCtx:
     manifest: str = "<durable manifest>"
     build_id_file: str = "<run dir>/build-id.txt"
     schema_effects: bool = False
+    warehouse_effects: bool = False
 
 
 def _digest(value):
@@ -412,8 +413,10 @@ def jobs_candidate(ctx):
         checker(_services_view(ctx), "validate"),
         step("snapshot", ["py", "-3.13", ctx.runner, "snapshot", "--bindings", ctx.bindings, "--evidence", ctx.evidence]),
     ]
-    if ctx.schema_effects:
+    if ctx.schema_effects and not ctx.warehouse_effects:
         steps.append(step("schema_apply", ["py", "-3.13", "-m", "core.schema.apply", "--apply"]))
+    if ctx.warehouse_effects:
+        steps.append(jobs_run(ctx, "warehouse-install"))
     steps.append(checker(_services_view(ctx), "readbacks"))
     steps.append(jobs_run(ctx, "schema-receipt"))
     return steps

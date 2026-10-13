@@ -260,12 +260,6 @@ def score_market(market, *, week_start, scores, replay, labels, feedback_qid, fe
                                      and regime["detection_rule_version"] != "mixed"):
         if "precision" in counted:
             methods["precision"] = {k: regime.get(k) for k in ("locality_basis", "detection_rule_version")}
-        if "forecast_skill" in counted:
-            methods["forecast_skill"] = {
-                "resolution_rule_version": forecast_score.RESOLUTION_RULE_VERSION,
-                "model_rules": sorted({r["rule"] for r in forecasts
-                                       if market in ("ALL", r["market"])
-                                       and r.get("resolution_rule_version") == forecast_score.RESOLUTION_RULE_VERSION})}
         fingerprint = "sha256:" + hashlib.sha256(json.dumps(methods, sort_keys=True).encode("utf-8")).hexdigest()
     change, change_reason = _change(score, counted, {**replay, "method_fingerprint": fingerprint}, prev, regime)
     return {"market": market, "score": score, "counted": counted, "change": change, "change_reason": change_reason,

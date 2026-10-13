@@ -281,10 +281,20 @@ function Invoke-JobsCandidate {
     Invoke-Runner 'snapshot' 'snapshot' | Out-Null
     $durable = Read-JsonFile $Script:Paths.durableManifestPath 'the durable-effects manifest'
     foreach ($effect in @($durable.effects)) {
-        if ($effect.apply_kind -notin @('schema', 'job_image', 'code')) { throw 'An effect names an apply kind outside the paste''s allowlist.' }
+        if ($effect.apply_kind -notin @('schema', 'job_image', 'code', 'warehouse_install')) { throw 'An effect names an apply kind outside the paste''s allowlist.' }
     }
-    if (@($durable.effects | Where-Object { $_.apply_kind -eq 'schema' }).Count -gt 0) {
+    if (@($durable.effects | Where-Object { $_.apply_kind -eq 'schema' }).Count -gt 0 -and @($durable.effects | Where-Object { $_.apply_kind -eq 'warehouse_install' }).Count -eq 0) {
         Step -Name 'schema-apply' -Argv @('py', '-3.13', '-m', 'core.schema.apply', '--apply') | Out-Null
+    }
+    if (@($durable.effects | Where-Object { $_.apply_kind -eq 'warehouse_install' }).Count -gt 0) {
+        $path = Join-Path $Script:RunDir 'warehouse-token.json'
+        $body = [ordered]@{ schema_version = 1; action = 'warehouse-install'; release_id = $Script:Bound.release_id
+                            target = $Script:Bound.target; tree = $Script:Bound.tree
+                            durable_manifest_sha256 = $Script:Bound.durableManifestSha256
+                            token = [guid]::NewGuid().ToString('N') }
+        $body | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $path -Encoding utf8
+        try { Invoke-Runner 'warehouse-install' 'warehouse-install' | Out-Null }
+        finally { if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path } }
     }
     Step -Name 'durable-readbacks' -Argv @('py', '-3.13', 'core/setup/durable_effects_check.py', '--manifest', $Script:Paths.durableManifestPath, '--check', 'readbacks', '--evidence', $Script:RunDir) | Out-Null
     # JobsUpdate refuses without the receipt this step writes into the release directory (RB-T3); it is written only from a passing readback.
