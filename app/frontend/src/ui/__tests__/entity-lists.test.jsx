@@ -40,7 +40,7 @@ print(json.dumps(out, default=str))
     {cwd: fileURLToPath(new URL('../../../../../', import.meta.url)), input: '', encoding: 'utf8',
       env: {...process.env, PYTHONUTF8: '1'}});
   expect(result.error).toBeUndefined();
-  expect(result.status).toBe(0);
+  expect(result.status, result.stderr).toBe(0);
   produced = JSON.parse(result.stdout);
   return structuredClone(produced);
 }
@@ -213,7 +213,7 @@ print(json.dumps(out, default=str))
     {cwd: fileURLToPath(new URL('../../../../../', import.meta.url)), input: JSON.stringify(cases), encoding: 'utf8',
       env: {...process.env, PYTHONUTF8: '1'}});
   expect(result.error).toBeUndefined();
-  expect(result.status).toBe(0);
+  expect(result.status, result.stderr).toBe(0);
   for (const entry of JSON.parse(result.stdout)){
     const host = rendered(entry.record);
     if (entry.case === 'alias_collision'){

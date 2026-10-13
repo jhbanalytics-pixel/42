@@ -289,7 +289,7 @@ print(json.dumps(outputs))
   const produced = spawnSync(command, args, {cwd: fileURLToPath(new URL('../../../../../', import.meta.url)),
     input: JSON.stringify(cases), encoding: 'utf8', env: {...process.env, PYTHONUTF8: '1'}});
   expect(produced.error).toBeUndefined();
-  expect(produced.status).toBe(0);
+  expect(produced.status, produced.stderr).toBe(0);
   const outputs = JSON.parse(produced.stdout);
   expect(outputs).toHaveLength(cases.length);
   for (const {case: example, record, retained_projection, unchanged, raw_current, raw_previous} of outputs){

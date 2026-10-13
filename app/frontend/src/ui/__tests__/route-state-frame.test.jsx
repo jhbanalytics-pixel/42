@@ -378,7 +378,7 @@ describe('Discover routes its state branches through the package frame', () => {
     expect(after).toContain('<p class="state-view__body">Try another filter, or clear it to see every signal.</p>');
     expect(after).toMatch(/<button class="state-view__action" type="button">Clear the filter<\/button>/);
     expect(after).not.toContain(RECOMMENDATION);
-  });
+  }, 30000);
 });
 
 describe('Compare routes its state branches through the package frame', () => {

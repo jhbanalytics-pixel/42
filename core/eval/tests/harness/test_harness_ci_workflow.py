@@ -433,3 +433,23 @@ def test_the_workflow_comment_records_the_floor_raise_made_at_integration():
     # Until the wave 8 lanes were integrated the comment said integration would need a floor raise; it now records it.
     text = (LIVE / "tests.yml").read_text(encoding="utf-8")
     assert "Raised at the wave 8 integration" in text and "integration will need a floor raise" not in text
+
+
+def test_frontend_python_producer_fixtures_have_their_pinned_dependencies():
+    frontend = core_workflow()["jobs"]["frontend"]["steps"]
+    python = [s for s in frontend if s.get("uses", "").startswith("actions/setup-python@")]
+    assert python and python[0]["with"]["python-version"] == "3.13"
+    install = next(s for s in frontend if "pip install" in s.get("run", ""))
+    for pin in ("pytest==8.3.3", "sqlglot==30.20.0", "jsonschema==4.25.1"):
+        assert pin in install["run"]
+    test_at = next(i for i, s in enumerate(frontend) if re.search(r"\bbun test\b", s.get("run", "")))
+    assert frontend.index(install) < test_at
+
+
+def test_filtered_empty_browser_outer_deadline_covers_its_bounded_child():
+    source = (ROOT / "app/frontend/src/ui/__tests__/route-state-frame.test.jsx").read_text(encoding="utf-8")
+    child = int(re.search(r"timeout:\s*(\d+)", source)[1])
+    outer = re.search(
+        r"'filtered empty keeps[\s\S]*?\},\s*(\d+)\);", source)
+    assert outer, "the browser test inherits Bun's shorter default deadline"
+    assert int(outer[1]) > child
