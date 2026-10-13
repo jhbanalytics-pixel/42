@@ -11,7 +11,7 @@ import postcss from 'postcss';
 const animations = (file) => {
   const css = postcss.parse(readFileSync(new URL(file, import.meta.url), 'utf8'));
   const found = {};
-  css.walkDecls('animation', (decl) => { found[decl.parent.selector] = decl.value; });
+  css.walkDecls('animation', (decl) => { found[decl.parent.selector.replace(/\r\n/g, '\n')] = decl.value; });
   return found;
 };
 

@@ -4,6 +4,7 @@ network, no spend."""
 
 import json
 from datetime import datetime, time, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -41,8 +42,9 @@ def server_error(kind):
 
 def run(model, **kw):
     """explain_trend with the run's deadline still open, as the job gives it. No retry_guard at all is the case that
-    never retries (test_without_a_retry_guard_nothing_is_retried)."""
+    never retries (test_without_a_retry_guard_nothing_is_retried); retry_504_guard is the 504 retry's own guard."""
     kw.setdefault("retry_guard", lambda: True)
+    kw.setdefault("retry_504_guard", lambda: True)
     return run_unguarded(model, **kw)
 
 
@@ -244,8 +246,10 @@ def test_a_timeout_with_an_unresolved_auth_or_cleanup_flag_is_not_retried(flag):
     assert run(Scripted([good()], script={"support": [plain, "ok"]}))["reason"] is None
 
 
-# A 504 from the model service is a call that gave nothing back (13 Oct 2026), and gets the same one further attempt.
-# Other server errors keep their handling: they are never tried again.
+# A 504 from the model service is a call that gave nothing back (13 Oct 2026), and gets one further attempt when a whole
+# model call still fits before the cutoff. A 504 whose further attempt fails, or is not made, ends the card exactly as
+# one 504 did at 1cfda9c: a model error, with no check row of its own (lead ruling, 13 Oct 2026). Other server errors
+# keep their handling: they are never tried again.
 
 
 @pytest.mark.parametrize("phase, calls", [("support", 5), ("critic", 2)])
@@ -257,21 +261,71 @@ def test_a_504_on_a_check_is_tried_once_more_and_publishes_when_it_answers(phase
     assert failed_rows(result) == []
 
 
-def test_two_504s_on_a_check_hold_the_card_as_a_check_that_did_not_complete():
-    model = Scripted([good()], script={"support": ["504", "504"]})
+@pytest.mark.parametrize("phase", ["support", "critic"])
+def test_two_504s_on_a_check_end_the_card_as_one_504_did(phase):
+    model = Scripted([good()], script={phase: ["504", "504"]})
     result = run(model)
-    assert result["reason"] == "check_incomplete" and result["numbers_only"] is True
-    assert model.count("support") == 2 and model.count("critic") == 0
-    [row] = failed_rows(result)
-    assert (row["claim_id"], row["rule"], row["verdict"], row["checker"]) == ("c1", "K4", "cut", "model")
-    assert job.failed_reason(result) == "Check did not complete"
+    assert result["reason"] == "model_error" and result["numbers_only"] is True
+    assert result["error"].startswith("ServerError: 504 DEADLINE_EXCEEDED.")
+    assert model.count(phase) == 2
+    assert failed_rows(result) == []
 
 
-def test_a_504_when_the_deadline_leaves_no_room_is_not_tried_again():
+@pytest.mark.parametrize("second", ["timeout", "notext", "empty", "blocked", "500", "rate"])
+def test_a_504_whose_retry_fails_any_other_way_ends_the_card_as_one_504_did(second):
+    model = Scripted([good()], script={"support": ["504", second]})
+    result = run(model)
+    assert result["reason"] == "model_error"
+    assert result["error"].startswith("ServerError: 504 DEADLINE_EXCEEDED.")
+    assert model.count("support") == 2 and failed_rows(result) == []
+
+
+def test_a_timeout_whose_retry_meets_a_504_ends_as_it_did_at_1cfda9c():
+    model = Scripted([good()], script={"support": ["timeout", "504"]})
+    result = run(model)
+    assert result["reason"] == "model_error"
+    assert result["error"].startswith("ServerError: 504 DEADLINE_EXCEEDED.")
+    assert model.count("support") == 2 and failed_rows(result) == []
+
+
+@pytest.mark.parametrize("unknown", [False, True])
+def test_a_failed_504_retry_preserves_first_error_and_books_second_attempt_once(monkeypatch, unknown):
+    monkeypatch.setattr(explain, "_estimate_usd", lambda *args: 0.1)
+    second = TimeoutError("second request deadline expired")
+    second.usd = None if unknown else 0.03
+    second.reserve_model_estimate = unknown
+    model = Scripted([good()], script={"support": ["504", second]})
+    result = run(model)
+    assert result["reason"] == "model_error"
+    assert result["error"].startswith("ServerError: 504 DEADLINE_EXCEEDED.")
+    assert "second request" not in result["error"]
+    assert model.count("support") == 2 and failed_rows(result) == []
+    assert result["usage_usd"] == pytest.approx(0.11 if unknown else 0.04)
+    if unknown:
+        assert result["usage_unknown"] is True
+        assert result["model_reserved_usd"] == 0.1
+    else:
+        assert "model_reserved_usd" not in result
+
+
+def test_a_504_when_no_whole_model_call_fits_is_not_tried_again():
     model = Scripted([good()], script={"support": ["504", "ok"]})
-    result = run(model, retry_guard=lambda: False)
+    result = run(model, retry_504_guard=lambda: False)
     assert result["reason"] == "model_error" and "504 DEADLINE_EXCEEDED" in result["error"]
     assert model.count("support") == 1 and failed_rows(result) == []
+
+
+def test_a_504_without_its_own_guard_is_not_tried_again():
+    model = Scripted([good()], script={"support": ["504", "ok"]})
+    result = run_unguarded(model, retry_guard=lambda: True)
+    assert result["reason"] == "model_error"
+    assert model.count("support") == 1
+
+
+def test_the_504_floor_leaves_the_timeout_retry_as_it_was():
+    model = Scripted([good()], script={"support": ["timeout", "ok"]})
+    result = run(model, retry_504_guard=lambda: False)
+    assert result["reason"] is None and model.count("support") == 5
 
 
 def test_a_504_on_the_writer_call_is_not_tried_again():
@@ -466,18 +520,74 @@ def test_one_504_in_the_job_publishes_and_sends_the_retry_once():
         assert [c["explained"] for c in p["cards"]] == [True] and p["held_back"]["count"] == 0
 
 
-def test_two_504s_in_the_job_hold_each_card_with_the_same_held_reason_as_before():
+# What one 504 on the support check of each card's claim "Local creators are posting" stored at 1cfda9c, in this file's
+# world and FlakyJobModel shape: the brief rows without rule_version, and every claim_checks row. Written at 1cfda9c
+# with 1 failure per check and pinned here, so the double 504 below is compared with the older code's own output, not
+# with this tree's.
+SINGLE_504_AT_1CFDA9C = Path(__file__).parent / "fixtures" / "single_504_1cfda9c.json"
+
+
+def stored(r):
+    briefs = {row["market"]: {k: (json.loads(v) if k == "payload" else v) for k, v in row.items() if k != "rule_version"}
+              for row in r.client.inserted.get("agent.briefs", [])}
+    return json.loads(json.dumps({"briefs": briefs, "claim_checks": checks(r)}, ensure_ascii=False, sort_keys=True,
+                                 default=str))
+
+
+def test_two_504s_in_the_job_store_exactly_what_one_504_stored_at_1cfda9c():
+    before = json.loads(SINGLE_504_AT_1CFDA9C.read_text(encoding="utf-8"))
+    assert before["dispatched"] == [1, 1, 1]
     model = FlakyJobModel(2, kind="504")
-    r = brief(world(n=1), model=model)
-    assert sorted(model.dispatched.values()) == [2, 2, 2]
+    now = stored(brief(world(n=1), model=model))
+    assert sorted(model.dispatched.values()) == [2, 2, 2]  # the retry was sent, and failed
+    assert sorted(now["briefs"]) == sorted(before["briefs"]) == ["KE", "NG", "ZA"]
     for m in ("ZA", "NG", "KE"):
-        p = payload(r, m)
-        assert p["cards"] == []
-        [item] = held_items(r, m).values()
-        assert item["reason"] == "explanation_failed"
-        assert item["failed_reason"] == "Check did not complete"
-    assert len([c for c in checks(r) if c["reason"] == "Support check: check did not complete"]) == 3
-    assert r.chain.finished[0]["status"] == "ok"
+        assert set(now["briefs"][m]) == set(before["briefs"][m])
+        for key in before["briefs"][m]:
+            assert now["briefs"][m][key] == before["briefs"][m][key], (m, key)
+        [item] = now["briefs"][m]["payload"]["held_back"]["items"]
+        [old] = before["briefs"][m]["payload"]["held_back"]["items"]
+        for key in ("reason", "explanation_status", "failed_reason", "reason_text"):
+            assert item.get(key) == old.get(key), (m, key)
+    assert len(now["claim_checks"]) == len(before["claim_checks"])
+    for i, (row, old) in enumerate(zip(now["claim_checks"], before["claim_checks"])):
+        assert row == old, i
+    assert "did not complete" not in json.dumps(now, ensure_ascii=False).casefold()
+
+
+def test_the_504_retry_starts_at_the_floor_and_not_one_second_under_it():
+    deadline = datetime.combine(D, time(6, 15), SAST)
+    for left, sent in ((job.GEMINI_TIMEOUT_S - 1, [1, 1, 1]), (job.GEMINI_TIMEOUT_S, [2, 2, 2])):
+        now = {"t": datetime.combine(D, time(5, 30), SAST)}
+        model = FlakyJobModel(1, kind="504",
+                              on_fail=lambda left=left: now.update(t=deadline - timedelta(seconds=left)))
+        r = brief(world(n=1), model=model, clock=lambda: now["t"])
+        assert sorted(model.dispatched.values()) == sent, left
+        explained = [c["explained"] for m in ("ZA", "NG", "KE") for c in payload(r, m)["cards"]]
+        assert explained == ([] if sent == [1, 1, 1] else [True, True, True]), left
+
+
+def test_the_504_guard_needs_a_whole_model_call_before_the_time_limit(monkeypatch):
+    from core.brief.tests.test_brief_job import FakeChain
+
+    seen = []
+
+    def fake_explain(row, pack, **kw):
+        seen.append(kw["retry_504_guard"])
+        return {"reason": None, "usage_usd": 0.0, "checks": [], "numbers_only": False, "explanation": "x"}
+
+    monkeypatch.setattr(job, "explain_trend", fake_explain)
+    started = datetime.combine(D, time(4, 0), SAST)
+    limit = started + job.collect_chain.TIMEOUTS["brief"] - job.FINISH_MARGIN
+    now = {"t": started}
+    cand = {"market": "ZA", "row": {"item_id": "i1"}, "pack": {}, "rerun": None}
+    job._explain_all([cand], model=object(), base_usd=0.0, spend={"usd": 0.0}, clock=lambda: now["t"],
+                     chain=FakeChain(), d=D, workers=1, started=started)
+    [guard] = seen
+    now["t"] = limit - timedelta(seconds=job.GEMINI_TIMEOUT_S)
+    assert guard() is True
+    now["t"] = limit - timedelta(seconds=job.GEMINI_TIMEOUT_S - 1)
+    assert guard() is False
 
 
 @pytest.mark.parametrize("cutoff", ["deadline", "time_limit"])

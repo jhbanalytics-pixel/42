@@ -297,6 +297,7 @@ class _Cap(Exception):
 
 class _ModelError(Exception):
     no_answer = False  # True when the call gave nothing back: a timeout or an empty reply (_no_answer)
+    server_timeout = False  # True when the model service answered 504 (_server_timeout)
 
 
 class _CheckIncomplete(Exception):
@@ -317,12 +318,15 @@ def _no_answer(exc):
         return False
     if any("Timeout" in k.__name__ or k.__name__ == "DeadlineExceeded" for k in type(exc).__mro__):
         return True
-    # The SDK's own ServerError, matched by class and module so no SDK need be imported, with the HTTP status the SDK
-    # was handed (errors.APIError.raise_error), never a 504 read from the message text.
-    if (any(k.__name__ == "ServerError" and k.__module__ == "google.genai.errors" for k in type(exc).__mro__)
-            and getattr(exc, "code", None) == 504):
+    if _server_timeout(exc):
         return True
     return isinstance(exc, TimeoutError) or "returned no text" in str(exc)
+
+
+def _server_timeout(exc):
+    """True for the SDK's own ServerError with HTTP status 504, matched by class and module, never message text."""
+    return (any(k.__name__ == "ServerError" and k.__module__ == "google.genai.errors" for k in type(exc).__mro__)
+            and getattr(exc, "code", None) == 504)
 
 
 def _fence(text):
@@ -1084,7 +1088,8 @@ def _spans(answer):
 
 
 def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, window_end, market, rerun=None,
-                  model_id=None, model_call_guard=None, second_draft=False, retry_guard=None):
+                  model_id=None, model_call_guard=None, second_draft=False, retry_guard=None,
+                  retry_504_guard=None):
     """See the module docstring."""
     model_id = model_id or default_model()
     spent = {"usd": 0.0, "reserved_usd": 0.0}
@@ -1117,6 +1122,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
             spent["usd"] += booked
             err = _ModelError(detail)
             err.no_answer = _no_answer(exc)
+            err.server_timeout = err.no_answer and _server_timeout(exc)
             raise err from exc
         if usage.get("usage_unknown"):
             spent["usd"] += estimate
@@ -1139,18 +1145,25 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         sent, and retry_guard (the run's deadline) must still allow it; with no guard there is no deadline to check
         and no retry. A refusal, a cut-off reply, a failing verdict, a cap or the deadline stop it, and the first
         error stands. A second non-return leaves a row for the check and holds the explanation
-        (_CheckIncomplete)."""
+        (_CheckIncomplete).
+
+        A service 504 gets another attempt only when retry_504_guard allows a whole call before the cutoff.
+        If that attempt fails, the first 504 remains the model error without a check row. A 504 on a timed-out
+        call's further attempt also ends as a model error (lead ruling, 13 Oct 2026)."""
         try:
             return answered(system, user, schema, max_tokens)
         except _ModelError as first:
-            if not first.no_answer or retry_guard is None or not retry_guard():
+            guard = retry_504_guard if first.server_timeout else retry_guard
+            if not first.no_answer or guard is None or not guard():
                 raise
             try:
                 return answered(system, user, schema, max_tokens)
             except _Cap:
                 raise first from None
             except _ModelError as second:
-                if not second.no_answer:
+                if first.server_timeout:
+                    raise first from None
+                if not second.no_answer or second.server_timeout:
                     raise
                 checks.append(_stamped({"claim_id": claim_id, "rule": rule, "verdict": "cut", "checker": "model",
                                         "detail": CHECK_INCOMPLETE}, text))

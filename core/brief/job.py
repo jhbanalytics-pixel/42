@@ -95,7 +95,8 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # e-one-event-shadow the published cards of one market that describe the same event recorded in shadow
 # (RELEASE-E-PLAN 8h, core/brief/same_event.py, _merge_events): it changes nothing in a brief row and marks the shadow
 # era, so the live merge at E3 takes a token of its own, brief-504-retry a support or critic check the model service
-# answered with 504 tried once more inside the same deadline and time limit (core/brief/explain.py _no_answer).
+# answered with 504 tried once more when a whole call fits before the cutoff; a failed retry keeps the first 504
+# (core/brief/explain.py check_call).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
@@ -1119,14 +1120,15 @@ class _Drafts:
         return out, usage
 
 
-def _explain_one(cand, *, model, spent_before, d, model_call_guard, retry_guard=None):
+def _explain_one(cand, *, model, spent_before, d, model_call_guard, retry_guard=None, retry_504_guard=None):
     start, end = _window(d, cand["market"])
     row = cand["row"]
     drafts = _Drafts(model)
     try:
         result = explain_trend(row, cand["pack"], model=drafts, spent_today_usd=spent_before, window_start=start,
                                window_end=end, market=cand["market"], rerun=cand["rerun"],
-                               model_call_guard=model_call_guard, second_draft=True, retry_guard=retry_guard)
+                               model_call_guard=model_call_guard, second_draft=True, retry_guard=retry_guard,
+                               retry_504_guard=retry_504_guard)
     except Exception as exc:
         # One bad trend is held back with its reason; it never costs the other markets their brief.
         return {"explanation": None, "explanation_claim_ids": [], "claims": [], "numbers_only": True,
@@ -1201,7 +1203,8 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
         gave_up = breaker.gave_up
         result = _explain_one(cand, model=breaker, spent_before=base_usd + spend["usd"], d=d,
                               model_call_guard=lambda: d == clock().astimezone(SAST).date(),
-                              retry_guard=lambda: _call_allowance(clock(), started, d, chain) > 0)
+                              retry_guard=lambda: _call_allowance(clock(), started, d, chain) > 0,
+                              retry_504_guard=lambda: _call_allowance(clock(), started, d, chain) >= GEMINI_TIMEOUT_S)
         if breaker.gave_up > gave_up and result["reason"] == "model_error":
             cand["busy_reason"] = MODEL_BUSY if breaker.busy == "deadline" else MODEL_REFUSED
         return result

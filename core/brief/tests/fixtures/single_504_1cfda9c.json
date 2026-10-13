@@ -1,0 +1,1067 @@
+{
+ "briefs": {
+  "KE": {
+   "brief_date": "2026-09-20",
+   "market": "KE",
+   "payload": {
+    "banners": [
+     {
+      "kind": "warming_up",
+      "text": "Warming up: day 3 of 14"
+     }
+    ],
+    "boards": [],
+    "cards": [],
+    "coverage": {
+     "issues": []
+    },
+    "critic": [],
+    "headline": null,
+    "held_back": {
+     "count": 1,
+     "items": [
+      {
+       "count_line": "12 creators and 20 posts in 3 days, 2.5 times usual",
+       "evidence": [
+        {
+         "creator_tier": "micro",
+         "duration_s": null,
+         "engagement": {
+          "comments": null,
+          "likes": null,
+          "shares": null,
+          "views": null
+         },
+         "flags": [],
+         "handle": "@ke1_c1",
+         "id": "ke1_p1",
+         "market": "KE",
+         "outlet_class": "creator",
+         "platform": "tiktok",
+         "posted_at": "2026-09-19T12:00:00+03:00",
+         "quote_text": "Dancing to the new sound at home with friends",
+         "source_market": null,
+         "sponsor_checked": false,
+         "text": "Dancing to the new sound at home with friends",
+         "thumbnail_url": null,
+         "url": null
+        },
+        {
+         "creator_tier": "micro",
+         "duration_s": null,
+         "engagement": {
+          "comments": null,
+          "likes": null,
+          "shares": null,
+          "views": null
+         },
+         "flags": [],
+         "handle": "@ke1_c2",
+         "id": "ke1_p2",
+         "market": "KE",
+         "outlet_class": "creator",
+         "platform": "instagram",
+         "posted_at": "2026-09-19T12:00:00+03:00",
+         "quote_text": "Dancing to the new sound at home with friends",
+         "source_market": null,
+         "sponsor_checked": false,
+         "text": "Dancing to the new sound at home with friends",
+         "thumbnail_url": null,
+         "url": null
+        },
+        {
+         "creator_tier": "micro",
+         "duration_s": null,
+         "engagement": {
+          "comments": null,
+          "likes": null,
+          "shares": null,
+          "views": null
+         },
+         "flags": [],
+         "handle": "@ke1_c3",
+         "id": "ke1_p3",
+         "market": "KE",
+         "outlet_class": "creator",
+         "platform": "tiktok",
+         "posted_at": "2026-09-19T12:00:00+03:00",
+         "quote_text": "Dancing to the new sound at home with friends",
+         "source_market": null,
+         "sponsor_checked": false,
+         "text": "Dancing to the new sound at home with friends",
+         "thumbnail_url": null,
+         "url": null
+        }
+       ],
+       "evidence_ids": [
+        "ke1_p1",
+        "ke1_p2",
+        "ke1_p3"
+       ],
+       "explanation_status": "not_run",
+       "failed_reason": null,
+       "item_id": "ke1",
+       "numbers": [
+        {
+         "query_id": "q_creators3_e63a370b94c7",
+         "result_hash": "sha256:51fdd21d9a9be6a1b66221ced15bd671a9c6e137ef28b604a8181d83809eab21",
+         "run_id": "detect-20260920",
+         "unit": "creators in 3 days",
+         "value": 12
+        },
+        {
+         "query_id": "q_posts3_80776da44cb4",
+         "result_hash": "sha256:aea5634eb824cdcbfa737894f637172f97b46553c0e333571c206aceb3c7ac2c",
+         "run_id": "detect-20260920",
+         "unit": "posts in 3 days",
+         "value": 20
+        },
+        {
+         "query_id": "q_main_ratio_08cadae07986",
+         "result_hash": "sha256:254b319ffceeb48631bb454b7644ff1ac7401384a347a2302bf2e16eb584afbc",
+         "run_id": "detect-20260920",
+         "unit": "times usual",
+         "value": 2.5
+        }
+       ],
+       "reason": "explanation_failed",
+       "reason_text": "Explanation failed its checks",
+       "rule": "G10",
+       "title": "#ke1"
+      }
+     ],
+     "text": "1 held back: explanation failed its checks"
+    },
+    "hold_audit": [],
+    "label": "Kenya",
+    "market": "KE",
+    "moments": [],
+    "more": [],
+    "not_assessed": null,
+    "selection_receipt": null,
+    "status": "partial"
+   },
+   "published_at": "2026-09-20T05:30:00+02:00",
+   "run_id": "brief-20260920-fake",
+   "status": "partial"
+  },
+  "NG": {
+   "brief_date": "2026-09-20",
+   "market": "NG",
+   "payload": {
+    "banners": [
+     {
+      "kind": "warming_up",
+      "text": "Warming up: day 3 of 14"
+     }
+    ],
+    "boards": [],
+    "cards": [],
+    "coverage": {
+     "issues": []
+    },
+    "critic": [],
+    "headline": null,
+    "held_back": {
+     "count": 1,
+     "items": [
+      {
+       "count_line": "12 creators and 20 posts in 3 days, 2.5 times usual",
+       "evidence": [
+        {
+         "creator_tier": "micro",
+         "duration_s": null,
+         "engagement": {
+          "comments": null,
+          "likes": null,
+          "shares": null,
+          "views": null
+         },
+         "flags": [],
+         "handle": "@ng1_c1",
+         "id": "ng1_p1",
+         "market": "NG",
+         "outlet_class": "creator",
+         "platform": "tiktok",
+         "posted_at": "2026-09-19T10:00:00+01:00",
+         "quote_text": "Dancing to the new sound at home with friends",
+         "source_market": null,
+         "sponsor_checked": false,
+         "text": "Dancing to the new sound at home with friends",
+         "thumbnail_url": null,
+         "url": null
+        },
+        {
+         "creator_tier": "micro",
+         "duration_s": null,
+         "engagement": {
+          "comments": null,
+          "likes": null,
+          "shares": null,
+          "views": null
+         },
+         "flags": [],
+         "handle": "@ng1_c2",
+         "id": "ng1_p2",
+         "market": "NG",
+         "outlet_class": "creator",
+         "platform": "instagram",
+         "posted_at": "2026-09-19T10:00:00+01:00",
+         "quote_text": "Dancing to the new sound at home with friends",
+         "source_market": null,
+         "sponsor_checked": false,
+         "text": "Dancing to the new sound at home with friends",
+         "thumbnail_url": null,
+         "url": null
+        },
+        {
+         "creator_tier": "micro",
+         "duration_s": null,
+         "engagement": {
+          "comments": null,
+          "likes": null,
+          "shares": null,
+          "views": null
+         },
+         "flags": [],
+         "handle": "@ng1_c3",
+         "id": "ng1_p3",
+         "market": "NG",
+         "outlet_class": "creator",
+         "platform": "tiktok",
+         "posted_at": "2026-09-19T10:00:00+01:00",
+         "quote_text": "Dancing to the new sound at home with friends",
+         "source_market": null,
+         "sponsor_checked": false,
+         "text": "Dancing to the new sound at home with friends",
+         "thumbnail_url": null,
+         "url": null
+        }
+       ],
+       "evidence_ids": [
+        "ng1_p1",
+        "ng1_p2",
+        "ng1_p3"
+       ],
+       "explanation_status": "not_run",
+       "failed_reason": null,
+       "item_id": "ng1",
+       "numbers": [
+        {
+         "query_id": "q_creators3_0c4bc1342fe5",
+         "result_hash": "sha256:51fdd21d9a9be6a1b66221ced15bd671a9c6e137ef28b604a8181d83809eab21",
+         "run_id": "detect-20260920",
+         "unit": "creators in 3 days",
+         "value": 12
+        },
+        {
+         "query_id": "q_posts3_82100f811693",
+         "result_hash": "sha256:aea5634eb824cdcbfa737894f637172f97b46553c0e333571c206aceb3c7ac2c",
+         "run_id": "detect-20260920",
+         "unit": "posts in 3 days",
+         "value": 20
+        },
+        {
+         "query_id": "q_main_ratio_30dc7b6a46ab",
+         "result_hash": "sha256:254b319ffceeb48631bb454b7644ff1ac7401384a347a2302bf2e16eb584afbc",
+         "run_id": "detect-20260920",
+         "unit": "times usual",
+         "value": 2.5
+        }
+       ],
+       "reason": "explanation_failed",
+       "reason_text": "Explanation failed its checks",
+       "rule": "G10",
+       "title": "#ng1"
+      }
+     ],
+     "text": "1 held back: explanation failed its checks"
+    },
+    "hold_audit": [],
+    "label": "Nigeria",
+    "market": "NG",
+    "moments": [],
+    "more": [],
+    "not_assessed": null,
+    "selection_receipt": null,
+    "status": "partial"
+   },
+   "published_at": "2026-09-20T05:30:00+02:00",
+   "run_id": "brief-20260920-fake",
+   "status": "partial"
+  },
+  "ZA": {
+   "brief_date": "2026-09-20",
+   "market": "ZA",
+   "payload": {
+    "banners": [
+     {
+      "kind": "warming_up",
+      "text": "Warming up: day 3 of 14"
+     }
+    ],
+    "boards": [],
+    "cards": [],
+    "coverage": {
+     "issues": []
+    },
+    "critic": [],
+    "headline": null,
+    "held_back": {
+     "count": 1,
+     "items": [
+      {
+       "count_line": "12 creators and 20 posts in 3 days, 2.5 times usual",
+       "evidence": [
+        {
+         "creator_tier": "micro",
+         "duration_s": null,
+         "engagement": {
+          "comments": null,
+          "likes": null,
+          "shares": null,
+          "views": null
+         },
+         "flags": [],
+         "handle": "@za1_c1",
+         "id": "za1_p1",
+         "market": "ZA",
+         "outlet_class": "creator",
+         "platform": "tiktok",
+         "posted_at": "2026-09-19T11:00:00+02:00",
+         "quote_text": "Dancing to the new sound at home with friends",
+         "source_market": null,
+         "sponsor_checked": false,
+         "text": "Dancing to the new sound at home with friends",
+         "thumbnail_url": null,
+         "url": null
+        },
+        {
+         "creator_tier": "micro",
+         "duration_s": null,
+         "engagement": {
+          "comments": null,
+          "likes": null,
+          "shares": null,
+          "views": null
+         },
+         "flags": [],
+         "handle": "@za1_c2",
+         "id": "za1_p2",
+         "market": "ZA",
+         "outlet_class": "creator",
+         "platform": "instagram",
+         "posted_at": "2026-09-19T11:00:00+02:00",
+         "quote_text": "Dancing to the new sound at home with friends",
+         "source_market": null,
+         "sponsor_checked": false,
+         "text": "Dancing to the new sound at home with friends",
+         "thumbnail_url": null,
+         "url": null
+        },
+        {
+         "creator_tier": "micro",
+         "duration_s": null,
+         "engagement": {
+          "comments": null,
+          "likes": null,
+          "shares": null,
+          "views": null
+         },
+         "flags": [],
+         "handle": "@za1_c3",
+         "id": "za1_p3",
+         "market": "ZA",
+         "outlet_class": "creator",
+         "platform": "tiktok",
+         "posted_at": "2026-09-19T11:00:00+02:00",
+         "quote_text": "Dancing to the new sound at home with friends",
+         "source_market": null,
+         "sponsor_checked": false,
+         "text": "Dancing to the new sound at home with friends",
+         "thumbnail_url": null,
+         "url": null
+        }
+       ],
+       "evidence_ids": [
+        "za1_p1",
+        "za1_p2",
+        "za1_p3"
+       ],
+       "explanation_status": "not_run",
+       "failed_reason": null,
+       "item_id": "za1",
+       "numbers": [
+        {
+         "query_id": "q_creators3_a53254305d96",
+         "result_hash": "sha256:51fdd21d9a9be6a1b66221ced15bd671a9c6e137ef28b604a8181d83809eab21",
+         "run_id": "detect-20260920",
+         "unit": "creators in 3 days",
+         "value": 12
+        },
+        {
+         "query_id": "q_posts3_4c15ee294a5b",
+         "result_hash": "sha256:aea5634eb824cdcbfa737894f637172f97b46553c0e333571c206aceb3c7ac2c",
+         "run_id": "detect-20260920",
+         "unit": "posts in 3 days",
+         "value": 20
+        },
+        {
+         "query_id": "q_main_ratio_734c794f18f2",
+         "result_hash": "sha256:254b319ffceeb48631bb454b7644ff1ac7401384a347a2302bf2e16eb584afbc",
+         "run_id": "detect-20260920",
+         "unit": "times usual",
+         "value": 2.5
+        }
+       ],
+       "reason": "explanation_failed",
+       "reason_text": "Explanation failed its checks",
+       "rule": "G10",
+       "title": "#za1"
+      }
+     ],
+     "text": "1 held back: explanation failed its checks"
+    },
+    "hold_audit": [],
+    "label": "South Africa",
+    "market": "ZA",
+    "moments": [],
+    "more": [],
+    "not_assessed": null,
+    "selection_receipt": null,
+    "status": "partial"
+   },
+   "published_at": "2026-09-20T05:30:00+02:00",
+   "run_id": "brief-20260920-fake",
+   "status": "partial"
+  }
+ },
+ "claim_checks": [
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Quote check: passed",
+   "rule": "K1",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Number check: passed",
+   "rule": "K2",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Place check: passed",
+   "rule": "K3",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Banned term check: passed",
+   "rule": "K6",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Translation check: passed",
+   "rule": "K8",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Label check: passed",
+   "rule": "K5",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Quote check: passed",
+   "rule": "K1",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Number check: passed",
+   "rule": "K2",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Place check: passed",
+   "rule": "K3",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Banned term check: passed",
+   "rule": "K6",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Translation check: passed",
+   "rule": "K8",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Label check: passed",
+   "rule": "K5",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Quote check: passed",
+   "rule": "K1",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Number check: passed",
+   "rule": "K2",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Place check: passed",
+   "rule": "K3",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Banned term check: passed",
+   "rule": "K6",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Translation check: passed",
+   "rule": "K8",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Label check: passed",
+   "rule": "K5",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": null,
+   "reason": "Status check: passed",
+   "rule": "K10",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Claim checks: passed",
+   "rule": "K9",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Claim checks: passed",
+   "rule": "K9",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Claim checks: passed",
+   "rule": "K9",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:ZA:za1",
+   "checker": "code",
+   "claim_id": null,
+   "reason": "Claim checks: passed",
+   "rule": "K9",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Quote check: passed",
+   "rule": "K1",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Number check: passed",
+   "rule": "K2",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Place check: passed",
+   "rule": "K3",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Banned term check: passed",
+   "rule": "K6",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Translation check: passed",
+   "rule": "K8",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Label check: passed",
+   "rule": "K5",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Quote check: passed",
+   "rule": "K1",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Number check: passed",
+   "rule": "K2",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Place check: passed",
+   "rule": "K3",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Banned term check: passed",
+   "rule": "K6",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Translation check: passed",
+   "rule": "K8",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Label check: passed",
+   "rule": "K5",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Quote check: passed",
+   "rule": "K1",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Number check: passed",
+   "rule": "K2",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Place check: passed",
+   "rule": "K3",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Banned term check: passed",
+   "rule": "K6",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Translation check: passed",
+   "rule": "K8",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Label check: passed",
+   "rule": "K5",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": null,
+   "reason": "Status check: passed",
+   "rule": "K10",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Claim checks: passed",
+   "rule": "K9",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Claim checks: passed",
+   "rule": "K9",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Claim checks: passed",
+   "rule": "K9",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:NG:ng1",
+   "checker": "code",
+   "claim_id": null,
+   "reason": "Claim checks: passed",
+   "rule": "K9",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Quote check: passed",
+   "rule": "K1",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Number check: passed",
+   "rule": "K2",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Place check: passed",
+   "rule": "K3",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Banned term check: passed",
+   "rule": "K6",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Translation check: passed",
+   "rule": "K8",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Label check: passed",
+   "rule": "K5",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Quote check: passed",
+   "rule": "K1",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Number check: passed",
+   "rule": "K2",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Place check: passed",
+   "rule": "K3",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Banned term check: passed",
+   "rule": "K6",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Translation check: passed",
+   "rule": "K8",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Label check: passed",
+   "rule": "K5",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Quote check: passed",
+   "rule": "K1",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Number check: passed",
+   "rule": "K2",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Place check: passed",
+   "rule": "K3",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Banned term check: passed",
+   "rule": "K6",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Translation check: passed",
+   "rule": "K8",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Label check: passed",
+   "rule": "K5",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": null,
+   "reason": "Status check: passed",
+   "rule": "K10",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c1",
+   "reason": "Claim checks: passed",
+   "rule": "K9",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c2",
+   "reason": "Claim checks: passed",
+   "rule": "K9",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": "c3",
+   "reason": "Claim checks: passed",
+   "rule": "K9",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  },
+  {
+   "answer_or_brief_id": "brief-20260920-fake:KE:ke1",
+   "checker": "code",
+   "claim_id": null,
+   "reason": "Claim checks: passed",
+   "rule": "K9",
+   "run_id": "brief-20260920-fake",
+   "verdict": "pass"
+  }
+ ],
+ "dispatched": [
+  1,
+  1,
+  1
+ ]
+}
