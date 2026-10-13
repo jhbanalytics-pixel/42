@@ -335,6 +335,58 @@ def test_k2_rejects_a_number_pinned_to_a_different_measure(draft, ctx, wh):
     assert "c1" not in claim_ids(answer)
 
 
+@pytest.mark.parametrize("rows,unit", [
+    ([{"posts": 412}], "posts per 1000 creators"),
+    ([{"posts": 412}], "posts per1000 creators"),
+    ([{"posts": 412}], "posts/creator"),
+    ([{"posts": 412, "creators": 1000}], "posts per 1000 creators"),
+    ([{"posts": 412, "ratio": 412}], "posts per creator"),
+    ([{"value": 412}], "posts per creator"),
+    ([412], "posts per creator"),
+    ([{"posts_per_1000_viewers": 412}], "posts per 1000 creators"),
+    ([{"posts_per_100_creators": 412}], "posts per 1000 creators"),
+    ([{"posts_per_1000_creators": {"posts": 412}}], "posts per 1000 creators"),
+])
+def test_k2_compound_unit_requires_named_measure(rows, unit):
+    ctx = make_ctx(rows=rows)
+    problem = checks._recorded_problem(number(ctx, 412, unit), ctx)
+    assert problem is not None and "compound unit" in problem
+    draft = make_draft(ctx)
+    draft["claims"][0].update(text="Plate ratings had a recorded rate of 412.",
+                              numbers=[number(ctx, 412, unit)])
+    answer, verdicts = run(draft, ctx, FakeWarehouse(rows))
+    assert verdict(verdicts, "c1", "K2")["verdict"] == "cut"
+    assert "c1" not in claim_ids(answer)
+
+
+@pytest.mark.parametrize("column,unit", [
+    ("posts_per_1000_creators", "posts per 1000 creators"),
+    ("total_posts_per_1000_creators_rate", "posts per 1,000 creators"),
+    ("posts_per_creator", "posts/creator"),
+    ("posts_per_creator", "posts per creators"),
+    ("posts_per_day", "posts per day"),
+])
+def test_k2_compound_unit_preserves_named_rate(column, unit):
+    rows = [{column: 412}]
+    ctx = make_ctx(rows=rows)
+    assert checks._recorded_problem(number(ctx, 412, unit), ctx) is None
+    draft = make_draft(ctx)
+    draft["claims"][0].update(text="Plate ratings had a recorded rate of 412.",
+                              numbers=[number(ctx, 412, unit)])
+    _, verdicts = run(draft, ctx, FakeWarehouse(rows))
+    assert verdict(verdicts, "c1", "K2")["verdict"] == "pass"
+
+
+@pytest.mark.parametrize("column,value,unit", [
+    ("posts", 412, "posts"), ("total_posts", 412, "posts on 27 September"),
+    ("ratio", 2.8, "times the usual daily count"), ("percentage", 40, "percentage of posts"),
+    ("posts", 412, "posts on 27/09/2026"), ("percentage", 40, "per cent of posts"),
+])
+def test_k2_compound_guard_preserves_simple_measure(column, value, unit):
+    ctx = make_ctx(rows=[{column: value}])
+    assert checks._recorded_problem(number(ctx, value, unit), ctx) is None
+
+
 def test_k2_leaves_a_unit_unproven_when_the_value_has_a_generic_alias(draft, ctx):
     rows = [dict(ROWS[0], value=412), ROWS[1]]
     ctx = make_ctx(rows=rows)

@@ -1380,6 +1380,29 @@ def _recorded_problem(n, ctx):
                    "fraction", "fractions", "multiple", "multiples", "times", "x"}
     prefixes = {"a", "an", "the", "number", "count", "counts", "total", "reported", "recorded", "estimated",
                 "unique"}
+    compound = re.search(r"[a-z]\s*/\s*(?:\d[\d,]*\s*)?[a-z]",
+                         str(n.get("unit") or "").lower()) or any(
+        word == "per" and (index + 1 == len(unit_words) or unit_words[index + 1] != "cent")
+        for index, word in enumerate(unit_words))
+    if compound:
+        unit_text = str(n.get("unit") or "").lower().replace("/", " per ")
+        unit_text = re.sub(r"(?<=\d),(?=\d{3}\b)", "", unit_text)
+        measure_words = [word[:-1] if word.endswith("s") else word
+                         for word in re.findall(r"[a-z]+|\d+", unit_text)]
+        while measure_words and measure_words[0] in prefixes:
+            measure_words.pop(0)
+        matched_measure = False
+        for path, _ in places:
+            if path is None or not path or not isinstance(path[-1], str):
+                continue
+            column_words = [word[:-1] if word.endswith("s") else word
+                            for word in re.findall(r"[a-z]+|\d+", path[-1].lower())]
+            if any(column_words[index:index + len(measure_words)] == measure_words
+                   for index in range(len(column_words) - len(measure_words) + 1)):
+                matched_measure = True
+                break
+        if not matched_measure:
+            return f"number {value}: compound unit {n.get('unit')!r} has no named measure in {qid}"
     context = {"in", "on", "at", "of", "for", "per", "during", "across", "over", "within", "from", "the",
                "a", "an", "this", "last", "past", "usual", "average", "daily", "weekly", "monthly", "total",
                "unique", "distinct", "count", "counts"}
