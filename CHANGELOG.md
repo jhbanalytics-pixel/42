@@ -19,6 +19,7 @@ Release Alpha, data quality, trend identity and research reliability.
 - Today's checked cards consolidate fragments only when their event and date agree. Uncertain fragments stay held, with unsupported explanations removed.
 - Brief support and critic checks retry a 504 once when a full call fits within the existing time and spending limits.
 - Ask keeps usable research when one research lane fails and marks the missing coverage. Completed polling results remain available even if a later read would fail.
+- Ask's number checks reject a count presented as posts per 1,000 accounts without a matching rate result.
 - Semantic searches apply platform, account and engagement filters before selecting their closest results. Historical searches use the question's dates and the publication window.
 - Detection excludes old recollected posts from fresh signals and applies dated topic links to historical counts.
 - Forecast and quality comparisons require matching calculation versions. Historical outcomes from older rules remain unresolved under the new rules.

@@ -135,7 +135,22 @@ def test_b02_every_warehouse_map_table_passes():
         if "tvf_" in table:
             continue
         check_sql(f"SELECT * FROM {table}")
-    assert set(ALLOWED_TVFS) == {f"{AGENT}.tvf_search_posts", f"{AGENT}.tvf_item_timeseries"}
+    assert set(ALLOWED_TVFS) == {f"{AGENT}.tvf_search_posts", f"{AGENT}.tvf_search_posts_scoped",
+                                f"{AGENT}.tvf_item_timeseries"}
+
+
+def test_b02_scoped_semantic_function_passes_only_in_the_agent_dataset():
+    arguments = "(@q, NULL, @since, @until, @k, [@platform_0], @author, @min_engagement)"
+    check_sql(f"SELECT * FROM {AGENT}.tvf_search_posts_scoped{arguments}")
+    with pytest.raises(Refused):
+        check_sql(f"SELECT * FROM {CORE}.tvf_search_posts_scoped{arguments}")
+
+
+@pytest.mark.parametrize("table", DENIED + FORECASTS)
+def test_b02_scoped_semantic_function_cannot_launder_private_inputs(table):
+    with pytest.raises(Refused):
+        check_sql(f"SELECT * FROM {AGENT}.tvf_search_posts_scoped"
+                  f"((SELECT MIN('x') FROM {table}), NULL, @since, @until, 2, [], NULL, 0)")
 
 
 # B04, B05, B06.

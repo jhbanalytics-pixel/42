@@ -109,6 +109,17 @@ def test_the_registry_reads_the_schema_files(registry):
     assert all(o.columns for o in registry.objects.values() if o.kind in ("table", "view"))
 
 
+def test_the_registry_renders_the_dated_link_view_before_deriving_its_columns(registry):
+    from core.detect import sqlrun
+
+    view = registry.get("intelligence_42_core", "v_post_items_by_state_date")
+    rendered = next(s for s in sqlrun.statements() if sqlrun.object_name(s).endswith(".v_post_items_by_state_date"))
+    assert view.ddl.strip() == rendered.strip()
+    assert view.columns == ["metric_date", "post_id", "item_id", "via", "market"]
+    assert "{counted_state_links}" not in view.ddl
+    assert "post_item_end" in view.ddl and "post_item_lineage" in view.ddl
+
+
 # Contract section 8 and the module docstring of core/api/store.py: every query carries a 2 GB bytes-billed cap.
 BYTES_CAP = 2_000_000_000
 

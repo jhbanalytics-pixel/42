@@ -104,7 +104,9 @@ def split_statements(text):
 
 
 def render(text):
-    return text.replace("{core}", DATASETS["core"]).replace("{agent}", DATASETS["agent"])
+    from core.detect import sqlrun
+
+    return sqlrun.render(text, DATASETS["core"], DATASETS["agent"])
 
 
 def dotted(name):

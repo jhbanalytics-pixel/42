@@ -24,6 +24,7 @@ from pathlib import Path
 
 SCHEMA_VERSION = 1
 REPO_FILES = (
+    "core/detect/forecast_rules.py",
     "core/setup/release/SERVICES-PASTE.ps1",
     "core/setup/release/JOBS-PASTE.ps1",
     "core/setup/release/chain_evidence.py",
@@ -209,6 +210,7 @@ TEST_FILES = (
     "core/setup/tests/test_jobs_baseline.py",
     "core/setup/tests/test_jobs_build.py",
     "core/setup/tests/test_jobs_effects.py",
+    "core/setup/tests/test_jobs_forecast_effects.py",
     "core/setup/tests/test_jobs_envscan.py",
     "core/setup/tests/test_jobs_final.py",
     "core/setup/tests/test_jobs_freeze.py",

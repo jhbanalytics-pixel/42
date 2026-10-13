@@ -74,6 +74,18 @@ def problems_of(pins, bodies):
     return found
 
 
+def today_problems_of(pins, bodies):
+    for body in bodies:
+        for market in body["markets"]:
+            for item in market["held_back"]["items"]:
+                assert item["claims"] == []
+                assert item["explanation"] is None
+                assert item["explanation_claim_ids"] == []
+    empty_contents = ("markets[].held_back.items[].claims[]", "markets[].held_back.items[].explanation_claim_ids[]")
+    return problems_of({path: wanted for path, wanted in pins.items()
+                        if not any(path.startswith(prefix) for prefix in empty_contents)}, bodies)
+
+
 @pytest.fixture(scope="module")
 def head():
     """Head's answer to every request of every route, on fixtures, with the clock the pins were taken at."""
@@ -134,8 +146,36 @@ def test_every_request_an_old_tab_makes_answers_with_the_status_a80_gave(head, r
 @pytest.mark.parametrize("route", ROUTES)
 def test_head_keeps_every_key_the_a80_page_reads_with_its_a80_type(head, route):
     bodies = [head[p][1] for p, s in PINS["requests"][route].items() if s == 200]
-    found = problems_of(PINS["pins"][route], bodies)
+    found = (today_problems_of if route == "today" else problems_of)(PINS["pins"][route], bodies)
     assert found == [], found[:20]
+
+
+@pytest.mark.parametrize("narrative", [
+    {"claims": [{"text": "raw held claim"}]},
+    {"claims": [{"quotes": [{"text": "raw held quote"}]}]},
+    {"claims": [{"numbers": [{"value": 1, "unit": "raw held number text"}]}]},
+    {"explanation": "raw held explanation"},
+    {"explanation_claim_ids": ["raw held claim id"]},
+])
+def test_today_compatibility_rejects_raw_held_narrative(narrative):
+    item = {"claims": [], "explanation": None, "explanation_claim_ids": [], **narrative}
+    with pytest.raises(AssertionError):
+        today_problems_of({}, [{"markets": [{"held_back": {"items": [item]}}]}])
+
+
+def test_today_empty_claim_compatibility_keeps_unrelated_pins_and_populated_checks():
+    prefix = "markets[].held_back.items[]"
+    pins = {prefix + ".claims": "array", prefix + ".claims[].text": "string",
+            prefix + ".explanation": "null|string", prefix + ".explanation_claim_ids": "array",
+            prefix + ".evidence": "array"}
+    item = {"claims": [], "explanation": None, "explanation_claim_ids": [], "evidence": []}
+    body = {"markets": [{"held_back": {"items": [item]}}]}
+    assert today_problems_of(pins, [body]) == []
+    assert problems_of(pins, [body]) == [prefix + ".claims[].text: missing"]
+    item.pop("evidence")
+    assert today_problems_of(pins, [body]) == [prefix + ".evidence: missing"]
+    assert problems_of({"claims[].text": "string"}, [{"claims": [{"text": 1}]}]) == [
+        "claims[].text: int is not one of string"]
 
 
 def test_the_check_names_a_missing_key_a_changed_type_and_a_number_that_lost_its_fraction():

@@ -1,9 +1,8 @@
 """The early signal as a recorded observation (core/detect/early_signal.py record, hooked into stats.run_stats).
 
-The flag goes to its own table, early_signal. These tests show that with the flag on, everything detect writes
-other than that table, the state and rank columns a strategist reads, and the Today payload are byte-identical
-to the base commit. The digests below were computed at the base commit 24fc597, before any code of this branch
-existed, by running tests/early_identity.py there. They are pinned here, not recomputed from the run under test.
+The flag goes to its own table, early_signal. The historical table digest is preserved after checking the current
+method tokens and mapping those two metadata fields to their historical values. State and rank bytes retain
+their original pin. Today retains its historical content pin outside the explicitly emptied held claims.
 """
 
 import json
@@ -26,7 +25,9 @@ B0_STATE = "4ee60d59e7d91e47b07c2fc218003db39b79dcb6cc35ddb32c23834d6fada4c5"
 # The wave8/api lane changes the Today payload, so the base commit's digest of it (8b5b4670...) no longer holds in a tree
 # that has that lane. This is the digest of the same fixture payload at wave8/api 068ee52, which has no early signal:
 # the early signal merged on top of it leaves the payload as that lane built it.
-LANE_TODAY_DIGEST = "9f9b44d64a4bfeb205df6c78347b1e19d976529d7f40077451bb36a1097b2ce5"
+# Derived from that historical payload by removing only the three held-claim fields. Current held records must
+# first prove the safe empty-array and null contract. Every other field remains in the digest.
+LANE_TODAY_HELD_PROJECTION_DIGEST = "d4554385faa95cec14f615bb34ce4cc09c3479c1ba86495cca57e7b43145ee4f"
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -43,12 +44,23 @@ def early(con):
     return {r["series_id"].split("|")[0]: r for r in duck.query(con, "SELECT * FROM {core}.early_signal")}
 
 
+def historical_table_digest(con):
+    tables = json.loads(ident.dump(con))
+    assert stats.RULE_VERSION == "stats-3-distinct-item-prior-health"
+    for table in ("core.series_test", "core.test_switch"):
+        assert tables[table]
+        for row in tables[table]:
+            assert row["rule_version"] == stats.RULE_VERSION
+            row["rule_version"] = "stats-1"
+    return ident.digest(json.dumps(tables, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+
+
 # Byte identity with the base commit, flag on
 
 
 def test_every_table_detect_writes_except_early_signal_is_byte_identical_to_the_base_commit(built):
     con, _ = built
-    assert ident.digest(ident.dump(con)) == B0_TABLES
+    assert historical_table_digest(con) == B0_TABLES
 
 
 def test_state_worth_ranks_and_eligibility_are_byte_identical_to_the_base_commit(built):
@@ -59,7 +71,20 @@ def test_state_worth_ranks_and_eligibility_are_byte_identical_to_the_base_commit
 
 
 def test_the_today_payload_is_byte_identical_to_the_one_the_api_lane_built():
-    assert ident.today_digest() == LANE_TODAY_DIGEST
+    from core.api import today
+    from core.api.store import FixtureStore
+
+    payload = today.build_today(FixtureStore(), "2026-09-30")
+    held = [item for market in payload["markets"] for item in market["held_back"]["items"]]
+    assert held
+    for item in held:
+        assert item["claims"] == []
+        assert item["explanation"] is None
+        assert item["explanation_claim_ids"] == []
+        for field in ("claims", "explanation", "explanation_claim_ids"):
+            item.pop(field)
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=ident._plain).encode("utf-8")
+    assert ident.digest(blob) == LANE_TODAY_HELD_PROJECTION_DIGEST
 
 
 def test_the_identity_run_is_not_vacuous_the_flag_fired_where_no_state_did(built):
@@ -77,7 +102,8 @@ def test_with_the_flag_off_the_other_tables_are_the_same_bytes_as_with_it_on(bui
     monkeypatch.setattr(es, "record", lambda *a, **k: 0)
     con = ident.connect()
     ident.build(con)
-    assert ident.digest(ident.dump(con)) == B0_TABLES
+    assert ident.dump(con) == ident.dump(built[0])
+    assert historical_table_digest(con) == B0_TABLES
     assert duck.query(con, "SELECT COUNT(*) n FROM {core}.early_signal")[0]["n"] == 0
     con.close()
 

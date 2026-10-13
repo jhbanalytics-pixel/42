@@ -962,7 +962,7 @@ def _semantic_invocation_count(sql, params):
         for table in statement.find_all(exp.Table):
             function = table.this
             if (not isinstance(function, exp.Func)
-                    or function.name.casefold().rsplit(".", 1)[-1] != "tvf_search_posts"):
+                    or function.name.casefold().rsplit(".", 1)[-1] not in ("tvf_search_posts", "tvf_search_posts_scoped")):
                 continue
             count += 1
             ancestor = table.parent
@@ -971,21 +971,36 @@ def _semantic_invocation_count(sql, params):
                     raise OperationRefused("semantic_invocation_unbounded")
                 ancestor = ancestor.parent
             arguments = list(function.expressions)
-            if len(arguments) != 5:
+            scoped = function.name.casefold().rsplit(".", 1)[-1] == "tvf_search_posts_scoped"
+            if len(arguments) != (8 if scoped else 5):
                 raise OperationRefused("semantic_invocation_unbounded")
             for position, expression in enumerate(arguments):
                 argument = expression.sql(dialect="bigquery").strip()
-                if not scalar.fullmatch(argument):
-                    raise OperationRefused("semantic_invocation_unbounded")
+                entries = [expression]
+                if scoped and position == 5:
+                    if isinstance(expression, exp.Array):
+                        entries = list(expression.expressions)
+                    elif isinstance(expression, exp.Null) or argument.upper() == "CAST(NULL AS ARRAY<STRING>)":
+                        entries = []
+                    else:
+                        raise OperationRefused("semantic_invocation_unbounded")
+                elif scoped and position in (6, 7):
+                    null_type = "STRING" if position == 6 else "INT64"
+                    if argument.upper() == f"CAST(NULL AS {null_type})":
+                        entries = []
                 parameter = None
-                if argument.startswith("@"):
-                    name = argument[1:]
-                    if not isinstance(params, dict) or name not in params:
+                for entry in entries:
+                    scalar_argument = entry.sql(dialect="bigquery").strip()
+                    if not scalar.fullmatch(scalar_argument):
                         raise OperationRefused("semantic_invocation_unbounded")
-                    parameter = params[name]
-                    if parameter is not None and not isinstance(
-                            parameter, (str, int, float, bool, Decimal, date, datetime)):
-                        raise OperationRefused("semantic_invocation_unbounded")
+                    if scalar_argument.startswith("@"):
+                        name = scalar_argument[1:]
+                        if not isinstance(params, dict) or name not in params:
+                            raise OperationRefused("semantic_invocation_unbounded")
+                        parameter = params[name]
+                        if parameter is not None and not isinstance(
+                                parameter, (str, int, float, bool, Decimal, date, datetime)):
+                            raise OperationRefused("semantic_invocation_unbounded")
                 if position == 0:
                     if argument.startswith("@"):
                         query_text = parameter

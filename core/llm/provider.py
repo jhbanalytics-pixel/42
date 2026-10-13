@@ -105,11 +105,12 @@ def price_for(model: str) -> dict:
 
 
 def _gemini_price(model: str) -> dict:
-    keys = ("GEMINI_PRICE_INPUT_PER_M", "GEMINI_PRICE_OUTPUT_PER_M")
-    if any(key in os.environ for key in keys):
+    raw_input = os.environ.get("GEMINI_PRICE_INPUT_PER_M")
+    raw_output = os.environ.get("GEMINI_PRICE_OUTPUT_PER_M")
+    if raw_input is not None or raw_output is not None:
         try:
-            inp, out = (float(os.environ[key]) for key in keys)
-        except (KeyError, ValueError):
+            inp, out = float(raw_input), float(raw_output)
+        except (TypeError, ValueError):
             raise PriceUnset("GEMINI_PRICE_INPUT_PER_M and GEMINI_PRICE_OUTPUT_PER_M must both be finite "
                              "nonnegative numbers") from None
         if not all(math.isfinite(value) and value >= 0 for value in (inp, out)):

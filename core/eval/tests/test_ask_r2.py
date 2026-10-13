@@ -345,7 +345,11 @@ def test_structured_response_without_usage_metadata_books_full_reserve():
     ("@q", {"q": "amapiano", "since": "2026-09-01", "until": "2026-09-30", "k": 10}),
     ("'amapiano'", {"since": "2026-09-01", "until": "2026-09-30", "k": 10}),
 ])
-def test_semantic_tvf_uses_sql_dry_run_byte_cap_and_embedding_reservation(query_expression, params):
+@pytest.mark.parametrize("function, cohort", [
+    ("tvf_search_posts", ""),
+    ("tvf_search_posts_scoped", ", [@platform], CAST(NULL AS STRING), @minimum"),
+])
+def test_semantic_tvf_uses_sql_dry_run_byte_cap_and_embedding_reservation(query_expression, params, function, cohort):
     from core.agent.tools import sql_query
 
     context = SimpleNamespace(events=[], record_query=lambda *args: ("q1", "a" * 64),
@@ -355,7 +359,8 @@ def test_semantic_tvf_uses_sql_dry_run_byte_cap_and_embedding_reservation(query_
     budget = ask_r2.SessionBudget(10.0)
     guarded = ask_r2.ReadOnlyWarehouse(backend, sql_query.check_sql, budget=budget)
     guarded.bind_context(context)
-    sql = f"SELECT * FROM intelligence_42_agent.tvf_search_posts({query_expression}, NULL, @since, @until, @k)"
+    params = {**params, "platform": "tiktok", "minimum": 0}
+    sql = f"SELECT * FROM intelligence_42_agent.{function}({query_expression}, NULL, @since, @until, @k{cohort})"
 
     result = sql_query.sql_query(context, guarded, sql, purpose="semantic", params=params,
                                  max_bytes_billed=777)
@@ -377,6 +382,79 @@ def test_semantic_tvf_uses_sql_dry_run_byte_cap_and_embedding_reservation(query_
     assert len(context.events[-1]["sql_sha256"]) == 64
     assert context.model_budget.booked_usd == context.model_budget.conservative_usd == (
         ceil(ask_r2.SEMANTIC_EMBEDDING_RESERVE_USD * 1_000_000) / 1_000_000)
+
+
+@pytest.mark.parametrize("cohort", [
+    ", [p.platform], NULL, 0",
+    ", [(SELECT platform FROM intelligence_42_core.posts)], NULL, 0",
+    ", [@missing], NULL, 0",
+    ", [CAST(@platform AS STRING)], NULL, 0",
+    ", [], p.creator_id, 0",
+    ", [], NULL, p.engagement",
+])
+def test_scoped_semantic_unbounded_cohort_arguments_refuse_before_dispatch(cohort):
+    from core.agent.tools import sql_query
+
+    backend = _FakeWarehouse()
+    budget = ask_r2.SessionBudget(10.0)
+    guarded = ask_r2.ReadOnlyWarehouse(backend, sql_query.check_sql, budget=budget)
+    sql = "SELECT * FROM intelligence_42_agent.tvf_search_posts_scoped(@q, NULL, @since, @until, @k" + cohort + ")"
+    params = {"q": "amapiano", "since": "2026-09-01", "until": "2026-09-30", "k": 10, "platform": "tiktok"}
+    with pytest.raises(ask_r2.OperationRefused, match="semantic_invocation_unbounded"):
+        guarded.dry_run(sql, params)
+    assert backend.dry_run_calls == backend.run_calls == 0
+    assert budget.calls == []
+
+
+@pytest.mark.parametrize("sql, reason", [
+    ("SELECT * FROM intelligence_42_agent.tvf_search_posts_scoped_extra(@q)", "query_guard"),
+    ("SELECT * FROM intelligence_42_core.tvf_search_posts_scoped(@q)", "query_guard"),
+    ("SELECT * FROM intelligence_42_agent.tvf_search_posts_scoped(@q, NULL, @since, @until, 2)",
+     "semantic_invocation_unbounded"),
+    ("SELECT * FROM intelligence_42_agent.tvf_search_posts(@q, NULL, @since, @until, 2, [], NULL, 0)",
+     "semantic_invocation_unbounded"),
+    ("SELECT * FROM intelligence_42_agent.tvf_search_posts_scoped(", "query_guard"),
+    ("SELECT * FROM intelligence_42_core.posts p, intelligence_42_agent.tvf_search_posts_scoped"
+     "(p.text, NULL, @since, @until, 2, [], NULL, 0)", "semantic_invocation_unbounded"),
+])
+def test_semantic_function_name_signature_and_query_bounds_fail_closed(sql, reason):
+    from core.agent.tools import sql_query
+
+    backend = _FakeWarehouse()
+    budget = ask_r2.SessionBudget(10.0)
+    guarded = ask_r2.ReadOnlyWarehouse(backend, sql_query.check_sql, budget=budget)
+    with pytest.raises(ask_r2.OperationRefused, match=reason):
+        guarded.dry_run(sql, {"q": "amapiano", "since": "2026-09-01", "until": "2026-09-30"})
+    assert backend.dry_run_calls == backend.run_calls == 0
+    assert budget.calls == []
+
+
+def test_scoped_semantic_failure_keeps_one_ceiling_and_refuses_an_unfunded_repeat():
+    from core.agent.tools import sql_query
+
+    class FailingWarehouse(_FakeWarehouse):
+        def run(self, sql, params, max_bytes_billed):
+            super().run(sql, params, max_bytes_billed)
+            raise RuntimeError("failed after dispatch")
+
+    ceiling = ceil(ask_r2.SEMANTIC_EMBEDDING_RESERVE_USD * 1_000_000) / 1_000_000
+    backend = FailingWarehouse()
+    budget = ask_r2.SessionBudget(ceiling)
+    guarded = ask_r2.ReadOnlyWarehouse(backend, sql_query.check_sql, budget=budget)
+    sql = ("SELECT * FROM intelligence_42_agent.tvf_search_posts_scoped"
+           "(@q, NULL, @since, @until, 2, CAST(NULL AS ARRAY<STRING>), CAST(NULL AS STRING), 0)")
+    params = {"q": "amapiano", "since": "2026-09-01", "until": "2026-09-30"}
+    with pytest.raises(RuntimeError, match="failed after dispatch"):
+        guarded.run(sql, params, 777)
+    assert backend.run_calls == 1
+    assert len(budget.calls) == 1
+    assert budget.charged_usd == ceiling
+    assert budget.reserved_micros == 0
+    assert budget.calls[0]["charge_basis"] == "conservative_embedding_ceiling"
+    with pytest.raises(ask_r2.BudgetRefused, match="session_cap_exhausted"):
+        guarded.run(sql, params, 777)
+    assert backend.run_calls == 1
+    assert budget.charged_usd == ceiling
 
 
 def test_semantic_tvf_rejects_correlated_embedding_query_before_dispatch():

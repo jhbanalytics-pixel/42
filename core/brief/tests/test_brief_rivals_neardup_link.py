@@ -58,6 +58,7 @@ def stub_every_step_but_neardup(monkeypatch):
                  "apply_spread_step", "apply_agent_views_step", "apply_news_step"):
         monkeypatch.setattr(detect_job, name, lambda *a, **k: {})
     monkeypatch.setattr(detect_job.sqlrun, "apply_views", lambda *a, **k: None)
+    monkeypatch.setattr(detect_job, "apply_counted_links", lambda *a, **k: None)
     monkeypatch.setattr(detect_job, "apply_waves", lambda *a, **k: None)
     monkeypatch.setattr(detect_job, "_step", lambda *a, **k: {"series_test": 0})
     monkeypatch.setattr(detect_job.sqlrun, "query", lambda *a, **k: [])

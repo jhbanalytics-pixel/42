@@ -311,11 +311,22 @@ def test_de12_the_jobs_owned_ddl_is_derived_from_the_a80_archive_and_holds_the_v
 
 
 def test_de12_the_derived_set_is_a_superset_of_every_statement_set_the_detect_job_applies():
-    from core.detect import sqlrun
+    from core.detect import forecasts, sqlrun
 
-    owned = set(de.derive_ddl_writers(a80_files()))
-    named = {sqlrun.object_name(s).rsplit(".", 1)[-1] for s in sqlrun.statements() + sqlrun.agent_statements() + sqlrun.news_statements() + sqlrun.spread_statements()}
+    candidate = [(p.relative_to(ROOT).as_posix(), p.read_text(encoding="utf-8"))
+                 for p in (ROOT / "core").rglob("*") if p.is_file() and p.suffix in (".sql", ".py")]
+    owned = set(de.derive_ddl_writers(candidate))
+    statements = (sqlrun.statements() + sqlrun.agent_statements() + sqlrun.news_statements() + sqlrun.spread_statements()
+                  + sqlrun.locality_view_statements()
+                  + sqlrun.split(sqlrun.render((ROOT / "core/detect/sql/waves.sql").read_text(encoding="utf-8")))
+                  + [sqlrun.render(forecasts.statements()["current_view"])])
+    named = {sqlrun.object_name(s).rsplit(".", 1)[-1] for s in statements}
     assert named and named <= owned, sorted(named - owned)
+    assert "v_post_items_by_state_date" not in de.derive_ddl_writers(a80_files())
+    assert "v_post_items_by_state_date" in owned
+    view = effect(kind="view", change="replace_view", target="intelligence_42_core.v_post_items_by_state_date")
+    assert has(de.check_services_only_isolation([view], [], a80_files(), candidate), "v_post_items_by_state_date")
+    assert has(de.check_services_only_isolation([], [view["target"]], a80_files(), candidate), "v_post_items_by_state_date")
 
 
 def test_de12_a_create_or_replace_added_to_any_non_test_file_appears_with_no_other_edit():

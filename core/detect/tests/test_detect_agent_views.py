@@ -24,14 +24,14 @@ AGENT_OBJECTS = ["agent.v_item_gate_current", "agent.v_item_evidence", "agent.tv
 
 @pytest.fixture
 def con():
-    c = duck.connect(views=False)
+    c = duck.connect()
     # Columns and tables L1's DDL has on staging that the shared DuckDB harness does not carry yet.
     c.execute("ALTER TABLE agent.briefs ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ")
     c.execute("ALTER TABLE agent.briefs ADD COLUMN IF NOT EXISTS status VARCHAR")
     c.execute("ALTER TABLE agent.briefs ADD COLUMN IF NOT EXISTS payload JSON")
     c.execute("ALTER TABLE agent.briefs ADD COLUMN IF NOT EXISTS rule_version VARCHAR")
     c.execute("CREATE TABLE IF NOT EXISTS core.media (sha256 VARCHAR, post_id VARCHAR, gcs_uri VARCHAR, kind VARCHAR)")
-    for stmt in sqlrun.statements("core", "agent") + sqlrun.agent_statements("core", "agent"):
+    for stmt in sqlrun.agent_statements("core", "agent"):
         c.execute(duck.create_statement(stmt))
     yield c
     c.close()

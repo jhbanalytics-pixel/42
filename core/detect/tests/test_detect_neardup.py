@@ -313,6 +313,7 @@ def test_the_job_runs_the_step_after_coaction_and_before_state(con, monkeypatch)
                  "apply_spread_step", "apply_agent_views_step", "apply_news_step"):
         monkeypatch.setattr(job, name, lambda *a, **k: {})
     monkeypatch.setattr(job.sqlrun, "apply_views", lambda *a, **k: None)
+    monkeypatch.setattr(job, "apply_counted_links", lambda *a, **k: None)
     monkeypatch.setattr(job, "apply_waves", lambda *a, **k: None)
     monkeypatch.setattr(job, "_step", lambda *a, **k: {"series_test": 0})
     monkeypatch.setattr(job.sqlrun, "query", lambda *a, **k: [])

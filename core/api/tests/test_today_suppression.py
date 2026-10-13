@@ -68,7 +68,9 @@ def test_held_projection_drops_unvalidated_claim_text_in_legacy_shape():
                 for h in m["held_back"]["items"] if h["item_id"] == "synthetic_fragment")
     assert not held["evidence"]
     assert "distinct private sentence" not in json.dumps(held)
-    assert not {"claims", "explanation", "explanation_claim_ids"} & set(held)
+    assert held["claims"] == []
+    assert held["explanation"] is None
+    assert held["explanation_claim_ids"] == []
 
 
 def with_hidden_posts(base):

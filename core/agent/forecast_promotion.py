@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import date
 
 from core.agent.tools.sql_query import MAX_BYTES_BILLED
-from core.detect.forecasts import RESOLUTION_RULE_VERSION
+from core.detect.forecast_rules import RESOLUTION_RULE_VERSION
 
 # Forecast ids are sha256 hex, so a comma list is exact; the warehouse takes scalar parameters only. The item's name
 # is its current label in v_items_today, read for the stored item and market, never the model's words.

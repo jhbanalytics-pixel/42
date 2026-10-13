@@ -71,13 +71,13 @@ from datetime import timedelta
 from pathlib import Path
 
 from . import aggregate, sqlrun
+from .forecast_rules import RESOLUTION_RULE_VERSION
 from .sqlrun import AGENT, CORE, query
 
 SQL = Path(__file__).parent / "sql" / "forecasts.sql"
 _NAME = re.compile(r"^--\s*name:\s*(\w+)\s*$", re.MULTILINE)
 
 RULE = "logistic_v2-detect-math-20261013"
-RESOLUTION_RULE_VERSION = "resolution-2-external-state-validity"
 TARGETS = ("reach_rising", "cross_market", "persist_50")
 HORIZONS = (7, 14)
 WATCHED = ("emerging", "rising")

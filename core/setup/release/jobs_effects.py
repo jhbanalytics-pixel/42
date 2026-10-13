@@ -28,11 +28,13 @@ TABLE_EFFECTS = {
     f"{CORE}.early_signal": "E-EARLY", f"{CORE}.item_locality": "E-LOC-TABLES-1", f"{CORE}.item_locality_post": "E-LOC-TABLES-2",
     f"{CORE}.item_locality_verified": "E-LOC-TABLES-3", f"{CORE}.post_item_lineage": "E-LOC-TABLES-4",
     f"{CORE}.post_item_end": "E-LOC-TABLES-5",
+    f"{AGENT}.forecasts": "E-FORECASTS-DDL",
 }
 COLUMN_EFFECTS = {
     (f"{AGENT}.runs", "stamp"): "E-RUNS-STAMP", (f"{AGENT}.claim_checks", "span_sha256"): "E-CLAIM-SPAN",
     (f"{AGENT}.claim_checks", "reason_code"): "E-CLAIM-CODE", (f"{CORE}.post_items", "linked_on"): "E-POSTITEMS-LINKED",
     (f"{CORE}.post_items", "link_market"): "E-POSTITEMS-MARKET",
+    (f"{AGENT}.forecasts", "resolution_rule_version"): "E-FORECASTS-RESOLUTION",
 }
 # The file in the jobs image that writes (or, for the two tables nothing writes yet, reads) each table.
 CONSUMERS = {
@@ -40,8 +42,19 @@ CONSUMERS = {
     f"{CORE}.post_items": ("core/detect/aggregate.py", "write"), f"{CORE}.early_signal": ("core/detect/early_signal.py", "write"),
     f"{CORE}.item_locality": ("core/detect/locality.py", "write"), f"{CORE}.item_locality_post": ("core/detect/locality.py", "write"),
     f"{CORE}.item_locality_verified": ("core/detect/locality.py", "write"),
-    f"{CORE}.post_item_lineage": ("core/detect/sql/locality_views.sql", "read"), f"{CORE}.post_item_end": ("core/detect/sql/locality_views.sql", "read"),
+    f"{CORE}.post_item_lineage": ("core/detect/sql/counted_links.sql", "read"), f"{CORE}.post_item_end": ("core/detect/sql/counted_links.sql", "read"),
+    f"{AGENT}.forecasts": ("core/detect/forecasts.py", "write"),
 }
+FORECAST_CREATE = (
+    "CREATE TABLE IF NOT EXISTS `ogilvy-trends-v2.intelligence_42_agent.forecasts` ( "
+    "forecast_id STRING NOT NULL, item_id STRING, market STRING, target STRING, issue_date DATE, "
+    "horizon INT64, rule STRING, prob FLOAT64, predicted_arrival BOOL, persistence_arrival BOOL, "
+    "resolve_date DATE, observed_arrival BOOL, resolution_rule_version STRING) PARTITION BY issue_date"
+)
+FORECAST_ALTER = (
+    "ALTER TABLE `ogilvy-trends-v2.intelligence_42_agent.forecasts` "
+    "ADD COLUMN IF NOT EXISTS resolution_rule_version STRING"
+)
 COMPAT_TESTS = {"a80_readers": "JX-08", "a80_writers": "JS-03", "a80_ddl_writers": "JS-02", "candidate_readers_old_records": "JX-06",
                 "candidate_writers_old_readers": "JX-08"}
 NAME = re.compile(r"`ogilvy-trends-v2\.(\w+)\.(\w+)`")
@@ -90,6 +103,13 @@ def classify(statement):
     """(effect id, change, table, kind) for a new schema statement, or ValueError for one this builder does not know."""
     m = NAME.search(statement)
     kind = de.statement_kind(statement)
+    if m and f"{m.group(1)}.{m.group(2)}" == f"{AGENT}.forecasts":
+        text = " ".join(statement.split())
+        if text == FORECAST_CREATE:
+            return TABLE_EFFECTS[f"{AGENT}.forecasts"], "create_table", f"{AGENT}.forecasts"
+        if text == FORECAST_ALTER:
+            return COLUMN_EFFECTS[(f"{AGENT}.forecasts", "resolution_rule_version")], "add_column", f"{AGENT}.forecasts"
+        raise ValueError("the forecasts statement is not the registered nullable resolution column shape")
     if m and kind == "table" and f"{m.group(1)}.{m.group(2)}" in TABLE_EFFECTS:
         table = f"{m.group(1)}.{m.group(2)}"
         return TABLE_EFFECTS[table], "create_table", table
