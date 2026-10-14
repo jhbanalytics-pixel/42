@@ -7,8 +7,10 @@ content pin outside the explicitly emptied held claims.
 """
 
 import json
+import importlib.metadata
 from datetime import timedelta
 import logging
+import os
 from pathlib import Path
 
 import numpy as np
@@ -60,6 +62,57 @@ def restore_historical_float_bytes(rows, references):
             rows[identity][key] = value
 
 
+def write_historical_diagnostic(label, con, projected, expected):
+    guard_log = os.environ.get("CORE_OFFLINE_GUARD_LOG")
+    if not guard_log:
+        return
+    tables = {}
+    for schema, table in con.execute(
+        "SELECT table_schema, table_name FROM information_schema.tables "
+        "WHERE table_type = 'BASE TABLE' AND table_schema IN ('core', 'agent') ORDER BY 1, 2"
+    ).fetchall():
+        cur = con.execute(f'SELECT * FROM "{schema}"."{table}" ORDER BY ALL')
+        columns = [column[0] for column in cur.description]
+        tables[f"{schema}.{table}"] = [dict(zip(columns, row)) for row in cur.fetchall()]
+    raw_tables = ident.dump(con)
+    raw_state = tables["core.item_state"]
+    raw_state_dump = ident.state_rows({row["item_id"]: row for row in raw_state})
+    projected_state = projected if label == "state" else ident.state_rows({
+        row["item_id"]: row for row in projected["core.item_state"]
+    })
+    projected_bytes = json.dumps(
+        projected, sort_keys=True, separators=(",", ":") if label == "tables" else None,
+        default=ident._plain,
+    ).encode("utf-8")
+    record = {
+        "label": label,
+        "raw_tables": tables,
+        "raw_state": raw_state,
+        "raw_state_dump": raw_state_dump,
+        "raw_state_hash": ident.digest(json.dumps(
+            raw_state_dump, sort_keys=True, default=ident._plain,
+        ).encode("utf-8")),
+        "raw_historical_table_dump": json.loads(raw_tables),
+        "raw_historical_table_hash": ident.digest(raw_tables),
+        "projected_dump": projected,
+        "projected_hash": ident.digest(projected_bytes),
+        "expected_hash": expected,
+        "projected_state_dump": projected_state,
+        "projected_state_hash": ident.digest(json.dumps(
+            projected_state, sort_keys=True, default=ident._plain,
+        ).encode("utf-8")),
+        "expected_state_hash": B0_STATE,
+        "versions": {name: importlib.metadata.version(name) for name in (
+            "numpy", "scipy", "pandas", "duckdb", "sqlglot", "statsmodels", "pytest", "PyYAML",
+        )},
+    }
+    directory = Path(guard_log).parent / "core-shard" / "diagnostics"
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / f"detect-historical-{label}.json").write_text(
+        json.dumps(record, sort_keys=True, indent=2, default=ident._plain), encoding="utf-8",
+    )
+
+
 def historical_table_digest(con):
     tables = json.loads(ident.dump(con))
     restore_historical_float_bytes(
@@ -70,7 +123,10 @@ def historical_table_digest(con):
         for row in tables[table]:
             assert row["rule_version"] == stats.RULE_VERSION
             row["rule_version"] = "stats-1"
-    return ident.digest(json.dumps(tables, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    digest = ident.digest(json.dumps(tables, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    if digest != B0_TABLES:
+        write_historical_diagnostic("tables", con, tables, B0_TABLES)
+    return digest
 
 
 # Byte identity with the base commit, flag on
@@ -82,10 +138,12 @@ def test_every_table_detect_writes_except_early_signal_is_byte_identical_to_the_
 
 
 def test_state_worth_ranks_and_eligibility_are_byte_identical_to_the_base_commit(built):
-    _, rows = built
+    con, rows = built
     states = ident.state_rows(rows)
     restore_historical_float_bytes(states, B0_STATE_FLOATS)
     blob = json.dumps(states, sort_keys=True, default=ident._plain).encode("utf-8")
+    if ident.digest(blob) != B0_STATE:
+        write_historical_diagnostic("state", con, states, B0_STATE)
     assert ident.digest(blob) == B0_STATE
     assert sum(r["worth_pct"] is not None for r in rows.values()) >= 20       # the rank columns are populated
 
@@ -352,3 +410,32 @@ def test_historical_projection_refuses_a_changed_item_identity():
     states["mutated"] = states.pop(next(iter(states)))
     with pytest.raises(AssertionError):
         restore_historical_float_bytes(states, B0_STATE_FLOATS)
+
+
+def test_historical_table_failure_writes_complete_diagnostics_and_still_fails(built, monkeypatch, tmp_path):
+    monkeypatch.setenv("CORE_OFFLINE_GUARD_LOG", str(tmp_path / "offline-guard.jsonl"))
+    con, _ = built
+    con.execute("BEGIN TRANSACTION")
+    try:
+        con.execute("UPDATE core.item_state SET state = 'diagnostic-mutation' WHERE item_id = 'jump'")
+        with pytest.raises(AssertionError):
+            test_every_table_detect_writes_except_early_signal_is_byte_identical_to_the_base_commit(built)
+        artifact = tmp_path / "core-shard" / "diagnostics" / "detect-historical-tables.json"
+        record = json.loads(artifact.read_text(encoding="utf-8"))
+        raw_tables = record["raw_tables"]
+        for table, rows in raw_tables.items():
+            assert len(rows) == con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        assert any(row["state"] == "diagnostic-mutation" for row in record["raw_state"])
+        assert record["projected_hash"] != record["expected_hash"] == B0_TABLES
+        assert record["projected_state_hash"] != record["expected_state_hash"] == B0_STATE
+        assert record["versions"]["numpy"] == np.__version__
+        assert record["versions"]["duckdb"] == importlib.metadata.version("duckdb")
+    finally:
+        con.execute("ROLLBACK")
+
+
+def test_healthy_historical_checks_write_no_diagnostic(built, monkeypatch, tmp_path):
+    monkeypatch.setenv("CORE_OFFLINE_GUARD_LOG", str(tmp_path / "offline-guard.jsonl"))
+    test_every_table_detect_writes_except_early_signal_is_byte_identical_to_the_base_commit(built)
+    test_state_worth_ranks_and_eligibility_are_byte_identical_to_the_base_commit(built)
+    assert not (tmp_path / "core-shard" / "diagnostics").exists()

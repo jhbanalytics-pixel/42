@@ -311,7 +311,37 @@ def chromium(monkeypatch):
             return
 
 
-def test_pdf_export_is_a_valid_pdf_with_every_citation(chromium):
+@pytest.fixture
+def pdf_render_evidence(monkeypatch, record_property, request):
+    from importlib.metadata import version
+    from core.api import pdf
+    from pypdf import PdfReader
+
+    captured = {}
+    render = pdf._render
+
+    def capture(html):
+        captured["html"] = html
+        captured["data"] = render(html)
+        return captured["data"]
+
+    monkeypatch.setattr(pdf, "_render", capture)
+    yield captured
+    if captured.get("passed") or "data" not in captured:
+        return
+    text = "".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(captured["data"])).pages)
+    record_property("pdf_extracted_text", text)
+    record_property("pdf_browser_path", os.environ.get("F42_CHROMIUM", "default"))
+    record_property("pdf_runtime_versions", json.dumps({name: version(name) for name in ("playwright", "pypdf")}))
+    if os.environ.get("RUNNER_TEMP"):
+        folder = Path(os.environ["RUNNER_TEMP"]) / "core-shard" / "pdf-evidence" / request.node.name
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "rendered.pdf").write_bytes(captured["data"])
+        (folder / "source.html").write_text(captured["html"], encoding="utf-8")
+        (folder / "extracted.txt").write_text(text, encoding="utf-8")
+
+
+def test_pdf_export_is_a_valid_pdf_with_every_citation(chromium, pdf_render_evidence):
     from pypdf import PdfReader
 
     from core.api import pdf
@@ -336,6 +366,7 @@ def test_pdf_export_is_a_valid_pdf_with_every_citation(chromium):
         if claim["kept"]:
             for quote in claim["quotes"]:
                 assert "".join(quote["text"].split()) in text
+    pdf_render_evidence["passed"] = True
 
 
 def test_chromium_fixture_uses_the_installed_browser_when_playwright_cache_is_absent(monkeypatch, tmp_path):
@@ -451,7 +482,7 @@ def test_the_skin_travels_through_freeze_and_the_html_export_is_masked():
     assert 'href="#source-1"' in page and 'href="#source-2"' in page
 
 
-def test_skin_pdf_export_names_no_sub_tier_author(chromium):
+def test_skin_pdf_export_names_no_sub_tier_author(chromium, pdf_render_evidence):
     from pypdf import PdfReader
 
     from core.api import pdf
@@ -467,3 +498,4 @@ def test_skin_pdf_export_names_no_sub_tier_author(chromium):
     annots = [annot.get_object() for page in reader.pages for annot in page.get("/Annots") or []]
     uris = [unquote(str(a["/A"]["/URI"])) for a in annots if "/A" in a]
     assert uris == ["https://x.com/BrandSA/status/1", "https://www.tiktok.com/@fixture_ng_macro/video/2"]
+    pdf_render_evidence["passed"] = True
