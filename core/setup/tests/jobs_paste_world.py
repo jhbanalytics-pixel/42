@@ -24,6 +24,8 @@ RID = "rel-d666ef6-01"
 DRIVER = r'''
 param([string]$Config)
 $ErrorActionPreference = 'Stop'
+$ErrorView = 'NormalView'
+$PSStyle.OutputRendering = 'PlainText'
 $cfg = Get-Content -LiteralPath $Config -Raw | ConvertFrom-Json
 $Script:Cfg = $cfg
 function Env-Snap { return @{ file_logging = [string]$env:CLOUDSDK_CORE_DISABLE_FILE_LOGGING; bytecode = [string]$env:PYTHONDONTWRITEBYTECODE; locks = [string]$env:GIT_OPTIONAL_LOCKS } }

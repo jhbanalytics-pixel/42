@@ -57,6 +57,8 @@ TYPED = "typed-passcode-by-albert"
 DRIVER = r'''
 param([string]$Config)
 $ErrorActionPreference = 'Stop'
+$ErrorView = 'NormalView'
+$PSStyle.OutputRendering = 'PlainText'
 $cfg = Get-Content -LiteralPath $Config -Raw | ConvertFrom-Json
 $Script:Cfg = $cfg
 function Native-Snap { return @{ gcloud = [string]$env:F42_NATIVE_GCLOUD; git = [string]$env:F42_NATIVE_GIT; py = [string]$env:F42_NATIVE_PY } }
