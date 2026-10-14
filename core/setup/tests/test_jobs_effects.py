@@ -228,7 +228,7 @@ def test_js01_every_effect_text_hashes_to_its_sha_and_is_a_form_apply_recognises
 def test_js01_the_effect_ids_are_the_fourteen_of_the_contract_in_apply_order(manifest):
     assert [e["effect_id"] for e in sorted(schema_effects(manifest), key=lambda e: e["apply_order"])] == [i for i, _ in SCHEMA_IDS]
     assert [e["effect_id"] for e in manifest["effects"] if e["kind"] != "schema"] == [
-        f'E-WAREHOUSE-{i:02d}' for i in range(1, 18)] + ["E-JOBS-IMAGE", "E-JOB-VIEWS"]
+        f'E-WAREHOUSE-{i:02d}' for i in range(1, 19)] + ["E-JOBS-IMAGE", "E-JOB-VIEWS"]
     assert "E-ITEMSTATE" not in {e["effect_id"] for e in manifest["effects"]}
 
 
@@ -400,7 +400,7 @@ def test_js11_apply_order_numbers_follow_the_order_apply_load_statements_and_run
     assert len(order) == 14
     by_hash = {e["statement_sha256"]: e["apply_order"] for e in schema_effects(manifest)}
     assert [by_hash[h] for h in order] == list(range(1, 15))
-    assert [e["apply_order"] for e in manifest["effects"] if e["kind"] != "schema"] == list(range(15, 34))
+    assert [e["apply_order"] for e in manifest["effects"] if e["kind"] != "schema"] == list(range(15, 35))
 
 
 def test_js11_the_three_changed_create_texts_run_in_the_table_pass_before_every_alter(manifest):

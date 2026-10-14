@@ -82,14 +82,87 @@ class Client:
 def test_fixed_alpha_targets_render_in_exact_dependency_order_and_lock_all_inputs(inputs, packet):
     manifest, specs = packet
     ri.validate_effects(manifest, specs)
-    assert len(specs) == len(ri.TARGETS) == 17
+    assert len(specs) == len(ri.TARGETS) == 18
     assert not any('forecast' in s['target'] for s in specs)
     assert tuple(s['target'] for s in specs) == ri.TARGETS
     assert all(s['statement'].startswith('CREATE OR REPLACE') for s in specs)
     assert set(ri.RENDER_INPUTS) <= set(lock.REPO_FILES)
     assert 'core/schema/release_install.py' in lock.REPO_FILES
-    assert specs[-1]['definition']['arguments'] == specs[-2]['definition']['arguments'][:5]
+    assert specs[-2]['definition']['arguments'] == specs[-3]['definition']['arguments'][:5]
+    assert specs[-1]['target'] == 'intelligence_42_agent.v_item_evidence'
     assert de.validate_manifest(manifest) == []
+
+
+def test_one_view_addition_preserves_original_seventeen_specs_and_columns(inputs, packet):
+    import sqlglot
+    import re
+    _, specs = packet
+    baseline = dict(de.git_tree_files('a3e0c8414e8f06f2e91775f75e1556bc73a65118', cwd=ROOT))
+    namespace = {'__name__': 'approved_prior_installer', '__file__': str(ROOT / 'core/schema/release_install.py')}
+    exec(compile(baseline['core/schema/release_install.py'], 'approved-prior-installer', 'exec'), namespace)
+    assert specs[:-1] == namespace['statements'](inputs)
+    assert specs[-1]['effect_id'] == 'E-WAREHOUSE-18'
+    body = re.split(r'\bAS\s+', specs[-1]['statement'], maxsplit=1, flags=re.I)[1]
+    assert sqlglot.parse_one(body, read='bigquery').unnest().named_selects == [
+        'post_id', 'item_id', 'market', 'platform', 'url', 'handle', 'creator_tier', 'excerpt',
+        'views', 'likes', 'comments', 'shares', 'engagement', 'thumbnail_url', 'duration_s',
+        'clip_uri', 'published_at', 'first_seen_at']
+    assert 'cr.platform = ps.platform' in specs[-1]['statement']
+
+
+@pytest.mark.parametrize('mutation', ['missing', 'duplicate'])
+def test_one_evidence_source_view_is_required_and_cannot_be_duplicated(inputs, mutation):
+    altered = []
+    for path, text in inputs:
+        if path == 'core/detect/sql/agent_views.sql':
+            if mutation == 'missing':
+                text = text.replace('CREATE OR REPLACE VIEW {agent}.v_item_evidence', 'CREATE OR REPLACE VIEW {agent}.v_unapproved_evidence')
+            else:
+                text += '\nCREATE OR REPLACE VIEW {agent}.v_item_evidence AS SELECT 1 x;\n'
+        altered.append((path, text))
+    with pytest.raises(ValueError, match='one source-derived item evidence'):
+        ri.statements(altered)
+
+
+def test_target_eighteen_partial_failure_retains_prior_receipts_and_retry_does_not_reapply(packet, tmp_path):
+    manifest, specs = packet
+    assert specs[-1]['effect_id'] == 'E-WAREHOUSE-18'
+    client = Client(fail=specs[-1]['target'])
+    with pytest.raises(RuntimeError):
+        ri.install(client, specs, manifest, tmp_path, release_id='rel-1111111-01', quiet=lambda: None, now=lambda: NOW)
+    prior = {p.name: p.read_bytes() for p in tmp_path.glob('*.json')}
+    assert len([c for c in client.calls if c[0] == 'apply']) == 18
+    client.fail = None
+    ri.install(client, specs, manifest, tmp_path, release_id='rel-1111111-01', quiet=lambda: None, now=lambda: NOW)
+    assert len([c for c in client.calls if c[0] == 'apply']) == 18
+    assert all((tmp_path / name).read_bytes() == body for name, body in prior.items())
+    ri.require_receipts(manifest, tmp_path, 'rel-1111111-01')
+
+
+def test_evidence_view_native_drift_still_blocks_jobs_update(packet, monkeypatch):
+    manifest, specs = packet
+    monkeypatch.setattr(jobs_only, 'load_durable', lambda _: manifest)
+    class BQ:
+        def definition(self, target):
+            definition = next(s['definition'] for s in specs if target == s['definition']['kind'] + ':' + s['target'])
+            return {**definition, 'body': 'SELECT 0'} if definition['target'] == 'intelligence_42_agent.v_item_evidence' else definition
+    with pytest.raises(jobs_run.Stop) as stopped:
+        jobs_only.check_warehouse_definitions({}, BQ())
+    assert stopped.value.code == 'WAREHOUSE_READBACK'
+
+
+def test_second_added_manifest_target_is_refused_before_transport(inputs, packet, monkeypatch, tmp_path):
+    manifest, _ = packet
+    extra = copy.deepcopy(next(e for e in manifest['effects'] if e['effect_id'] == 'E-WAREHOUSE-18'))
+    extra.update(effect_id='E-WAREHOUSE-19', target='intelligence_42_agent.v_unapproved', apply_order=33)
+    manifest['effects'].append(extra)
+    manifest['manifest_sha256'] = de.manifest_hash(manifest)
+    monkeypatch.setattr(jobs_only, 'load_durable', lambda _: manifest)
+    calls = []
+    with pytest.raises(jobs_run.Stop):
+        jobs_run.run_warehouse_install({'target': '1' * 40, 'tree': '2' * 40, 'release_id': 'rel-1111111-01'}, tmp_path,
+            source_files=inputs, client_factory=lambda: calls.append('client'), quiet=lambda: calls.append('quiet'), now=lambda: NOW)
+    assert calls == []
 
 
 def test_scoped_alpha_has_no_forecast_migration_effect_or_installer_dependency(inputs, packet):

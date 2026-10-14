@@ -18,10 +18,10 @@ TARGETS = tuple(CORE + '.' + n for n in ('tvf_post_items', 'v_good_runs', 'v_col
     'v_item_daily_current', 'v_series_test_current', 'v_coord_signals_current', 'v_item_state_current')) + (
     AGENT + '.v_briefs_current',) + tuple(CORE + '.' + n for n in ('v_item_counter_daily_current',
     'v_series_daily', 'tvf_series_signal', 'tvf_item_window', 'tvf_placebo_base', 'v_post_items_by_state_date',
-    'v_item_market_scope')) + (AGENT + '.tvf_search_posts_scoped', AGENT + '.tvf_search_posts')
+    'v_item_market_scope')) + (AGENT + '.tvf_search_posts_scoped', AGENT + '.tvf_search_posts', AGENT + '.v_item_evidence')
 RENDER_INPUTS = ('core/detect/sqlrun.py',
                  'core/detect/sql/views.sql', 'core/detect/sql/locality_views.sql',
-                 'core/detect/sql/counted_links.sql',
+                 'core/detect/sql/counted_links.sql', 'core/detect/sql/agent_views.sql',
                  'core/understand/sql/tvf_search_posts_scoped.sql', 'core/understand/sql/tvf_search_posts.sql')
 
 
@@ -98,6 +98,11 @@ def statements(files):
         if len(pieces) != 1 or 'CREATE TABLE FUNCTION IF NOT EXISTS' not in pieces[0]:
             raise ValueError('Semantic routine contract changed')
         result.append(pieces[0].replace('CREATE TABLE FUNCTION IF NOT EXISTS', 'CREATE OR REPLACE TABLE FUNCTION', 1))
+    evidence_views = [strip(s) for s in split(render(texts['core/detect/sql/agent_views.sql']))
+                      if re.match(r'CREATE OR REPLACE VIEW intelligence_42_agent.v_item_evidence\s+AS\b', strip(s), re.I)]
+    if len(evidence_views) != 1:
+        raise ValueError('Expected one source-derived item evidence prerequisite')
+    result.append(evidence_views[0])
     specs = []
     for index, sql in enumerate(result, 1):
         if re.search(r'\{(?:core|agent|counted_links|counted_state_links|resolution_rule_version)\}', sql):
@@ -112,7 +117,7 @@ def statements(files):
         raise ValueError('Duplicate warehouse target')
     if targets.index(CORE + '.v_post_items_by_state_date') >= targets.index(CORE + '.v_item_market_scope'):
         raise ValueError('Dated-link order changed')
-    if targets[-2:] != [AGENT + '.tvf_search_posts_scoped', AGENT + '.tvf_search_posts']:
+    if targets[-3:-1] != [AGENT + '.tvf_search_posts_scoped', AGENT + '.tvf_search_posts']:
         raise ValueError('Semantic dependency order changed')
     return specs
 
