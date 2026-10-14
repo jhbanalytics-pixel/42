@@ -1363,6 +1363,29 @@ def _publish_events(market, d, items, posts):
     anchors = {i["item_id"]: fixture_anchor(i.get("explanation"), market, d, checked=i.get("_event_checked"))
                for i in admitted}
     groups, merges, replacements, gone = [], [], {}, set()
+    for item in admitted:
+        critic = item.get("critic")
+        text = item.get("explanation")
+        if (anchors[item["item_id"]] is not None or item.get("_event_checked") is not True
+                or not isinstance(critic, dict) or critic.get("scheduled_event") is not True
+                or not isinstance(text, str)):
+            continue
+        parts = re.split(r"\blikely because\b", text, flags=re.I)
+        if len(parts) != 2 or not re.search(r"\b(?:MTN8|Premier League)\b", text, re.I):
+            continue
+        team = r"(?-i:[A-Z][\w'’-]*(?:\s+[A-Z][\w'’-]*){0,4})"
+        primary_fixture = re.fullmatch(
+            r"^\s*(?:(?:South African|Nigerian|Kenyan|local)\s+)?(?:football\s+)?"
+            r"(?:creators|fans|supporters)\s+reacted(?:\s+on\s+(?:TikTok|Twitter|Reddit|Instagram|YouTube|X))?"
+            r"\s+to\s+(?:the\s+)?(?:"
+            r"(?:MTN8|Premier League)\s+(?:football\s+)?(?:final|match|fixture)"
+            r"|(?:matches?|fixtures?|final)\s+(?:involving|between|against)\s+" + team +
+            r"(?:\s+(?:and|against|vs\.?|versus)\s+" + team + r")?)"
+            r"(?:\s+on\s+(?:TikTok|Twitter|Reddit|Instagram|YouTube|X))?\s*,?\s*", parts[0], re.I)
+        if primary_fixture:
+            replacements[item["item_id"]] = {**item,
+                "decision": Decision(False, "held_back", None, "Not confirmed", "G3", False),
+                "held_reason": "not_confirmed"}
 
     def matches(a, b):
         shared = len(set(posts.get(a["item_id"]) or ()) & set(posts.get(b["item_id"]) or ()))
@@ -1370,6 +1393,8 @@ def _publish_events(market, d, items, posts):
         return {**why, "shared_posts": shared} if why and shared >= MIN_EVIDENCE else None
 
     for item in admitted:
+        if item["item_id"] in replacements:
+            continue
         group = next((g for g in groups if all(matches(t, item) for t in g)), None)
         if group is None:
             groups.append([item])
@@ -1388,7 +1413,7 @@ def _publish_events(market, d, items, posts):
         group.append(item)
     possible = []
     for item in admitted:
-        if item["item_id"] in gone or anchors.get(item["item_id"]) is not None:
+        if item["item_id"] in gone or item["item_id"] in replacements or anchors.get(item["item_id"]) is not None:
             continue
         partial = fixture_anchor(item.get("explanation"), market, d, checked=item.get("_event_checked"),
                                  allow_undated=True)

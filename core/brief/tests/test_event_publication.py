@@ -280,3 +280,114 @@ def test_adversarial_full_today_omits_new_held_claim_text():
                 for h in m["held_back"]["items"] if h["item_id"] == b["item_id"])
     assert not held["evidence"]
     assert "distinct private sentence" not in json.dumps(held)
+
+
+RETAINED_14OCT_FIXTURES = [{'item_id': 'ce51ad79cd95fe086405298693bd01078d7159812559515d235297574e0045f5',
+  'title': '#orlandopirates',
+  'explanation': 'South African football creators reacted on TikTok to matches involving Orlando '
+                 'Pirates, likely because the MTN8 final and Betway Premiership fixtures took '
+                 'place between 10 Oct and 13 Oct.',
+  'critic': {'scheduled_event': True,
+             'local_reaction': True,
+             'local_why_now': True,
+             'news_driven': False,
+             'ruled_out': False,
+             'reason': 'The posts directly coincide with scheduled South African football '
+                       'fixtures, featuring distinct personal reactions and banter from local '
+                       'creators.'}},
+ {'item_id': 'afa961b7335738b68a3f85c6178f633fa6a688caf7dbe81dfcc57bc15a5db1d2',
+  'title': '#sundowns',
+  'explanation': 'South African creators reacted to the MTN8 football final on TikTok, likely '
+                 'because Mamelodi Sundowns defeated Orlando Pirates to claim the cup.',
+  'critic': {'scheduled_event': True,
+             'local_reaction': True,
+             'local_why_now': True,
+             'news_driven': False,
+             'ruled_out': False,
+             'reason': 'The posts directly discuss and react to the scheduled MTN8 cup final match '
+                       'between Mamelodi Sundowns and Orlando Pirates with personal reactions from '
+                       'local supporters.'}}]
+
+
+@pytest.mark.parametrize("retained", RETAINED_14OCT_FIXTURES, ids=["pirates", "sundowns"])
+def test_retained_14oct_primary_fixture_reaction_is_held_without_a_dated_anchor(retained):
+    from core.brief.payload import build_market_payload
+
+    candidate = item(1, retained["explanation"], market="ZA")
+    candidate.update(item_id=retained["item_id"], title=retained["title"], critic=retained["critic"], also=[])
+    before = copy.deepcopy(candidate)
+    kept, receipt = publish([candidate], market="ZA")
+    assert len(kept) == 1 and not job._published(kept[0])
+    assert kept[0]["decision"].rule == "G3"
+    assert kept[0]["held_reason"] == "not_confirmed"
+    assert receipt["merges"] == receipt["possible_fragments"] == []
+    for key in ("numbers", "evidence", "claims", "explanation", "explanation_claim_ids", "also"):
+        assert kept[0][key] == before[key]
+    assert "event_fragment" not in kept[0]
+    assert candidate == before
+    payload = build_market_payload("ZA", D, kept, moments=[], boards=[], banners=[])
+    assert payload["cards"] == payload["more"] == []
+    held = payload["held_back"]["items"][0]
+    assert held["reason"] == "not_confirmed"
+    assert held["numbers"] == before["numbers"] and held["evidence"] == before["evidence"]
+    assert not {"claims", "explanation", "explanation_claim_ids", "event_fragment"} & set(held)
+
+
+@pytest.mark.parametrize("text", [
+    "South African creators made handmade jerseys for the MTN8 final, likely because they share a weekly craft ritual.",
+    "South African creators reacted to new jersey designs before the MTN8 final, likely because supporters customize shirts.",
+    "South African creators reacted to MTN8 fan art, likely because supporters share drawings after matches.",
+    "South African creators reacted to the MTN8 final by making handmade jerseys, likely because supporters share a weekly craft ritual.",
+    "South African creators reacted to the MTN8 final celebrations, likely because supporters share a weekly dance ritual.",
+])
+def test_football_behavioral_explanation_is_not_held_by_fixture_identity(text):
+    candidate = item(1, text, market="ZA")
+    candidate["critic"] = copy.deepcopy(RETAINED_14OCT_FIXTURES[0]["critic"])
+    before = copy.deepcopy(candidate)
+    kept, receipt = publish([candidate], market="ZA")
+    assert kept == [before] and job._published(kept[0])
+    assert receipt["merges"] == receipt["possible_fragments"] == []
+
+
+@pytest.mark.parametrize("critic", [None, {}, {"scheduled_event": False}, {"scheduled_event": "true"}])
+def test_fixture_identity_hold_requires_structured_scheduled_event(critic):
+    candidate = item(1, RETAINED_14OCT_FIXTURES[1]["explanation"], market="ZA")
+    candidate["critic"] = critic
+    kept, _ = publish([candidate], market="ZA")
+    assert job._published(kept[0])
+
+
+def test_dated_distinct_primary_fixture_reactions_stay_independent():
+    a = item(1, "South African creators reacted to the MTN8 final, likely because Mamelodi Sundowns defeated Orlando Pirates in the MTN8 final on 10 Oct.", market="ZA")
+    b = item(2, "South African creators reacted to the MTN8 final, likely because Mamelodi Sundowns defeated Orlando Pirates in the MTN8 final on 11 Oct.", market="ZA")
+    for c in (a, b):
+        c["critic"] = copy.deepcopy(RETAINED_14OCT_FIXTURES[1]["critic"])
+    kept, receipt = publish([a, b], market="ZA")
+    assert len(kept) == 2 and all(job._published(c) for c in kept)
+    assert receipt["merges"] == receipt["possible_fragments"] == []
+
+
+def test_fixture_identity_hold_does_not_change_unchecked_or_nonadmitted_candidates(monkeypatch):
+    a = item(1, RETAINED_14OCT_FIXTURES[1]["explanation"], market="ZA", checked=False)
+    b = item(2, RETAINED_14OCT_FIXTURES[1]["explanation"], market="ZA")
+    for c in (a, b):
+        c["critic"] = copy.deepcopy(RETAINED_14OCT_FIXTURES[1]["critic"])
+    monkeypatch.setattr(job, "_today_admits", lambda c, *_: c["item_id"] != b["item_id"])
+    kept, _ = publish([a, b], market="ZA")
+    assert kept == [a, b] and all(job._published(c) for c in kept)
+
+
+@pytest.mark.parametrize("retained", RETAINED_14OCT_FIXTURES, ids=["pirates", "sundowns"])
+def test_runtime_payload_retains_scheduled_critic_for_fixture_identity_hold(retained):
+    from core.brief import explain
+
+    row = item(1, retained["explanation"], market="ZA")
+    candidate = {"row": row, "decision": row["decision"], "sparkline": [],
+                 "pack": {"numbers": row["numbers"], "evidence": row["evidence"]}}
+    result = {"reason": None, "numbers_only": False, "explanation": retained["explanation"],
+              "local_why_now_checked": True, "critic": explain._critic_answer(retained["critic"]),
+              "claims": row["claims"], "explanation_claim_ids": row["explanation_claim_ids"]}
+    runtime_item = job._payload_candidate(candidate, result)
+    assert runtime_item["critic"]["scheduled_event"] is True and runtime_item["_event_checked"] is True
+    kept, _ = publish([runtime_item], market="ZA")
+    assert len(kept) == 1 and not job._published(kept[0])
