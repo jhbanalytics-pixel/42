@@ -28,6 +28,8 @@ _PERMIT = threading.Lock()
 _BLOCKED_TAGS = {"base", "embed", "form", "frame", "iframe", "link", "object", "script", "img", "video",
                  "audio", "source", "svg", "input", "button"}
 _CSS_BLOCKED = ("url(", "@import", "expression(", "behavior", "-moz-binding", "image-set(")
+_LIGATURES = str.maketrans({"\ufb00": "ff", "\ufb01": "fi", "\ufb02": "fl", "\ufb03": "ffi",
+                          "\ufb04": "ffl", "\ufb05": "st", "\ufb06": "st"})
 
 
 class PdfError(RuntimeError):
@@ -108,6 +110,10 @@ def _render(html):
         raise PdfError("pdf_browser_failed") from None
 
 
+def _text(value):
+    return "".join(value.translate(_LIGATURES).split())
+
+
 def _check(data, expected):
     from pypdf import PdfReader
 
@@ -119,10 +125,10 @@ def _check(data, expected):
         reader = PdfReader(io.BytesIO(data), strict=True)
         if reader.is_encrypted or not reader.pages:
             raise ValueError()
-        text = "".join("".join((page.extract_text() or "").split()) for page in reader.pages)
+        text = _text("".join(page.extract_text() or "" for page in reader.pages))
     except Exception:
         raise PdfError("pdf_output_invalid") from None
-    if expected not in text:
+    if _text(expected) not in text:
         raise PdfError("pdf_text_missing")
 
 

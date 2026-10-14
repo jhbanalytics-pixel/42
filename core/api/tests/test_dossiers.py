@@ -351,7 +351,7 @@ def test_pdf_export_is_a_valid_pdf_with_every_citation(chromium, pdf_render_evid
     assert data.startswith(b"%PDF-")
     reader = PdfReader(io.BytesIO(data))
     assert len(reader.pages) >= 1
-    text = "".join("".join(page.extract_text().split()) for page in reader.pages)
+    text = pdf._text("".join(page.extract_text() for page in reader.pages))
     annots = [annot.get_object() for page in reader.pages for annot in page.get("/Annots") or []]
     # Chromium percent-encodes the URI it writes (< becomes %3C); decoded, it must be the evidence link.
     uris = [unquote(str(a["/A"]["/URI"])) for a in annots if "/A" in a]
@@ -378,6 +378,25 @@ def test_chromium_fixture_uses_the_installed_browser_when_playwright_cache_is_ab
     monkeypatch.setattr(shutil, "which", lambda name: str(browser) if name == "google-chrome" else None)
     chromium.__wrapped__(monkeypatch)
     assert os.environ.get("F42_CHROMIUM") == str(browser)
+
+
+@pytest.mark.parametrize("ligature, letters", [
+    ("\ufb00", "ff"), ("\ufb01", "fi"), ("\ufb02", "fl"), ("\ufb03", "ffi"),
+    ("\ufb04", "ffl"), ("\ufb05", "st"), ("\ufb06", "st"),
+])
+def test_pdf_text_expands_typographic_ligatures_without_changing_units(ligature, letters):
+    from core.api import pdf
+
+    assert pdf._text(" a " + ligature + " b\n\u00b2\u2082\u2461") == "a" + letters + "b\u00b2\u2082\u2461"
+
+
+def test_pdf_privacy_check_cannot_hide_a_forbidden_handle_behind_a_ligature():
+    from core.api import pdf
+    from core.api.tests.test_skins import LEAKS
+
+    text = pdf._text("@\ufb01xture_ng_micro").lower()
+    assert "fixture_ng_micro" in LEAKS
+    assert "fixture_ng_micro" in [leak for leak in LEAKS if pdf._text(leak).lower() in text]
 
 
 @pytest.mark.parametrize("page", [
@@ -490,11 +509,11 @@ def test_skin_pdf_export_names_no_sub_tier_author(chromium, pdf_render_evidence)
     frozen = dossiers.freeze(skin_draft(), version=2, created_at="2026-09-29T11:00:00+02:00", ticks={})
     data = pdf.render_pdf(dossiers.render_html(frozen))
     reader = PdfReader(io.BytesIO(data))
-    text = "".join(page.extract_text() for page in reader.pages)
-    squeezed = "".join(text.split()).lower()
+    text = pdf._text("".join(page.extract_text() for page in reader.pages))
+    squeezed = text.lower()
     assert "brandsa" in squeezed and "fixture_ng_macro" in squeezed
     from core.api.tests.test_skins import LEAKS
-    assert [leak for leak in LEAKS if leak in squeezed] == []
+    assert [leak for leak in LEAKS if pdf._text(leak).lower() in squeezed] == []
     annots = [annot.get_object() for page in reader.pages for annot in page.get("/Annots") or []]
     uris = [unquote(str(a["/A"]["/URI"])) for a in annots if "/A" in a]
     assert uris == ["https://x.com/BrandSA/status/1", "https://www.tiktok.com/@fixture_ng_macro/video/2"]
