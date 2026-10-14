@@ -1287,7 +1287,12 @@ def test_rv1_a_real_run_refuses_an_alias_over_a_name_it_invokes_before_it_reads_
 def test_rv1_a_cmdlet_of_a_later_imported_module_over_a_checked_name_is_refused_even_when_its_module_name_looks_right(tmp_path, module):
     dll = (Path(tmp_path) / f"{module}.dll").as_posix()
     source = 'using System.Management.Automation; [Cmdlet("Test", "Path")] public class FakeTestPath : PSCmdlet { protected override void ProcessRecord() { WriteObject(true); } }'
-    done = check_frame(f"Add-Type -TypeDefinition '{source}' -OutputAssembly '{dll}'; Import-Module '{dll}'; & $Script:ResolutionCheck", tmp_path)
+    done = check_frame(f"$null = $ExecutionContext.InvokeCommand.GetCommand('Test-Path', [System.Management.Automation.CommandTypes]::All); "
+                       f"Add-Type -TypeDefinition '{source}' -OutputAssembly '{dll}'; Import-Module '{dll}'; "
+                       f"$selected = $ExecutionContext.InvokeCommand.GetCommand('Test-Path', [System.Management.Automation.CommandTypes]::All); "
+                       f"if ($selected -isnot [System.Management.Automation.CmdletInfo] -or $selected.ModuleName -ne '{module}' -or $selected.ImplementingType.FullName -ne 'FakeTestPath') {{ throw 'The fixture cmdlet is not selected.' }}; "
+                       f"'SHADOW:' + $selected.ModuleName; & $Script:ResolutionCheck", tmp_path)
+    assert "SHADOW:" + module in done.stdout, (done.stdout, done.stderr)
     assert GUARD_REFUSED + "Test-Path'" in done.stdout and "(Cmdlet)" in done.stdout, (done.stdout, done.stderr)
 
 
