@@ -217,3 +217,18 @@ class TestTheComparisonCanFail:
 
     def test_concrete_fills_every_parameter(self):
         assert hr.concrete("/api/a/{}/b/{}") == "/api/a/x/b/x"
+
+
+def test_nested_routers_keep_every_include_prefix_and_distinct_route():
+    child = APIRouter(prefix="/child")
+    child.add_api_route("/items/{item_id}", lambda: None, methods=["GET"])
+    child.add_api_route("/{rest:path}", lambda: None, methods=["POST"])
+    parent = APIRouter()
+    parent.include_router(child, prefix="/nested")
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    app.include_router(parent, prefix="/first")
+    app.include_router(parent, prefix="/second")
+    named, catch_alls = hr.app_routes(app)
+    assert named == {("GET", "/first/nested/child/items/{}"), ("GET", "/second/nested/child/items/{}")}
+    assert catch_alls == {("POST", "/first/nested/child/{}"), ("POST", "/second/nested/child/{}")}
+    assert hr.missing({("GET", "/missing")}, named) == [("GET", "/missing")]

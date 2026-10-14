@@ -291,7 +291,7 @@ defaultTest:
           /\bgrew\s+up\s+in\s+the\s+(?:early|mid|late)?[\s-]*['\u2019]?(?:(?:19|20)\d0s|\d0s|nineties|noughties)/i,
           /\bmiddle[\s-]?aged\b/i,
           /#gen(?:eration)?[_-]?(?:z|alpha)/i,
-          /\bgen(?:eration)?[_-]?(?:z|alpha)(?=(?-i:[A-Z])|[\d_])/i,
+          /\b[gG][eE][nN](?:[eE][rR][aA][tT][iI][oO][nN])?[_-]?(?:[zZ]|[aA][lL][pP][hH][aA])(?=[A-Z\d_])/,
           /\b(?:school[\s-]?(?:children|kids)|toddlers?|infants?|vijana|wazee|pikins?)\b/i,
           /(?<!\bfur\s)(?<!\bplant\s)(?<!\bsugar\s)\bbabies\b/i,
           /\b(?:next|a|this|(?:the|a)\s+new)[\s-]+generation\b(?!\s+(?:of|ago)\b)/i,

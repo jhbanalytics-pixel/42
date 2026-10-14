@@ -28,14 +28,21 @@ def app_routes(app):
     (a {name:path} pattern) as {(METHOD, path)}. HEAD and OPTIONS are not counted. A mount has no method and is
     not counted."""
     named, catch_alls = set(), set()
-    for route in app.routes:
-        methods = getattr(route, "methods", None)
-        if not methods:
-            continue
-        target = catch_alls if catch_all(route) else named
-        for method in methods:
-            if method in HTTP_METHODS:
-                target.add((method, normal_path(route.path)))
+    def visit(routes, prefix=""):
+        for route in routes:
+            included = getattr(route, "original_router", None)
+            if included is not None:
+                visit(included.routes, prefix + route.include_context.prefix)
+                continue
+            methods = getattr(route, "methods", None)
+            if not methods:
+                continue
+            target = catch_alls if catch_all(route) else named
+            for method in methods:
+                if method in HTTP_METHODS:
+                    target.add((method, normal_path(prefix + route.path)))
+
+    visit(app.routes)
     return named, catch_alls
 
 

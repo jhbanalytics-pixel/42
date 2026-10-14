@@ -308,6 +308,7 @@ AGE_PHRASES = [
     # Round 7: the last age and generation terms, and their neighbours that stay clean.
     ("middle-aged", True), ("middle aged", True), ("middleaged", True), ("#GenZProtests", True),
     ("#GenZRevolution", True), ("#genz254", True), ("#GenAlphaTok", True), ("GenZProtests", True),
+    ("gEnZProtests", True), ("GENERATIONALPHATok", True), ("genzprotests", False),
     ("schoolchildren", True), ("schoolkids", True), ("toddlers", True), ("infants", True), ("babies", True),
     ("vijana", True), ("wazee", True), ("pikin", True), ("the next generation", True), ("a generation", True),
     ("this generation", True), ("the new generation", True), ("the next-generation crowd", True),

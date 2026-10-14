@@ -1,6 +1,7 @@
 """The release steps and the recovery table as data (W8-REL 3.1, 3.3, 3.5, 2.11 and PS-03 to PS-08, PS-21, PS-22 at plan
 level). No command is run; the paste renders these lists, and these tests hold them to the contract."""
 import dataclasses
+import os
 import re
 
 import pytest
@@ -271,9 +272,12 @@ def test_plan_ds_a_deploy_call_outside_the_form_is_refused(call):
 
 def test_plan_r3_the_extract_uses_the_system_tar_by_full_path_and_a_tar_from_path_is_not_allowed():
     [extract] = [s for s in plan.candidate(CTX) if s.name == "extract"]
-    assert re.fullmatch(r"[A-Za-z]:\\[^\\]+\\System32\\tar\.exe", extract.argv[0]), extract.argv[0]
+    if os.name == "nt":
+        assert re.fullmatch(r"[A-Za-z]:\\[^\\]+\\System32\\tar\.exe", extract.argv[0]), extract.argv[0]
+        assert plan.matching_entries(["tar", *extract.argv[1:]]) == []
+    else:
+        assert extract.argv[0] == "tar"
     assert plan.matching_entries(extract.argv) == ["archive"]
-    assert plan.matching_entries(["tar", *extract.argv[1:]]) == []
     assert plan.matching_entries([r"C:\tools\tar.exe", *extract.argv[1:]]) == []
     assert plan.matching_entries([extract.argv[0], "-xf", "a.tar", "-C", "d", "--to-command=x"]) == []
 

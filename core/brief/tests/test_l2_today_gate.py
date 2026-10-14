@@ -2,7 +2,7 @@ import datetime as dt
 import hashlib
 import importlib.util
 import json
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pytest
 
@@ -151,7 +151,7 @@ def test_date_paths_are_exact_and_october_first_keeps_its_receipt_base():
     assert oct1_receipt == gate.PRIMARY_RECEIPT_BASE
     assert oct2_report == Path(r"C:\Users\AlbertMeintjes\dev\42-inputs\MORNING-L2-2026-10-02.md")
     assert oct2_receipt.name == "morning_l2_20261002.marker.json"
-    assert gate.PRIMARY_REPORT_PATH.name == "L2-GATE-2026-10-01.md"
+    assert PureWindowsPath(gate.PRIMARY_REPORT_PATH).name == "L2-GATE-2026-10-01.md"
     assert gate._validate_cli_paths(oct2_report, oct2_receipt, dt.date(2026, 10, 2)) == (
         oct2_report.resolve(), oct2_receipt.resolve())
     with pytest.raises(gate.Stop, match="output_paths_outside_allowlist"):

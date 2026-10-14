@@ -91,6 +91,7 @@ def declared_module(names):
 def write_stub(path, body):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("#!/usr/bin/env bash\n" + body, encoding="utf-8", newline="\n")
+    path.chmod(path.stat().st_mode | 0o111)
     return path
 
 
