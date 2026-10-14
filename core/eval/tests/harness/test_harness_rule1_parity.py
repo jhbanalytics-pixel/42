@@ -116,8 +116,12 @@ def promptfoo_patterns():
     for line in block.splitlines()[1:]:
         line = line.strip()
         if line.startswith("/"):
-            assert line.endswith("/i,"), line[-30:]
-            found.append(line[1:-3])
+            pattern, flags = line[1:-1].rsplit("/", 1)
+            assert flags in ("i", ""), flags
+            if not flags:
+                assert pattern == r"\b[gG][eE][nN](?:[eE][rR][aA][tT][iI][oO][nN])?[_-]?(?:[zZ]|[aA][lL][pP][hH][aA])(?=[A-Z\d_])", pattern
+                pattern = r"\bgen(?:eration)?[_-]?(?:z|alpha)(?=(?-i:[A-Z])|[\d_])"
+            found.append(pattern)
     return found
 
 
@@ -193,3 +197,21 @@ class TestTheComparisonCanFail:
 
     def test_the_yaml_the_copy_is_read_from_still_loads(self):
         assert yaml.safe_load(PROMPTFOO.read_text(encoding="utf-8"))
+
+    def test_changing_the_case_sensitive_prefix_is_not_equal(self, monkeypatch, tmp_path):
+        copy = tmp_path / "changed.yaml"
+        source = PROMPTFOO.read_text(encoding="utf-8")
+        assert source.count("/\\b[gG][eE][nN]") == 1
+        copy.write_text(source.replace("/\\b[gG][eE][nN]", "/\\b[g][eE][nN]"), encoding="utf-8")
+        monkeypatch.setitem(globals(), "PROMPTFOO", copy)
+        with pytest.raises(AssertionError):
+            test_ask_patterns_and_the_promptfoo_copy_are_the_same_list_in_the_same_order()
+
+    def test_removing_a_case_insensitive_flag_is_not_equal(self, monkeypatch, tmp_path):
+        copy = tmp_path / "changed.yaml"
+        source = PROMPTFOO.read_text(encoding="utf-8")
+        first = source.index("/i,", source.index("const patterns = ["))
+        copy.write_text(source[:first] + "/," + source[first + 3:], encoding="utf-8")
+        monkeypatch.setitem(globals(), "PROMPTFOO", copy)
+        with pytest.raises(AssertionError):
+            test_ask_patterns_and_the_promptfoo_copy_are_the_same_list_in_the_same_order()

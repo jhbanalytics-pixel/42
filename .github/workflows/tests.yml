@@ -67,6 +67,9 @@ jobs:
           python -m pip install --disable-pip-version-check -r core/requirements-test.txt
           python -m pip install --disable-pip-version-check --no-deps bertopic==0.17.4
 
+      - name: Install the production-pinned PDF browser
+        run: python -m playwright install --with-deps --only-shell chromium
+
       # The guard is on PYTHONPATH for this step only: the install step above needs the network.
       - name: Run the core suite under the offline guard
         env:

@@ -469,3 +469,17 @@ def test_core_matrix_preserves_all_shards_and_requires_exact_aggregation():
     assert "--count 4" in merge["run"] and '--head "${GITHUB_SHA}"' in merge["run"]
     floor = next(s for s in aggregate["steps"] if "ci_skip_report.py" in s.get("run", ""))
     assert "--min-total 28573 --min-passed 28573 --ratchet-gap 800" in floor["run"]
+
+
+def test_core_pdf_browser_matches_the_production_install_before_the_offline_guard():
+    source = (ROOT / "core/api/Dockerfile").read_text(encoding="utf-8")
+    command = "python -m playwright install --with-deps --only-shell chromium"
+    assert "RUN " + command in source
+    data = core_workflow()
+    core_steps = data["jobs"]["core"]["steps"]
+    browser = [step for step in core_steps if step.get("run", "").strip() == command]
+    assert len(browser) == 1
+    env = effective_env(data, "core", browser[0])
+    assert "CORE_OFFLINE_GUARD_LOG" not in env
+    assert "F42_REQUIRE_OFFLINE_GUARD" not in env
+    assert core_steps.index(browser[0]) < core_steps.index(core_pytest_steps(data)[0][1])
