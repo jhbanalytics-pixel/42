@@ -354,10 +354,26 @@ def bound_file_paths(bound, bindings_path):
     """The five files the lock hashes, found as the release paste finds them (Resolve-Paths)."""
     root = Path(bound["releaseDir"]).resolve()
     named = {}
-    for key, default in (("compatReceiptPath", COMPAT_FILE), ("oldReaderReceiptPath", OLD_READER_FILE)):
+    for key, default in (
+        ("compatReceiptPath", COMPAT_FILE),
+        ("oldReaderReceiptPath", OLD_READER_FILE),
+    ):
         named[key] = so.inside(root, bound[key]) if key in bound else root / default
-    return {"bindings": Path(bindings_path), "baseline": Path(bound["baselinePath"]), "durable_manifest": Path(bound["durableManifestPath"]),
-            "compat_receipt": named["compatReceiptPath"], "old_reader_receipt": named["oldReaderReceiptPath"]}
+    files = {
+        "bindings": Path(bindings_path),
+        "baseline": Path(bound["baselinePath"]),
+        "durable_manifest": Path(bound["durableManifestPath"]),
+        "compat_receipt": named["compatReceiptPath"],
+        "old_reader_receipt": named["oldReaderReceiptPath"],
+    }
+    from core.setup.release import applied_storage
+
+    proof = applied_storage.receipt_path(
+        read_json(bound["durableManifestPath"], "durable manifest"), root
+    )
+    if proof is not None:
+        files["applied_jobs_storage_receipt"] = proof
+    return files
 
 
 def bound_hashes(bound):
@@ -833,7 +849,9 @@ def cmd_bind(args):
     if args.mode == "jobs":
         return cmd_bind_jobs(args)
     if args.attempt != SUPPORTED_ATTEMPT:
-        raise Refused(f"bind supports attempt {SUPPORTED_ATTEMPT} only: a later attempt must cite the earlier attempts and their ledgers, which it does not carry")
+        raise Refused(
+            f"bind supports attempt {SUPPORTED_ATTEMPT} only: a later attempt must cite the earlier attempts and their ledgers, which it does not carry"
+        )
     packet_dir = Path(args.packet_dir)
     out = packet_dir / BINDINGS_FILE
     refuse_existing(out)
@@ -851,9 +869,13 @@ def cmd_bind(args):
         raise Refused("A release bound to a prior release needs --release-letter")
     if args.expect_jobs_digest is not None and prior is None:
         raise Refused("--expect-jobs-digest needs a prior release record")
-    baseline, baseline_sha = load_baseline(args.baseline, prior, args.expect_jobs_digest)
+    baseline, baseline_sha = load_baseline(
+        args.baseline, prior, args.expect_jobs_digest
+    )
     compat = passing_receipt(packet_dir / COMPAT_FILE, "compat", prior, head)
-    old = passing_receipt(packet_dir / OLD_READER_FILE, "old-reader", prior, head, old_reader=True)
+    old = passing_receipt(
+        packet_dir / OLD_READER_FILE, "old-reader", prior, head, old_reader=True
+    )
     durable = Path(args.durable_manifest)
     durable_value, durable_sha = read_input(durable, "the durable-effects manifest")
     problems = dec.validate_manifest(durable_value)
@@ -861,22 +883,58 @@ def cmd_bind(args):
         raise Refused("The durable-effects manifest is not valid: " + problems[0])
     other = durable_binding_problem(durable_value, release_id, head, tree)
     if other:
-        raise Refused(f"The durable-effects manifest is for another release: {other} does not match the release being bound")
+        raise Refused(
+            f"The durable-effects manifest is for another release: {other} does not match the release being bound"
+        )
+    from core.setup.release import applied_storage
+
+    if applied_storage.effect_reference(durable_value) is not None:
+        applied_storage.verify(
+            durable_value,
+            {
+                "mode": "services-only",
+                "target": head,
+                "tree": tree,
+                "maxSmokeAgeMinutes": args.max_smoke_age_minutes,
+            },
+            packet_dir,
+            repo=repo,
+        )
     build_config = blob_sha256(repo, head, BUILD_CONFIG)
     agent = baseline["canonical"]["f42-agent"]
     short = head[:12]
     bound = {
-        "schema_version": so.SCHEMA_VERSION, "mode": "services-only", "status": STATUS, "release_id": release_id, "target": head,
-        "tree": tree, "releaseDir": str(packet_dir.resolve()), "baselinePath": str(Path(args.baseline).resolve()),
-        "baselineSha256": baseline_sha, "callerAccount": args.caller_account,
-        "buildServiceAccount": paste_build_service_account(), "buildConfigSha256": build_config,
-        "readTimeoutSeconds": {"gcloud": args.gcloud_timeout_seconds, "http": args.http_timeout_seconds},
+        "schema_version": so.SCHEMA_VERSION,
+        "mode": "services-only",
+        "status": STATUS,
+        "release_id": release_id,
+        "target": head,
+        "tree": tree,
+        "releaseDir": str(packet_dir.resolve()),
+        "baselinePath": str(Path(args.baseline).resolve()),
+        "baselineSha256": baseline_sha,
+        "callerAccount": args.caller_account,
+        "buildServiceAccount": paste_build_service_account(),
+        "buildConfigSha256": build_config,
+        "readTimeoutSeconds": {
+            "gcloud": args.gcloud_timeout_seconds,
+            "http": args.http_timeout_seconds,
+        },
         "maxSmokeAgeMinutes": args.max_smoke_age_minutes,
         "expectedSmokeChecks": locklib.smoke_check_count(repo / "core/api/smoke.py"),
-        "envDeltas": {"f42-agent": {"F42_VERSION": short},
-                      "f42-api": {"F42_VERSION": short, "AGENT_URL": so.tag_url(release_id, agent), "AGENT_AUDIENCE": agent}},
-        "compatReceiptSha256": compat, "oldReaderReceiptSha256": old, "durableManifestPath": str(durable.resolve()),
-        "durableManifestSha256": durable_sha, "inflightAsksSqlSha256": dec.INFLIGHT_ASKS_SQL_SHA256,
+        "envDeltas": {
+            "f42-agent": {"F42_VERSION": short},
+            "f42-api": {
+                "F42_VERSION": short,
+                "AGENT_URL": so.tag_url(release_id, agent),
+                "AGENT_AUDIENCE": agent,
+            },
+        },
+        "compatReceiptSha256": compat,
+        "oldReaderReceiptSha256": old,
+        "durableManifestPath": str(durable.resolve()),
+        "durableManifestSha256": durable_sha,
+        "inflightAsksSqlSha256": dec.INFLIGHT_ASKS_SQL_SHA256,
         "inflightAsksBytesCap": args.inflight_asks_bytes_cap,
     }
     if prior is not None:
@@ -889,7 +947,9 @@ def cmd_bind(args):
         so.validate_bindings(bound)
         so.stage1(bound, baseline)
     except so.Stop as error:
-        raise Refused(f"The bindings would not be accepted: {error.code}: {error.message}") from None
+        raise Refused(
+            f"The bindings would not be accepted: {error.code}: {error.message}"
+        ) from None
     write_json_new(out, bound)
     print(f"wrote {out}\nrelease_id {release_id}\nsha256 {sha_bytes(out)}")
     return 0

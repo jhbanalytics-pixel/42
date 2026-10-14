@@ -193,6 +193,10 @@ function Test-Packet {
     $Script:Paths = Resolve-Paths $bound
     $boundFiles = @{ bindings = $Bindings; baseline = $Script:Paths.baseline; durable_manifest = $Script:Paths.durable
                      compat_receipt = $Script:Paths.compat; old_reader_receipt = $Script:Paths.oldReader }
+    $storagePath = Join-Path $Script:Paths.root 'applied-jobs-storage-receipt.json'
+    if ($lockFile.bound_files.PSObject.Properties.Name -contains 'applied_jobs_storage_receipt') {
+        $boundFiles.applied_jobs_storage_receipt = $storagePath
+    }
     foreach ($entry in $lockFile.bound_files.PSObject.Properties) {
         if ((Get-Sha $boundFiles[$entry.Name]) -ne $entry.Value) { throw "NOT EXECUTABLE: a bound file differs from the lock: $($entry.Name)" }
     }
@@ -299,7 +303,18 @@ function Assert-Identity {
 function Step([string]$Name, [string[]]$Argv, [int[]]$Accept = @(), [string]$WorkDir = '') {
     & $Script:ResolutionCheck
     if ($Action -in @('Candidate', 'Promote')) { Assert-Source }
+    if ($Action -in @('Candidate', 'Promote') -and $Name -in @('build','pin-f42-agent','pin-f42-api','deploy-candidate','promote-f42-agent','promote-f42-api','schema-apply')) { Assert-AppliedStorage }
     return (Run-Logged -Name $Name -Argv $Argv -Accept $Accept -WorkDir $WorkDir)
+}
+
+function Assert-AppliedStorage {
+        $durable = Read-JsonFile $Script:Paths.durable 'durable effects'
+        if (@($durable.effects | Where-Object { $_.PSObject.Properties.Name -contains 'effect_id' -and $_.effect_id -eq 'E-APPLIED-JOBS-STORAGE' }).Count -gt 0) {
+            $number = @(Get-ChildItem -LiteralPath $Script:RunDir -Directory -Filter 'storage-proof-*').Count + 1
+            $proofDir = Join-Path $Script:RunDir ('storage-proof-{0:D4}' -f $number)
+            New-Item -ItemType Directory -Path $proofDir | Out-Null
+            Run-Logged -Name 'applied-storage-readbacks' -Argv @('py','-3.13','core/setup/durable_effects_check.py','--check','readbacks','--manifest',$Script:Paths.durable,'--bindings',$Bindings,'--evidence',$proofDir) | Out-Null
+        }
 }
 
 function Note-Source {
@@ -366,6 +381,7 @@ function Invoke-Smoke([string]$ApiTagUrl) {
     if ($null -eq $Script:SmokeSecret) { throw 'The smoke passcode was not typed at the start of the run.' }
     & $Script:ResolutionCheck
     Assert-Source
+    Assert-AppliedStorage
     $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Script:SmokeSecret)
     try { $env:F42_SMOKE_PASSCODE = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
     $started = [DateTimeOffset]::UtcNow

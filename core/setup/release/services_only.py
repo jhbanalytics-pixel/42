@@ -1251,19 +1251,51 @@ def write_readback(rel, phase, result):
     result["file"] = target.name
 
 
-def run_phase(bound, phase, reader, evidence=None, *, tag=None, now=None, sleep=time.sleep):
+def run_phase(
+    bound, phase, reader, evidence=None, *, tag=None, now=None, sleep=time.sleep
+):
     require(phase in PHASES, "BINDINGS", f"Unknown phase: {phase}")
     rel = Release(bound, reader, evidence, now, sleep)
+    if phase in ("BeforeAnyWrite", "BeforeCandidate", "BeforeSmoke", "BeforePromotion") and "durableManifestPath" in bound:
+        from core.setup.release import applied_storage
+
+        durable = load_bound_json(
+            bound["durableManifestPath"],
+            bound["durableManifestSha256"],
+            "durable manifest",
+        )
+        if applied_storage.effect_reference(durable) is not None:
+            try:
+                applied_storage.verify(
+                    durable, bound, bound["releaseDir"], now=rel.now()
+                )
+            except applied_storage.Refused as error:
+                raise Stop("APPLIED_STORAGE", str(error)) from None
+        elif durable.get("no_storage_change", {}).get("claimed") is False and not any(
+            e.get("apply_kind") == "schema" for e in durable["effects"]
+        ):
+            raise Stop(
+                "APPLIED_STORAGE",
+                "Forward services storage accounting lacks its required proof",
+            )
     if phase in RETIRE_PHASES:
         require(tag == rel.rid, "TAG_MAPPING", "The tag argument is not the release id")
     else:
-        require(tag is None, "BINDINGS", "A tag argument belongs to the retire phases only")
+        require(
+            tag is None, "BINDINGS", "A tag argument belongs to the retire phases only"
+        )
     check_config(rel)
     if phase in PRINCIPAL_PHASES:
         check_principals(rel)
     live = rel.live()
-    result = {"schema_version": SCHEMA_VERSION, "mode": "services-only", "phase": phase, "release_id": rel.rid,
-              "at_utc": rel.now().isoformat(), "manifest_sha256": None}
+    result = {
+        "schema_version": SCHEMA_VERSION,
+        "mode": "services-only",
+        "phase": phase,
+        "release_id": rel.rid,
+        "at_utc": rel.now().isoformat(),
+        "manifest_sha256": None,
+    }
     PHASE_FUNCTIONS[phase](rel, phase, live, result)
     result["observations"], result["blocking"] = rel.observations, rel.blocking
     write_readback(rel, phase, result)

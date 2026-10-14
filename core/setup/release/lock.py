@@ -24,6 +24,14 @@ from pathlib import Path
 
 SCHEMA_VERSION = 1
 REPO_FILES = (
+    'core/config/hubs.yaml',
+    'core/detect/sensitive.yaml',
+    'core/brief/political.yaml',
+    'core/detect/sql/agent_views.sql',
+    'core/detect/sql/spread.sql',
+    'core/detect/sql/news.sql',
+    'core/understand/sql/model.sql',
+    "core/setup/release/applied_storage.py",
     "core/schema/release_install.py",
     "core/detect/forecasts.py",
     "core/detect/sql/views.sql",
@@ -150,6 +158,7 @@ REPO_FILES = (
     "core/understand/video.py",
 )
 TEST_FILES = (
+    "core/setup/tests/test_applied_storage.py",
     "core/schema/tests/test_release_install.py",
     "core/setup/tests/cloud_world.py",
     "core/setup/tests/jobs_paste_world.py",

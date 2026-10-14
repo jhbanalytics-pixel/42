@@ -424,29 +424,83 @@ def readback_sql(readback):
     return (f"SELECT COUNT(*) AS n FROM `{PROJECT}.{m.group(1)}.{m.group(2)}` WHERE {m.group(3)} >= '{m.group(4)}'", [])
 
 
-def run_readbacks(manifest, bq, bytes_cap=10 * 1024 * 1024):
+def run_readbacks(
+    manifest, bq, bytes_cap=10 * 1024 * 1024, *, bindings=None, packet_dir=None
+):
     problems = validate_manifest(manifest)
     if problems:
         raise Refusal("the manifest is not valid: " + problems[0])
     results = []
     for effect in manifest["effects"]:
+        if effect.get("effect_id") == "E-APPLIED-JOBS-STORAGE":
+            from core.setup.release import applied_storage
+
+            require(
+                bindings is not None and packet_dir is not None,
+                "Composed readbacks need current service bindings",
+            )
+            got = applied_storage.verify(manifest, bindings, packet_dir)
+            results.append(
+                {
+                    "effect_id": effect["effect_id"],
+                    "result_sha256": got,
+                    "matches": got
+                    == effect["native_readback"]["expected_result_sha256"],
+                }
+            )
+            continue
         if effect["native_readback"]["kind"] == "helper_phase":
-            results.append({"effect_id": effect["effect_id"], "helper_phase": effect["native_readback"]["target"], "matches": True})
+            results.append(
+                {
+                    "effect_id": effect["effect_id"],
+                    "helper_phase": effect["native_readback"]["target"],
+                    "matches": True,
+                }
+            )
             continue
         if effect["native_readback"]["kind"] == "chain_manifest":
-            results.append({"effect_id": effect["effect_id"], "chain_manifest": effect["native_readback"]["target"], "deferred": True, "matches": None})
+            results.append(
+                {
+                    "effect_id": effect["effect_id"],
+                    "chain_manifest": effect["native_readback"]["target"],
+                    "deferred": True,
+                    "matches": None,
+                }
+            )
             continue
-        if effect['native_readback']['kind'] == 'warehouse_definition':
-            got = sha_text(canonical(bq.definition(effect['native_readback']['target'])))
-            results.append({'effect_id': effect['effect_id'], 'result_sha256': got,
-                            'matches': got == effect['native_readback']['expected_result_sha256']})
+        if effect["native_readback"]["kind"] == "warehouse_definition":
+            got = sha_text(
+                canonical(bq.definition(effect["native_readback"]["target"]))
+            )
+            results.append(
+                {
+                    "effect_id": effect["effect_id"],
+                    "result_sha256": got,
+                    "matches": got
+                    == effect["native_readback"]["expected_result_sha256"],
+                }
+            )
             continue
         sql, params = readback_sql(effect["native_readback"])
-        require(bq.dry_run(sql, params) <= bytes_cap, f"effect {effect['effect_id']}: the readback exceeds its bytes cap")
+        require(
+            bq.dry_run(sql, params) <= bytes_cap,
+            f"effect {effect['effect_id']}: the readback exceeds its bytes cap",
+        )
         rows = bq.query(sql, params, bytes_cap)
         got = sha_text(canonical(rows))
-        results.append({"effect_id": effect["effect_id"], "result_sha256": got, "matches": got == effect["native_readback"]["expected_result_sha256"]})
-    return {"schema_version": SCHEMA_VERSION, "check": "readbacks", "ok": all(r["matches"] for r in results if not r.get("deferred")), "results": results}
+        results.append(
+            {
+                "effect_id": effect["effect_id"],
+                "result_sha256": got,
+                "matches": got == effect["native_readback"]["expected_result_sha256"],
+            }
+        )
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "check": "readbacks",
+        "ok": all(r["matches"] for r in results if not r.get("deferred")),
+        "results": results,
+    }
 
 
 def run_rollback_blockers(manifest, bq):
@@ -489,16 +543,26 @@ def run_inflight_asks(bindings, bq):
 
 
 def main(argv=None, bq_factory=BigQuery):
-    parser = argparse.ArgumentParser(description="Durable effects checks for a release.")
-    parser.add_argument("--check", choices=("validate", "readbacks", "rollback-blockers", "inflight-asks"), required=True)
+    parser = argparse.ArgumentParser(
+        description="Durable effects checks for a release."
+    )
+    parser.add_argument(
+        "--check",
+        choices=("validate", "readbacks", "rollback-blockers", "inflight-asks"),
+        required=True,
+    )
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--bindings", type=Path)
     args = parser.parse_args(argv)
     try:
         if args.check == "inflight-asks":
-            require(args.bindings is not None, "--bindings is required for inflight-asks")
-            result = run_inflight_asks(json.loads(args.bindings.read_text(encoding="utf-8-sig")), bq_factory())
+            require(
+                args.bindings is not None, "--bindings is required for inflight-asks"
+            )
+            result = run_inflight_asks(
+                json.loads(args.bindings.read_text(encoding="utf-8-sig")), bq_factory()
+            )
         else:
             require(args.manifest is not None, "--manifest is required")
             manifest = json.loads(args.manifest.read_text(encoding="utf-8-sig"))
@@ -506,12 +570,33 @@ def main(argv=None, bq_factory=BigQuery):
                 problems = validate_manifest(manifest)
                 if problems:
                     raise Refusal("the manifest is not valid: " + problems[0])
-                result = {"schema_version": SCHEMA_VERSION, "check": "validate", "ok": True, "effects": len(manifest["effects"])}
+                result = {
+                    "schema_version": SCHEMA_VERSION,
+                    "check": "validate",
+                    "ok": True,
+                    "effects": len(manifest["effects"]),
+                }
             elif args.check == "rollback-blockers":
-                blockers = manifest.get("rollback_blockers") if isinstance(manifest, dict) else None
-                result = run_rollback_blockers(manifest, bq_factory() if blockers else None)
+                blockers = (
+                    manifest.get("rollback_blockers")
+                    if isinstance(manifest, dict)
+                    else None
+                )
+                result = run_rollback_blockers(
+                    manifest, bq_factory() if blockers else None
+                )
             else:
-                result = run_readbacks(manifest, bq_factory())
+                bindings = (
+                    json.loads(args.bindings.read_text(encoding="utf-8-sig"))
+                    if args.bindings
+                    else None
+                )
+                result = run_readbacks(
+                    manifest,
+                    bq_factory(),
+                    bindings=bindings,
+                    packet_dir=args.manifest.parent,
+                )
     except Refusal as error:
         print(f"REFUSED: {error}", file=sys.stderr)
         return 1
@@ -519,7 +604,9 @@ def main(argv=None, bq_factory=BigQuery):
         print(f"REFUSED: {type(error).__name__}", file=sys.stderr)
         return 1
     args.evidence.mkdir(parents=True, exist_ok=True)
-    (args.evidence / f"{args.check}.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (args.evidence / f"{args.check}.json").write_text(
+        json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     print(json.dumps(result, sort_keys=True))
     return 0 if result.get("ok", True) is not False else 1
 

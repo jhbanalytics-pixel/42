@@ -235,25 +235,81 @@ def stored_effect(repo, head, base, owner, number, receipt):
             "target": STORED_TARGET}
 
 
-def build_manifest(repo, head, base, owner, old_reader_receipt=None):
-    receipt = read_receipt(repo, head, base, old_reader_receipt) if old_reader_receipt is not None else None
+def build_manifest(
+    repo,
+    head,
+    base,
+    owner,
+    old_reader_receipt=None,
+    applied_jobs_packet=None,
+    *,
+    native_factory=None,
+    storage_output=None,
+):
+    receipt = (
+        read_receipt(repo, head, base, old_reader_receipt)
+        if old_reader_receipt is not None
+        else None
+    )
     claim, problems = no_storage_change(repo, base, head)
-    if problems:
+    if problems and applied_jobs_packet is None:
         raise Refused("The claim of no storage change is false: " + problems[0])
     manifest = json.loads(git(repo, "show", f"{head}:{TEMPLATE}"))
     tree = git(repo, "rev-parse", f"{head}^{{tree}}").strip()
     release_id = f"rel-{head[:7]}-01"
-    manifest.update(release_id=release_id, source={"commit": head, "tree": tree}, generated_from={"base": base, "head": head},
-                    no_storage_change=claim)
+    manifest.update(
+        release_id=release_id,
+        source={"commit": head, "tree": tree},
+        generated_from={"base": base, "head": head},
+        no_storage_change=claim,
+    )
+    storage = None
+    if applied_jobs_packet is not None:
+        from core.setup.release import applied_storage
+
+        require_receipt = old_reader_receipt is not None
+        if not require_receipt:
+            raise Refused("Composed storage requires the genuine old-reader receipt")
+        manifest["no_storage_change"] = {"claimed": False}
+        storage = applied_storage
     for effect in manifest["effects"]:
         effect["owner"]["person"] = owner
         effect["target"] = effect["target"].replace("<release id>", release_id)
         if effect["effect_id"] in WORDING:
             effect["statement_ref"] = WORDING[effect["effect_id"]]
-            effect["forward_recovery"] = {**effect["forward_recovery"], "note": WORDING[effect["effect_id"]]}
-    stored = stored_effect(repo, head, base, owner, 1 + max(e["apply_order"] for e in manifest["effects"]), receipt)
+            effect["forward_recovery"] = {
+                **effect["forward_recovery"],
+                "note": WORDING[effect["effect_id"]],
+            }
+    stored = stored_effect(
+        repo,
+        head,
+        base,
+        owner,
+        1 + max(e["apply_order"] for e in manifest["effects"]),
+        receipt,
+    )
     if stored is not None:
         manifest["effects"].append(stored)
+    if storage is not None:
+        if storage_output is None:
+            raise Refused("Composed manifest needs its fixed write-once receipt output")
+        applied = storage.produce(
+            repo,
+            head,
+            tree,
+            applied_jobs_packet,
+            storage_output,
+            native_factory=native_factory,
+        )
+        manifest["effects"].append(
+            storage.receipt_effect(
+                applied['jobs']['release_id'],
+                dec.sha_text(Path(storage_output).read_text(encoding="utf-8")),
+                {"lane": 3, "person": owner},
+                1 + max(e["apply_order"] for e in manifest["effects"]),
+            )
+        )
     manifest["manifest_sha256"] = dec.manifest_hash(manifest)
     invalid = dec.validate_manifest(manifest)
     if invalid:
@@ -262,12 +318,23 @@ def build_manifest(repo, head, base, owner, old_reader_receipt=None):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Write the durable-effects manifest of a release on top of a prior release.")
+    parser = argparse.ArgumentParser(
+        description="Write the durable-effects manifest of a release on top of a prior release."
+    )
     parser.add_argument("--repo", type=Path, default=Path("."))
     parser.add_argument("--base-commit", required=True)
     parser.add_argument("--owner", required=True)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--old-reader-receipt", type=Path, help="the old-reader receipt made at the release commit against the base")
+    parser.add_argument(
+        "--old-reader-receipt",
+        type=Path,
+        help="the old-reader receipt made at the release commit against the base",
+    )
+    parser.add_argument(
+        "--applied-jobs-packet",
+        type=Path,
+        help="prove storage already applied by this exact source jobs release; no storage writes",
+    )
     args = parser.parse_args(argv)
     try:
         if not re.fullmatch(r"[0-9a-f]{40}", args.base_commit):
@@ -277,8 +344,18 @@ def main(argv=None):
         if git(args.repo, "status", "--porcelain=v1").strip():
             raise Refused("The checkout is not clean")
         head = git(args.repo, "rev-parse", "HEAD").strip()
-        manifest = build_manifest(args.repo, head, args.base_commit, args.owner, args.old_reader_receipt)
         args.out.parent.mkdir(parents=True, exist_ok=True)
+        from core.setup.release import applied_storage
+
+        manifest = build_manifest(
+            args.repo,
+            head,
+            args.base_commit,
+            args.owner,
+            args.old_reader_receipt,
+            args.applied_jobs_packet,
+            storage_output=args.out.parent / applied_storage.RECEIPT_FILE,
+        )
         with args.out.open("x", encoding="utf-8", newline="\n") as out:
             out.write(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     except (Refused, dec.Refusal) as error:
