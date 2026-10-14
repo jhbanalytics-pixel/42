@@ -286,12 +286,23 @@ async function arrowScroll(client, selector, index){
   await wait(200);
   return client.evaluate(`(function(){
     var box = document.querySelectorAll(${JSON.stringify(selector)})[${index}].parentElement;
-    return {
+    var result = {
       focused: document.activeElement === box,
       scrollLeft: box.scrollLeft,
       reachedEnd: box.scrollLeft >= box.scrollWidth - box.clientWidth - 1,
       pageScrollX: scrollX,
     };
+    if (!result.reachedEnd){
+      var active = document.activeElement;
+      result.failureSnapshot = {
+        activeElement: {tag: active.tagName, id: active.id, className: active.className},
+        focused: result.focused, scrollLeft: result.scrollLeft,
+        max: box.scrollWidth - box.clientWidth, width: innerWidth,
+        scrollBehavior: getComputedStyle(box).scrollBehavior,
+        visibilityState: document.visibilityState,
+      };
+    }
+    return result;
   })()`);
 }
 
@@ -325,7 +336,10 @@ function failuresOf(reads){
     if (r.red.length) failures.push(`${at}: box is red on ${r.red.join(', ')}`);
     if (!r.focused) failures.push(`${at}: box took no focus`);
     if (!(r.scrollLeft > 0)) failures.push(`${at}: arrow keys did not scroll the box`);
-    if (!r.reachedEnd) failures.push(`${at}: ArrowRight stopped at ${r.scrollLeft}px before ${r.scrollWidth - r.clientWidth}px`);
+    if (!r.reachedEnd){
+      if (r.failureSnapshot) console.error('Wide-table scroll failure', JSON.stringify(r.failureSnapshot));
+      failures.push(`${at}: ArrowRight stopped at ${r.scrollLeft}px before ${r.scrollWidth - r.clientWidth}px`);
+    }
     if (r.pageScrollX !== 0) failures.push(`${at}: arrow keys scrolled the page`);
   }
   return failures;
