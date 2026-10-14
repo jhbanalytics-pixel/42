@@ -144,7 +144,7 @@ def core_workflow():
 
 
 def core_pytest_steps(data):
-    return [(j, s) for j, s in steps(data) if "-m pytest core" in s.get("run", "")]
+    return [(j, s) for j, s in steps(data) if "ci_core_shards.py run" in s.get("run", "")]
 
 
 def ops_pytest_steps(data):
@@ -182,9 +182,9 @@ def test_the_core_run_collects_the_whole_core_tree_from_the_repository_root():
     data = core_workflow()
     [(job_name, step)] = core_pytest_steps(data)
     command = " ".join(step["run"].split())
-    assert re.search(r"-m pytest core( |$)", command), command
+    assert command == PINNED_PYTEST_COMMAND, command
     assert "working-directory" not in step
-    assert "-p no:cacheprovider" in command and "--junitxml" in command
+    assert "--root core" in command and "--count 4" in command
     assert not re.search(r"--(deselect|ignore|continue-on-collection-errors)|-k |-m \"?not", command), command
 
 
@@ -279,8 +279,8 @@ def test_the_core_job_pins_a_floor_on_the_number_of_tests_that_ran():
 def test_a_refusal_the_tests_did_not_ask_for_fails_the_core_job():
     data = core_workflow()
     checks = [s for _, s in steps(data) if "ci_guard_refusals.py" in s.get("run", "")]
-    assert len(checks) == 1
-    guarded = core_pytest_steps(data) + ops_pytest_steps(data) + [("core", checks[0])]
+    assert len(checks) == 2
+    guarded = core_pytest_steps(data) + ops_pytest_steps(data) + [(j, s) for j, s in steps(data) if "ci_guard_refusals.py" in s.get("run", "")]
     assert {
         effective_env(data, job_name, step)["CORE_OFFLINE_GUARD_LOG"]
         for job_name, step in guarded
@@ -290,7 +290,7 @@ def test_a_refusal_the_tests_did_not_ask_for_fails_the_core_job():
     assert "|| true" not in checks[0]["run"] and not checks[0].get("continue-on-error")
     assert (ROOT / "tests_support" / "ci_guard_refusals.py").is_file()
     order = [s.get("run", "") for _, s in steps(data)]
-    assert next(i for i, r in enumerate(order) if "-m pytest" in r) < next(
+    assert next(i for i, r in enumerate(order) if "ci_core_shards.py run" in r) < next(
         i for i, r in enumerate(order) if "ci_guard_refusals.py" in r)
 
 
@@ -354,8 +354,9 @@ def test_the_ops_partition_has_its_own_floors_and_ratchet_in_the_skip_report():
     assert ops_at < report_at, "the ops report reads the file the ops run writes"
 
 
-ALLOWED_EXPRESSIONS = {"github.ref", "github.workspace", "runner.temp"}
-PINNED_PYTEST_COMMAND = 'python -m pytest core -q -p no:cacheprovider -ra --junitxml="${RUNNER_TEMP}/core-junit.xml"'
+ALLOWED_EXPRESSIONS = {"github.ref", "github.workspace", "runner.temp", "matrix.shard"}
+PINNED_PYTEST_COMMAND = ('python tests_support/ci_core_shards.py run --root core --shard ${{ matrix.shard }} '
+                         '--count 4 --out "${RUNNER_TEMP}/core-shard"')
 # The ops partition: the two evidence tools whose tests nothing else ran (the a80 replay and the funnel scoreboard).
 OPS_PARTITION_FILES = ("ops/tests/test_replay_a80.py", "ops/tests/test_funnel_scoreboard.py")
 PINNED_OPS_COMMAND = ('python -m pytest ' + " ".join(OPS_PARTITION_FILES)
@@ -382,24 +383,23 @@ def test_the_pytest_step_is_exactly_the_pinned_command():
     [(_, step)] = core_pytest_steps(data)
     assert " ".join(step["run"].split()) == PINNED_PYTEST_COMMAND
     pytest_runs = [" ".join(s["run"].split()) for _, s in steps(data) if "-m pytest" in s.get("run", "")]
-    assert sorted(pytest_runs) == sorted([PINNED_PYTEST_COMMAND, PINNED_OPS_COMMAND]), pytest_runs
+    assert pytest_runs == [PINNED_OPS_COMMAND], pytest_runs
 
 
 def test_the_ops_partition_runs_the_replay_and_funnel_scoreboard_tests_under_the_offline_guard_and_fails_the_job():
     data = core_workflow()
     [(job_name, step)] = ops_pytest_steps(data)
-    assert job_name == "core"
+    assert job_name == "ops"
     assert " ".join(step["run"].split()) == PINNED_OPS_COMMAND
     env = effective_env(data, job_name, step)
     assert env["PYTHONPATH"].split(":")[0].endswith("tests_support/offline_guard")
     assert str(env["F42_REQUIRE_OFFLINE_GUARD"]) == "1"
     assert step.get("if") == "always()", "an ops failure must show even when the core run failed"
     assert not step.get("continue-on-error")
-    order = [s.get("run", "") for _, s in steps(data)]
-    core_at = next(i for i, r in enumerate(order) if "-m pytest core" in r)
+    order = [s.get("run", "") for s in data["jobs"]["ops"]["steps"]]
     ops_at = next(i for i, r in enumerate(order) if "-m pytest ops/" in r)
     refusals_at = next(i for i, r in enumerate(order) if "ci_guard_refusals.py" in r)
-    assert core_at < ops_at < refusals_at, "the offline guard log is checked after both pytest runs"
+    assert ops_at < refusals_at, "the independent ops guard is checked after its tests"
 
 
 def test_the_ops_partition_adds_no_trigger():
@@ -408,7 +408,7 @@ def test_the_ops_partition_adds_no_trigger():
     assert triggers["push"] == {"branches": ["main", "full-42", "release/**"]}
     assert triggers["pull_request"] == {"branches": ["main", "full-42", "release/**"]}
     assert sorted(triggers) == ["pull_request", "push", "workflow_dispatch"]
-    assert sorted(core_workflow()["jobs"]) == ["core", "frontend"]
+    assert sorted(core_workflow()["jobs"]) == ["core", "core_aggregate", "frontend", "ops"]
 
 
 @pytest.mark.parametrize("path", workflow_files(), ids=lambda p: p.name)
@@ -453,3 +453,19 @@ def test_filtered_empty_browser_outer_deadline_covers_its_bounded_child():
         r"'filtered empty keeps[\s\S]*?\},\s*(\d+)\);", source)
     assert outer, "the browser test inherits Bun's shorter default deadline"
     assert int(outer[1]) > child
+
+
+def test_core_matrix_preserves_all_shards_and_requires_exact_aggregation():
+    data = core_workflow()
+    core = data["jobs"]["core"]
+    assert core["timeout-minutes"] == 60
+    assert core["strategy"] == {"fail-fast": False, "matrix": {"shard": [0, 1, 2, 3]}}
+    upload = next(s for s in core["steps"] if "upload-artifact@" in s.get("uses", ""))
+    assert upload["if"] == "always()" and upload["with"]["if-no-files-found"] == "error"
+    assert upload["with"]["path"] == "${{ runner.temp }}/core-shard"
+    aggregate = data["jobs"]["core_aggregate"]
+    assert aggregate["needs"] == "core" and aggregate["if"] == "always()"
+    merge = next(s for s in aggregate["steps"] if "ci_core_shards.py aggregate" in s.get("run", ""))
+    assert "--count 4" in merge["run"] and '--head "${GITHUB_SHA}"' in merge["run"]
+    floor = next(s for s in aggregate["steps"] if "ci_skip_report.py" in s.get("run", ""))
+    assert "--min-total 28573 --min-passed 28573 --ratchet-gap 800" in floor["run"]
