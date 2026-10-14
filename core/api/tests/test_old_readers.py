@@ -154,6 +154,15 @@ def test_de07_a_record_whose_list_becomes_a_string_fails_the_check(world):
     assert any("ask read.steps" in p for p in problems), problems
 
 
+def test_an_invalid_events_response_keeps_the_following_export_and_today_probes(world):
+    world["reader"].load(altered(world, lambda record: record.update(steps="none")))
+    reads = world["reader"].read([clone(world)])
+    assert reads[clone(world)]["ask read"]["status"] == 200
+    assert reads[clone(world)]["ask events"]["status"] == 500
+    assert reads[clone(world)]["ask export"]["status"] == 200
+    assert reads["today"]["today"]["status"] == 200
+
+
 def test_de07_a_record_whose_answer_status_changes_type_fails_the_check(world):
     problems = check(world, altered(world, lambda record: record["answer"].update(status=7)))
     assert any("$.answer.status: number is not one of" in p for p in problems), problems

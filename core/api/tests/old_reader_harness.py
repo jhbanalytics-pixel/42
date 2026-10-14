@@ -276,7 +276,7 @@ class OldReader:
         """{ask_id: {route: record}} for the three routes that read a stored Ask, plus Today. The Ask read also gives `links`, the
         evidence_links value the reader returned, or "absent": the shape alone does not show whether a stored value came back unchanged."""
         out = {}
-        with httpx.Client(base_url=self.api.url, timeout=30) as client:
+        with httpx.Client(base_url=self.api.url, timeout=30, limits=httpx.Limits(max_keepalive_connections=0)) as client:
             for ask_id in ask_ids:
                 out[ask_id] = {}
                 for route, path in (("ask read", f"/api/ask/{ask_id}"), ("ask events", f"/api/ask/{ask_id}/events"),

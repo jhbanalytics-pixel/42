@@ -3,6 +3,7 @@ import io
 import json
 import os
 import re
+import shutil
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -302,6 +303,12 @@ def chromium(monkeypatch):
     shells = [p for p in shells if p.suffix in ("", ".exe")]
     if shells:
         monkeypatch.setenv("F42_CHROMIUM", str(shells[-1]))
+        return
+    for name in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser"):
+        installed = shutil.which(name)
+        if installed:
+            monkeypatch.setenv("F42_CHROMIUM", installed)
+            return
 
 
 def test_pdf_export_is_a_valid_pdf_with_every_citation(chromium):
@@ -329,6 +336,17 @@ def test_pdf_export_is_a_valid_pdf_with_every_citation(chromium):
         if claim["kept"]:
             for quote in claim["quotes"]:
                 assert "".join(quote["text"].split()) in text
+
+
+def test_chromium_fixture_uses_the_installed_browser_when_playwright_cache_is_absent(monkeypatch, tmp_path):
+    monkeypatch.delenv("F42_CHROMIUM", raising=False)
+    monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", str(tmp_path / "empty-cache"))
+    browser = tmp_path / "google-chrome"
+    browser.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    browser.chmod(browser.stat().st_mode | 0o111)
+    monkeypatch.setattr(shutil, "which", lambda name: str(browser) if name == "google-chrome" else None)
+    chromium.__wrapped__(monkeypatch)
+    assert os.environ.get("F42_CHROMIUM") == str(browser)
 
 
 @pytest.mark.parametrize("page", [
