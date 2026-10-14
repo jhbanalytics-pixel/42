@@ -23,6 +23,7 @@ import io
 import json
 import os
 import pickle
+import shlex
 import sys
 from pathlib import Path
 
@@ -123,11 +124,17 @@ class EndToEnd:
         self.tools_run.append("core.schema.apply")
 
     def install_programs(self):
-        """py and gcloud as two .cmd files first on PATH. The paste starts them by name, as it starts the real ones."""
+        """py and gcloud stand-ins first on PATH, in the executable format of the host."""
         self.bin.mkdir(parents=True, exist_ok=True)
         for name in ("py", "gcloud"):
-            (self.bin / f"{name}.cmd").write_text(f'@echo off\r\n"{sys.executable}" -B "{SHIM}" "{self.state_path}" {name} %*\r\nexit /b %ERRORLEVEL%\r\n',
-                                                  encoding="utf-8", newline="")
+            if os.name == "nt":
+                (self.bin / f"{name}.cmd").write_text(f'@echo off\r\n"{sys.executable}" -B "{SHIM}" "{self.state_path}" {name} %*\r\nexit /b %ERRORLEVEL%\r\n',
+                                                      encoding="utf-8", newline="")
+            else:
+                program = self.bin / name
+                command = shlex.join([sys.executable, "-B", str(SHIM), str(self.state_path), name])
+                program.write_text('#!/bin/sh\nexec ' + command + ' "$@"\n', encoding="utf-8")
+                program.chmod(0o755)
 
     def make_packet(self):
         """Every file of the packet, from the tools, in the order 8.2 of the packet draft fixes."""

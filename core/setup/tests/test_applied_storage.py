@@ -177,9 +177,17 @@ def test_real_fake_jobs_install_and_update_produce_read_only_storage_proof(
 
     monkeypatch.setattr(storage.de, "git_tree_files", fixture_archive)
     run = EndToEnd(tmp_path / "synthetic", monkeypatch).make_packet()
+    import os
+
+    fake_path = str(run.bin) + os.pathsep + os.environ["PATH"]
+    for name in ("py", "gcloud"):
+        expected = run.bin / (name + ".cmd" if os.name == "nt" else name)
+        assert Path(shutil.which(name, path=fake_path)).resolve() == expected.resolve()
     for action in ("JobsCandidate", "JobsUpdate"):
         result = run.paste(action)
         assert result.returncode == 0, (result.stdout, result.stderr)
+        assert result.commands and all(argv[0] in ("py", "gcloud") for argv in result.commands)
+        assert all(argv[1:3] == ["config", "list"] for argv in result.commands if argv[0] == "gcloud")
     packet = run.bench.packet
     conventional = packet.parent / "locks/jobs" / run.bench.lock_file().name
     conventional.parent.mkdir(parents=True, exist_ok=True)
