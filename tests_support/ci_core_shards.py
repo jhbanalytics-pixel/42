@@ -75,7 +75,7 @@ def run(root, index, count, output):
         if not receipt["nodes"]:
             raise ValueError("shard has no assigned nodes")
         receipt["run_exit"] = int(pytest.main(
-            [*receipt["nodes"], "-q", "-p", "no:cacheprovider", "-ra", f"--junitxml={output / 'junit.xml'}"],
+            [*receipt["nodes"], "-q", "-p", "no:cacheprovider", "-ra", "--maxfail=1", f"--junitxml={output / 'junit.xml'}"],
             plugins=[Inventory(receipt["nodes"])],
         ))
     log = os.environ["CORE_OFFLINE_GUARD_LOG"]
