@@ -117,6 +117,8 @@ def historical_table_digest(con):
     tables = json.loads(ident.dump(con))
     restore_historical_float_bytes(
         {row["series_id"]: row for row in tables["core.series_test"]}, B0_TABLE_FLOATS)
+    restore_historical_float_bytes(
+        {row["item_id"]: row for row in tables["core.item_state"]}, B0_STATE_FLOATS)
     assert stats.RULE_VERSION == "stats-3-distinct-item-prior-health"
     for table in ("core.series_test", "core.test_switch"):
         assert tables[table]
@@ -439,3 +441,28 @@ def test_healthy_historical_checks_write_no_diagnostic(built, monkeypatch, tmp_p
     test_every_table_detect_writes_except_early_signal_is_byte_identical_to_the_base_commit(built)
     test_state_worth_ranks_and_eligibility_are_byte_identical_to_the_base_commit(built)
     assert not (tmp_path / "core-shard" / "diagnostics").exists()
+
+
+def test_full_table_digest_accepts_the_same_state_roundoff_as_state_digest(built):
+    con, _ = built
+    con.execute("BEGIN TRANSACTION")
+    try:
+        con.execute("UPDATE core.item_state SET worth_raw = worth_raw + 1e-16 WHERE item_id = 'jump'")
+        current = {row["item_id"]: row for row in duck.query(con, "SELECT * FROM {core}.item_state")}
+        states = ident.state_rows(current)
+        restore_historical_float_bytes(states, B0_STATE_FLOATS)
+        assert ident.digest(json.dumps(states, sort_keys=True, default=ident._plain).encode("utf-8")) == B0_STATE
+        assert historical_table_digest(con) == B0_TABLES
+    finally:
+        con.execute("ROLLBACK")
+
+
+def test_full_table_digest_refuses_material_state_roundoff(built):
+    con, _ = built
+    con.execute("BEGIN TRANSACTION")
+    try:
+        con.execute("UPDATE core.item_state SET worth_raw = worth_raw + 1e-6 WHERE item_id = 'jump'")
+        with pytest.raises(AssertionError):
+            historical_table_digest(con)
+    finally:
+        con.execute("ROLLBACK")
