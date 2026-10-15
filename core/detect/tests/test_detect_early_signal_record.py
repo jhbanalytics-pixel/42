@@ -156,7 +156,7 @@ def test_state_worth_ranks_and_eligibility_are_byte_identical_to_the_base_commit
 
 def test_the_today_payload_is_byte_identical_to_the_one_the_api_lane_built():
     from core.api import today
-    from core.api.store import FixtureStore
+    from core.api.tests.test_today import FixtureStore
 
     payload = today.build_today(FixtureStore(), "2026-09-30")
     held = [item for market in payload["markets"] for item in market["held_back"]["items"]]
