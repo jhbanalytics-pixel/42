@@ -147,6 +147,37 @@ test('temporary profile cleanup removes nested browser state', () => {
   expect(existsSync(profile)).toBe(false);
 });
 
+test.each([1, 20])('temporary profile cleanup retries a directory recreated after removal %i times', (recreations) => {
+  const script = `
+    import fs from 'node:fs';
+    import {syncBuiltinESMExports} from 'node:module';
+    import {tmpdir} from 'node:os';
+    import {join} from 'node:path';
+    import {cleanupTemporaryPath} from ${JSON.stringify(new URL('./task4-proof-helpers.js', import.meta.url).href)};
+    const profile = fs.mkdtempSync(join(tmpdir(), 'lp-cleanup-recreated-'));
+    const remove = fs.rmSync;
+    let calls = 0;
+    fs.rmSync = (path, options) => {
+      remove(path, options);
+      if (path === profile && ++calls <= ${recreations}) fs.mkdirSync(path);
+    };
+    syncBuiltinESMExports();
+    try {
+      cleanupTemporaryPath(profile);
+      if (${recreations} > 10) throw new Error('Persistent writer was accepted');
+      if (fs.existsSync(profile) || calls !== 2) throw new Error('Recreated directory was not removed');
+    } catch (error) {
+      if (${recreations} <= 10 || !error.message.includes('Temporary path remains after cleanup:')) throw error;
+      if (calls !== 11) throw new Error('Cleanup retry count is not bounded');
+    } finally {
+      remove(profile, {recursive: true, force: true});
+    }
+  `;
+  const result = Bun.spawnSync(['node', '--input-type=module', '-e', script], {stdout: 'pipe', stderr: 'pipe'});
+  expect(new TextDecoder().decode(result.stderr)).toBe('');
+  expect(result.exitCode).toBe(0);
+});
+
 test.skipIf(process.platform !== 'win32')('temporary profile cleanup waits for a releasing Windows file lock', async () => {
   const profile = mkdtempSync(join(tmpdir(), 'lp-cleanup-locked-'));
   const file = join(profile, 'locked.txt');

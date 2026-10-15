@@ -152,14 +152,14 @@ export async function runBoundedSubprocess(run, {
 }
 
 export function cleanupTemporaryPath(path){
-  for (let attempt = 0; existsSync(path); attempt += 1){
+  for (let attempt = 0; attempt <= 10 && existsSync(path); attempt += 1){
     try {
       rmSync(path, {recursive: true, force: true});
-      break;
+      if (!existsSync(path)) return;
     } catch (error){
       if (attempt >= 10 || !['EBUSY', 'EPERM', 'ENOTEMPTY'].includes(error.code)) throw error;
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
     }
+    if (attempt < 10) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
   }
   if (existsSync(path)) throw new Error(`Temporary path remains after cleanup: ${path}`);
 }
