@@ -1326,7 +1326,9 @@ def dependency_inventory(repo, commit):
             for column in schema.expressions:
                 if not isinstance(column, exp.ColumnDef):
                     continue
-                nullable = not any(
+                nullable = column.args[
+                    "kind"
+                ].this != exp.DataType.Type.ARRAY and not any(
                     isinstance(c.args.get("kind"), exp.NotNullColumnConstraint)
                     for c in column.args.get("constraints", [])
                 )

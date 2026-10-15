@@ -632,3 +632,91 @@ def test_source_refuses_unresolved_dynamic_sql_namespace(monkeypatch, addition):
         storage.Refused, match="dynamic SQL object|dependency is unknown"
     ):
         storage.dependency_inventory(ROOT, "e93d32f8e72e6e55eb45a4c53dfb66f50f73f7f9")
+
+
+@pytest.fixture(scope="module")
+def retained_findings_comparison():
+    from core.setup.release import applied_storage as storage
+
+    wanted = storage.dependency_inventory(
+        ROOT, "a15eebd206efc56fcc4be807b06ab40af3ad6041"
+    )["intelligence_42_agent.findings"]
+    # Native INFORMATION_SCHEMA metadata retained on 2026-10-15.
+    observed = {
+        "kind": "table",
+        "target": "intelligence_42_agent.findings",
+        "body": "",
+        "columns": [
+            {"column_name": "answer", "data_type": "STRING", "is_nullable": "YES"},
+            {"column_name": "as_of", "data_type": "TIMESTAMP", "is_nullable": "YES"},
+            {
+                "column_name": "claims",
+                "data_type": "ARRAY < STRUCT < text STRING , label STRING , item_ids "
+                "ARRAY < STRING > , evidence_post_ids ARRAY < STRING > , "
+                "query_ids ARRAY < STRING > , run_ids ARRAY < STRING > , "
+                "result_hashes ARRAY < STRING > > >",
+                "is_nullable": "NO",
+            },
+            {"column_name": "finding_id", "data_type": "STRING", "is_nullable": "NO"},
+            {"column_name": "question", "data_type": "STRING", "is_nullable": "YES"},
+            {"column_name": "status", "data_type": "STRING", "is_nullable": "YES"},
+            {
+                "column_name": "valid_from",
+                "data_type": "TIMESTAMP",
+                "is_nullable": "YES",
+            },
+            {"column_name": "valid_to", "data_type": "TIMESTAMP", "is_nullable": "YES"},
+        ],
+    }
+    return wanted, observed
+
+
+def test_source_array_nullability_matches_retained_findings(
+    retained_findings_comparison,
+):
+    from core.setup.release import applied_storage as storage
+
+    wanted, observed = retained_findings_comparison
+    storage.compare_native({wanted["target"]: wanted}, {observed["target"]: observed})
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "nullable_scalar",
+        "required_scalar",
+        "array_type",
+        "nested_name",
+        "nested_order",
+        "missing_column",
+    ],
+)
+def test_findings_array_repair_preserves_native_drift_refusal(
+    retained_findings_comparison, mutation
+):
+    from copy import deepcopy
+    from core.setup.release import applied_storage as storage
+
+    wanted, retained = retained_findings_comparison
+    observed = deepcopy(retained)
+    columns = {column["column_name"]: column for column in observed["columns"]}
+    if mutation == "nullable_scalar":
+        columns["answer"]["is_nullable"] = "NO"
+    elif mutation == "required_scalar":
+        columns["finding_id"]["is_nullable"] = "YES"
+    elif mutation == "array_type":
+        columns["claims"]["data_type"] = "STRING"
+    elif mutation == "nested_name":
+        columns["claims"]["data_type"] = columns["claims"]["data_type"].replace(
+            "text STRING", "renamed STRING"
+        )
+    elif mutation == "nested_order":
+        columns["claims"]["data_type"] = columns["claims"]["data_type"].replace(
+            "text STRING , label STRING", "label STRING , text STRING"
+        )
+    else:
+        observed["columns"].remove(columns["answer"])
+    with pytest.raises(storage.Refused, match="definition/type/signature drift"):
+        storage.compare_native(
+            {wanted["target"]: wanted}, {observed["target"]: observed}
+        )
