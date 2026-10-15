@@ -166,9 +166,10 @@ def critic_for(located):
     their own words ("it dropped on Monday"); in case 2 they are own_feed_local and the sentence words them as seen
     in South Africa's feeds, which CRITIC_SYSTEM allows for a local why-now."""
     return {"non_cultural_explanation": "a paid or sponsored push behind the release",
-            "ruled_out": True, "news_driven": False, "local_reaction": False, "local_why_now": True,
+            "ruled_out": True, "news_driven": False, "scheduled_event": False, "local_reaction": False, "local_why_now": True,
             "reason": "Every post was checked and shows no paid label, and four unrelated creators post their own "
-                      "takes on different days; two cited posts give the timing in their own words."}
+                      "kasi step videos on different days, demonstrating adopted dance practice beyond the release; "
+                      "two cited posts give the timing in their own words."}
 
 
 _CLAIM = re.compile(r"^Claim:\n<untrusted_content>\n(.*?)\n</untrusted_content>\nLabel: (.*)$", re.M | re.S)
@@ -266,17 +267,12 @@ def test_an_honest_local_trend_publishes_as_an_explained_card(located, monkeypat
                       "c3": "observed" if located else "single_source", "c4": "observed"}
 
 
-# Recorded, not endorsed: the same honest trend when the critic names the release itself as the simplest
-# non-cultural explanation. WRITER_SYSTEM asks for a why-now that names "an event, date, release, announcement,
-# match, holiday or moment"; CRITIC_SYSTEM's menu holds "a news event or scheduled event that alone accounts for the
-# posts", and its event pass (news_driven) is worded for "a news event" only. Whether a release, match or holiday
-# card publishes then rests on whether the critic reads it as news. That reading is the owner's call, so these
-# cases pin what the code does with each answer today.
+# Naming the release as sufficient explanation holds either event classification.
 
 
 def release_critic(news_driven):
     return {"non_cultural_explanation": "a scheduled event: the song's release on Monday accounts for the posts",
-            "ruled_out": False, "news_driven": news_driven, "local_reaction": news_driven, "local_why_now": True,
+            "ruled_out": False, "news_driven": news_driven, "scheduled_event": not news_driven, "local_reaction": news_driven, "local_why_now": True,
             "reason": "Two cited posts tie their videos to Monday's drop and four creators react in their own words."}
 
 
@@ -290,11 +286,9 @@ def test_a_release_named_as_a_scheduled_event_holds_the_card(located, monkeypatc
 
 
 @pytest.mark.parametrize("located", [True, False], ids=["located_in_za", "own_feeds_only"])
-def test_a_release_read_as_news_with_local_reaction_publishes_one_step_lower(located, monkeypatch):
-    counts, payload, _ = brief(world(located=located), HonestModel(located, release_critic(True)), monkeypatch)
-    assert counts["cards"] == 1 and holds(payload) == []
-    [card] = payload["cards"]
-    assert card["explained"] is True and card["news_driven"] is True
-    lower = "single_source" if located else "inferred"
-    assert {c["id"]: c["label"] for c in card["claims"]} == {"c1": lower, "c2": "inferred", "c3": lower,
-                                                            "c4": "single_source"}
+def test_a_release_read_as_news_with_only_local_reaction_holds(located, monkeypatch):
+    counts, payload, checks = brief(world(located=located), HonestModel(located, release_critic(True)), monkeypatch)
+    assert counts["cards"] == 0
+    assert holds(payload) == [(ITEM, "explanation_failed", "G10",
+                               "Critic: a simpler explanation was not ruled out: a news or scheduled event")]
+    assert [c["rule"] for c in checks if c["verdict"] in ("cut", "breach")] == ["critic"]

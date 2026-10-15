@@ -1,5 +1,4 @@
-"""The critic row records how many different local creators reacted (N24). Record only: the verdict, the standing
-words in the detail and the 2-creator rule (NEWS_MIN_CREATORS) are exactly as before."""
+"""Reacting creator counts remain auditable but cannot grant cultural qualification."""
 
 import pytest
 
@@ -11,9 +10,9 @@ NEWS = {"non_cultural_explanation": "a news event", "ruled_out": False, "news_dr
 
 @pytest.mark.parametrize(("reacting", "verdict", "standing"), [
     (0, "cut", "not ruled out"), (1, "cut", "not ruled out"),
-    (2, "pass", "news-driven with local reaction"), (5, "pass", "news-driven with local reaction"),
+    (2, "cut", "not ruled out"), (5, "cut", "not ruled out"),
 ])
-def test_the_row_records_the_reacting_creator_count_and_the_verdict_is_unchanged(reacting, verdict, standing):
+def test_the_row_records_count_without_qualifying_ordinary_reaction(reacting, verdict, standing):
     row = _critic_row(NEWS, reacting)
     assert row["verdict"] == verdict
     assert f"; {standing}: posts react to the news; reacting local creators: {reacting}; local why-now checked" in row["detail"]

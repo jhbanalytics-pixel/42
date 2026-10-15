@@ -705,8 +705,9 @@ def skin_ctx(ctx, monkeypatch):
 
 def test_skin_today_is_today_narrowed_to_the_skin_with_its_alerts(skin_ctx, monkeypatch):
     from core.api import store
+    from core.api.tests.test_today import FixtureStore, _fixture_critics
 
-    class SkinTodayStore(store.FixtureStore):
+    class SkinTodayStore(FixtureStore):
         def briefs(self, date):
             rows = super().briefs(date)
             if date == "2026-09-30":
@@ -717,6 +718,7 @@ def test_skin_today_is_today_narrowed_to_the_skin_with_its_alerts(skin_ctx, monk
                 outside.update(item_id="synthetic_out_of_skin", title="synthetic out of skin",
                                label="synthetic out of skin", hashtags=[])
                 za["payload"]["cards"].append(outside)
+                za["payload"]["critic"].extend(_fixture_critics([outside]))
             return rows
 
     monkeypatch.setattr(store, "get_store", lambda: SkinTodayStore())

@@ -187,7 +187,7 @@ def draft(ids, local_ids=None):
     local_ids = list(ids if local_ids is None else local_ids)
     quote_id = local_ids[-1] if local_ids else ids[-1]
     return {
-        "explanation": "Local creators are posting videos with this tag, likely through dance clips shared at home.",
+        "explanation": "Local creators post new-sound dance videos at home with friends, likely through dance clips shared at home.",
         "explanation_claim_ids": ["c1", "c3"],
         "claims": [
             {"id": "c1", "text": "Local creators are posting videos with this tag.", "label": "observed",
@@ -218,8 +218,9 @@ class FakeModel:
         usage = {"input_tokens": 100, "output_tokens": 50, "usd": self.usd}
         if critic:
             return {"non_cultural_explanation": "a paid campaign", "ruled_out": self.ruled_out,
+                    "news_driven": False, "scheduled_event": False, "local_reaction": False,
                     "local_why_now": True,
-                    "reason": "fake"}, usage
+                    "reason": "Cited local posts adopt new-sound dance videos at home with friends."}, usage
         if support:
             return {"verdict": "supported", "reason": "fake"}, usage
         posts = [json.loads(line[5:]) for line in user.splitlines() if line.startswith("post {")]
@@ -2553,7 +2554,8 @@ def test_the_critic_explanation_is_named_only_by_its_menu_wording(explanation, m
 
 
 def critic_out(ruled_out, local_why_now, explanation="a sponsored push by a drinks brand"):
-    return {"non_cultural_explanation": explanation, "ruled_out": ruled_out, "local_why_now": local_why_now,
+    return {"non_cultural_explanation": explanation, "ruled_out": ruled_out,
+            "news_driven": False, "scheduled_event": False, "local_reaction": False, "local_why_now": local_why_now,
             "reason": "the posts say so"}
 
 
@@ -2948,23 +2950,25 @@ def test_payload_candidate_carries_news_driven_only_for_an_explained_result():
     assert job._payload_candidate(cand, None)["news_driven"] is False
 
 
-def test_a_news_driven_pass_is_recorded_as_news_driven_never_as_ruled_out():
+def test_news_reaction_is_recorded_as_a_rival_hold_never_as_ruled_out():
     out = {"non_cultural_explanation": "a news event", "ruled_out": False, "news_driven": True,
-           "local_reaction": True, "local_why_now": True, "reason": "the posts say so"}
+           "scheduled_event": False, "local_reaction": True, "local_why_now": True,
+           "reason": "Cited local posts only react to the announcement."}
     row = explain._critic_row(out, 2)
-    assert row["verdict"] == "pass"
+    assert row["verdict"] == "cut"
     reason = job.check_reason(row)
-    assert reason == "Critic: news-driven, local creators react in their own words: a news or scheduled event"
-    assert "ruled out" not in reason and reason in fixed_words()
+    assert reason == "Critic: a simpler explanation was not ruled out: a news or scheduled event"
+    assert reason in fixed_words()
     cut = explain._critic_row(dict(out, local_why_now=False), 2)
-    assert job.check_reason(cut) == "Critic: local why-now not shown"
+    assert job.check_reason(cut) == reason + "; local why-now not shown"
 
 
 def test_the_critics_answer_is_stored_in_the_briefs_payload_for_shown_and_held_items():
     shown = brief(world(n=1))
     held = brief(world(n=1), model=FakeModel(ruled_out=False))
-    answer = {"non_cultural_explanation": "a paid campaign", "local_why_now": True, "reason": "fake",
-              "news_driven": None, "scheduled_event": None, "local_reaction": None}
+    answer = {"non_cultural_explanation": "a paid campaign", "local_why_now": True,
+              "reason": "Cited local posts adopt new-sound dance videos at home with friends.",
+              "news_driven": False, "scheduled_event": False, "local_reaction": False}
     for m in MARKETS:
         # The shadow record of core/brief/rivals.py rides on every critic entry, whether or not a rival was found.
         for stored, ruled_out in ((payload(shown, m)["critic"], True), (payload(held, m)["critic"], False)):

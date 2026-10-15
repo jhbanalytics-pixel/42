@@ -11,7 +11,7 @@ import pytest
 from core.api import discover, people, today
 from core.api.held_words import EXPLANATION_WORDS
 from core.api import store as store_mod
-from core.api.store import FixtureStore
+from core.api.tests.test_today import FixtureStore
 
 D30 = "2026-09-30"
 HIDDEN = "fixture_ng_hidden"  # c_ng_hidden in people_creators.json, on people_suppressed.json

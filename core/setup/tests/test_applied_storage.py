@@ -312,8 +312,11 @@ def test_real_fake_jobs_install_and_update_produce_read_only_storage_proof(
         now=run.bench.fixture.now,
         native_factory=ReadOnlyNative,
     ) == storage.so.sha_bytes(output.read_bytes())
-    saved_body = complete["intelligence_42_agent.v_item_evidence"]["body"]
-    complete["intelligence_42_agent.v_item_evidence"]["body"] = "SELECT 0 AS wrong"
+    target = "intelligence_42_agent.v_item_evidence"
+    native_view = state["warehouse_objects"][storage.so.PROJECT + "." + target]["view"]
+    saved_body = native_view["query"]
+    native_view["query"] = "SELECT 0 AS wrong"
+    assert ReadOnlyNative(bound).definition(complete[target])["body"] == "SELECT 0 AS wrong"
     with pytest.raises(storage.Refused, match="drift"):
         storage.verify(
             manifest,
@@ -323,7 +326,7 @@ def test_real_fake_jobs_install_and_update_produce_read_only_storage_proof(
             now=run.bench.fixture.now,
             native_factory=ReadOnlyNative,
         )
-    complete["intelligence_42_agent.v_item_evidence"]["body"] = saved_body
+    native_view["query"] = saved_body
     with pytest.raises(storage.Refused, match="expired"):
         storage.verify(
             manifest,

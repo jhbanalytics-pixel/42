@@ -101,8 +101,9 @@ def fabricated():
     return draft
 
 
-RULED_OUT = {"non_cultural_explanation": "a paid campaign", "ruled_out": True, "local_why_now": True,
-             "reason": "unrelated creators post it in their own words and no post is flagged sponsored"}
+RULED_OUT = {"non_cultural_explanation": "a paid campaign", "ruled_out": True, "news_driven": False, "scheduled_event": False,
+             "local_reaction": False, "local_why_now": True,
+             "reason": "tt_1 and ig_2 adopt the shaya step dance, and ig_2 and tt_3 tie the practice to braais"}
 
 
 class FakeModel:
@@ -1601,7 +1602,7 @@ def test_a_critic_that_rules_out_the_simple_explanation_lets_the_card_publish(mo
     assert call["model"] == "gemini-other"
     row = critic_row(result)
     assert row["claim_id"] is None and row["verdict"] == "pass" and row["checker"] == "model"
-    assert "a paid campaign" in row["detail"] and "no post is flagged sponsored" in row["detail"]
+    assert "a paid campaign" in row["detail"] and "adopt the shaya step dance" in row["detail"]
     assert set(row) == {"claim_id", "rule", "verdict", "checker", "detail", "standing", "local_why_now"}
     assert row["standing"] == "ruled out" and row["local_why_now"] is True
 
@@ -1902,8 +1903,7 @@ def test_a_claim_cannot_turn_a_national_action_into_a_feed_observation_with_a_su
 
 
 
-# News-driven topics (Albert, 2 Oct): a news event the posts do not rule out may still publish when local creators add
-# their own reaction, labelled news-driven and one confidence step lower.
+# Ordinary news reaction stays held even when creators add their own words.
 
 NEWS_REACTION = {"non_cultural_explanation": "a news event", "ruled_out": False, "news_driven": True,
                  "local_reaction": True, "local_why_now": True,
@@ -1917,14 +1917,11 @@ def test_critic_schema_asks_for_news_driven_and_local_reaction():
     assert "news_driven" in explain.CRITIC_SYSTEM and "local_reaction" in explain.CRITIC_SYSTEM
 
 
-def test_a_news_event_with_local_reaction_publishes_labelled_one_step_lower():
+def test_a_news_event_with_only_local_reaction_is_held():
     result = run(FakeModel([good()], critic=NEWS_REACTION))
-    assert result["numbers_only"] is False and result["reason"] is None
-    assert result["news_driven"] is True
-    row = critic_row(result)
-    assert row["verdict"] == "pass" and "news-driven with local reaction" in row["detail"]
-    labels = {c["id"]: c["label"] for c in result["claims"]}
-    assert labels == {"c1": "single_source", "c2": "inferred", "c3": "inferred"}
+    assert_numbers_only(result, "failed_checks")
+    assert result["news_driven"] is False
+    assert critic_row(result)["verdict"] == "cut"
 
 
 def test_a_ruled_out_explanation_is_not_news_driven_and_keeps_its_labels():
@@ -1972,7 +1969,7 @@ def test_the_critics_answer_is_returned_field_for_field_when_it_passes():
     assert explain.CRITIC_FIELDS == ("non_cultural_explanation", "ruled_out", "news_driven", "scheduled_event",
                                      "local_reaction", "local_why_now", "reason")
     assert result["critic"] == {"non_cultural_explanation": "a paid campaign", "ruled_out": True,
-                                "news_driven": None, "scheduled_event": None, "local_reaction": None,
+                                "news_driven": False, "scheduled_event": False, "local_reaction": False,
                                 "local_why_now": True,
                                 "reason": RULED_OUT["reason"]}
 

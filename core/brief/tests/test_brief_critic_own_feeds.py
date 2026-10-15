@@ -138,12 +138,11 @@ def test_an_own_feed_only_pack_gives_the_critic_cited_local_posts_to_weigh():
     assert 'marked own_feed_local true: ["ev_feed_a", "ev_feed_b"]' in rest
 
 
-def test_the_critic_and_support_prompts_are_byte_for_byte_unchanged_by_the_writer_feed_wording_line():
-    """BR-1 (4 Oct) clarified only the writer's law 12. What the critic and the support check trust is unchanged:
-    their system prompts are pinned to the bytes they had at 80d3948c."""
+def test_cultural_critic_prompt_and_unchanged_support_prompt_are_pinned():
+    """Pin the strengthened critic policy while retaining the existing support contract."""
     import hashlib
 
     assert hashlib.sha256(explain.CRITIC_SYSTEM.encode("utf-8")).hexdigest() == (
-        "8c58bf3b6b15059a23060ecdb84c674acf8ddb80219da00ecaa4ede49e1090b6")
+        "ed315786e5b1a2865bc99f8867650f405d90fac21e5f43fc01091620983366ac")
     assert hashlib.sha256(explain.SUPPORT_SYSTEM.encode("utf-8")).hexdigest() == (
         "0da133fe7fb64a1bf099d653b147370a55d17dc37dee38777b4657d0df69f123")

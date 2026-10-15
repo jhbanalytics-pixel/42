@@ -3,7 +3,7 @@ import json
 from copy import deepcopy
 
 from core.api import today
-from core.api.store import FixtureStore
+from core.api.tests.test_today import FixtureStore
 
 D30 = "2026-09-30"
 

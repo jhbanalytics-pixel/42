@@ -90,6 +90,10 @@ def today_problems_of(pins, bodies):
 def head():
     """Head's answer to every request of every route, on fixtures, with the clock the pins were taken at."""
     patch = pytest.MonkeyPatch()
+    from core.api import store as store_mod
+    from core.api.tests.test_today import FixtureStore
+
+    patch.setattr(store_mod, "get_store", lambda: FixtureStore())
     patch.setenv("UI_PASSCODE", PASS)
     patch.setenv("F42_DATA", "fixtures")
     patch.setenv("F42_AGENT", "fixture")

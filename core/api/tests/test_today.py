@@ -9,11 +9,29 @@ from urllib.parse import urlencode
 import pytest
 
 from core.api import today
-from core.api.store import BigQueryStore, FixtureStore, get_store
+from core.api.store import BigQueryStore, FixtureStore as RawFixtureStore, get_store
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 D30 = "2026-09-30"
 D29 = "2026-09-29"
+
+
+def _fixture_critics(cards):
+    return [{"item_id": c["item_id"], "ruled_out": True, "news_driven": False,
+             "scheduled_event": False, "local_reaction": False, "local_why_now": True,
+             "non_cultural_explanation": "A single event would not explain the repeated fixture practice.",
+             "reason": "Fixture creators repeat a supported practice across distinct posts."}
+            for c in cards if isinstance(c, dict) and c.get("item_id")]
+
+
+class FixtureStore(RawFixtureStore):
+    def _load(self, name):
+        rows = super()._load(name)
+        if name == "briefs":
+            for row in rows:
+                payload = row["payload"]
+                payload["critic"] = _fixture_critics(payload.get("cards", []) + payload.get("more", []))
+        return rows
 
 
 def iid(kind, key):
@@ -104,6 +122,7 @@ def _today_store(cards, more=None, headline=None, held_back=None):
                 if row["market"] == "ZA":
                     row["payload"]["cards"] = deepcopy(cards)
                     row["payload"]["more"] = deepcopy(more or [])
+                    row["payload"]["critic"] = _fixture_critics(cards + (more or []))
                     row["payload"]["headline"] = deepcopy(headline)
                     if held_back is not None:
                         row["payload"]["held_back"] = deepcopy(held_back)
@@ -138,9 +157,9 @@ def _replace_specificity_quote(card, text, source_text=None):
 
 def test_get_store_picks_backend(monkeypatch):
     monkeypatch.delenv("F42_DATA", raising=False)
-    assert isinstance(get_store(), FixtureStore)
+    assert isinstance(get_store(), RawFixtureStore)
     monkeypatch.setenv("F42_DATA", "fixtures")
-    assert isinstance(get_store(), FixtureStore)
+    assert isinstance(get_store(), RawFixtureStore)
     monkeypatch.setenv("F42_DATA", "bigquery")
     monkeypatch.setattr("google.cloud.bigquery.Client", lambda *a, **k: FakeClient())
     assert isinstance(get_store(), BigQueryStore)

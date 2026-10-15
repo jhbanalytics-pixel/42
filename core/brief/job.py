@@ -61,7 +61,7 @@ from time import sleep as _sleep
 from core.brief import confirm as confirm_lane
 from core.brief import gatectx
 from core.api.store import creator_key
-from core.api.today import _today_card_fault, without_hidden
+from core.api.today import _named_pattern, _today_card_fault, without_hidden
 from core.brief import pack_order
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
 from core.brief.explain import CHECK_INCOMPLETE, STANDINGS, TITLE_RULE, explain_trend
@@ -331,7 +331,7 @@ def _id_like(value):
 def readable_title(label, key):
     """The label, else a canonical key that is a name rather than an id, else None."""
     for value in (label, key):
-        if value and not _id_like(value):
+        if value and not _id_like(value) and _named_pattern(value):
             return value
     return None
 

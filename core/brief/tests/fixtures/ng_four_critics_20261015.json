@@ -1,0 +1,230 @@
+{
+  "source_head": "b3d354d059e9df4357d33dcffacfc85a1d631e47",
+  "source_fixture_sha256": "3310fd1eeddd61164b11ebaf1caf9c3df60063045d1fab6c28dfd68d4552b7c1",
+  "cards": [
+    {
+      "item_id": "01186adf6f59480408089f7e354a050a0af61f17313d7190fc8338db396d33ea",
+      "critic": {
+        "code_rivals": {
+          "critic_ruled_out": false,
+          "disagreement": false,
+          "found": [],
+          "inputs": {
+            "burst_share": {
+              "query_id": "q_burst_share_4dbea070188e",
+              "value": 0.044444444444444446
+            },
+            "moment": {
+              "query_id": "q_moment_8ff55e3d5c2b",
+              "value": null
+            },
+            "near_dup_share": {
+              "query_id": "q_near_dup_share_49ac576d5f14",
+              "value": 0.012578616352201259
+            },
+            "posts7": {
+              "query_id": "q_posts7_ce13a0031cc9",
+              "value": 159
+            },
+            "sponsored_share": {
+              "query_id": "q_sponsored_share_d2aaa1c9de15",
+              "value": 0
+            },
+            "top3_share": {
+              "query_id": "q_top3_share_4d835b0578a5",
+              "value": 0.1949685534591195
+            }
+          },
+          "not_assessed": [
+            "regime_break"
+          ],
+          "read": "ok",
+          "record_version": 2,
+          "thresholds": {
+            "burst": 0.35,
+            "concentrated": 0.6,
+            "min_posts7": 10,
+            "near_duplicates": 0.3,
+            "sponsored": 0.5
+          }
+        },
+        "item_id": "01186adf6f59480408089f7e354a050a0af61f17313d7190fc8338db396d33ea",
+        "local_reaction": true,
+        "local_why_now": true,
+        "news_driven": false,
+        "non_cultural_explanation": "a scheduled sports fixture between Manchester United and Atletico Madrid driving match discussions and reactions",
+        "reason": "The trend was driven by a scheduled Champions League football match on 13 Oct, prompting original opinions and commentary from local creators in Nigeria.",
+        "ruled_out": false,
+        "scheduled_event": true
+      }
+    },
+    {
+      "item_id": "3e29fc8b574afcab5ebeb686342b945a9bc42f4cd819d1cb0bd009770b11f7e7",
+      "critic": {
+        "code_rivals": {
+          "critic_ruled_out": false,
+          "disagreement": false,
+          "found": [],
+          "inputs": {
+            "burst_share": {
+              "query_id": "q_burst_share_950a91ec2409",
+              "value": 0.0392156862745098
+            },
+            "moment": {
+              "query_id": "q_moment_6c26986c8f50",
+              "value": null
+            },
+            "near_dup_share": {
+              "query_id": "q_near_dup_share_2016fd8d774f",
+              "value": 0.01
+            },
+            "posts7": {
+              "query_id": "q_posts7_4924d1faa207",
+              "value": 100
+            },
+            "sponsored_share": {
+              "query_id": "q_sponsored_share_3c51784a51c6",
+              "value": 0
+            },
+            "top3_share": {
+              "query_id": "q_top3_share_dcbc94ed0e69",
+              "value": 0.3
+            }
+          },
+          "not_assessed": [
+            "regime_break"
+          ],
+          "read": "ok",
+          "record_version": 2,
+          "thresholds": {
+            "burst": 0.35,
+            "concentrated": 0.6,
+            "min_posts7": 10,
+            "near_duplicates": 0.3,
+            "sponsored": 0.5
+          }
+        },
+        "item_id": "3e29fc8b574afcab5ebeb686342b945a9bc42f4cd819d1cb0bd009770b11f7e7",
+        "local_reaction": true,
+        "local_why_now": true,
+        "news_driven": false,
+        "non_cultural_explanation": "a scheduled sports match between Arsenal and Lille in the Champions League",
+        "reason": "The posts directly discuss the scheduled Champions League football match between Arsenal and Lille played on 13 October, with local Nigerian creators sharing personal reactions and commentary in their own words.",
+        "ruled_out": false,
+        "scheduled_event": true
+      }
+    },
+    {
+      "item_id": "230d764756c64a9bffe655fe583ef1155c9fe6b461ad415b8fcd2364d010caac",
+      "critic": {
+        "code_rivals": {
+          "critic_ruled_out": false,
+          "disagreement": false,
+          "found": [],
+          "inputs": {
+            "burst_share": {
+              "query_id": "q_burst_share_b37668fbfae8",
+              "value": 0.05161290322580645
+            },
+            "moment": {
+              "query_id": "q_moment_483907f3501c",
+              "value": null
+            },
+            "near_dup_share": {
+              "query_id": "q_near_dup_share_944cfba402ea",
+              "value": 0
+            },
+            "posts7": {
+              "query_id": "q_posts7_913c6b1e44d9",
+              "value": 185
+            },
+            "sponsored_share": {
+              "query_id": "q_sponsored_share_edef1b21dd7c",
+              "value": 0
+            },
+            "top3_share": {
+              "query_id": "q_top3_share_c2a9ec34a829",
+              "value": 0.2972972972972973
+            }
+          },
+          "not_assessed": [
+            "regime_break"
+          ],
+          "read": "ok",
+          "record_version": 2,
+          "thresholds": {
+            "burst": 0.35,
+            "concentrated": 0.6,
+            "min_posts7": 10,
+            "near_duplicates": 0.3,
+            "sponsored": 0.5
+          }
+        },
+        "item_id": "230d764756c64a9bffe655fe583ef1155c9fe6b461ad415b8fcd2364d010caac",
+        "local_reaction": true,
+        "local_why_now": true,
+        "news_driven": false,
+        "non_cultural_explanation": "a scheduled sports tournament featuring live matches",
+        "reason": "The posts directly discuss scheduled UEFA Champions League matches occurring on the cited dates with distinct personal commentary from local creators.",
+        "ruled_out": false,
+        "scheduled_event": true
+      }
+    },
+    {
+      "item_id": "9ff11628468fb8879c1f9d368f9fc60f52f6f8939f0b24dd15f7baac2cc92807",
+      "critic": {
+        "code_rivals": {
+          "critic_ruled_out": false,
+          "disagreement": false,
+          "found": [],
+          "inputs": {
+            "burst_share": {
+              "query_id": "q_burst_share_aa04a0bdf846",
+              "value": 0.061224489795918366
+            },
+            "moment": {
+              "query_id": "q_moment_ad36e6d81fa7",
+              "value": null
+            },
+            "near_dup_share": {
+              "query_id": "q_near_dup_share_9b9cd0e317ec",
+              "value": 0
+            },
+            "posts7": {
+              "query_id": "q_posts7_9fd77df33670",
+              "value": 134
+            },
+            "sponsored_share": {
+              "query_id": "q_sponsored_share_e43a558625bb",
+              "value": 0
+            },
+            "top3_share": {
+              "query_id": "q_top3_share_6d2e9f92e902",
+              "value": 0.23880597014925373
+            }
+          },
+          "not_assessed": [
+            "regime_break"
+          ],
+          "read": "ok",
+          "record_version": 2,
+          "thresholds": {
+            "burst": 0.35,
+            "concentrated": 0.6,
+            "min_posts7": 10,
+            "near_duplicates": 0.3,
+            "sponsored": 0.5
+          }
+        },
+        "item_id": "9ff11628468fb8879c1f9d368f9fc60f52f6f8939f0b24dd15f7baac2cc92807",
+        "local_reaction": true,
+        "local_why_now": true,
+        "news_driven": false,
+        "non_cultural_explanation": "Arsenal playing Lille in the UEFA Champions League on 13 October accounts for the rise in posts as a scheduled sporting event.",
+        "reason": "The posts directly discuss and react in their own words to Arsenal's Champions League match against Lille on 13 October, which is a scheduled sporting event.",
+        "ruled_out": false,
+        "scheduled_event": true
+      }
+    }
+  ]
+}

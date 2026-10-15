@@ -216,9 +216,11 @@ def test_a_brief_that_held_every_item_is_listed_with_its_held_count():
 
 def test_brief_counts_follow_todays_reading():
     good = first_admitted_card()
+    from core.api.tests.test_stored_publication_quality import critic
     payload = {"cards": [good, {"item_id": "x1", "explained": False}], "more": [{"item_id": "x2"}, "junk"],
                "held_back": {"items": [{"item_id": "x1", "reason": "data_issue"}, {"reason": "data_issue"}, "junk",
                                        {"item_id": "x3"}, {"item_id": "x3"}]}}
+    payload["critic"] = [critic(good)]
     assert today_mod.brief_counts(payload) == {"shown": [good["item_id"]], "held": ["x1", None, "x3", "x2"]}
     assert today_mod.brief_counts(None) == {"shown": [], "held": []}
     assert today_mod.brief_counts({"cards": "nope", "held_back": []}) == {"shown": [], "held": []}
@@ -356,7 +358,8 @@ def test_bigquery_brief_history_reads_every_status_and_only_the_counted_parts_of
     sql = [s for s, _ in client.calls if "INFORMATION_SCHEMA" not in s][-1]
     assert "v_briefs_current" in sql and "status" not in sql.split("WHERE", 1)[1]
     assert "JSON_QUERY(b.payload, '$.held_back.items')" in sql
-    assert sql.count("b.payload") == sql.count("JSON_QUERY(b.payload") == 3  # never the whole payload
+    assert "JSON_QUERY(b.payload, '$.critic')" in sql
+    assert sql.count("b.payload") == sql.count("JSON_QUERY(b.payload") == 4  # never the whole payload
     za = body["dates"][0]["markets"][0]
     assert value(za["cards"]) == 0 and value(za["held"]) == 2 and za["held"]["run_id"] == "r_brief_1"
 

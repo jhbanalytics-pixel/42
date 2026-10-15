@@ -16,6 +16,7 @@ The newest release comes first, and VERSION at the root of the repository holds 
 
 Release Alpha, data quality, trend identity and research reliability.
 
+- Ordinary event reactions need evidence of a distinct cultural pattern before publication. Stored cards face the same check, and unnamed topics stay held with their evidence available.
 - Today's checked cards consolidate fragments only when their event and date agree. Uncertain fragments stay held, with unsupported explanations removed.
 - Brief support and critic checks retry a 504 once when a full call fits within the existing time and spending limits.
 - Ask keeps usable research when one research lane fails and marks the missing coverage. Completed polling results remain available even if a later read would fail.

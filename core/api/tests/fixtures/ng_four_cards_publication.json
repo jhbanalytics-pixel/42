@@ -1,0 +1,2280 @@
+{
+  "source_sha256": "8596936d95fadf8e94f09e0023e81ce552fd58c05ffab1a7543ece5f5d8d8f1b",
+  "cards": [
+    {
+      "also": [],
+      "ask": "What is behind Topic 01186adf in Nigeria this week?",
+      "claims": [
+        {
+          "evidence_ids": [
+            "obs1_8f138f03ff94db4d72a8fbdfae138be9",
+            "obs1_ad42ed5fc2bdbbc5ec7895c0058edf44"
+          ],
+          "id": "c1",
+          "kind": "observation",
+          "label": "single_source",
+          "numbers": [],
+          "quotes": [
+            {
+              "evidence_id": "obs1_8f138f03ff94db4d72a8fbdfae138be9",
+              "text": "Manchester United must WIN Atletico Madrid today to increase the Coefficient rankings of the Premier League."
+            }
+          ],
+          "text": "Creators in Nigeria discussed Manchester United's struggles and match prospects on TikTok, with iemstevo writing that \"Manchester United must WIN Atletico Madrid today to increase the Coefficient rankings of the Premier League.\""
+        },
+        {
+          "evidence_ids": [
+            "obs1_0e5a5a71d143bf30b4b693300a0df11d"
+          ],
+          "id": "c2",
+          "kind": "observation",
+          "label": "inferred",
+          "numbers": [],
+          "quotes": [],
+          "text": "The earliest post in the pack appeared on TikTok on 13 Oct from mariannah.baybee with tags referencing Manchester United and the Champions League."
+        },
+        {
+          "evidence_ids": [
+            "obs1_19cfd3e2fbba3257333bca27a82aef29",
+            "obs1_e04ab68fe3a13f3782ad0d5f8bed775c"
+          ],
+          "id": "c3",
+          "kind": "interpretation",
+          "label": "inferred",
+          "numbers": [],
+          "quotes": [],
+          "text": "Creators in Nigeria posted on 13 Oct likely because of a match between Manchester United and Atletico Madrid at Metropolitano Stadium mentioned by ogaprofesso and vee_ifeoma."
+        }
+      ],
+      "count_line": "44 creators and 147 posts in 3 days",
+      "date": "2026-10-15",
+      "evidence": [
+        {
+          "creator_tier": "micro",
+          "duration_s": 121.734,
+          "engagement": {
+            "comments": 35,
+            "likes": 1293,
+            "shares": 4,
+            "views": 8440
+          },
+          "flags": [],
+          "handle": "iemstevo",
+          "id": "obs1_8f138f03ff94db4d72a8fbdfae138be9",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T11:22:03+02:00",
+          "quote_text": "Manchester United must WIN Atletico Madrid today to increase the Coefficient rankings of the Premier League. However, if they feed me, I will eat 😂. This match will determine if Man United are really worthy of Champions League football! #football #stevoiem #championsleague #manchesterunited #atleticodemadrid ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Manchester United must WIN Atletico Madrid today to increase the Coefficient rankings of the Premier League. However, if they feed me, I will eat 😂. This match will determine if Man United are really worthy of Champions League football! #football #stevoiem #championsleague #manch",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/oEefLdHmeWrOIAId81OLWiMGMe0ebQNbCSgABs~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=301c8761&x-expires=1792022400&x-signature=QZyY2sDE1p5uDUum27%2FjTPYnEdU%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@iemstevo/video/7696080212194381078"
+        },
+        {
+          "creator_tier": "mid",
+          "duration_s": 189.127,
+          "engagement": {
+            "comments": 89,
+            "likes": 9123,
+            "shares": 28,
+            "views": 39020
+          },
+          "flags": [],
+          "handle": "ogaprofesso",
+          "id": "obs1_ad42ed5fc2bdbbc5ec7895c0058edf44",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T10:17:34+02:00",
+          "quote_text": "There's only one solution to Manchester United Problem right now",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "There's only one solution to Manchester United Problem right now",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/osIdeVgAoJAL0Indscj4JneD3NGtDCLgFOWV0e~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=5f5da5a8&x-expires=1792108800&x-signature=5h38J0LPKzPx9cWtXavnklV752o%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&s=PUBLISH&sc=cover&biz_tag=tt_video",
+          "url": "https://www.tiktok.com/@ogaprofesso/video/7696434711480257800"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 15.046,
+          "engagement": {
+            "comments": 151,
+            "likes": 3867,
+            "shares": 99,
+            "views": 21803
+          },
+          "flags": [],
+          "handle": "mariannah.baybee",
+          "id": "obs1_0e5a5a71d143bf30b4b693300a0df11d",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T10:57:28+02:00",
+          "quote_text": "Lord helppppp🤲🏼🧎🏼‍♀️!! #unitedgirl #mariannah_baybee #manchesterunited #championsleague #fyp ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Lord helppppp🤲🏼🧎🏼‍♀️!! #unitedgirl #mariannah_baybee #manchesterunited #championsleague #fyp ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/oAEAzIY9DZBy3XiX6cC4BIay8SNuiAJingisv~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=335ff5e4&x-expires=1792022400&x-signature=HethQFrEh%2B0FZlnD2qSYRsHKYtA%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@mariannah.baybee/video/7696073897476721927"
+        },
+        {
+          "creator_tier": "mid",
+          "duration_s": 223.911,
+          "engagement": {
+            "comments": 608,
+            "likes": 8469,
+            "shares": 25,
+            "views": 52093
+          },
+          "flags": [],
+          "handle": "ogaprofesso",
+          "id": "obs1_19cfd3e2fbba3257333bca27a82aef29",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T11:40:36+02:00",
+          "quote_text": "Can Manchester United get all 3 points out of Metropolitano Stadium today against Atletico Madrid?",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Can Manchester United get all 3 points out of Metropolitano Stadium today against Atletico Madrid?",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/oMJIJoi0DDfmU4Db9GFGAoQEjAhRCWxfIlCV9f~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=cca7cb89&x-expires=1792022400&x-signature=cICkhOWdIS0zFGc%2FS9HaKVyP%2FBg%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@ogaprofesso/video/7696085013393132852"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 57.667,
+          "engagement": {
+            "comments": 36,
+            "likes": 767,
+            "shares": 8,
+            "views": 3814
+          },
+          "flags": [],
+          "handle": "vee_ifeoma",
+          "id": "obs1_e04ab68fe3a13f3782ad0d5f8bed775c",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T23:22:09+02:00",
+          "quote_text": "Atletico Madrid vs Manchester United #manchesterunited #footballtiktok #atleticodemadrid #championsleague ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Atletico Madrid vs Manchester United #manchesterunited #footballtiktok #atleticodemadrid #championsleague ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/okB7TqqBxQCEEhFRreIC0rAUNogfuagOBzzIQD~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=35f146c2&x-expires=1792022400&x-signature=vsKaUDIcS4cXDhMaujpdRKx9ruY%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@vee_ifeoma/video/7696265810788093205"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 159.636,
+          "engagement": {
+            "comments": 237,
+            "likes": 16542,
+            "shares": 120,
+            "views": 93798
+          },
+          "flags": [],
+          "handle": "henryggmu",
+          "id": "obs1_fca07809c0425ab386af8a1fc350f9bb",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T08:21:07+02:00",
+          "quote_text": "MAN UNITED STRUGGLE CONTINUES ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "MAN UNITED STRUGGLE CONTINUES ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-useast8-p-0068-tx2/ooiRrEVv1RdiPBABjHOLABKckaIIv8s1ER6Ks~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=c0e496dc&x-expires=1792108800&x-signature=4SPA4pNoDq3v5D89rkNPqTbKbPE%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@henryggmu/video/7696404587565092126"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 15.046,
+          "engagement": {
+            "comments": 89,
+            "likes": 4076,
+            "shares": 64,
+            "views": 10384
+          },
+          "flags": [],
+          "handle": "mariannah.baybee",
+          "id": "obs1_1d69c7c8b79ed1bc5fac3576127a40d4",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T11:11:52+02:00",
+          "quote_text": "We are getting closer to not seeing him again 😭😭My Ronaldo 🐐💛.#ronaldo #alnaasr #mariannah_baybee #portugal #fyp ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "We are getting closer to not seeing him again 😭😭My Ronaldo 🐐💛.#ronaldo #alnaasr #mariannah_baybee #portugal #fyp ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/o4pVmCDFIDCEY7etfIAAIpQFifN8QpjTdmoj49~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=6a72e0a0&x-expires=1792022400&x-signature=huh4mia4wPMWay60F%2BvR3uerUXs%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@mariannah.baybee/video/7696077598597614856"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 25.8,
+          "engagement": {
+            "comments": 66,
+            "likes": 2412,
+            "shares": 10,
+            "views": 11893
+          },
+          "flags": [],
+          "handle": "mrbenjaamin",
+          "id": "obs1_f22f26f18e7c040d0793068ff4f026d7",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T00:03:11+02:00",
+          "quote_text": "OMOH! 💔😭 #manchesterunited #eriktenhag #manunited #championsleague #foryoupage ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "OMOH! 💔😭 #manchesterunited #eriktenhag #manunited #championsleague #foryoupage ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/o4jBsBACTsixiI0VEAAV77EIaOIvYYpq6qiXn~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=82ed1299&x-expires=1792022400&x-signature=JapLDAAxRYCdq8QtkXzhPhz%2BbI8%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@mrbenjaamin/video/7696276370632101126"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 38.867,
+          "engagement": {
+            "comments": 26,
+            "likes": 1857,
+            "shares": 5,
+            "views": 11644
+          },
+          "flags": [],
+          "handle": "mrbenjaamin",
+          "id": "obs1_2327edd538bd59c4bf26e1526c06d26f",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-15T00:14:41+02:00",
+          "quote_text": "79th Minute to come do wetin ? #astonvilla #unaiemery #garnacho #championsleague #foryoupage ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "79th Minute to come do wetin ? #astonvilla #unaiemery #garnacho #championsleague #foryoupage ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/oY5YqaYnsqL7fffF5aeZBVuEPxzBAAn4Asfesg~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=6daa47ea&x-expires=1792108800&x-signature=EAbyT3RCQva88FDygjz8MwcscbA%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@mrbenjaamin/video/7696650424975183124"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 39.034,
+          "engagement": {
+            "comments": 27,
+            "likes": 1569,
+            "shares": 5,
+            "views": 9209
+          },
+          "flags": [],
+          "handle": "iemstevo",
+          "id": "obs1_69667c74d31b00c32564a2826e450659",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T23:49:57+02:00",
+          "quote_text": "Nothing can save Manchester United right now, not prayers, not coaches, not tactics. Absolutely NOTHING! #manchesterunited #championsleague #football #stevoiem #atleticodemadrid ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Nothing can save Manchester United right now, not prayers, not coaches, not tactics. Absolutely NOTHING! #manchesterunited #championsleague #football #stevoiem #atleticodemadrid ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/osUjp1SOBIv4wO9OA5iAyDIf2AvC17CEiCw4CZ~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=8fdd3a65&x-expires=1792022400&x-signature=wk2xdc6EZ1iyHb5X1XbSApKNjws%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@iemstevo/video/7696272972100717846"
+        },
+        {
+          "creator_tier": "mid",
+          "duration_s": 257.903,
+          "engagement": {
+            "comments": 34,
+            "likes": 1318,
+            "shares": 4,
+            "views": 7942
+          },
+          "flags": [],
+          "handle": "football.matter8",
+          "id": "obs1_5d93969572aeeb689a4996af34265a2e",
+          "market": "GB",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T18:26:47+02:00",
+          "quote_text": "🚨 Thoughts on Martinez interview and Routine Match Reaction on Manchester United  #manchesterunited #martinez #manutd #championsleague ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "🚨 Thoughts on Martinez interview and Routine Match Reaction on Manchester United  #manchesterunited #martinez #manutd #championsleague ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/oodBiAyEeC0ALLrPEBsUivjlyrZS1IAtmCHIwN~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=b7d64268&x-expires=1792108800&x-signature=4rtFXVQXp0k%2BZJiQolifYvsgThw%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@football.matter8/video/7696560780266835222"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 127.803,
+          "engagement": {
+            "comments": 46,
+            "likes": 877,
+            "shares": 0,
+            "views": 5308
+          },
+          "flags": [],
+          "handle": "footycabal_",
+          "id": "obs1_b4b4a00109d8c9a83d8dad72818dbaea",
+          "market": "GB",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T23:37:01+02:00",
+          "quote_text": "Atletico Madrid 2 Manchester United 0. It's going to be a long season for Manchester united. It's not looking good at all. I won't be shocked if Carrick loses his job at some point if things don't change. #Atleticomadrid #manchesterunited #Uefachampionsleague #Carrick #fyp",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Atletico Madrid 2 Manchester United 0. It's going to be a long season for Manchester united. It's not looking good at all. I won't be shocked if Carrick loses his job at some point if things don't change. #Atleticomadrid #manchesterunited #Uefachampionsleague #Carrick #fyp",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/ooXRQcEDLrfB3lWKpqqOEjAQIeFHpRAzcEBlvg~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=be2f7e17&x-expires=1792022400&x-signature=ChV74tiOfFfG2HsrKqyg7cNWFY4%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@footycabal_/video/7696269635313831176"
+        }
+      ],
+      "evidence_ids": [
+        "obs1_8f138f03ff94db4d72a8fbdfae138be9",
+        "obs1_ad42ed5fc2bdbbc5ec7895c0058edf44",
+        "obs1_0e5a5a71d143bf30b4b693300a0df11d",
+        "obs1_19cfd3e2fbba3257333bca27a82aef29",
+        "obs1_e04ab68fe3a13f3782ad0d5f8bed775c",
+        "obs1_fca07809c0425ab386af8a1fc350f9bb",
+        "obs1_1d69c7c8b79ed1bc5fac3576127a40d4",
+        "obs1_f22f26f18e7c040d0793068ff4f026d7",
+        "obs1_2327edd538bd59c4bf26e1526c06d26f",
+        "obs1_69667c74d31b00c32564a2826e450659",
+        "obs1_5d93969572aeeb689a4996af34265a2e",
+        "obs1_b4b4a00109d8c9a83d8dad72818dbaea"
+      ],
+      "explained": true,
+      "explanation": "Creators in Nigeria discussed Manchester United facing Atletico Madrid on TikTok, likely because of the match against Atletico Madrid at Metropolitano Stadium on 13 Oct.",
+      "explanation_claim_ids": [
+        "c1",
+        "c2",
+        "c3"
+      ],
+      "explanation_status": "explained",
+      "failed_reason": null,
+      "flag": null,
+      "flag_word": null,
+      "item_id": "01186adf6f59480408089f7e354a050a0af61f17313d7190fc8338db396d33ea",
+      "kind": "topic",
+      "locality_v2": {
+        "block_version": 1,
+        "breadth_creators": 25,
+        "feed_only_posts": 0,
+        "foreign_posts": 3,
+        "known_posts": 80,
+        "label": "local",
+        "local_posts": 77,
+        "local_share": 0.9625,
+        "metric_version": "locality_v2.1",
+        "population_posts": 81,
+        "reason": null,
+        "schema_version": 1,
+        "status": "local",
+        "unknown_posts": 1,
+        "vetoed_feed_posts": 3
+      },
+      "market": "NG",
+      "market_posts7": 10,
+      "market_scope": "market",
+      "market_share7": 0.8333333333333334,
+      "news_driven": true,
+      "numbers": [
+        {
+          "query_id": "q_creators3_687b7032f20d",
+          "result_hash": "sha256:d65eb4a1771e3138f101a2916aff687af51727b9fb9cca2e506f8792c08e34a4",
+          "run_id": "detect-20261015-47b18db814ba",
+          "unit": "creators in 3 days",
+          "value": 44
+        },
+        {
+          "query_id": "q_posts3_894ed6b5722a",
+          "result_hash": "sha256:2608d37308ebcf52ad055e702dd668cbc169596dbe59f7782b00c70acf1135b0",
+          "run_id": "detect-20261015-47b18db814ba",
+          "unit": "posts in 3 days",
+          "value": 147
+        }
+      ],
+      "rank": 1,
+      "sparkline": {
+        "points": [
+          {
+            "date": "2026-10-02",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-03",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-04",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-05",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-06",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-07",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-08",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-09",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-10",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-11",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-12",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 0
+          },
+          {
+            "date": "2026-10-13",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 9.3
+          },
+          {
+            "date": "2026-10-14",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 110.87591240875913
+          },
+          {
+            "date": "2026-10-15",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 43.489208633093526
+          }
+        ],
+        "unit": "posts a day"
+      },
+      "specificity": {
+        "local_evidence_ids": [
+          "obs1_8f138f03ff94db4d72a8fbdfae138be9",
+          "obs1_ad42ed5fc2bdbbc5ec7895c0058edf44",
+          "obs1_0e5a5a71d143bf30b4b693300a0df11d",
+          "obs1_19cfd3e2fbba3257333bca27a82aef29",
+          "obs1_e04ab68fe3a13f3782ad0d5f8bed775c"
+        ],
+        "quote": {
+          "evidence_id": "obs1_8f138f03ff94db4d72a8fbdfae138be9",
+          "text": "Manchester United must WIN Atletico Madrid today to increase the Coefficient rankings of the Premier League."
+        },
+        "reason": null,
+        "status": "pass",
+        "why_now": "Creators in Nigeria discussed Manchester United facing Atletico Madrid on TikTok, likely because of the match against Atletico Madrid at Metropolitano Stadium on 13 Oct."
+      },
+      "state": "new_to_42",
+      "state_word": "New to 42",
+      "thumbnails": [
+        "obs1_8f138f03ff94db4d72a8fbdfae138be9",
+        "obs1_ad42ed5fc2bdbbc5ec7895c0058edf44"
+      ],
+      "title": "Topic 01186adf",
+      "title_written": null,
+      "total_posts7": 12
+    },
+    {
+      "also": [],
+      "ask": "What is behind Topic 3e29fc8b in Nigeria this week?",
+      "claims": [
+        {
+          "evidence_ids": [
+            "obs1_170a4cad8a8ede60c3881052cda63a03",
+            "obs1_27d6884a14e6732f5a3d5add9062fbdf",
+            "obs1_dff3cf13fdb925a630a34e35dea2db7f"
+          ],
+          "id": "c1",
+          "kind": "observation",
+          "label": "single_source",
+          "numbers": [],
+          "quotes": [
+            {
+              "evidence_id": "obs1_170a4cad8a8ede60c3881052cda63a03",
+              "text": "Perfect 2nd half"
+            }
+          ],
+          "text": "Multiple creators in Nigeria posted on TikTok sharing reactions to Arsenal playing against Lille."
+        },
+        {
+          "evidence_ids": [
+            "obs1_8b4aa5f16a8b77ba5d30a5d9e0f207b6"
+          ],
+          "id": "c2",
+          "kind": "observation",
+          "label": "inferred",
+          "numbers": [],
+          "quotes": [],
+          "text": "The earliest post in the pack was published on TikTok on 12 Oct discussing Saka and Hansi Flick."
+        },
+        {
+          "evidence_ids": [
+            "obs1_27d6884a14e6732f5a3d5add9062fbdf",
+            "obs1_dff3cf13fdb925a630a34e35dea2db7f"
+          ],
+          "id": "c3",
+          "kind": "interpretation",
+          "label": "inferred",
+          "numbers": [],
+          "quotes": [
+            {
+              "evidence_id": "obs1_dff3cf13fdb925a630a34e35dea2db7f",
+              "text": "victory over Lille"
+            }
+          ],
+          "text": "Creators in Nigeria discussed the match on TikTok, likely because Arsenal played and defeated Lille in the Champions League on 13 Oct."
+        }
+      ],
+      "count_line": "35 creators and 83 posts in 3 days",
+      "date": "2026-10-15",
+      "evidence": [
+        {
+          "creator_tier": "mid",
+          "duration_s": 219.6,
+          "engagement": {
+            "comments": 99,
+            "likes": 5660,
+            "shares": 8,
+            "views": 25527
+          },
+          "flags": [],
+          "handle": "ogaprofesso",
+          "id": "obs1_170a4cad8a8ede60c3881052cda63a03",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T23:32:31+02:00",
+          "quote_text": "And the Gunners did it at the end Arsenal 3:0 Lille. Perfect 2nd half ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "And the Gunners did it at the end Arsenal 3:0 Lille. Perfect 2nd half ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/oc0UkTBMEiAGIxAZCBiqhoCcA31TfIgO1n3jwJ~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=cfa72165&x-expires=1792022400&x-signature=GRMAxZlerMqbQT%2FiSOiAz13Joqk%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@ogaprofesso/video/7696268479342710023"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 95.667,
+          "engagement": {
+            "comments": 16,
+            "likes": 1853,
+            "shares": 3,
+            "views": 11787
+          },
+          "flags": [],
+          "handle": "iemstevo",
+          "id": "obs1_27d6884a14e6732f5a3d5add9062fbdf",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T00:01:57+02:00",
+          "quote_text": "Arsenal are set to save the EPL again in the Champions League! Today they flogged Lille 3-0 without Lille getting a single shot on target! #stevoiem #football #championsleague #arsenal #lille ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Arsenal are set to save the EPL again in the Champions League! Today they flogged Lille 3-0 without Lille getting a single shot on target! #stevoiem #football #championsleague #arsenal #lille ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/oghPgBUEzoi1C6lfCwzOEy1lqbIJZAQGiI3AAV~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=741d0cdb&x-expires=1792022400&x-signature=0QxyIzo6YMumLcQE4zMUf69MHvU%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&sc=cover&biz_tag=tt_video&s=PUBLISH",
+          "url": "https://www.tiktok.com/@iemstevo/video/7696276067023097110"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 88.467,
+          "engagement": {
+            "comments": 7,
+            "likes": 442,
+            "shares": 3,
+            "views": 2200
+          },
+          "flags": [],
+          "handle": "dfkenny",
+          "id": "obs1_dff3cf13fdb925a630a34e35dea2db7f",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T00:49:46+02:00",
+          "quote_text": "Arsenal had a convincing 3-0 victory over Lille. It's one of the beautiful games under Mikel Arteta, and the fact that he can call on his bench to bring in quality is a sign that he has steered the ship of Arsenal to a very, very good place. Brilliant victory for the Gunners.",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Arsenal had a convincing 3-0 victory over Lille. It's one of the beautiful games under Mikel Arteta, and the fact that he can call on his bench to bring in quality is a sign that he has steered the ship of Arsenal to a very, very good place. Brilliant victory for the Gunners.",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/ok51pSiIIAw1YFZfQtiqONHDCapvjCA7BA1IEx~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=a3821afd&x-expires=1792022400&x-signature=vA%2B3ZgZW0ULDHMwJqT3oTlRSoxs%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@dfkenny/video/7696288377045372181"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 133.746,
+          "engagement": {
+            "comments": 37,
+            "likes": 825,
+            "shares": 0,
+            "views": 5758
+          },
+          "flags": [],
+          "handle": "adebisidejoke",
+          "id": "obs1_8b4aa5f16a8b77ba5d30a5d9e0f207b6",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-12T12:37:27+02:00",
+          "quote_text": "Hansi Flick is known for reawakening careers of attackers that people no longer believe in… under Hansi Flick, Saka could be back to his prime with Estevao also getting his deserved minutes while harnessing his skills to proper use ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Hansi Flick is known for reawakening careers of attackers that people no longer believe in… under Hansi Flick, Saka could be back to his prime with Estevao also getting his deserved minutes while harnessing his skills to proper use ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/ogAFGRQrwgbQfGfAFZZ4FucMeY5O8uBskKeqvA~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=99d88b6f&x-expires=1791936000&x-signature=W5HetPoCbhWYPiAJCnMiuDfYxug%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@adebisidejoke/video/7695728585440513298"
+        },
+        {
+          "creator_tier": "mid",
+          "duration_s": 425.181,
+          "engagement": {
+            "comments": 96,
+            "likes": 5172,
+            "shares": 18,
+            "views": 29255
+          },
+          "flags": [],
+          "handle": "ogaprofesso",
+          "id": "obs1_9ce0677904212c73cbe598ff1db4fcbd",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-12T16:14:00+02:00",
+          "quote_text": "Arteta press conference ahead of the Lille UCL clash tomorrow ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Arteta press conference ahead of the Lille UCL clash tomorrow ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/o8jCQLDwCbVezDmvyV3tAI4M5eIIQqheGd6EIA~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=1b432c36&x-expires=1791936000&x-signature=T46gLknEOb0XqRpqwcdaJMVCtcc%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@ogaprofesso/video/7695784383541824774"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 141.667,
+          "engagement": {
+            "comments": 54,
+            "likes": 2465,
+            "shares": 2,
+            "views": 21237
+          },
+          "flags": [],
+          "handle": "phlowzanalysis",
+          "id": "obs1_b6251d71822512de5d75a497ccfa4854",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T15:47:51+02:00",
+          "quote_text": "Arsenal currently the best team from England in Europe no doubt about it  14 consecutive UCL wins in the group stages 🤯🤯🤯 #Arsenal #championsleague #Arteta #saka #eze ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Arsenal currently the best team from England in Europe no doubt about it  14 consecutive UCL wins in the group stages 🤯🤯🤯 #Arsenal #championsleague #Arteta #saka #eze ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-useast5-p-0068-tx/oEQj78gfesa5CIMaCA8YXGAkM2QxAPfVHwnVEI~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=cf92394d&x-expires=1792108800&x-signature=D6ebQjIk5FBb8nKi5bKQnEWAh6M%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@phlowzanalysis/video/7696519784296500494"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 83.677,
+          "engagement": {
+            "comments": 29,
+            "likes": 2082,
+            "shares": 9,
+            "views": 13867
+          },
+          "flags": [],
+          "handle": "ninobite_001",
+          "id": "obs1_918a51500fdcfc295774d2f3d6544196",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T22:59:42+02:00",
+          "quote_text": "na only Lille know waten them see for Arteta hands today. 😭 you can never understand until you taste it.  .  .  #football #championsleague #lille #arteta #arsenal ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "na only Lille know waten them see for Arteta hands today. 😭 you can never understand until you taste it.  .  .  #football #championsleague #lille #arteta #arsenal ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/oo72EqCVDAVInnjnaIQ7eBfAO5LGnLfOTormAI~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=7ee897fc&x-expires=1792022400&x-signature=vbiMhhfx8uYih3hY4RMZBSIW90Y%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@ninobite_001/video/7696260028222672148"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 119.6,
+          "engagement": {
+            "comments": 14,
+            "likes": 1798,
+            "shares": 5,
+            "views": 14101
+          },
+          "flags": [],
+          "handle": "iemstevo",
+          "id": "obs1_8ea9988fa6c63151391a40405306f4da",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T12:47:33+02:00",
+          "quote_text": "Arsenal to welcome Lille in the Champions League group stage! I have no fear about Arsenal tonight, The Gunners are obviously the strongest EPL side in the UCL lately. #stevoiem #football #championsleague #arsenal #lille ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Arsenal to welcome Lille in the Champions League group stage! I have no fear about Arsenal tonight, The Gunners are obviously the strongest EPL side in the UCL lately. #stevoiem #football #championsleague #arsenal #lille ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/owDGtTEViYcsBT4pvjnMiAc5ZOE4AINEBaB06~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=8fb50343&x-expires=1792022400&x-signature=AelYcfccbhnQU%2Bv732ZJsUXO6Mc%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@iemstevo/video/7696102261776272662"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 45,
+          "engagement": {
+            "comments": 15,
+            "likes": 1548,
+            "shares": 2,
+            "views": 6951
+          },
+          "flags": [],
+          "handle": "dlanor_jay",
+          "id": "obs1_7262975471fc26ce5b557027eb8068f0",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T23:02:34+02:00",
+          "quote_text": "Bruno Guimaraes might end up being the signing of the season for Arsenal   #arsenal #lille #ucl #guimaraes #lewisskelly ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Bruno Guimaraes might end up being the signing of the season for Arsenal   #arsenal #lille #ucl #guimaraes #lewisskelly ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-useast5-p-0068-tx/ogA81PnxgiIGbxoOVaBR4Uvc4E8sD6MhBiDIA~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=8c055f9a&x-expires=1792022400&x-signature=pGIOcA%2BTwol8us5eQntr9eIj02w%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&s=PUBLISH&sc=cover&biz_tag=tt_video",
+          "url": "https://www.tiktok.com/@dlanor_jay/video/7696260735831248141"
+        },
+        {
+          "creator_tier": "mid",
+          "duration_s": 273.7,
+          "engagement": {
+            "comments": 36,
+            "likes": 1358,
+            "shares": 1,
+            "views": 6869
+          },
+          "flags": [],
+          "handle": "football.matter8",
+          "id": "obs1_4b0163fdf9dcbef084e4171b7e1c91e5",
+          "market": "GB",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T16:54:42+02:00",
+          "quote_text": "🚨 Post Match Reaction on Arsenal vs Lille ‼️ Bruno Guimaraes (Mobile Partey) Masterclass and Eze appreciation Post ‼️ Flawless victory from the blazing Gunners #arsenal #championsleague #saka #eze #ucl ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "🚨 Post Match Reaction on Arsenal vs Lille ‼️ Bruno Guimaraes (Mobile Partey) Masterclass and Eze appreciation Post ‼️ Flawless victory from the blazing Gunners #arsenal #championsleague #saka #eze #ucl ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/oQAALI7VIIjAAjMI9fPeFLlnDGtFXyEpGV4eRA~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=754b02dd&x-expires=1792108800&x-signature=y9U5CppfKRvPvU2IS0joycahfZY%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@football.matter8/video/7696537054435446038"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 138.901,
+          "engagement": {
+            "comments": 12,
+            "likes": 1238,
+            "shares": 1,
+            "views": 6394
+          },
+          "flags": [],
+          "handle": "dlanor_jay",
+          "id": "obs1_8292092a7e06b5bb51ef9a7cb9be0eef",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T12:26:05+02:00",
+          "quote_text": "Konsa has been a revelation despite being tasked with the momentous job of replacing Saliba #arsenal #ucl #konsa #saliba #football ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Konsa has been a revelation despite being tasked with the momentous job of replacing Saliba #arsenal #ucl #konsa #saliba #football ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-useast5-p-0068-tx/ocLPRquEzztEEWUjDAIEVeifbD8ggFIDDBSBu1~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=c1b43e88&x-expires=1792108800&x-signature=VCQc00%2F00kgUzrBacWjU%2Bxq4F7w%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@dlanor_jay/video/7696467782380113165"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 4.945,
+          "engagement": {
+            "comments": 11,
+            "likes": 151,
+            "shares": 2,
+            "views": 1230
+          },
+          "flags": [],
+          "handle": "mrbenjaamin",
+          "id": "obs1_ced357e27bd0d10ef35c641f98af1466",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T01:08:09+02:00",
+          "quote_text": "Arsenal won 3-0 #Arsenal #championsleague #lille #uefachampionsleague #foryoupage ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Arsenal won 3-0 #Arsenal #championsleague #lille #uefachampionsleague #foryoupage ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/oI0DIOyi1uI2ZSd1AaDIIuhiAf7DLqCuABUAwR~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=13baf4f5&x-expires=1792022400&x-signature=PPRwbWp6D7fecIHohG1q812xTI8%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@mrbenjaamin/video/7696293131666476308"
+        }
+      ],
+      "evidence_ids": [
+        "obs1_170a4cad8a8ede60c3881052cda63a03",
+        "obs1_27d6884a14e6732f5a3d5add9062fbdf",
+        "obs1_dff3cf13fdb925a630a34e35dea2db7f",
+        "obs1_8b4aa5f16a8b77ba5d30a5d9e0f207b6",
+        "obs1_9ce0677904212c73cbe598ff1db4fcbd",
+        "obs1_b6251d71822512de5d75a497ccfa4854",
+        "obs1_918a51500fdcfc295774d2f3d6544196",
+        "obs1_8ea9988fa6c63151391a40405306f4da",
+        "obs1_7262975471fc26ce5b557027eb8068f0",
+        "obs1_4b0163fdf9dcbef084e4171b7e1c91e5",
+        "obs1_8292092a7e06b5bb51ef9a7cb9be0eef",
+        "obs1_ced357e27bd0d10ef35c641f98af1466"
+      ],
+      "explained": true,
+      "explanation": "Multiple creators in Nigeria posted on TikTok about Arsenal facing Lille, likely because Arsenal defeated Lille in their Champions League match on 13 Oct.",
+      "explanation_claim_ids": [
+        "c1",
+        "c2",
+        "c3"
+      ],
+      "explanation_status": "explained",
+      "failed_reason": null,
+      "flag": null,
+      "flag_word": null,
+      "item_id": "3e29fc8b574afcab5ebeb686342b945a9bc42f4cd819d1cb0bd009770b11f7e7",
+      "kind": "topic",
+      "locality_v2": {
+        "block_version": 1,
+        "breadth_creators": 18,
+        "feed_only_posts": 0,
+        "foreign_posts": 2,
+        "known_posts": 42,
+        "label": "local",
+        "local_posts": 40,
+        "local_share": 0.9523809523809523,
+        "metric_version": "locality_v2.1",
+        "population_posts": 43,
+        "reason": null,
+        "schema_version": 1,
+        "status": "local",
+        "unknown_posts": 1,
+        "vetoed_feed_posts": 2
+      },
+      "market": "NG",
+      "market_posts7": 11,
+      "market_scope": "market",
+      "market_share7": 0.9166666666666666,
+      "news_driven": true,
+      "numbers": [
+        {
+          "query_id": "q_creators3_00cb48d51683",
+          "result_hash": "sha256:952e847435a79edc92ba39f1156389f2459b3e4c4ba8c27d77739effb7c48b92",
+          "run_id": "detect-20261015-47b18db814ba",
+          "unit": "creators in 3 days",
+          "value": 35
+        },
+        {
+          "query_id": "q_posts3_7d70dad553aa",
+          "result_hash": "sha256:4bb1102ec3023da8ad7f2049e1e17e4855134f9ac16b4fd710027016c5425cf7",
+          "run_id": "detect-20261015-47b18db814ba",
+          "unit": "posts in 3 days",
+          "value": 83
+        }
+      ],
+      "rank": 2,
+      "sparkline": {
+        "points": [
+          {
+            "date": "2026-10-02",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-03",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-04",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-05",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-06",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-07",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-08",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-09",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-10",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-11",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-12",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 2.066666666666667
+          },
+          {
+            "date": "2026-10-13",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 15.500000000000002
+          },
+          {
+            "date": "2026-10-14",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 61.09489051094891
+          },
+          {
+            "date": "2026-10-15",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 15.611510791366905
+          }
+        ],
+        "unit": "posts a day"
+      },
+      "specificity": {
+        "local_evidence_ids": [
+          "obs1_170a4cad8a8ede60c3881052cda63a03",
+          "obs1_27d6884a14e6732f5a3d5add9062fbdf",
+          "obs1_dff3cf13fdb925a630a34e35dea2db7f",
+          "obs1_8b4aa5f16a8b77ba5d30a5d9e0f207b6"
+        ],
+        "quote": {
+          "evidence_id": "obs1_170a4cad8a8ede60c3881052cda63a03",
+          "text": "Perfect 2nd half"
+        },
+        "reason": null,
+        "status": "pass",
+        "why_now": "Multiple creators in Nigeria posted on TikTok about Arsenal facing Lille, likely because Arsenal defeated Lille in their Champions League match on 13 Oct."
+      },
+      "state": "new_to_42",
+      "state_word": "New to 42",
+      "thumbnails": [
+        "obs1_170a4cad8a8ede60c3881052cda63a03",
+        "obs1_27d6884a14e6732f5a3d5add9062fbdf"
+      ],
+      "title": "Topic 3e29fc8b",
+      "title_written": null,
+      "total_posts7": 12
+    },
+    {
+      "also": [],
+      "ask": "What is behind #championsleague in Nigeria this week?",
+      "claims": [
+        {
+          "evidence_ids": [
+            "obs1_17055b417995349557fdfa2d89506f1c",
+            "obs1_b6251d71822512de5d75a497ccfa4854"
+          ],
+          "id": "c1",
+          "kind": "observation",
+          "label": "single_source",
+          "numbers": [],
+          "quotes": [
+            {
+              "evidence_id": "obs1_17055b417995349557fdfa2d89506f1c",
+              "text": "Champions League"
+            }
+          ],
+          "text": "Creators located in Nigeria shared commentary and reactions concerning UEFA Champions League football on TikTok without sponsored flags."
+        },
+        {
+          "evidence_ids": [
+            "obs1_17055b417995349557fdfa2d89506f1c",
+            "obs1_918a51500fdcfc295774d2f3d6544196"
+          ],
+          "id": "c2",
+          "kind": "observation",
+          "label": "single_source",
+          "numbers": [],
+          "quotes": [
+            {
+              "evidence_id": "obs1_17055b417995349557fdfa2d89506f1c",
+              "text": "Galatasaray welcomes Barcelona today to HELL!"
+            },
+            {
+              "evidence_id": "obs1_918a51500fdcfc295774d2f3d6544196",
+              "text": "na only Lille know waten them see for Arteta hands today."
+            }
+          ],
+          "text": "On 13 Oct, creator iemstevo previewed a match writing that Galatasaray welcomes Barcelona today to HELL! Barca will try to withstand the heat of Galatasaray home fans as they face each other in the Champions League., while creator ninobite_001 reacted to another match saying na only Lille know waten them see for Arteta hands today."
+        },
+        {
+          "evidence_ids": [
+            "obs1_0fe4f0aecfb6b4f20676409dedd03379"
+          ],
+          "id": "c3",
+          "kind": "observation",
+          "label": "inferred",
+          "numbers": [],
+          "quotes": [],
+          "text": "The earliest post in the pack was published on TikTok on 11 Oct by creator zees_jersey in Nigeria."
+        },
+        {
+          "evidence_ids": [
+            "obs1_17055b417995349557fdfa2d89506f1c",
+            "obs1_918a51500fdcfc295774d2f3d6544196"
+          ],
+          "id": "c4",
+          "kind": "interpretation",
+          "label": "inferred",
+          "numbers": [],
+          "quotes": [],
+          "text": "Activity on the topic was likely prompted by Champions League fixtures taking place on 13 Oct involving teams like Galatasaray, Barcelona, and Arsenal."
+        }
+      ],
+      "count_line": "28 creators and 151 posts in 3 days",
+      "date": "2026-10-15",
+      "evidence": [
+        {
+          "creator_tier": "micro",
+          "duration_s": 106.1,
+          "engagement": {
+            "comments": 468,
+            "likes": 30680,
+            "shares": 122,
+            "views": 258219
+          },
+          "flags": [],
+          "handle": "iemstevo",
+          "id": "obs1_17055b417995349557fdfa2d89506f1c",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T09:02:25+02:00",
+          "quote_text": "Galatasaray welcomes Barcelona today to HELL! Barca will try to withstand the heat of Galatasaray home fans as they face each other in the Champions League. #championsleague #stevoiem  #football #barcelona #galatasaray ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Galatasaray welcomes Barcelona today to HELL! Barca will try to withstand the heat of Galatasaray home fans as they face each other in the Champions League. #championsleague #stevoiem  #football #barcelona #galatasaray ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/oEg5EIgcfDA412SEJ6FsLjVBrIiAPDRmIefMNE~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=4a642432&x-expires=1792022400&x-signature=lB8cn%2FDFw0AraqiszpBe%2Boqf1sY%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@iemstevo/video/7696044236071832854"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 141.667,
+          "engagement": {
+            "comments": 54,
+            "likes": 2465,
+            "shares": 2,
+            "views": 21237
+          },
+          "flags": [],
+          "handle": "phlowzanalysis",
+          "id": "obs1_b6251d71822512de5d75a497ccfa4854",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T15:47:51+02:00",
+          "quote_text": "Arsenal currently the best team from England in Europe no doubt about it  14 consecutive UCL wins in the group stages 🤯🤯🤯 #Arsenal #championsleague #Arteta #saka #eze ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Arsenal currently the best team from England in Europe no doubt about it  14 consecutive UCL wins in the group stages 🤯🤯🤯 #Arsenal #championsleague #Arteta #saka #eze ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-useast5-p-0068-tx/oEQj78gfesa5CIMaCA8YXGAkM2QxAPfVHwnVEI~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=cf92394d&x-expires=1792108800&x-signature=D6ebQjIk5FBb8nKi5bKQnEWAh6M%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@phlowzanalysis/video/7696519784296500494"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 83.677,
+          "engagement": {
+            "comments": 29,
+            "likes": 2082,
+            "shares": 9,
+            "views": 13867
+          },
+          "flags": [],
+          "handle": "ninobite_001",
+          "id": "obs1_918a51500fdcfc295774d2f3d6544196",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T22:59:42+02:00",
+          "quote_text": "na only Lille know waten them see for Arteta hands today. 😭 you can never understand until you taste it.  .  .  #football #championsleague #lille #arteta #arsenal ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "na only Lille know waten them see for Arteta hands today. 😭 you can never understand until you taste it.  .  .  #football #championsleague #lille #arteta #arsenal ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/oo72EqCVDAVInnjnaIQ7eBfAO5LGnLfOTormAI~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=7ee897fc&x-expires=1792022400&x-signature=vbiMhhfx8uYih3hY4RMZBSIW90Y%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@ninobite_001/video/7696260028222672148"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 91.8,
+          "engagement": {
+            "comments": 196,
+            "likes": 13100,
+            "shares": 15,
+            "views": 101808
+          },
+          "flags": [],
+          "handle": "iemstevo",
+          "id": "obs1_427151e3a9b65f604ba71c9a8b8d08e9",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T14:31:00+02:00",
+          "quote_text": "Mario Lemina finally proves I'm not the only one that brags before match! Lemina claims he doesn't know Lamine Yamal ahead of Galatasaray against Barcelona clash in the UCL! He believes Barca will fall today! #championsleague #football #stevoiem #barcelona #lamineyamal ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Mario Lemina finally proves I'm not the only one that brags before match! Lemina claims he doesn't know Lamine Yamal ahead of Galatasaray against Barcelona clash in the UCL! He believes Barca will fall today! #championsleague #football #stevoiem #barcelona #lamineyamal ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/o4LqOrRXzAujAR1tgEF8zJkDnf9e6IiEFEB3OI~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=128685d9&x-expires=1792022400&x-signature=qbnw9KMgewuDsOmNoEx1GKtrZvE%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@iemstevo/video/7696128918947892502"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 23.6,
+          "engagement": {
+            "comments": 45,
+            "likes": 4090,
+            "shares": 23,
+            "views": 16761
+          },
+          "flags": [],
+          "handle": "mrbenjaamin",
+          "id": "obs1_11fcda3525f0b5fbe1beb17d12d59f20",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T23:26:52+02:00",
+          "quote_text": "The subs changed the game #realmadrid #mourinho #roma #championsleague #foryoupage ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "The subs changed the game #realmadrid #mourinho #roma #championsleague #foryoupage ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/og2bQQ4ozMA58eo3meXiGGrHfRrAfFYPQv8kPQ~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=09ef6b0a&x-expires=1792108800&x-signature=8CD%2Bxof0OutrQmeTC%2FhgDp50fO0%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@mrbenjaamin/video/7696638114940472628"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 75.905,
+          "engagement": {
+            "comments": 51,
+            "likes": 3673,
+            "shares": 12,
+            "views": 12423
+          },
+          "flags": [],
+          "handle": "mrbenjaamin",
+          "id": "obs1_8f436fb19f04ea6d6634207817b3ca6d",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T23:31:41+02:00",
+          "quote_text": "Espi and Endrick 👏🏽 #Realmadrid #endrick #championsleague #madridista #foryoupage ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Espi and Endrick 👏🏽 #Realmadrid #endrick #championsleague #madridista #foryoupage ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/oYdPSVm5E4tfAFSf9GoQYAD93T4nCuDnIQMfjg~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=91392426&x-expires=1792108800&x-signature=k7CZbH0yxX9t48ufKPNgQJMFkQg%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@mrbenjaamin/video/7696639341312986388"
+        },
+        {
+          "creator_tier": "mid",
+          "duration_s": 321.8,
+          "engagement": {
+            "comments": 71,
+            "likes": 3514,
+            "shares": 11,
+            "views": 14708
+          },
+          "flags": [],
+          "handle": "football.matter8",
+          "id": "obs1_47cf4e635bd7e49284940afc8d1503b9",
+          "market": "GB",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T17:24:20+02:00",
+          "quote_text": "🚨 Post Match Reaction on Barcelona vs Galatasaray  ‼️ Yamal Second half Masterclass and Redemption ‼️ Barcelona total dominance at the Rams #fcbarcelona #lamineyamal #yamal #barca #championsleague ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "🚨 Post Match Reaction on Barcelona vs Galatasaray  ‼️ Yamal Second half Masterclass and Redemption ‼️ Barcelona total dominance at the Rams #fcbarcelona #lamineyamal #yamal #barca #championsleague ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/oQQAfVHIfFzAWAj0vcgAMLIL1PGjMnAQ3ekFUI~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=16bfbe42&x-expires=1792108800&x-signature=2f2P1al2qyxSDzAT0RiJxr%2FEMJE%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@football.matter8/video/7696544691625397526"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 11.539,
+          "engagement": {
+            "comments": 47,
+            "likes": 1973,
+            "shares": 71,
+            "views": 9062
+          },
+          "flags": [],
+          "handle": "mariannah.baybee",
+          "id": "obs1_d693dfedcaf2154e4dc3064a37cac5d5",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T15:35:27+02:00",
+          "quote_text": "Abeg oo 😒!! I’m not in support 😪#unitedgirl #championsleague #atleticovsmanunited #fyp #mariannah_baybee ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Abeg oo 😒!! I’m not in support 😪#unitedgirl #championsleague #atleticovsmanunited #fyp #mariannah_baybee ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/ocfsODJABDBEA7g4z3D4cqQ6zQfOpMRCjFkEDN~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=434500e2&x-expires=1792022400&x-signature=Z7B3FoE2%2FbC7u42p%2F%2FVtDOoPJjM%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@mariannah.baybee/video/7696145541964631314"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 71.518,
+          "engagement": {
+            "comments": 32,
+            "likes": 2040,
+            "shares": 10,
+            "views": 8804
+          },
+          "flags": [],
+          "handle": "ninobite_001",
+          "id": "obs1_5b4c724f9ce20820a82e8535118210a6",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T15:02:23+02:00",
+          "quote_text": "Na internship Xavi Espart go do with Cancelo.  cause that guy is not ready to step out anytime soon.  .  .  #championsleague #barcelona #joaocancelo #xaviespart #football ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Na internship Xavi Espart go do with Cancelo.  cause that guy is not ready to step out anytime soon.  .  .  #championsleague #barcelona #joaocancelo #xaviespart #football ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/ocDeGeBfEIxAgWfTAMsALXBegcafBW1ccYPcwQ~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=39b0c12f&x-expires=1792108800&x-signature=bFVd2FcVO116bUq36PncrQGYsiY%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@ninobite_001/video/7696508111493860629"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 116.3,
+          "engagement": {
+            "comments": 64,
+            "likes": 1648,
+            "shares": 6,
+            "views": 12387
+          },
+          "flags": [],
+          "handle": "zees_jersey",
+          "id": "obs1_0fe4f0aecfb6b4f20676409dedd03379",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-11T12:32:35+02:00",
+          "quote_text": "Pressing issues addressed‼️ #thefinearsenalgirl #arsenal #bald #championsleague #foryou ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Pressing issues addressed‼️ #thefinearsenalgirl #arsenal #bald #championsleague #foryou ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/o0SCNH1IL9CBzA6Zwnycbfi9iCAIvAZ2LSS95E~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=15bd479d&x-expires=1791849600&x-signature=gJ%2Fi04qUVym9Gv%2FKxvl98PeJ%2BX4%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@zees_jersey/video/7695356238846053654"
+        },
+        {
+          "creator_tier": "mid",
+          "duration_s": 273.7,
+          "engagement": {
+            "comments": 36,
+            "likes": 1358,
+            "shares": 1,
+            "views": 6869
+          },
+          "flags": [],
+          "handle": "football.matter8",
+          "id": "obs1_4b0163fdf9dcbef084e4171b7e1c91e5",
+          "market": "GB",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T16:54:42+02:00",
+          "quote_text": "🚨 Post Match Reaction on Arsenal vs Lille ‼️ Bruno Guimaraes (Mobile Partey) Masterclass and Eze appreciation Post ‼️ Flawless victory from the blazing Gunners #arsenal #championsleague #saka #eze #ucl ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "🚨 Post Match Reaction on Arsenal vs Lille ‼️ Bruno Guimaraes (Mobile Partey) Masterclass and Eze appreciation Post ‼️ Flawless victory from the blazing Gunners #arsenal #championsleague #saka #eze #ucl ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/oQAALI7VIIjAAjMI9fPeFLlnDGtFXyEpGV4eRA~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=754b02dd&x-expires=1792108800&x-signature=y9U5CppfKRvPvU2IS0joycahfZY%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@football.matter8/video/7696537054435446038"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 15.046,
+          "engagement": {
+            "comments": 151,
+            "likes": 3867,
+            "shares": 99,
+            "views": 21803
+          },
+          "flags": [],
+          "handle": "mariannah.baybee",
+          "id": "obs1_0e5a5a71d143bf30b4b693300a0df11d",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T10:57:28+02:00",
+          "quote_text": "Lord helppppp🤲🏼🧎🏼‍♀️!! #unitedgirl #mariannah_baybee #manchesterunited #championsleague #fyp ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Lord helppppp🤲🏼🧎🏼‍♀️!! #unitedgirl #mariannah_baybee #manchesterunited #championsleague #fyp ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/oAEAzIY9DZBy3XiX6cC4BIay8SNuiAJingisv~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=335ff5e4&x-expires=1792022400&x-signature=HethQFrEh%2B0FZlnD2qSYRsHKYtA%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@mariannah.baybee/video/7696073897476721927"
+        }
+      ],
+      "evidence_ids": [
+        "obs1_17055b417995349557fdfa2d89506f1c",
+        "obs1_b6251d71822512de5d75a497ccfa4854",
+        "obs1_918a51500fdcfc295774d2f3d6544196",
+        "obs1_427151e3a9b65f604ba71c9a8b8d08e9",
+        "obs1_11fcda3525f0b5fbe1beb17d12d59f20",
+        "obs1_8f436fb19f04ea6d6634207817b3ca6d",
+        "obs1_47cf4e635bd7e49284940afc8d1503b9",
+        "obs1_d693dfedcaf2154e4dc3064a37cac5d5",
+        "obs1_5b4c724f9ce20820a82e8535118210a6",
+        "obs1_0fe4f0aecfb6b4f20676409dedd03379",
+        "obs1_4b0163fdf9dcbef084e4171b7e1c91e5",
+        "obs1_0e5a5a71d143bf30b4b693300a0df11d"
+      ],
+      "explained": true,
+      "explanation": "Creators in Nigeria discussed Champions League football matches on TikTok, likely because fixtures featuring clubs such as Barcelona, Galatasaray, Arsenal, and Lille took place around 13 Oct.",
+      "explanation_claim_ids": [
+        "c1",
+        "c2",
+        "c4"
+      ],
+      "explanation_status": "explained",
+      "failed_reason": null,
+      "flag": null,
+      "flag_word": null,
+      "item_id": "230d764756c64a9bffe655fe583ef1155c9fe6b461ad415b8fcd2364d010caac",
+      "kind": "hashtag",
+      "locality_v2": {
+        "block_version": 1,
+        "breadth_creators": 23,
+        "feed_only_posts": 0,
+        "foreign_posts": 4,
+        "known_posts": 122,
+        "label": "local",
+        "local_posts": 118,
+        "local_share": 0.9672131147540983,
+        "metric_version": "locality_v2.1",
+        "population_posts": 122,
+        "reason": null,
+        "schema_version": 1,
+        "status": "local",
+        "unknown_posts": 0,
+        "vetoed_feed_posts": 4
+      },
+      "market": "NG",
+      "market_posts7": 10,
+      "market_scope": "market",
+      "market_share7": 0.8333333333333334,
+      "news_driven": true,
+      "numbers": [
+        {
+          "query_id": "q_creators3_8089a1dcaa9f",
+          "result_hash": "sha256:f430d4011f4d051bd3a995c1c98a0f61d8becbd4600d8867a90d49bce96a5117",
+          "run_id": "detect-20261015-47b18db814ba",
+          "unit": "creators in 3 days",
+          "value": 28
+        },
+        {
+          "query_id": "q_posts3_c7f40799516f",
+          "result_hash": "sha256:a210b2bfacabd47d86a9b20d4c6fa743815d2008dd507c0417e2f13d197d1ddd",
+          "run_id": "detect-20261015-47b18db814ba",
+          "unit": "posts in 3 days",
+          "value": 151
+        }
+      ],
+      "rank": 3,
+      "sparkline": {
+        "points": [
+          {
+            "date": "2026-10-02",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-03",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-04",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-05",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-06",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-07",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-08",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-09",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-10",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-11",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-12",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 1.0333333333333334
+          },
+          {
+            "date": "2026-10-13",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 13.433333333333335
+          },
+          {
+            "date": "2026-10-14",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 75.80291970802921
+          },
+          {
+            "date": "2026-10-15",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 79.17266187050359
+          }
+        ],
+        "unit": "posts a day"
+      },
+      "specificity": {
+        "local_evidence_ids": [
+          "obs1_17055b417995349557fdfa2d89506f1c",
+          "obs1_b6251d71822512de5d75a497ccfa4854",
+          "obs1_918a51500fdcfc295774d2f3d6544196"
+        ],
+        "quote": {
+          "evidence_id": "obs1_17055b417995349557fdfa2d89506f1c",
+          "text": "Champions League"
+        },
+        "reason": null,
+        "status": "pass",
+        "why_now": "Creators in Nigeria discussed Champions League football matches on TikTok, likely because fixtures featuring clubs such as Barcelona, Galatasaray, Arsenal, and Lille took place around 13 Oct."
+      },
+      "state": "emerging",
+      "state_word": "Emerging",
+      "thumbnails": [
+        "obs1_17055b417995349557fdfa2d89506f1c",
+        "obs1_b6251d71822512de5d75a497ccfa4854"
+      ],
+      "title": "#championsleague",
+      "title_written": "Champions League football matches",
+      "total_posts7": 12
+    },
+    {
+      "also": [],
+      "ask": "What is behind #arsenal in Nigeria this week?",
+      "claims": [
+        {
+          "evidence_ids": [
+            "obs1_918a51500fdcfc295774d2f3d6544196",
+            "obs1_27d6884a14e6732f5a3d5add9062fbdf"
+          ],
+          "id": "c1",
+          "kind": "observation",
+          "label": "single_source",
+          "numbers": [],
+          "quotes": [
+            {
+              "evidence_id": "obs1_918a51500fdcfc295774d2f3d6544196",
+              "text": "na only Lille know waten them see for Arteta hands today."
+            }
+          ],
+          "text": "Creators located in Nigeria on TikTok shared thoughts on Arsenal, with creator ninobite_001 noting, \"na only Lille know waten them see for Arteta hands today.\""
+        },
+        {
+          "evidence_ids": [
+            "obs1_8ea9988fa6c63151391a40405306f4da",
+            "obs1_27d6884a14e6732f5a3d5add9062fbdf",
+            "obs1_ced357e27bd0d10ef35c641f98af1466"
+          ],
+          "id": "c2",
+          "kind": "observation",
+          "label": "single_source",
+          "numbers": [],
+          "quotes": [],
+          "text": "On 13 Oct, creator iemstevo posted that Arsenal were to welcome Lille in the Champions League, and later posted about the match alongside creator mrbenjaamin."
+        },
+        {
+          "evidence_ids": [
+            "obs1_0fe4f0aecfb6b4f20676409dedd03379"
+          ],
+          "id": "c3",
+          "kind": "observation",
+          "label": "inferred",
+          "numbers": [],
+          "quotes": [],
+          "text": "The earliest post in the pack was published on TikTok on 11 Oct by creator zees_jersey in Nigeria."
+        },
+        {
+          "evidence_ids": [
+            "obs1_8ea9988fa6c63151391a40405306f4da",
+            "obs1_27d6884a14e6732f5a3d5add9062fbdf",
+            "obs1_ced357e27bd0d10ef35c641f98af1466"
+          ],
+          "id": "c4",
+          "kind": "interpretation",
+          "label": "inferred",
+          "numbers": [],
+          "quotes": [],
+          "text": "The attention on TikTok likely followed Arsenal playing and defeating Lille in the Champions League group stage around 13 Oct."
+        }
+      ],
+      "count_line": "25 creators and 73 posts in 3 days",
+      "date": "2026-10-15",
+      "evidence": [
+        {
+          "creator_tier": "micro",
+          "duration_s": 119.6,
+          "engagement": {
+            "comments": 14,
+            "likes": 1798,
+            "shares": 5,
+            "views": 14101
+          },
+          "flags": [],
+          "handle": "iemstevo",
+          "id": "obs1_8ea9988fa6c63151391a40405306f4da",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T12:47:33+02:00",
+          "quote_text": "Arsenal to welcome Lille in the Champions League group stage! I have no fear about Arsenal tonight, The Gunners are obviously the strongest EPL side in the UCL lately. #stevoiem #football #championsleague #arsenal #lille ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Arsenal to welcome Lille in the Champions League group stage! I have no fear about Arsenal tonight, The Gunners are obviously the strongest EPL side in the UCL lately. #stevoiem #football #championsleague #arsenal #lille ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/owDGtTEViYcsBT4pvjnMiAc5ZOE4AINEBaB06~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=8fb50343&x-expires=1792022400&x-signature=AelYcfccbhnQU%2Bv732ZJsUXO6Mc%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@iemstevo/video/7696102261776272662"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 4.945,
+          "engagement": {
+            "comments": 11,
+            "likes": 151,
+            "shares": 2,
+            "views": 1230
+          },
+          "flags": [],
+          "handle": "mrbenjaamin",
+          "id": "obs1_ced357e27bd0d10ef35c641f98af1466",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T01:08:09+02:00",
+          "quote_text": "Arsenal won 3-0 #Arsenal #championsleague #lille #uefachampionsleague #foryoupage ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Arsenal won 3-0 #Arsenal #championsleague #lille #uefachampionsleague #foryoupage ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/oI0DIOyi1uI2ZSd1AaDIIuhiAf7DLqCuABUAwR~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=13baf4f5&x-expires=1792022400&x-signature=PPRwbWp6D7fecIHohG1q812xTI8%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@mrbenjaamin/video/7696293131666476308"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 116.3,
+          "engagement": {
+            "comments": 64,
+            "likes": 1648,
+            "shares": 6,
+            "views": 12387
+          },
+          "flags": [],
+          "handle": "zees_jersey",
+          "id": "obs1_0fe4f0aecfb6b4f20676409dedd03379",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-11T12:32:35+02:00",
+          "quote_text": "Pressing issues addressed‼️ #thefinearsenalgirl #arsenal #bald #championsleague #foryou ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Pressing issues addressed‼️ #thefinearsenalgirl #arsenal #bald #championsleague #foryou ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/o0SCNH1IL9CBzA6Zwnycbfi9iCAIvAZ2LSS95E~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=15bd479d&x-expires=1791849600&x-signature=gJ%2Fi04qUVym9Gv%2FKxvl98PeJ%2BX4%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@zees_jersey/video/7695356238846053654"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 45,
+          "engagement": {
+            "comments": 15,
+            "likes": 1548,
+            "shares": 2,
+            "views": 6951
+          },
+          "flags": [],
+          "handle": "dlanor_jay",
+          "id": "obs1_7262975471fc26ce5b557027eb8068f0",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T23:02:34+02:00",
+          "quote_text": "Bruno Guimaraes might end up being the signing of the season for Arsenal   #arsenal #lille #ucl #guimaraes #lewisskelly ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Bruno Guimaraes might end up being the signing of the season for Arsenal   #arsenal #lille #ucl #guimaraes #lewisskelly ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-useast5-p-0068-tx/ogA81PnxgiIGbxoOVaBR4Uvc4E8sD6MhBiDIA~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=8c055f9a&x-expires=1792022400&x-signature=pGIOcA%2BTwol8us5eQntr9eIj02w%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&s=PUBLISH&sc=cover&biz_tag=tt_video",
+          "url": "https://www.tiktok.com/@dlanor_jay/video/7696260735831248141"
+        },
+        {
+          "creator_tier": "mid",
+          "duration_s": 273.7,
+          "engagement": {
+            "comments": 36,
+            "likes": 1358,
+            "shares": 1,
+            "views": 6869
+          },
+          "flags": [],
+          "handle": "football.matter8",
+          "id": "obs1_4b0163fdf9dcbef084e4171b7e1c91e5",
+          "market": "GB",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T16:54:42+02:00",
+          "quote_text": "🚨 Post Match Reaction on Arsenal vs Lille ‼️ Bruno Guimaraes (Mobile Partey) Masterclass and Eze appreciation Post ‼️ Flawless victory from the blazing Gunners #arsenal #championsleague #saka #eze #ucl ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "🚨 Post Match Reaction on Arsenal vs Lille ‼️ Bruno Guimaraes (Mobile Partey) Masterclass and Eze appreciation Post ‼️ Flawless victory from the blazing Gunners #arsenal #championsleague #saka #eze #ucl ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/oQAALI7VIIjAAjMI9fPeFLlnDGtFXyEpGV4eRA~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=754b02dd&x-expires=1792108800&x-signature=y9U5CppfKRvPvU2IS0joycahfZY%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@football.matter8/video/7696537054435446038"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 8.01,
+          "engagement": {
+            "comments": 25,
+            "likes": 1243,
+            "shares": 0,
+            "views": 5703
+          },
+          "flags": [],
+          "handle": "zees_jersey",
+          "id": "obs1_5d8e01d15ba84b8463f14052afd03e3b",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T23:18:41+02:00",
+          "quote_text": "Shut up!! #thefinearsenalgirl #championsleague #arsenal #bukayosaka #lillie",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Shut up!! #thefinearsenalgirl #championsleague #arsenal #bukayosaka #lillie",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/oQ0CkZBvGibmAAyuC1z1IIwF9iE8fCNBIOoDCt~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=340fd2df&x-expires=1792022400&x-signature=kuz8ssoWpnZCUYo%2BLIp%2F0gHlnYE%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@zees_jersey/video/7696264918449999107"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 138.901,
+          "engagement": {
+            "comments": 12,
+            "likes": 1238,
+            "shares": 1,
+            "views": 6394
+          },
+          "flags": [],
+          "handle": "dlanor_jay",
+          "id": "obs1_8292092a7e06b5bb51ef9a7cb9be0eef",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T12:26:05+02:00",
+          "quote_text": "Konsa has been a revelation despite being tasked with the momentous job of replacing Saliba #arsenal #ucl #konsa #saliba #football ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Konsa has been a revelation despite being tasked with the momentous job of replacing Saliba #arsenal #ucl #konsa #saliba #football ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-useast5-p-0068-tx/ocLPRquEzztEEWUjDAIEVeifbD8ggFIDDBSBu1~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=c1b43e88&x-expires=1792108800&x-signature=VCQc00%2F00kgUzrBacWjU%2Bxq4F7w%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@dlanor_jay/video/7696467782380113165"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 79.379,
+          "engagement": {
+            "comments": 30,
+            "likes": 893,
+            "shares": 4,
+            "views": 5205
+          },
+          "flags": [],
+          "handle": "ninobite_001",
+          "id": "obs1_2c0690e1f6e223211b06ee666a61b026",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T23:30:13+02:00",
+          "quote_text": "Man city midfield has been exposed.  Arsenal, kobbie mainoo and Gravenberch dominated that midfield, I knew what I saw.  today there was no place to hide.  .  .  #championsleague #mancity #psg #enzofernandez #arsenal ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Man city midfield has been exposed.  Arsenal, kobbie mainoo and Gravenberch dominated that midfield, I knew what I saw.  today there was no place to hide.  .  .  #championsleague #mancity #psg #enzofernandez #arsenal ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/ooLXNv6rPAAFGTVJIEVesG6FwCfegfm4Rk8AgG~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=74695237&x-expires=1792108800&x-signature=phfMz68zZPWVjBB23sCnHz04Xzc%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&sc=cover&biz_tag=tt_video&s=PUBLISH",
+          "url": "https://www.tiktok.com/@ninobite_001/video/7696638972038106389"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 121.95,
+          "engagement": {
+            "comments": 13,
+            "likes": 116,
+            "shares": 8,
+            "views": 601
+          },
+          "flags": [],
+          "handle": "henryggmu",
+          "id": "obs1_a21418f8899e39b4879f3ed53afb159d",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-11T13:08:55+02:00",
+          "quote_text": "CONGRATS TO ALL CHELSEA AND ARSENAL,AS FOR MAN UTD …NO PROBLEMS #manchesterunited #chelsea #arsenal #PremierLeague ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "CONGRATS TO ALL CHELSEA AND ARSENAL,AS FOR MAN UTD …NO PROBLEMS #manchesterunited #chelsea #arsenal #PremierLeague ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-useast8-p-0068-tx2/oIEALIA6gIBstrRVEEEnBIajb8LgXRHikVisv~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=99ac2a2d&x-expires=1791849600&x-signature=PkHpYAC1cmVKCXvdZVznd%2BETa%2Fo%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@henryggmu/video/7695365362132536607"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 83.677,
+          "engagement": {
+            "comments": 29,
+            "likes": 2082,
+            "shares": 9,
+            "views": 13867
+          },
+          "flags": [],
+          "handle": "ninobite_001",
+          "id": "obs1_918a51500fdcfc295774d2f3d6544196",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-13T22:59:42+02:00",
+          "quote_text": "na only Lille know waten them see for Arteta hands today. 😭 you can never understand until you taste it.  .  .  #football #championsleague #lille #arteta #arsenal ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "na only Lille know waten them see for Arteta hands today. 😭 you can never understand until you taste it.  .  .  #football #championsleague #lille #arteta #arsenal ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-p-0037/oo72EqCVDAVInnjnaIQ7eBfAO5LGnLfOTormAI~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=7ee897fc&x-expires=1792022400&x-signature=vbiMhhfx8uYih3hY4RMZBSIW90Y%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@ninobite_001/video/7696260028222672148"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 95.667,
+          "engagement": {
+            "comments": 16,
+            "likes": 1853,
+            "shares": 3,
+            "views": 11787
+          },
+          "flags": [],
+          "handle": "iemstevo",
+          "id": "obs1_27d6884a14e6732f5a3d5add9062fbdf",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T00:01:57+02:00",
+          "quote_text": "Arsenal are set to save the EPL again in the Champions League! Today they flogged Lille 3-0 without Lille getting a single shot on target! #stevoiem #football #championsleague #arsenal #lille ",
+          "source_market": "NG",
+          "sponsor_checked": true,
+          "text": "Arsenal are set to save the EPL again in the Champions League! Today they flogged Lille 3-0 without Lille getting a single shot on target! #stevoiem #football #championsleague #arsenal #lille ",
+          "thumbnail_url": "https://p16-common-sign.tiktokcdn-us.com/tos-no1a-p-0037-no/oghPgBUEzoi1C6lfCwzOEy1lqbIJZAQGiI3AAV~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=741d0cdb&x-expires=1792022400&x-signature=0QxyIzo6YMumLcQE4zMUf69MHvU%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast5&sc=cover&biz_tag=tt_video&s=PUBLISH",
+          "url": "https://www.tiktok.com/@iemstevo/video/7696276067023097110"
+        },
+        {
+          "creator_tier": "micro",
+          "duration_s": 141.667,
+          "engagement": {
+            "comments": 54,
+            "likes": 2465,
+            "shares": 2,
+            "views": 21237
+          },
+          "flags": [],
+          "handle": "phlowzanalysis",
+          "id": "obs1_b6251d71822512de5d75a497ccfa4854",
+          "market": "NG",
+          "outlet_class": "creator",
+          "platform": "tiktok",
+          "posted_at": "2026-10-14T15:47:51+02:00",
+          "quote_text": "Arsenal currently the best team from England in Europe no doubt about it  14 consecutive UCL wins in the group stages 🤯🤯🤯 #Arsenal #championsleague #Arteta #saka #eze ",
+          "source_market": "NG",
+          "sponsor_checked": false,
+          "text": "Arsenal currently the best team from England in Europe no doubt about it  14 consecutive UCL wins in the group stages 🤯🤯🤯 #Arsenal #championsleague #Arteta #saka #eze ",
+          "thumbnail_url": "https://p19-common-sign.tiktokcdn-us.com/tos-useast5-p-0068-tx/oEQj78gfesa5CIMaCA8YXGAkM2QxAPfVHwnVEI~tplv-tiktokx-cropcenter-q:300:400:q70.heic?dr=8596&refresh_token=cf92394d&x-expires=1792108800&x-signature=D6ebQjIk5FBb8nKi5bKQnEWAh6M%3D&t=bacd0480&ps=933b5bde&shp=d05b14bd&shcp=132edbea&idc=useast8&biz_tag=tt_video&s=PUBLISH&sc=cover",
+          "url": "https://www.tiktok.com/@phlowzanalysis/video/7696519784296500494"
+        }
+      ],
+      "evidence_ids": [
+        "obs1_8ea9988fa6c63151391a40405306f4da",
+        "obs1_ced357e27bd0d10ef35c641f98af1466",
+        "obs1_0fe4f0aecfb6b4f20676409dedd03379",
+        "obs1_7262975471fc26ce5b557027eb8068f0",
+        "obs1_4b0163fdf9dcbef084e4171b7e1c91e5",
+        "obs1_5d8e01d15ba84b8463f14052afd03e3b",
+        "obs1_8292092a7e06b5bb51ef9a7cb9be0eef",
+        "obs1_2c0690e1f6e223211b06ee666a61b026",
+        "obs1_a21418f8899e39b4879f3ed53afb159d",
+        "obs1_918a51500fdcfc295774d2f3d6544196",
+        "obs1_27d6884a14e6732f5a3d5add9062fbdf",
+        "obs1_b6251d71822512de5d75a497ccfa4854"
+      ],
+      "explained": true,
+      "explanation": "Creators in Nigeria on TikTok are sharing match reactions to Arsenal in the Champions League, likely because Arsenal played and defeated Lille as seen on 13 Oct.",
+      "explanation_claim_ids": [
+        "c1",
+        "c2",
+        "c4"
+      ],
+      "explanation_status": "explained",
+      "failed_reason": null,
+      "flag": null,
+      "flag_word": null,
+      "item_id": "9ff11628468fb8879c1f9d368f9fc60f52f6f8939f0b24dd15f7baac2cc92807",
+      "kind": "hashtag",
+      "locality_v2": {
+        "block_version": 1,
+        "breadth_creators": 13,
+        "feed_only_posts": 0,
+        "foreign_posts": 2,
+        "known_posts": 43,
+        "label": "local",
+        "local_posts": 41,
+        "local_share": 0.9534883720930233,
+        "metric_version": "locality_v2.1",
+        "population_posts": 43,
+        "reason": null,
+        "schema_version": 1,
+        "status": "local",
+        "unknown_posts": 0,
+        "vetoed_feed_posts": 2
+      },
+      "market": "NG",
+      "market_posts7": 11,
+      "market_scope": "market",
+      "market_share7": 0.9166666666666666,
+      "news_driven": true,
+      "numbers": [
+        {
+          "query_id": "q_creators3_eeed31fa29c9",
+          "result_hash": "sha256:33ae3f961d7e9d84baa2ab24e2b7a123fd483ef779645cd107af951c58da55c1",
+          "run_id": "detect-20261015-47b18db814ba",
+          "unit": "creators in 3 days",
+          "value": 25
+        },
+        {
+          "query_id": "q_posts3_8f45338f3a7b",
+          "result_hash": "sha256:3cd8985a4b1c2ae4244860233a35ecfcc5f738191e6ba8abd433e03d0ef50de7",
+          "run_id": "detect-20261015-47b18db814ba",
+          "unit": "posts in 3 days",
+          "value": 73
+        }
+      ],
+      "rank": 4,
+      "sparkline": {
+        "points": [
+          {
+            "date": "2026-10-02",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-03",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-04",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-05",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-06",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-07",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-08",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-09",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-10",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-11",
+            "expected_high": null,
+            "expected_low": null,
+            "value": null
+          },
+          {
+            "date": "2026-10-12",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 6.200000000000001
+          },
+          {
+            "date": "2026-10-13",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 10.333333333333334
+          },
+          {
+            "date": "2026-10-14",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 54.306569343065696
+          },
+          {
+            "date": "2026-10-15",
+            "expected_high": null,
+            "expected_low": null,
+            "value": 16.72661870503597
+          }
+        ],
+        "unit": "posts a day"
+      },
+      "specificity": {
+        "local_evidence_ids": [
+          "obs1_918a51500fdcfc295774d2f3d6544196",
+          "obs1_27d6884a14e6732f5a3d5add9062fbdf",
+          "obs1_8ea9988fa6c63151391a40405306f4da",
+          "obs1_ced357e27bd0d10ef35c641f98af1466"
+        ],
+        "quote": {
+          "evidence_id": "obs1_918a51500fdcfc295774d2f3d6544196",
+          "text": "na only Lille know waten them see for Arteta hands today."
+        },
+        "reason": null,
+        "status": "pass",
+        "why_now": "Creators in Nigeria on TikTok are sharing match reactions to Arsenal in the Champions League, likely because Arsenal played and defeated Lille as seen on 13 Oct."
+      },
+      "state": "new_to_42",
+      "state_word": "New to 42",
+      "thumbnails": [
+        "obs1_8ea9988fa6c63151391a40405306f4da",
+        "obs1_ced357e27bd0d10ef35c641f98af1466"
+      ],
+      "title": "#arsenal",
+      "title_written": "Arsenal Champions League Lille Match",
+      "total_posts7": 12
+    }
+  ],
+  "critic": [
+    {
+      "code_rivals": {
+        "critic_ruled_out": false,
+        "disagreement": false,
+        "found": [],
+        "inputs": {
+          "burst_share": {
+            "query_id": "q_burst_share_aa04a0bdf846",
+            "value": 0.061224489795918366
+          },
+          "moment": {
+            "query_id": "q_moment_ad36e6d81fa7",
+            "value": null
+          },
+          "near_dup_share": {
+            "query_id": "q_near_dup_share_9b9cd0e317ec",
+            "value": 0
+          },
+          "posts7": {
+            "query_id": "q_posts7_9fd77df33670",
+            "value": 134
+          },
+          "sponsored_share": {
+            "query_id": "q_sponsored_share_e43a558625bb",
+            "value": 0
+          },
+          "top3_share": {
+            "query_id": "q_top3_share_6d2e9f92e902",
+            "value": 0.23880597014925373
+          }
+        },
+        "not_assessed": [
+          "regime_break"
+        ],
+        "read": "ok",
+        "record_version": 2,
+        "thresholds": {
+          "burst": 0.35,
+          "concentrated": 0.6,
+          "min_posts7": 10,
+          "near_duplicates": 0.3,
+          "sponsored": 0.5
+        }
+      },
+      "item_id": "9ff11628468fb8879c1f9d368f9fc60f52f6f8939f0b24dd15f7baac2cc92807",
+      "local_reaction": true,
+      "local_why_now": true,
+      "news_driven": false,
+      "non_cultural_explanation": "Arsenal playing Lille in the UEFA Champions League on 13 October accounts for the rise in posts as a scheduled sporting event.",
+      "reason": "The posts directly discuss and react in their own words to Arsenal's Champions League match against Lille on 13 October, which is a scheduled sporting event.",
+      "ruled_out": false,
+      "scheduled_event": true
+    },
+    {
+      "code_rivals": {
+        "critic_ruled_out": false,
+        "disagreement": false,
+        "found": [],
+        "inputs": {
+          "burst_share": {
+            "query_id": "q_burst_share_b37668fbfae8",
+            "value": 0.05161290322580645
+          },
+          "moment": {
+            "query_id": "q_moment_483907f3501c",
+            "value": null
+          },
+          "near_dup_share": {
+            "query_id": "q_near_dup_share_944cfba402ea",
+            "value": 0
+          },
+          "posts7": {
+            "query_id": "q_posts7_913c6b1e44d9",
+            "value": 185
+          },
+          "sponsored_share": {
+            "query_id": "q_sponsored_share_edef1b21dd7c",
+            "value": 0
+          },
+          "top3_share": {
+            "query_id": "q_top3_share_c2a9ec34a829",
+            "value": 0.2972972972972973
+          }
+        },
+        "not_assessed": [
+          "regime_break"
+        ],
+        "read": "ok",
+        "record_version": 2,
+        "thresholds": {
+          "burst": 0.35,
+          "concentrated": 0.6,
+          "min_posts7": 10,
+          "near_duplicates": 0.3,
+          "sponsored": 0.5
+        }
+      },
+      "item_id": "230d764756c64a9bffe655fe583ef1155c9fe6b461ad415b8fcd2364d010caac",
+      "local_reaction": true,
+      "local_why_now": true,
+      "news_driven": false,
+      "non_cultural_explanation": "a scheduled sports tournament featuring live matches",
+      "reason": "The posts directly discuss scheduled UEFA Champions League matches occurring on the cited dates with distinct personal commentary from local creators.",
+      "ruled_out": false,
+      "scheduled_event": true
+    },
+    {
+      "code_rivals": {
+        "critic_ruled_out": false,
+        "disagreement": false,
+        "found": [],
+        "inputs": {
+          "burst_share": {
+            "query_id": "q_burst_share_4dbea070188e",
+            "value": 0.044444444444444446
+          },
+          "moment": {
+            "query_id": "q_moment_8ff55e3d5c2b",
+            "value": null
+          },
+          "near_dup_share": {
+            "query_id": "q_near_dup_share_49ac576d5f14",
+            "value": 0.012578616352201259
+          },
+          "posts7": {
+            "query_id": "q_posts7_ce13a0031cc9",
+            "value": 159
+          },
+          "sponsored_share": {
+            "query_id": "q_sponsored_share_d2aaa1c9de15",
+            "value": 0
+          },
+          "top3_share": {
+            "query_id": "q_top3_share_4d835b0578a5",
+            "value": 0.1949685534591195
+          }
+        },
+        "not_assessed": [
+          "regime_break"
+        ],
+        "read": "ok",
+        "record_version": 2,
+        "thresholds": {
+          "burst": 0.35,
+          "concentrated": 0.6,
+          "min_posts7": 10,
+          "near_duplicates": 0.3,
+          "sponsored": 0.5
+        }
+      },
+      "item_id": "01186adf6f59480408089f7e354a050a0af61f17313d7190fc8338db396d33ea",
+      "local_reaction": true,
+      "local_why_now": true,
+      "news_driven": false,
+      "non_cultural_explanation": "a scheduled sports fixture between Manchester United and Atletico Madrid driving match discussions and reactions",
+      "reason": "The trend was driven by a scheduled Champions League football match on 13 Oct, prompting original opinions and commentary from local creators in Nigeria.",
+      "ruled_out": false,
+      "scheduled_event": true
+    },
+    {
+      "code_rivals": {
+        "critic_ruled_out": false,
+        "disagreement": false,
+        "found": [],
+        "inputs": {
+          "burst_share": {
+            "query_id": "q_burst_share_950a91ec2409",
+            "value": 0.0392156862745098
+          },
+          "moment": {
+            "query_id": "q_moment_6c26986c8f50",
+            "value": null
+          },
+          "near_dup_share": {
+            "query_id": "q_near_dup_share_2016fd8d774f",
+            "value": 0.01
+          },
+          "posts7": {
+            "query_id": "q_posts7_4924d1faa207",
+            "value": 100
+          },
+          "sponsored_share": {
+            "query_id": "q_sponsored_share_3c51784a51c6",
+            "value": 0
+          },
+          "top3_share": {
+            "query_id": "q_top3_share_dcbc94ed0e69",
+            "value": 0.3
+          }
+        },
+        "not_assessed": [
+          "regime_break"
+        ],
+        "read": "ok",
+        "record_version": 2,
+        "thresholds": {
+          "burst": 0.35,
+          "concentrated": 0.6,
+          "min_posts7": 10,
+          "near_duplicates": 0.3,
+          "sponsored": 0.5
+        }
+      },
+      "item_id": "3e29fc8b574afcab5ebeb686342b945a9bc42f4cd819d1cb0bd009770b11f7e7",
+      "local_reaction": true,
+      "local_why_now": true,
+      "news_driven": false,
+      "non_cultural_explanation": "a scheduled sports match between Arsenal and Lille in the Champions League",
+      "reason": "The posts directly discuss the scheduled Champions League football match between Arsenal and Lille played on 13 October, with local Nigerian creators sharing personal reactions and commentary in their own words.",
+      "ruled_out": false,
+      "scheduled_event": true
+    }
+  ]
+}

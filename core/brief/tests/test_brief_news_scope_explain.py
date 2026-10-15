@@ -109,15 +109,15 @@ def test_a_news_handle_does_not_make_a_second_local_creator_reacting():
     assert critic_row(result)["verdict"] == "cut"
 
 
-def test_the_same_two_handles_with_the_second_on_another_platform_pass_the_news_driven_rule():
+def test_two_handles_on_another_platform_do_not_qualify_news_reaction():
     result = run(FakeModel([good()], critic=NEWS_REACTION), pack=news_cited_pack("instagram"))
 
-    assert result["reason"] is None and result["news_driven"] is True
+    assert_numbers_only(result, "failed_checks")
 
 
-def test_one_news_handle_beside_two_local_creators_still_passes():
+def test_one_news_handle_beside_two_local_creators_cannot_qualify_reaction():
     pack = make_pack()
     pack["evidence"][1] = dict(pack["evidence"][1], platform="news")
     result = run(FakeModel([good()], critic=NEWS_REACTION), pack=pack)
 
-    assert result["reason"] is None and result["news_driven"] is True
+    assert_numbers_only(result, "failed_checks")

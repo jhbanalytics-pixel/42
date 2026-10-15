@@ -1,6 +1,6 @@
 """The critic-informed second draft (Albert, 4 Oct, D1).
 
-When the critic leaves the simpler explanation ruled out (or passes a news or scheduled event on local reaction) and
+When the critic leaves the simpler explanation ruled out and
 holds the card only because the why-now is not shown, the writer gets one more draft with the critic's reason. That
 draft goes through every check again in full: the code checks with no further repair round, the support check per
 claim and on the sentence, the critic and the specificity rule. Nothing is loosened; a critic that leaves the simpler
@@ -107,11 +107,11 @@ def test_a_simpler_explanation_left_standing_never_gets_a_second_draft(critic):
     assert len(model.writer_calls()) == 1 and len(model.critic_calls()) == 1
 
 
-def test_a_news_event_with_local_reaction_held_only_on_the_why_now_gets_a_second_draft():
+def test_a_news_reaction_held_on_timing_does_not_get_another_draft():
     model = Critics([good(), good()], [NEWS_WORDING, RULED_OUT])
     result = run(model)
-    assert result["reason"] is None
-    assert len(model.writer_calls()) == 2
+    assert result["reason"] == "failed_checks"
+    assert len(model.writer_calls()) == 1 and len(model.critic_calls()) == 1
 
 
 def test_the_second_draft_gets_no_code_repair_round_and_a_code_fault_cuts_it_with_its_reason():

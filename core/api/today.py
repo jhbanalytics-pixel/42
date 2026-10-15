@@ -15,6 +15,7 @@ from core.api.searching import searching_now
 from core.api.store import canon_platform, creator_key
 from core.brief.explain import _one_step_lower, _place_fault, _sentence_fault, _source_evidence
 from core.brief.payload import NOT_ASSESSED_REASONS
+from core.brief.quality import critic_is_valid, cultural_critic_passes
 from core.brief.specificity import MIN_EVIDENCE, showable_posts
 from core.public_feeds.catalog import FEEDS
 from core.trust.claims import LABELS as CLAIM_LABELS
@@ -709,9 +710,40 @@ def _trend_card(card, market, date, ranks):
 
 def _cards(payload, market, date, prev):
     ranks = prev[0] if prev else None
-    cards = [_trend_card(c, market, date, ranks) for c in payload.get("cards") or []]
-    more = [_trend_card(c, market, date, ranks) for c in payload.get("more") or []]
+    cards = [_trend_card(c, market, date, ranks) for c in payload.get("cards") or []
+             if _publication_fault(c, payload) is None]
+    more = [_trend_card(c, market, date, ranks) for c in payload.get("more") or []
+            if _publication_fault(c, payload) is None]
     return cards, more
+
+
+def _named_pattern(*values):
+    return any(isinstance(value, str) and _readable(value)
+               and not re.fullmatch(r"(?:topic\s+[0-9a-f]{8,}|unnamed(?:\s+\w+)?)", value.strip(), re.I)
+               for value in values)
+
+
+def _publication_fault(card, payload):
+    held = payload.get("held_back")
+    held = held.get("items") if isinstance(held, dict) else None
+    if isinstance(held, list) and any(isinstance(h, dict) and h.get("item_id") == card.get("item_id") for h in held):
+        return "Held back today"
+    if card.get("kind") == "topic" and not _named_pattern(card.get("title_written"), card.get("title")):
+        return "No readable name"
+    entries = payload.get("critic")
+    entries = entries if isinstance(entries, list) else []
+    matches = [entry for entry in entries if isinstance(entry, dict) and entry.get("item_id") == card.get("item_id")]
+    if (not matches or any(not critic_is_valid(entry) for entry in matches)
+            or any(entry != matches[0] for entry in matches)):
+        return "The cultural pattern has not been assessed"
+    if not cultural_critic_passes(matches[0]):
+        return "A distinct cultural pattern was not established"
+    return None
+
+
+def _stored_card_fault(card, payload):
+    fault = _today_card_fault(card)
+    return fault or _publication_fault(card, payload)
 
 
 def _today_card_admissible(card):
@@ -871,7 +903,7 @@ def _today_cards(payload, market, date, prev):
     ranks = prev[0] if prev else None
     admitted, rejected = [], []
     for card in raw_entries:
-        if _today_card_admissible(card):
+        if _stored_card_fault(card, payload) is None:
             admitted.append(_card(card, market, date, ranks))
         elif (isinstance(card, dict) and isinstance(card.get("item_id"), str)
               and card["item_id"].strip()):
@@ -885,8 +917,8 @@ def brief_counts(payload):
     item once; an entry with no item id stays, as None)}. History counts zero-card briefs from this."""
     payload = payload if isinstance(payload, dict) else {}
     entries = [c for key in ("cards", "more") if isinstance(payload.get(key), list) for c in payload[key]]
-    shown = [c["item_id"] for c in entries if _today_card_admissible(c)]
-    rejected = [c["item_id"] for c in entries if not _today_card_admissible(c) and isinstance(c, dict)
+    shown = [c["item_id"] for c in entries if _stored_card_fault(c, payload) is None]
+    rejected = [c["item_id"] for c in entries if _stored_card_fault(c, payload) is not None and isinstance(c, dict)
                 and isinstance(c.get("item_id"), str) and c["item_id"].strip()]
     block = payload.get("held_back") if isinstance(payload.get("held_back"), dict) else {}
     items = block.get("items") if isinstance(block.get("items"), list) else []
@@ -1021,8 +1053,16 @@ def _held_item(item, creator_labels):
     return _plain_reason(out)
 
 
-def _reader_held_item(card, creator_labels):
+def _reader_held_item(card, creator_labels, payload=None):
     out = _held_item(card, creator_labels)
+    publication_fault = (_publication_fault(card, payload)
+                         if payload is not None and _today_card_fault(card) is None else None)
+    if publication_fault:
+        out.update(reason="not_confirmed", reason_text=publication_fault, title_written=None,
+                   explained=False, news_driven=False,
+                   explanation_status="not_run" if publication_fault == "The cultural pattern has not been assessed"
+                   else "failed_checks")
+        return _plain_reason(out)
     failed_reason = card.get("failed_reason")
     if isinstance(failed_reason, str) and failed_reason.strip():
         out["failed_reason"] = failed_reason.strip()
@@ -1328,7 +1368,7 @@ def _market(store, market, date, row, health_rows, calendar_rows, warmup, collec
         if item_id in held_ids:
             continue
         held_ids.add(item_id)
-        held_items.append(_reader_held_item(card, creator_labels))
+        held_items.append(_reader_held_item(card, creator_labels, payload))
     held_text = (f"{len(held_items)} item{'s' if len(held_items) != 1 else ''} held back"
                  if held_items else "Nothing held back")
     represented = today_ids | held_ids | {i for m in moments for i in m.get("item_ids") or []}
@@ -1658,7 +1698,11 @@ def build_trend(store, item_id, market, date=None):
     for c in cards + more:
         if c["item_id"] == item_id:
             return c
-    for h in (payload.get("held_back") or {}).get("items") or []:
+    held = list((payload.get("held_back") or {}).get("items") or [])
+    held_ids = {h.get("item_id") for h in held if isinstance(h, dict)}
+    held += [_reader_held_item(c, {}, payload) for c in _entries(payload)
+             if isinstance(c, dict) and c.get("item_id") not in held_ids and _stored_card_fault(c, payload) is not None]
+    for h in held:
         if h["item_id"] == item_id:
             evidence = _platform_x(h.get("evidence"))
             title = _display_title([h.get("title")], evidence=evidence)
@@ -1666,7 +1710,7 @@ def build_trend(store, item_id, market, date=None):
                 "item_id": item_id, "market": market, "date": date, "rank": None, "kind": h.get("kind"),
                 "title": title, "tag": None, "state": None, "state_word": None, "flag": None,
                 "flag_word": None, "explained": False, "explanation": None, "explanation_claim_ids": [],
-                "claims": [], "count_line": None, "numbers": h.get("numbers") or [], "sparkline": None,
+                "claims": [], "count_line": h.get("count_line"), "numbers": h.get("numbers") or [], "sparkline": None,
                 "thumbnails": [e["id"] for e in evidence[:2]],
                 "evidence_ids": h.get("evidence_ids") or [e["id"] for e in evidence],
                 "evidence": evidence,

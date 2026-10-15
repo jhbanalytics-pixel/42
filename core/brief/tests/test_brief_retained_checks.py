@@ -20,7 +20,7 @@ LEAK = "MODELFREETEXT-7731 thabo@gmail.com says the amapiano post was hers"
 EXPLAIN_C1 = "80fc228ba150a910acc3aad57abf08607197f399e1fc7b5bd805c9bdeacfec44"
 EXPLAIN_SENTENCE = "9b75a183d13b21a4655a5688dc605eebad5d1898b4ac3286d0ca4cdb7536c485"
 JOB_C1 = "d480c89e92c92224fec0e5c2efd39983257131df5b10593d8fddf08f82659ff5"
-JOB_SENTENCE = "c5c7b49d4047dc08b88b860af2c371be22e45970534f31dadeaaa15636875b04"
+JOB_SENTENCE = "3d7e36cf42c419052c35d3f5f8ae6752c025c7aca136c525b086e8a0895cb824"
 JOB_C2 = "68e499315bb29ef7c5080999103c1fb07442587661fd454119ce33d97416a724"
 
 
@@ -292,7 +292,8 @@ def test_the_critic_code_does_not_depend_on_the_models_explanation_text(text, ru
 
 
 def test_the_critic_row_carries_its_standing_and_why_now_as_keys():
-    out = {"non_cultural_explanation": "x", "ruled_out": True, "local_why_now": False, "reason": "r"}
+    out = {"non_cultural_explanation": "x", "ruled_out": True, "local_why_now": False, "reason": "r",
+           "news_driven": False, "scheduled_event": False, "local_reaction": False}
     row = explain._critic_row(out, 0)
     assert row["standing"] == "ruled out" and row["local_why_now"] is False
     assert row["standing"] in STANDING_WORDS
