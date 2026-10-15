@@ -12,7 +12,7 @@ At bind for every release, the version entry's lines are re-derived from the mer
 
 The newest release comes first, and VERSION at the root of the repository holds its number. Each version is a heading with the version and the date in brackets, or "next, not live yet" until the date is written in, then one line naming the release and one plain line per change. A jobs update is a "### Jobs update" heading with its date in brackets under its version, followed by its own lines. The panel in the menu marks the version the page runs as This version.
 
-## 2.4.0 (next, not live yet)
+## 2.4.0 (15 October 2026)
 
 Release Alpha, data quality, trend identity and research reliability.
 
