@@ -168,7 +168,7 @@ jobs:
         run: python tests_support/ci_core_shards.py aggregate --artifacts "${RUNNER_TEMP}/core-shards" --count 4 --head "${GITHUB_SHA}" --junit "${RUNNER_TEMP}/core-junit.xml"
       - name: Report the skipped opt-in tests and the number of tests that ran
         if: always()
-        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 28573 --min-passed 28573 --ratchet-gap 800 >> "${GITHUB_STEP_SUMMARY}"
+        run: python tests_support/ci_skip_report.py "${RUNNER_TEMP}/core-junit.xml" --min-total 29439 --min-passed 29439 --ratchet-gap 800 >> "${GITHUB_STEP_SUMMARY}"
 
   frontend:
     runs-on: ubuntu-24.04
