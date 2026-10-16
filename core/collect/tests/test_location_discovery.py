@@ -278,3 +278,46 @@ def test_discovery_native_date_window_includes_both_bounds(monkeypatch, start, e
     results, _ = discover_and_lookup(make(http=http), {"query": "posts", "from_handles": "ARISEtv",
         "from_date": start, "to_date": end}, market="NG")
     assert len(results) == 1
+
+
+def _ig_place_body():
+    return {"success": True, "data": {"items": [{"post": {
+        "id": "C1", "url": "https://www.instagram.com/p/C1/", "platform": "instagram",
+        "author": {"username": "someone", "country": "US"}, "content": {"text": "Sunday at the market"}}}]}}
+
+
+def test_reviewed_instagram_place_places_its_posts_by_the_tag():
+    from core.detect.geo import geo_for_post
+
+    out = parser.parse_with_creators("instagram/location/posts", {"location_id": "100485515208886"}, "KE",
+                                     _ig_place_body(), NOW, "t", item_id_fn=fake_item_id, geo_fn=geo_for_post)
+    assert [(p["geo_market"], p["geo_confidence"], p["geo_source"]) for p in out["posts"]] == [("KE", 0.95, "place_tag")]
+
+
+def test_unlisted_instagram_place_never_places_a_post():
+    from core.detect.geo import geo_for_post
+
+    out = parser.parse_with_creators("instagram/location/posts", {"location_id": "999"}, "KE",
+                                     _ig_place_body(), NOW, "t", item_id_fn=fake_item_id, geo_fn=geo_for_post)
+    assert out["posts"][0]["geo_source"] != "place_tag"
+
+
+def test_backfill_reads_the_place_from_the_stored_seed_key():
+    from core.collect.job import backfill_rows
+    from core.detect.geo import geo_for_post
+
+    raw = [{"route": "instagram/location/posts", "lane": "sweep", "market": "NG", "body": json.dumps(_ig_place_body()),
+            "fetched_at": NOW, "run_id": "r", "seed_key": "104481218205279"}]
+    _, posts, skipped = backfill_rows(raw, geo_for_post)
+    assert skipped == 0
+    assert [(p["geo_market"], p["geo_source"]) for p in posts] == [("NG", "place_tag")]
+
+
+def test_place_tag_reads_only_reviewed_places():
+    from core.collect.location_sources import place_tag
+
+    assert place_tag("instagram/location/posts", "320191774775153") == "ZA"
+    assert place_tag("instagram/location/posts", " 498032420 ") == "NG"
+    assert place_tag("tiktok/location/posts", "320191774775153") is None
+    assert place_tag("youtube/search/advanced", "320191774775153") is None
+    assert place_tag("instagram/location/posts", None) is None

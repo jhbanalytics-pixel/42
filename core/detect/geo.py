@@ -1,11 +1,16 @@
 """Where a post was made: the per-platform geo recipe (SOURCES.md, TRUST.md A5 and G6).
 
 geo_for_post(platform, market, *, ext_region=None, home_market=None,
-             profile_location=None, text=None, language=None)
+             profile_location=None, text=None, language=None, place_tag=None)
     returns (geo_market, geo_confidence, geo_source) for one posts row. geo_market is an
     upper-case ISO 3166 alpha-2 code or None; market is the market the post was
     collected for (ZA, NG or KE, any case). The first step that resolves wins:
 
+    0. place_tag: the country of a reviewed place the post itself is tagged at (a post read
+       from instagram/location/posts or tiktok/location/posts for a place id listed and
+       reviewed in core/config/markets.yaml). The creator chose the tag for this post, so it
+       is the post's own statement of where it was made, not a request region. 0.95, source
+       place_tag. Only an alpha-2 code counts.
     1. ext_region, TikTok only: TikTok's own region code. 0.9, source ext_region.
     2. The creator: home_market (an alpha-2 code, or a country name or alias listed in
        COUNTRIES such as "South Africa" or "Naija"; any other string is ignored) or the
@@ -211,6 +216,7 @@ def geo_for_post(
     profile_location: str | None = None,
     text: str | None = None,
     language: str | Iterable[str] | None = None,
+    place_tag: str | None = None,
 ) -> tuple[str | None, float | None, str | None]:
     market = str(market).strip().upper()
     if market not in MARKETS:
@@ -220,6 +226,10 @@ def geo_for_post(
         profile_location = None
     if not isinstance(text, str):
         text = None
+
+    tagged = _alpha2(place_tag)
+    if tagged:
+        return tagged, 0.95, "place_tag"
 
     if isinstance(platform, str) and platform.strip().casefold() == "tiktok":
         region = _alpha2(ext_region)

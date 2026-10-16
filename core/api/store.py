@@ -56,10 +56,10 @@ def canon_platform(platform):
 
 
 def _known(post):
-    """A post whose place is known as v_item_market_scope reads it: geo_confidence 0.7 or more from its region,
-    home market or a place it names."""
+    """A post whose place is known as v_item_market_scope reads it: geo_confidence 0.7 or more from its place tag,
+    region, home market or a place it names."""
     return ((post.get("geo_confidence") or 0) >= 0.7
-            and post.get("geo_source") in ("ext_region", "home_market", "place_mention"))
+            and post.get("geo_source") in ("place_tag", "ext_region", "home_market", "place_mention"))
 
 
 def creator_key(platform, handle):
@@ -1095,7 +1095,7 @@ or None."""
         measured_posts7 and measured_creators7 (only the rank and panel lanes, which no search of ours steers),
         views7 and engagement7 with views_posts7 and engagement_posts7 (how many posts carried the value), platforms,
         located7 (posts whose place is known: geo_confidence 0.7 or more from ext_region, home_market or
-        place_mention, or sighted on one of the market's own feeds), local7 (those located in the market or sighted on
+        place_mention or place_tag, or sighted on one of the market's own feeds), local7 (those located in the market or sighted on
         its own feeds, the rule v_item_market_scope uses) and own_feed7. None without the tables or when the read
         fails (logged): Radar then shows no measures."""
         obs, items, posts = self._find("post_observations"), self._find("post_items"), self._find("posts")
@@ -1115,9 +1115,9 @@ or None."""
                 "p AS (SELECT ps.post_id, ANY_VALUE(ps.platform) platform, ANY_VALUE(ps.creator_id) creator_id, "
                 "MAX(ps.views) views, MAX(ps.engagement) engagement, "
                 "LOGICAL_OR(IFNULL(ps.geo_confidence >= 0.7 "
-                "AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)) known, "
+                "AND ps.geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention'), FALSE)) known, "
                 "LOGICAL_OR(IFNULL(ps.geo_confidence >= 0.7 AND UPPER(ps.geo_market) = @market "
-                "AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)) in_market "
+                "AND ps.geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention'), FALSE)) in_market "
                 f"FROM {posts} ps WHERE ps.post_id IN (SELECT o.post_id FROM o) GROUP BY ps.post_id), "
                 "fl AS (SELECT c.creator_id, MAX(IFNULL(c.coord_score, 0)) >= 1 flagged "
                 f"FROM {creators} c WHERE c.creator_id IN (SELECT p.creator_id FROM p) GROUP BY c.creator_id), "

@@ -44,10 +44,12 @@ class FakeGeo:
         self.calls = []
 
     def __call__(self, platform, market, *, ext_region=None, home_market=None, profile_location=None,
-                 text=None, language=None):
+                 text=None, language=None, place_tag=None):
         assert market in ("ZA", "NG", "KE")
         self.calls.append(dict(platform=platform, market=market, ext_region=ext_region, home_market=home_market,
                                profile_location=profile_location, text=text, language=language))
+        if place_tag in ("ZA", "NG", "KE"):
+            return place_tag, 0.95, "place_tag"
         if ext_region in ("ZA", "NG", "KE"):
             return ext_region, 0.9, "ext_region"
         if profile_location == "Johannesburg":

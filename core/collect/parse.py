@@ -216,6 +216,7 @@ def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_f
         "observed_date": _local_day(observed, market), "item_id_fn": item_id_fn, "geo_fn": geo_fn,
         "since": _since(params.get("since"), market) if family == "panel" else None,
         "handle": _first(params, "handle", "username"), "creators": [], "profile_cache": profile_cache,
+        "place_tag": _place_tag(route, params, seed_key),
     }
     data = body.get("data")
     if route in ("youtube/search/advanced", "tiktok/location/posts"):
@@ -462,9 +463,21 @@ def _metrics(node):
     return {k: _number(eng, k) for k in ("views", "likes", "comments", "shares")}
 
 
+def _place_tag(route, params, seed_key):
+    """The reviewed place a place route was read for; the stored seed_key stands in for location_id on a backfill,
+    where raw_responses keeps no params."""
+    from core.collect.location_sources import PLACE_ROUTES, place_tag
+
+    if route not in PLACE_ROUTES:
+        return None
+    return place_tag(route, params.get("location_id") or seed_key)
+
+
 def _geo(ctx, platform, market, **signals):
     if market not in MARKETS:
         return None, None, None
+    if ctx.get("place_tag"):
+        signals["place_tag"] = ctx["place_tag"]
     return ctx["geo_fn"](platform, market, **signals)
 
 

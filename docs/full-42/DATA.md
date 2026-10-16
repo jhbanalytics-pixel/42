@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS intelligence_42_core.posts (      -- one MERGE from r
   post_date DATE NOT NULL,              -- published_at in the first sighting's market-local time; that observed_date when published_at is NULL
   views INT64, likes INT64, comments INT64, shares INT64, engagement INT64,   -- latest reading; history in post_observations
   geo_market STRING, geo_confidence FLOAT64,
-  geo_source STRING,                    -- ext_region | home_market | place_mention | language (language alone is never a known location)
+  geo_source STRING,                    -- place_tag | ext_region | home_market | place_mention | language (language alone is never a known location)
   geo_scope STRING, vendor STRING, endpoint STRING, source_regime STRING, vendor_labels JSON, run_id STRING)
 PARTITION BY post_date CLUSTER BY platform, geo_market, creator_id;
 

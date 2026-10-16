@@ -54,10 +54,10 @@ local_first AS (
     AND po.lane_class != 'legacy' AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
     AND NOT EXISTS (SELECT 1 FROM {core}.v_suppressed_creators sc WHERE sc.creator_id = ps.creator_id)
     AND ((ps.geo_market = @market AND IFNULL(ps.geo_confidence, 0) >= 0.7
-          AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'))
+          AND ps.geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention'))
       OR (sourced.post_id IS NOT NULL
           AND NOT IFNULL(ps.geo_market != @market AND ps.geo_confidence >= 0.7
-                         AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)))
+                         AND ps.geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention'), FALSE)))
   GROUP BY pi.item_id),
 ordered AS (
 SELECT s.*, cm.kind map_kind, cm.status map_status, cm.label, cm.canonical_key, fs.first_seen,
