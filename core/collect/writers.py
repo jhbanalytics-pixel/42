@@ -120,7 +120,7 @@ MERGE_SQL = (
     "USING (SELECT * FROM UNNEST(@rows)) S\n"
     "ON T.post_id = S.post_id\n"
     f"WHEN MATCHED AND (({HAS_METRIC}) OR ({FILLS_GEO})) THEN\n"
-    "  UPDATE SET " + ", ".join(f"{m} = IF({HAS_METRIC}, S.{m}, T.{m})" for m in METRICS) + ",\n"
+    "  UPDATE SET " + ", ".join(f"{m} = IF({HAS_METRIC}, IFNULL(S.{m}, T.{m}), T.{m})" for m in METRICS) + ",\n"
     "  " + ", ".join(f"{g} = IF({FILLS_GEO}, S.{g}, T.{g})" for g in GEO) + "\n"
     "WHEN NOT MATCHED THEN INSERT (" + ", ".join(POST_TYPES) + ")\n"
     "  VALUES (" + ", ".join(_source(n) for n in POST_TYPES) + ")"
@@ -247,7 +247,7 @@ def insert_post_items(bq, rows, batch=BATCH):
 # posts
 
 def dedupe_posts(rows):
-    """One row per post_id: the first sighting's fields with the latest reading that has any metric, and the
+    """One row per post_id: the first sighting's fields with each metric from the latest reading that has it, and the
     first known sighting's geo when the first sighting had none. Geo below GEO_KNOWN is not written."""
     out = {}
     for row in rows:
@@ -258,7 +258,8 @@ def dedupe_posts(rows):
             out[row["post_id"]] = dict(row)
             continue
         if any(row.get(m) is not None for m in METRICS[:4]):
-            kept.update({m: row.get(m) for m in METRICS})
+            # A sparser reading (a route that reports views only) updates what it read and keeps the rest.
+            kept.update({m: row[m] for m in METRICS if row.get(m) is not None})
         if kept.get("geo_market") is None and row.get("geo_market") is not None:
             kept.update({g: row.get(g) for g in GEO})
     return list(out.values())
