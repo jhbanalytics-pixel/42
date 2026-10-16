@@ -1446,7 +1446,7 @@ def _recorded_problem(n, ctx):
 
 def _rerun(warehouse, query, ctx):
     try:
-        return _dispatch_query(ctx, warehouse, query["sql"], query["params"], MAX_BYTES_BILLED)
+        return _dispatch_query(ctx, warehouse, query["sql"], query["params"], MAX_BYTES_BILLED, research=False)
     except Exception as e:  # the warehouse is a system boundary; a failed re-run cuts, never crashes the answer
         return e
 

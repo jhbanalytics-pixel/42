@@ -147,22 +147,24 @@ class NotFound(Exception):
 
 
 def hidden_people(store):
-    """(creator keys, creator ids, names) of the suppressed creators, read as the people routes read them: the ids
-    from v_suppressed_creators and the platform and handle of each one's creators rows, matched by creator_key, and
-    the map labels of their YouTube channels' creator items (the channel's display name). None when the list
-    cannot be read."""
+    """(creator keys, creator ids, names) of the people hidden now, read as privacy.read_hidden reads them (one
+    store.hidden_people_rows read): the ids on v_suppressed_creators and the current suppression rows, every handle
+    from a creators row or from a row that names only a platform and handle, and the map labels of their YouTube
+    channels' creator items (the channel's display name). Today, Discover, Topic and Compare read this list; before
+    16 October 2026 they read only creators that already had a creators row, so a hide by handle reached Ask and
+    History but not them. None when the list cannot be read."""
     try:
-        ids = store.suppressed_creators()
-        if ids is None:
+        rows = store.hidden_people_rows()
+        if rows is None:
             log.warning("the suppression view does not exist; no evidence author is named")
             return None
-        rows = (store.creators_by_id(sorted(ids)) or []) if ids else []
-        keys = {creator_key(c.get("platform"), c.get("handle")) for c in rows} - {None}
+        ids = set(rows["ids"])
+        keys = {creator_key(p, h) for p, h in rows["people"]} - {None}
         names = hidden_names(store, keys, ids)
     except Exception as exc:
         log.warning("the suppression list could not be read (%s); no evidence author is named", type(exc).__name__)
         return None
-    return keys, set(ids), names
+    return keys, ids, names
 
 
 def hidden_names(store, keys, ids):
@@ -297,7 +299,23 @@ def without_hidden(value, hidden):
             for k in skins.NAME_KEYS if isinstance(e, dict) else ():
                 if isinstance(e.get(k), str) and " ".join(e[k].split()).lower().lstrip("@") in names:
                     e[k] = skins.URL_MASK
-    return skins._mask_strings(out, masked, lambda text: text)
+    return _mask_labels(skins._mask_strings(out, masked, lambda text: text), masked)
+
+
+def _mask_labels(value, masked):
+    """Every string under a "label" key put through masked, in place. label is structural to the skins mask, so
+    _mask_strings leaves it alone, but a topic, alert, watch or community label can carry a hidden person's handle
+    ("Posts by @someone"), and Compare, History, Alerts and the digest show labels as they are."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "label" and isinstance(item, str):
+                value[key] = masked(item)
+            else:
+                _mask_labels(item, masked)
+    elif isinstance(value, list):
+        for item in value:
+            _mask_labels(item, masked)
+    return value
 
 
 def _recheck_explanation(card, gone):
