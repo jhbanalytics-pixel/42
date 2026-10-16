@@ -1,3 +1,4 @@
+<!doctype html>
 <meta charset="utf-8">
 <title>42 Gamma Prototype</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1678,12 +1679,15 @@ function runDeep(){
   const cl01=v=>v<0?0:v>1?1:v,eio=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
   const FV=[N.posts,N.unique,N.region,N.topic,N.accounts];
   let t0=performance.now(),raf=0,found=0,res=false,lastLive="",stopped=false;
+  // Credits follow the work: 92% is spent as posts arrive, the rest on cleaning and writing. tG is when the 1,000-credit check falls due.
+  const postsAt=t=>{if(t>=T.sweep)return N.posts;let v=0;N.plats.forEach(([,c],i)=>{v+=Math.floor(c*eio(cl01((t-T.plan-i*110*T.sc)/(T.sweep-T.plan-i*110*T.sc))))});return v},
+    credAt=t=>D.used*(.92*postsAt(t)/N.posts+.08*cl01((t-T.sweep)/(T.end-T.sweep)));
+  let tG=T.end;if(D.hot){let lo=0,hi=T.end;for(let i=0;i<40;i++){const m=(lo+hi)/2;credAt(m)>=1000?hi=m:lo=m}tG=hi}
   const say=s=>{if(s!==lastLive){lastLive=s;live.textContent=s}};
   function frame(now){
     raf=0;if(!dr.isConnected||stopped)return;
     if(paused){return}
-    const t=now-t0;
-    if(D.hot&&!S.okPast&&D.used*cl01(t/T.end)>=1000){gate(now);return}
+    let t=now-t0;const gt=D.hot&&!S.okPast&&t>=tG;if(gt)t=tG;
     const P=[[0,T.plan],[T.plan,T.sweep],[T.sweep,T.clean],[T.polls[0]-400*T.sc,T.polls[3]+300*T.sc],[T.clean,T.res]];
     P.forEach(([a,b],i)=>{const p=cl01((t-a)/(b-a)),el=ph[i];el.style.setProperty("--p",p.toFixed(3));el.classList.toggle("on",p>0&&p<1);el.classList.toggle("ok",p>=1)});
     // Sweep: each platform fills on its own eased curve; the total is their sum, so the numbers always agree.
@@ -1699,7 +1703,7 @@ function runDeep(){
     set(lv[2],String(found));
     const chk=Math.min(found*5,Math.floor(cl01((t-T.polls[0])/(T.polls[3]+600*T.sc-T.polls[0]))*20));set(lv[3],chk+" of 20");
     if(!res&&t>=T.clean){res=true;pc.classList.add("res");countUp(pc)}
-    set(cred,num(Math.floor(D.used*cl01(t/T.end))));
+    set(cred,num(Math.min(D.used,Math.floor(credAt(t)))));
     let msg;const lf=found&&t-T.polls[found-1]<900*T.sc?found:0;
     if(t<T.plan){msg=["Plan","Splitting your question into six searches"];say("Planning the searches")}
     else if(lf){const q=POLLS[lf-1];msg=["Extract",`Found Poll ${lf} · n=${num(q.n)} · ${q.mode} · figures match the source`]}
@@ -1709,6 +1713,7 @@ function runDeep(){
     else{msg=["Answer",`Reconciling 4 polls with ${num(N.accounts)} accounts`];say("Writing the answer")}
     const h=`<b>${msg[0]}</b>${esc(msg[1])}`;if(nowt._h!==h){nowt._h=h;nowt.innerHTML=h}
     cd.draw(t);
+    if(gt){t0=now-tG;gate(now);return}
     if(t>=T.end){finish();return}
     raf=requestAnimationFrame(frame);
   }
@@ -1734,10 +1739,12 @@ function runDeep(){
     $("#gok").focus();live.textContent="Paused at 1,000 credits. Continue or stop.";
     $("#gok").onclick=()=>{S.okPast=true;box.innerHTML=`<span class="t" id="nowt"></span><span class="ctl"><span class="m small"><span id="cred">1,000</span> of ${num(D.credits)} credits</span><button type="button" class="btn" id="skip" data-cursor="Skip to the answer">Show answer now</button></span>`;
       nowt=$("#nowt");cred=$("#cred");$("#skip").onclick=finish;if(reduce){finish();return}t0+=performance.now()-paused;paused=0;raf=requestAnimationFrame(frame)};
-    $("#gno").onclick=()=>{stopped=true;S.asked=false;S.deepDone=false;go("ask",true);toast("Stopped at 1,000 credits. Nothing more was spent")}}
-  $("#skip").onclick=()=>{if(D.hot&&!S.okPast){if(raf)cancelAnimationFrame(raf);raf=0;gate()}else finish()};
+    $("#gno").onclick=()=>{stopped=true;S.asked=false;S.deepDone=false;go("ask",true);toast("Stopped at 1,000 credits. Nothing more was spent; ask again at Deep to see an answer")}}
+  // Skip and reduced motion jump to the 1,000-credit point, so every counter agrees with the check.
+  const toGate=()=>{if(raf)cancelAnimationFrame(raf);raf=0;const n=performance.now();t0=n-tG-1;frame(n)};
+  $("#skip").onclick=()=>{if(D.hot&&!S.okPast)toGate();else finish()};
   deepRun={stop(){stopped=true;if(raf)cancelAnimationFrame(raf)}};
-  if(reduce){if(D.hot&&!S.okPast){gate();return}finish();return}
+  if(reduce){if(D.hot&&!S.okPast){toGate();return}finish();return}
   raf=requestAnimationFrame(frame);
 }
 /* Depth slider: an effort bar for Ask. Native range input underneath (keyboard, screen readers), custom marks on top.
@@ -1854,10 +1861,12 @@ function landPts(){if(LAND)return LAND;const b=atob(LAND_B64),N=18000,out=[];
   for(let i=0;i<N;i++)if(b.charCodeAt(i>>3)>>(i&7)&1){const y=1-2*(i+.5)/N,la=Math.asin(y),lo=(i*2.399963229728653)%(2*Math.PI);out.push([lo>Math.PI?lo-2*Math.PI:lo,la])}
   return LAND=out.map(([lo,la])=>({lo,la,cl:Math.cos(la),sl:Math.sin(la)}))}
 const fmtC=c=>c<GK.posts?"fewer than 10":num(c);
+// Provinces and the unknown pill are scaled so that, for all platforms over 28 days, they add up to the posts made in South Africa on the Platforms globe.
+let ZAKv=0;function ZAK(){if(ZAKv)return ZAKv;let z=0;GPLAT.forEach(p=>p.flows.forEach(f=>{if(f.f==="ZA")z+=f.c}));let s=PUNK[0]+PUNK[1];Object.values(PROV).forEach(v=>s+=v[0]+v[1]);return ZAKv=z/s}
 function zaCounts(){const f=GL.za,pf={All:1,TikTok:.46,Instagram:.31,X:.15,Facebook:.08}[f.plat],df={7:.27,14:.52,28:1}[f.days];
-  const out={};for(const [p,[t,nm,cr]] of Object.entries(PROV)){const cw=f.comm==="All"?1:((GCF[f.comm]||{})[p]??.02)*4;
-    const posts=Math.round((t+(f.prec==="both"?nm:0))*pf*df*cw),creators=Math.round(cr*pf*Math.sqrt(df)*Math.min(1,cw));out[p]={posts,creators,ok:posts>=GK.posts&&creators>=GK.creators,tagged:Math.round(t*pf*df*cw)}}
-  const unk=Math.round((PUNK[0]+(f.prec==="both"?PUNK[1]:0))*pf*df*(f.comm==="All"?1:.3));return{prov:out,unk}}
+  const out={};for(const [p,[t,nm,cr]] of Object.entries(PROV)){const cw=f.comm==="All"?1:((GCF[f.comm]||{})[p]??.02);
+    const posts=Math.round((t+(f.prec==="both"?nm:0))*ZAK()*pf*df*cw),creators=Math.round(cr*pf*Math.sqrt(df)*Math.min(1,cw));out[p]={posts,creators,ok:posts>=GK.posts&&creators>=GK.creators,tagged:Math.round(t*ZAK()*pf*df*cw)}}
+  const cv=f.comm==="All"?1:(Object.values(GCF[f.comm]||{}).reduce((a,b)=>a+b,0)/9||.02),unk=Math.round((PUNK[0]+(f.prec==="both"?PUNK[1]:0))*ZAK()*pf*df*cv);return{prov:out,unk}}
 function platTotals(){let tot=0,loc=0;const agg={};GPLAT.filter(p=>GL.plats.has(p.n)).forEach(p=>{tot+=p.t;loc+=Math.round(p.t*p.l);p.flows.forEach(f=>{const k=f.f+">"+f.m;agg[k]=agg[k]||{f:f.f,m:f.m,c:0,cr:0};agg[k].c+=f.c;agg[k].cr+=f.cr})});
   return{tot,loc,flows:Object.values(agg).sort((a,b)=>b.c-a.c)}}
 
@@ -1868,14 +1877,14 @@ function vGlobes(){
   return `<div class="col"><div class="herorow"><div class="hero solo"><span class="eyebrow">06 / Globes · sample data</span><h1 style="view-transition-name:hero-title">Where the posts come from.</h1><p class="serif wide">Every platform, every province and every community on a globe you can turn, with the same numbers in a list beside it.</p></div><p class="note">Sample data until the location service ships. The rules are already real: a place needs 10 posts and 5 creators to show, and posts with no province stay in their own count.</p></div>
   <div class="gtabs" role="tablist" aria-label="Globes">${tabs}</div>
   <div class="gwrap" id="gpanel" role="tabpanel" aria-labelledby="gt-${t}">${t==="plat"?gPlatSide():t==="za"?gZaSide():gCmSide()}</div></div>`}
-function stage(label){return `<div class="gstage frame"><canvas class="gcv" tabindex="0" role="img" aria-label="${label}. Drag or use the arrow keys to turn it; plus and minus zoom." data-cursor="Drag to turn"></canvas>
+function stage(label){return `<div class="gstage frame"><canvas class="gcv" tabindex="0" role="application" aria-roledescription="globe" aria-label="${label}. Drag or use the arrow keys to turn it; plus and minus zoom." data-cursor="Drag to turn"></canvas>
   <div class="gzoom"><button type="button" data-gz="1" aria-label="Zoom in">+</button><button type="button" data-gz="-1" aria-label="Zoom out">−</button><button type="button" data-gz="0" aria-label="Reset view">↺</button></div><span class="ghint m" aria-hidden="true">Drag to turn · scroll to zoom</span></div>`}
 function gPlatSide(){const T=platTotals(),mx=T.flows[0]?.c||1;
   return `${stage("Globe of where posts were made, by platform")}<aside class="gside">
    <div class="gblock"><span class="eyebrow">Platforms · tap to toggle</span><div class="prail">${GPLAT.map(p=>`<button type="button" class="pchip" data-gplat="${p.n}" aria-pressed="${GL.plats.has(p.n)}">${ring(p.l)}<span class="pn"><b>${p.n}</b><span>${Math.round(p.l*100)}% located</span></span></button>`).join("")}</div></div>
    <div class="gblock"><div class="gsum"><div><span class="k">Posts</span><span class="v">${roll(T.tot)}</span></div><div><span class="k">Located</span><span class="v">${roll(T.loc)}</span></div><div><span class="k">Unlocated</span><span class="v">${Math.round(100-100*T.loc/Math.max(1,T.tot))}%</span></div></div>
     <p class="small">Unlocated posts carry no tag, no account country and no named place. 42 leaves them off the globe instead of guessing.</p></div>
-   <div class="gblock"><span class="eyebrow">Made in → collected for</span><ol class="glist">${T.flows.map(f=>`<li class="${f.c<GK.posts?"wh":""}"><span>${CN[f.f]}${f.f!==f.m?` <i aria-hidden="true">→</i> ${f.m}`:""}</span><span class="b" aria-hidden="true"><i style="--w:${(f.c/mx).toFixed(3)}"></i></span><span class="n">${fmtC(f.c)}</span></li>`).join("")}</ol></div></aside>`}
+   <div class="gblock"><span class="eyebrow">Made in → collected for</span><ol class="glist">${T.flows.map(f=>`<li class="${f.c<GK.posts||f.cr<GK.creators?"wh":""}"><span>${CN[f.f]}${f.f!==f.m?` <i aria-hidden="true">→</i> ${f.m}`:""}</span><span class="b" aria-hidden="true"><i style="--w:${(f.c/mx).toFixed(3)}"></i></span><span class="n">${f.c<GK.posts||f.cr<GK.creators?"withheld":num(f.c)}</span></li>`).join("")}</ol></div></aside>`}
 function gZaSide(){const f=GL.za,C=zaCounts(),rows=Object.entries(C.prov).sort((a,b)=>b[1].posts-a[1].posts),sel=f.sel&&C.prov[f.sel];
   const opt=(id,lab,vals,cur)=>`<label class="gsel"><span class="k">${lab}</span><select id="${id}">${vals.map(([v,t])=>`<option value="${v}"${String(v)===String(cur)?" selected":""}>${t}</option>`).join("")}</select></label>`;
   return `${stage("Globe of South Africa with provinces raised by posts")}<aside class="gside">
@@ -1929,13 +1938,18 @@ function globeEngine(cv,mode){
   function spike(ll,h,w,hot){const a=P(ll[0],ll[1],0),b=P(ll[0],ll[1],h);if(!a[3]&&!b[3])return;const g=ctx.createLinearGradient(a[0],a[1],b[0],b[1]);g.addColorStop(0,rgb(pal.sig,.95));g.addColorStop(1,rgb(hot?[255,200,120]:pal.sig,hot?.95:.35));
     ctx.strokeStyle=g;ctx.lineWidth=w;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();ctx.lineCap="butt";
     const c=ctx.createRadialGradient(b[0],b[1],0,b[0],b[1],w*2.4);c.addColorStop(0,rgb([255,230,200],.9));c.addColorStop(1,rgb(pal.sig,0));ctx.fillStyle=c;ctx.beginPath();ctx.arc(b[0],b[1],w*2.4,0,7);ctx.fill()}
-  function label(x,y,s,c,al="left"){ctx.font=`500 11px ${pal.font}`;ctx.textAlign=al;ctx.textBaseline="middle";ctx.lineWidth=4;ctx.lineJoin="round";ctx.strokeStyle=rgb(pal.bg,.9);ctx.strokeText(s,x,y);ctx.fillStyle=c;ctx.fillText(s,x,y)}
+  // Labels are queued and placed after the layer draws: highest priority first, and any label that would overlap one already placed is dropped.
+  const LQ=[];function label(x,y,s,c,al="left",pr=0){LQ.push({x,y,s,c,al,pr})}
+  function flushLabels(){ctx.font=`500 11px ${pal.font}`;ctx.textBaseline="middle";ctx.lineWidth=4;ctx.lineJoin="round";const put=[];
+    LQ.sort((a,b)=>b.pr-a.pr);for(const L of LQ){const w=ctx.measureText(L.s).width,x0=L.al==="center"?L.x-w/2:L.x,r={x:x0-3,y:L.y-8,w:w+6,h:16};
+      if(put.some(o=>r.x<o.x+o.w&&o.x<r.x+r.w&&r.y<o.y+o.h&&o.y<r.y+r.h))continue;put.push(r);
+      ctx.textAlign=L.al;ctx.strokeStyle=rgb(pal.bg,.9);ctx.strokeText(L.s,L.x,L.y);ctx.fillStyle=L.c;ctx.fillText(L.s,L.x,L.y)}LQ.length=0}
   /* layers */
   const hits=[];
   function layPlat(){const T=platTotals(),mx=Math.max(1,...T.flows.map(f=>f.c)),orig={};
     T.flows.forEach(f=>{if(f.c<GK.posts||f.cr<GK.creators)return;orig[f.f]=(orig[f.f]||0)+f.c;if(f.f!==f.m)arc(CC[f.f],CC[f.m],.28,(f.c%97)/97,!reduce)});
     const om=Math.max(1,...Object.values(orig));
-    Object.entries(orig).sort((a,b)=>P(...CC[a[0]])[2]-P(...CC[b[0]])[2]).forEach(([k,c])=>{const h=.04+.34*Math.sqrt(c/om);spike(CC[k],h,Math.max(2.5,R/90),k===st.hover);const q=P(CC[k][0],CC[k][1],h);if(q[3]&&q[2]>-.2){label(q[0]+8,q[1],`${k} ${num(c)}`,rgb(pal.ink,.95));hits.push({x:q[0],y:q[1],r:14,k})}})}
+    Object.entries(orig).sort((a,b)=>P(...CC[a[0]])[2]-P(...CC[b[0]])[2]).forEach(([k,c])=>{const h=.04+.34*Math.sqrt(c/om);spike(CC[k],h,Math.max(2.5,R/90),k===st.hover);const q=P(CC[k][0],CC[k][1],h);if(q[3]&&q[2]>-.2){label(q[0]+8,q[1],`${k} ${num(c)}`,rgb(pal.ink,.95),"left",(k===st.hover?1e9:0)+c+q[2]*100);hits.push({x:q[0],y:q[1],r:14,k})}})}
   function layZa(){const C=zaCounts(),mx=Math.max(1,...Object.values(C.prov).map(v=>v.ok?v.posts:0)),order=Object.keys(ZAPROV).map(p=>{let sx=0,sy=0,n=0;ZAPROV[p][0].forEach(q=>{sx+=q[0];sy+=q[1];n++});return{p,c:[sx/n,sy/n]}}).sort((a,b)=>P(...a.c)[2]-P(...b.c)[2]);
     for(const {p,c} of order){const v=C.prov[p],h=v.ok?.004+.07*Math.sqrt(v.posts/mx):.002,sel=GL.za.sel===p,hov=st.hover===p,it=v.ok?Math.sqrt(v.posts/mx):0;
       for(const rg of ZAPROV[p]){const bs=rg.map(q=>P(q[0],q[1],0)),tp=rg.map(q=>P(q[0],q[1],h));
@@ -1947,7 +1961,7 @@ function globeEngine(cv,mode){
         if(!v.ok){ctx.save();ctx.clip(path);ctx.strokeStyle=rgb(pal.hatch,.8);ctx.lineWidth=1;ctx.beginPath();for(let o=-W;o<W;o+=7){ctx.moveTo(o,0);ctx.lineTo(o+H,H)}ctx.stroke();ctx.restore()}
         ctx.strokeStyle=sel?rgb([255,214,170]):rgb(pal.ink,.55);ctx.lineWidth=sel?2:1;ctx.stroke(path);
         hits.push({path,k:p})}
-      const q=P(c[0],c[1],h);if(q[3])label(q[0],q[1],`${PROV[p][3]} ${v.ok?num(v.posts):"<10"}`,sel?rgb(pal.sig):rgb(pal.ink),"center")}}
+      const q=P(c[0],c[1],h);if(q[3])label(q[0],q[1],`${PROV[p][3]} ${v.ok?num(v.posts):"withheld"}`,sel?rgb(pal.sig):rgb(pal.ink),"center",(sel||hov?1e9:0)+(v.ok?v.posts:0))}}
   function layCm(){const c=GL.cm,mx=Math.max(...GCOMM.map(x=>x.mem)),N=GCOMM.length,mt=st.morph;
     const pos=GCOMM.map((x,i)=>{const y=1-2*(i+.5)/N,r=Math.sqrt(1-y*y),ph=i*2.399963,lat0=Math.asin(y)/D2R*.8,lon0=Math.atan2(Math.sin(ph)*r,Math.cos(ph)*r)/D2R;
       const a=[lon0,lat0],b=x.ll;return[a[0]+(((b[0]-a[0]+540)%360)-180)*mt,a[1]+(b[1]-a[1])*mt]});
@@ -1957,7 +1971,7 @@ function globeEngine(cv,mode){
       if(sel||hov){const g=ctx.createRadialGradient(q[0],q[1],0,q[0],q[1],r*4.5);g.addColorStop(0,rgb(pal.sig,.75));g.addColorStop(1,rgb(pal.sig,0));ctx.fillStyle=g;ctx.beginPath();ctx.arc(q[0],q[1],r*4.5,0,7);ctx.fill()}
       if(!reduce){const ph=((st.t/1600)+x.i*.13)%1;ctx.strokeStyle=rgb(pal.sig,(1-ph)*.5*dz);ctx.lineWidth=1;ctx.beginPath();ctx.arc(q[0],q[1],r+ph*r*2.2,0,7);ctx.stroke()}
       ctx.fillStyle=sel?rgb([255,226,196]):rgb(mix(pal.ink,pal.sig,.25),dz);ctx.beginPath();ctx.arc(q[0],q[1],r,0,7);ctx.fill();ctx.strokeStyle=rgb(pal.sig,sel?1:.6*dz);ctx.lineWidth=sel?2:1;ctx.stroke();
-      if(q[2]>.25||sel)label(q[0]+r+6,q[1],x.n,sel?rgb(pal.sig):rgb(pal.ink,dz));hits.push({x:q[0],y:q[1],r:r+8,k:x.i})}}
+      if(q[2]>.25||sel)label(q[0]+r+6,q[1],x.n,sel?rgb(pal.sig):rgb(pal.ink,dz),"left",(sel||hov?1e9:0)+x.mem*q[2]);hits.push({x:q[0],y:q[1],r:r+8,k:x.i})}}
   st.morph=GL.cm.mode==="map"?1:0;st.mt=st.morph;
   function draw(now){
     const d0=performance.now(),dt=Math.min(.05,(now-(last||now))/1000);last=now;st.t=reduce?0:now;
@@ -1967,7 +1981,7 @@ function globeEngine(cv,mode){
     else if(!st.drag){st.lon+=st.vl*dt;st.lat=Math.max(-75,Math.min(75,st.lat+st.va*dt));st.vl*=Math.pow(.04,dt);st.va*=Math.pow(.04,dt);st.idle+=dt;if(!reduce&&st.idle>2.5&&mode!=="za")st.lon+=dt*5}
     const mt=GL.cm.mode==="map"?1:0;st.morph+=(mt-st.morph)*(reduce?1:Math.min(1,dt*2.4));
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);R=Math.min(W,H)*.4*st.z;cx=W/2;cy=H/2;hits.length=0;
-    base();if(mode==="plat")layPlat();else if(mode==="za")layZa();else layCm();
+    base();if(mode==="plat")layPlat();else if(mode==="za")layZa();else layCm();flushLabels();
     GLX.frames++;GLX.ms.push(performance.now()-d0);if(GLX.ms.length>240)GLX.ms.shift();
     const moving=st.fly||st.drag||Math.abs(st.vl)>.05||Math.abs(st.va)>.05||Math.abs(st.morph-mt)>.001;
     raf=vis&&!document.hidden&&(moving||(!reduce&&mode!=="za"))?requestAnimationFrame(draw):0;if(!raf)last=0;
@@ -1992,9 +2006,9 @@ function globeEngine(cv,mode){
   const ro=new ResizeObserver(()=>{if(!cv.isConnected){ro.disconnect();io.disconnect();insts.delete(inst);return}size();kick()});ro.observe(cv);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)kick()});
   const inst={cv,redraw(){pal=readPal();kick()}};insts.add(inst);
-  size();
-  const home={plat:[15,8,1],za:[25,-29,3.4],cm:[20,0,1.05]};
-  const ctl={fly,kick,st,home:()=>{const h=GL.cm.mode==="map"&&mode==="cm"?[22,-6,1.7]:home[mode];fly(...h)},zoom:d=>fly(st.lon,st.lat,Math.max(.8,Math.min(6,st.z*(d>0?1.35:1/1.35)))),onpick:null};
+  size();if(mode==="za"&&W<500)st.z=5.2;
+  const zz=()=>W&&W<500?5.2:3.4,home={plat:[15,8,1],za:[25,-29,0],cm:[20,0,1.05]};
+  const ctl={fly,kick,st,home:()=>{const h=GL.cm.mode==="map"&&mode==="cm"?[22,-6,1.7]:mode==="za"?[25,-29,zz()]:home[mode];fly(...h)},zoom:d=>fly(st.lon,st.lat,Math.max(.8,Math.min(6,st.z*(d>0?1.35:1/1.35)))),onpick:null};
   kick();return ctl;
 }
 let GENG=null;
