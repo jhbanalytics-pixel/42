@@ -125,3 +125,17 @@ hashtag:
   - memes
   - memesdaily
   - parody
+  # Place plus platform discovery tags: a market or city joined to the platform's name, used to reach that feed
+  # rather than to name a topic. On 16 Oct 2026 #southafricatiktok, #kenyantiktok and #mombasatiktokers reached the
+  # brief and the critic held each as unrelated everyday posts under one tag. A place name alone stays a real tag.
+  - southafricatiktok
+  - satiktok
+  - mzansitiktok
+  - kenyantiktok
+  - kenyantiktokers
+  - kenyatiktok
+  - mombasatiktokers
+  - nairobitiktokers
+  - naijatiktok
+  - nigeriantiktok
+  - nigeriatiktok

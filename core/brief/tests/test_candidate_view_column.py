@@ -45,7 +45,7 @@ def with_a80_scope_view(con):
 def test_the_statement_that_reads_a_null_column_is_the_first_with_only_that_column_replaced():
     first = job.QUERIES["candidates"]
     third = job.QUERIES["candidates_without_news_column"]
-    assert first.count(COLUMN) == 2 and COLUMN not in third and third.count("CAST(NULL AS INT64)") == 2
+    assert first.count(COLUMN) == 4 and COLUMN not in third and third.count("CAST(NULL AS INT64)") == 4
     assert first.replace(COLUMN, "CAST(NULL AS INT64)") == third
     assert "v_item_locality_current" in third      # the locality view is still read: only the column is missing
     both = job.QUERIES["candidates_without_locality_or_news_column"]

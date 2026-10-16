@@ -539,8 +539,10 @@ def query_preview(ctx: RunContext, result: dict) -> dict:
 
 
 def _dispatch_query(ctx: RunContext, warehouse: Warehouse, sql: str, params: dict | None,
-                    max_bytes_billed: int) -> list[dict]:
-    """Execute an already-validated read, reserving embedded-model cost before dispatch, including numeric reruns."""
+                    max_bytes_billed: int, *, research: bool = True) -> list[dict]:
+    """Execute an already-validated read, reserving embedded-model cost before dispatch, including numeric reruns.
+    research=False books that cost against the question budget only: a check's re-run of a recorded query is not
+    research, so research having used its share must not cut a number that the question budget can still re-run."""
     embedding_texts = []
     if "tvf_search_posts" in sql.casefold():
         for table in sqlglot.parse_one(sql, dialect="bigquery").find_all(exp.Table):
@@ -566,7 +568,7 @@ def _dispatch_query(ctx: RunContext, warehouse: Warehouse, sql: str, params: dic
         estimated = sum(min(len(text) / CHARS_PER_TOKEN, MAX_TOKENS_PER_POST) for text in embedding_texts)
         estimated = estimated * EMBED_USD_PER_MILLION_TOKENS / 1_000_000
         if budget is not None:
-            reservation = budget.reserve_cost(ceiling, research=True)
+            reservation = budget.reserve_cost(ceiling, research=research)
     try:
         rows = warehouse.run(sql, params, max_bytes_billed)
     except BaseException:

@@ -215,7 +215,7 @@ def _card(c, market, day, rank, shown_above=frozenset()):
         "count_line": count_line, "numbers": numbers,
         "sparkline": {"unit": sp.get("unit", "posts a day"), "points": points},
         "thumbnails": [e["id"] for e in evidence if e.get("thumbnail_url")][:2],
-        "evidence_ids": [e["id"] for e in evidence], "evidence": evidence,
+        "evidence_ids": [e["id"] for e in evidence], "evidence": reader_evidence(evidence),
         "ask": f"What is behind {c['title']} in {LABELS[market]} this week?",
         "explanation_status": status,
         # The job's fixed wording for the check that held the explanation back; no model or scraped text.
@@ -249,6 +249,14 @@ def _failed_reason(c, status):
     return None
 
 
+# Evidence fields only the model checks read (explain.SUPPORT_FIELDS); stored cards and held items keep their shape.
+MODEL_ONLY_FIELDS = ("formats", "sound_id")
+
+
+def reader_evidence(evidence):
+    return [{k: v for k, v in e.items() if k not in MODEL_ONLY_FIELDS} for e in evidence]
+
+
 def _held_item(c):
     dec = _decision(c)
     # The brief job holds some items on its own grounds and names the contract reason code itself.
@@ -263,7 +271,7 @@ def _held_item(c):
         **({"locality_v2": c["locality_v2"]} if c.get("locality_v2") else {}),
         "item_id": c["item_id"], "title": c["title"], "rule": dec.get("rule"), "reason": reason,
         "reason_text": dec.get("reason") or REASON_TEXT[reason],
-        "evidence_ids": [e["id"] for e in evidence], "evidence": evidence,
+        "evidence_ids": [e["id"] for e in evidence], "evidence": reader_evidence(evidence),
         "numbers": numbers, "count_line": _count_line(numbers),
         # The job's fixed wording for the check that held the explanation back, as on cards.
         "failed_reason": _failed_reason(c, c.get("explanation_status")),

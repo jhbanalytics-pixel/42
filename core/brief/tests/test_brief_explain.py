@@ -595,7 +595,8 @@ def test_support_prompt_carries_each_cited_posts_fields_and_whether_it_is_the_ea
     run(model, pack=pack)
     c2_call = next(c for c in model.support_calls() if "earliest post" in c["user"])
     assert heads(c2_call["user"]) == [{"id": "tt_1", "platform": "tiktok", "posted_at": "2026-09-25T08:10:00+02:00",
-                                       "market": "ZA", "source_market": None, "creator_tier": "mid", FLAG: True}]
+                                       "market": "ZA", "source_market": None, "creator_tier": "mid",
+                                       "formats": None, "sound": None, FLAG: True}]
     assert "@thandi_moves" in c2_call["user"] and "@thandi_moves" not in outside_fences(c2_call["user"])
     c3_call = next(c for c in model.support_calls() if "Heritage Day weekend" in c["user"])
     assert [(h["platform"], h[FLAG]) for h in heads(c3_call["user"])] == [("instagram", False),
@@ -2036,3 +2037,47 @@ def test_a_checked_post_with_no_paid_label_changes_no_critic_rule():
 
     assert passed["reason"] is None
     assert held["reason"] == "failed_checks"
+
+
+def test_the_writer_support_check_and_critic_see_each_posts_formats_and_sound():
+    # Held-topics slice 2: whether posts share a format or a sound is the adoption the critic asks about, so the
+    # checks see the stored values as fields; the critic's and support check's wording is unchanged.
+    pack = make_pack()
+    for r in pack["evidence"]:
+        r["formats"], r["sound_id"] = ["dance", "duet"], "7301234567890"
+    model = FakeModel([good()])
+    run(model, pack=pack)
+    for calls in (model.writer_calls(), model.support_calls(), model.critic_calls()):
+        assert calls
+        for call in calls:
+            fields = [json.loads(f) for f in re.findall(r"^post (?:\S+ )?(\{.*\})$", outside_fences(call["user"]),
+                                                        flags=re.M)]
+            assert fields
+            assert all(f["formats"] == ["dance", "duet"] for f in fields)
+            # One id on one platform is one sound: one letter per platform.
+            by_platform = {}
+            for f in fields:
+                by_platform.setdefault(f["platform"], set()).add(f["sound"])
+            assert all(len(v) == 1 and None not in v for v in by_platform.values())
+            assert "7301234567890" not in call["user"]
+
+
+def test_sound_letters_follow_the_pack_as_built_so_a_folded_pack_never_shares_a_letter_by_accident():
+    from core.brief import job
+    # Each pack alone would call its own first sound "sound A"; after the fold the letters come from the merged pack.
+    kept = {"row": {"item_id": "k", "title": "#k"}, "posts": {"k1", "k2"},
+            "pack": {"evidence": [{"id": "k1", "sound_id": "x"}, {"id": "k2", "sound_id": "z"}], "numbers": [],
+                     "facts": []}}
+    folded = {"row": {"item_id": "f", "title": "#f"}, "posts": {"f1", "f2"},
+              "pack": {"evidence": [{"id": "f1", "sound_id": "y"}, {"id": "f2", "sound_id": "z"}], "numbers": [],
+                       "facts": []}}
+    kept["also"] = []
+    job._absorb(kept, folded)
+    letters = explain._sound_letters(kept["pack"])
+    by_post = {r["id"]: letters.get((None, r["sound_id"])) for r in kept["pack"]["evidence"]}
+    assert by_post == {"k1": "sound A", "k2": "sound B", "f1": "sound C", "f2": "sound B"}
+    many = explain._sound_letters({"evidence": [{"sound_id": str(i)} for i in range(28)] + [{"sound_id": None}]})
+    assert [many[None, str(i)] for i in (0, 25, 26, 27)] == ["sound A", "sound Z", "sound AA", "sound AB"]
+    # One id string on two platforms is two sounds.
+    assert len(explain._sound_letters({"evidence": [{"platform": "tiktok", "sound_id": "7"},
+                                                    {"platform": "instagram", "sound_id": "7"}]})) == 2
