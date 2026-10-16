@@ -3138,6 +3138,9 @@ def test_t2_is_accepted_for_the_brand_lens_and_context_pack_with_the_flag_on(cli
 
 @pytest.mark.parametrize("extra", [{}, {"skill": "creator-read"}, {"spike": SPIKE}])
 def test_t2_stays_refused_for_any_other_ask_with_the_flag_on(client, monkeypatch, extra):
+    from core.agent import depth
+
+    monkeypatch.setattr(depth, "DEEP_FOR_PLAIN_ASKS", False)  # Deep's own tests below cover a plain ask with it on
     monkeypatch.setenv("F42_T2_READY", "1")
     seen = spy_on_requests(monkeypatch)
     r = ask(client, tier="T2", **extra)
@@ -3168,6 +3171,50 @@ def test_health_says_whether_t2_is_open(client, monkeypatch):
     assert client.get("/health").json()["t2_ready"] is False
     monkeypatch.setenv("F42_T2_READY", "1")
     assert client.get("/health").json()["t2_ready"] is True
+
+
+# Deep on the depth slider: T2 for a plain ask behind F42_T2_READY and depth.DEEP_FOR_PLAIN_ASKS.
+
+
+@pytest.mark.parametrize(("ready", "switch"), [("1", False), (None, True), ("0", True)])
+def test_deep_stays_closed_unless_t2_is_ready_and_the_switch_is_on(client, monkeypatch, ready, switch):
+    from core.agent import depth
+
+    monkeypatch.setattr(depth, "DEEP_FOR_PLAIN_ASKS", switch)
+    if ready is None:
+        monkeypatch.delenv("F42_T2_READY", raising=False)
+    else:
+        monkeypatch.setenv("F42_T2_READY", ready)
+    seen = spy_on_requests(monkeypatch)
+    r = ask(client, tier="T2")
+    assert r.status_code == 400 and "T2" in r.json()["message"]
+    assert seen == []
+    levels = client.get("/health").json()["ask_depth"]
+    assert [lv["open"] for lv in levels] == [True, True, False]
+
+
+def test_deep_opens_t2_for_a_plain_ask_when_t2_is_ready_and_the_switch_is_on(client, monkeypatch):
+    from core.agent import depth
+
+    monkeypatch.setattr(depth, "DEEP_FOR_PLAIN_ASKS", True)
+    monkeypatch.setenv("F42_T2_READY", "1")
+    seen = spy_on_requests(monkeypatch)
+    r = ask(client, wait=True, tier="T2")
+    assert r.status_code == 200 and seen[0]["tier"] == "T2"
+    levels = client.get("/health").json()["ask_depth"]
+    assert [(lv["key"], lv["tier"], lv["open"]) for lv in levels] == [
+        ("quick", "T0", True), ("standard", "T1", True), ("deep", "T2", True)]
+
+
+@pytest.mark.parametrize("extra", [{"skill": "creator-read"}, {"spike": SPIKE}])
+def test_deep_is_for_plain_asks_only(client, monkeypatch, extra):
+    from core.agent import depth
+
+    monkeypatch.setattr(depth, "DEEP_FOR_PLAIN_ASKS", True)
+    monkeypatch.setenv("F42_T2_READY", "1")
+    seen = spy_on_requests(monkeypatch)
+    r = ask(client, tier="T2", **extra)
+    assert r.status_code == 400 and seen == []
 
 
 # Client skins (contract section 15.1).

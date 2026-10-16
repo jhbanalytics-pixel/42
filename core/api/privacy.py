@@ -392,6 +392,7 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
         if ans.get("status") == "complete" and not kept:
             ans["status"] = "partial"
         _ranked(out, claims_gone, present, hidden, unavailable)
+        _figures(out, hidden, unavailable)
     kept_evidence = [e for e in (ans.get("evidence") if isinstance(ans, dict) else None) or [] if isinstance(e, dict)]
     shown = {e.get("id") for e in kept_evidence}
     out.pop(comment_links.KEY, None)
@@ -438,6 +439,28 @@ def _ranked(record, claims_gone, present, hidden, unavailable):
         run["ranked_list"] = {**ranked, "items": items}
     else:
         run.pop("ranked_list", None)
+
+
+def _figures(record, hidden, unavailable):
+    """run.figures (core/agent/figures.py) without the tables a hidden person published, or none when who is hidden
+    cannot be read. A table names its publisher's handle and quotes its post, so it goes with the post."""
+    run = record.get("run")
+    payload = run.get("figures") if isinstance(run, dict) else None
+    if not isinstance(payload, dict) or not isinstance(payload.get("tables"), list):
+        return
+    keys = set() if hidden is None else hidden[0]
+    tables = [] if unavailable else [
+        t for t in payload["tables"] if isinstance(t, dict)
+        and creator_key(t.get("platform"), t.get("publisher")) not in keys]
+    tables = [{**t, "also_reported_by": [r for r in t.get("also_reported_by") or [] if isinstance(r, dict)
+                                         and creator_key(r.get("platform"), r.get("publisher")) not in keys]}
+              for t in tables]
+    if len(tables) == len(payload["tables"]):
+        run["figures"] = {**payload, "tables": tables}
+        return
+    from core.agent.figures import lead
+
+    run["figures"] = {**payload, "tables": tables, "lead": lead(tables), "withheld": len(payload["tables"]) - len(tables)}
 
 
 def _source_evidence(read_source, ask_id):
