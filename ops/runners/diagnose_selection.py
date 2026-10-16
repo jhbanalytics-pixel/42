@@ -1,8 +1,8 @@
 """Read-only check of which candidates the morning brief judged for one date, and which the pattern-first ordering
 (core/brief/sql/brief.sql, pattern-first-selection) would judge instead. Run from the repository root:
     py -3.13 -m ops.runners.diagnose_selection YYYY-MM-DD [--out FOLDER]
-Needs google-cloud-bigquery and gcloud ADC on this PC; reads run as f42-builder through impersonation (RULES 13, as
-ops/card_outcome_report.py does). SELECT only, each query capped at 2 GB billed.
+Needs google-cloud-bigquery and gcloud ADC on this PC; reads run as f42-builder through impersonation (RULES 13, the
+pattern the ops reports use). SELECT only, each query capped at 2 GB billed.
 
 Per market it runs the candidate statement twice on the date's detect run, once as this source orders it and once
 with the pattern bucket taken out of the ordering (the f9bd07c9 order), and reads the date's published brief payload.
