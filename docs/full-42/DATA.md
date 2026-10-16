@@ -518,8 +518,8 @@ One state per item and market, the first that applies in this order. "Tested" me
 | 4 | Emerging | Floors met; new (first measured sighting under 28 days ago, no earlier wave) or dormant (current wave began under 28 days ago after an earlier wave); if tested, significant today; if untested, 5 or more observed days and a 3-day count not below the previous 3 days' |
 | 5 | Spike | Tested: floors met and significant today, without the persistence Rising needs. Untested: a panel or counter value at least 3 times its own median over 5 or more earlier observed days and at least 8, with 3 unflagged creators; or top 10 of a board or feed on 2 consecutive pulls. Shown as unconfirmed, with counts |
 | 6 | Fading | Tested; was Spike, Emerging, Rising, Peaking, Mainstream, Recurring or Seasonal in the last 28 days; the main series at or below 60% of its 28-day peak on each of the last 3 days |
-| 7 | Mainstream | Tested; was Rising, Peaking or Mainstream in the last 28 days (a Seasonal or Recurring day counts as the state it overrode); macro or mega creators in measured lanes and news coverage in 7 days, or rising on 3 or more platforms above the placebo base rate |
-| 8 | Peaking | Tested; was Emerging or Rising in the last 14 days (likewise); acceleration below zero while the 3-day level is at least 70% of the 28-day peak |
+| 7 | Mainstream | Tested; was Rising, Peaking or Mainstream in the last 28 days; macro or mega creators in measured lanes and news coverage in 7 days, or rising on 3 or more platforms above the placebo base rate |
+| 8 | Peaking | Tested; was Emerging or Rising in the last 14 days; acceleration below zero while the 3-day level is at least 70% of the 28-day peak |
 | 9 | On the boards | On a platform's own board or chart today (never the X trends archive); labelled as the platform's list |
 | 10 | New to 42 | Untested; first measured sighting in the last 14 days; 3 distinct unflagged creators in unbiased_rank or panel lanes in 3 days, or 1 board entry; no earlier wave; counts shown, no growth claim |
 
@@ -579,11 +579,10 @@ sp AS (
   FROM intelligence_42_core.v_series_test_current st
   WHERE st.metric_date BETWEEN DATE_SUB(@d, INTERVAL 13 DAY) AND @d AND st.significant
   GROUP BY st.item_id, st.market),
-hs AS (                     -- recent shown states; a Seasonal or Recurring day counts as the state it overrode
+hs AS (                     -- recent shown states
   SELECT s.item_id, s.market,
-    LOGICAL_OR(IFNULL(s.base_state, s.state) IN ('emerging', 'rising')
-               AND s.metric_date >= DATE_SUB(@d, INTERVAL 14 DAY)) grew14,
-    LOGICAL_OR(IFNULL(s.base_state, s.state) IN ('rising', 'peaking', 'mainstream')) big28,
+    LOGICAL_OR(s.state IN ('emerging', 'rising') AND s.metric_date >= DATE_SUB(@d, INTERVAL 14 DAY)) grew14,
+    LOGICAL_OR(s.state IN ('rising', 'peaking', 'mainstream')) big28,
     LOGICAL_OR(s.state IN ('spike', 'emerging', 'rising', 'peaking', 'mainstream', 'recurring', 'seasonal')) active28,
     MAX(IF(s.metric_date = DATE_SUB(@d, INTERVAL 1 DAY), s.state, NULL)) state_yesterday,
     MAX(IF(s.metric_date = DATE_SUB(@d, INTERVAL 1 DAY), s.state_raw, NULL)) raw_yesterday
@@ -716,7 +715,7 @@ sc AS (
       AND s.map_status = 'active' eligible_v1,
     IF(@authority = 'v2', IFNULL(s.locality_checked, 'missing'), NULL) locality_status,
     PERCENT_RANK() OVER (PARTITION BY s.market, s.kind
-      ORDER BY IFNULL(-LOG10(GREATEST(s.p_min, 1e-12)), 0), SAFE_DIVIDE(s.main.y + 1, IFNULL(s.main.mu, s.main.med) + 1)) surge,
+      ORDER BY IFNULL(-LOG10(GREATEST(s.p_min, 1e-12)), 0), (s.main.y + 1) / (IFNULL(s.main.mu, s.main.med) + 1)) surge,
     PERCENT_RANK() OVER (PARTITION BY s.market, s.kind ORDER BY IFNULL(s.main.vel, 0) + .5 * IFNULL(s.main.accel, 0)) momentum,
     PERCENT_RANK() OVER (PARTITION BY s.market, s.kind ORDER BY IFNULL(s.creators3, 0)) breadth
   FROM s),

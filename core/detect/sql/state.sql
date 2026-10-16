@@ -55,11 +55,10 @@ sp AS (
   FROM {core}.v_series_test_current st
   WHERE st.metric_date BETWEEN DATE_SUB(@d, INTERVAL 13 DAY) AND @d AND st.significant
   GROUP BY st.item_id, st.market),
-hs AS (                     -- recent shown states; a Seasonal or Recurring day counts as the state it overrode
+hs AS (                     -- recent shown states
   SELECT s.item_id, s.market,
-    LOGICAL_OR(IFNULL(s.base_state, s.state) IN ('emerging', 'rising')
-               AND s.metric_date >= DATE_SUB(@d, INTERVAL 14 DAY)) grew14,
-    LOGICAL_OR(IFNULL(s.base_state, s.state) IN ('rising', 'peaking', 'mainstream')) big28,
+    LOGICAL_OR(s.state IN ('emerging', 'rising') AND s.metric_date >= DATE_SUB(@d, INTERVAL 14 DAY)) grew14,
+    LOGICAL_OR(s.state IN ('rising', 'peaking', 'mainstream')) big28,
     LOGICAL_OR(s.state IN ('spike', 'emerging', 'rising', 'peaking', 'mainstream', 'recurring', 'seasonal')) active28,
     MAX(IF(s.metric_date = DATE_SUB(@d, INTERVAL 1 DAY), s.state, NULL)) state_yesterday,
     MAX(IF(s.metric_date = DATE_SUB(@d, INTERVAL 1 DAY), s.state_raw, NULL)) raw_yesterday
@@ -192,7 +191,7 @@ sc AS (
       AND s.map_status = 'active' eligible_v1,
     IF(@authority = 'v2', IFNULL(s.locality_checked, 'missing'), NULL) locality_status,
     PERCENT_RANK() OVER (PARTITION BY s.market, s.kind
-      ORDER BY IFNULL(-LOG10(GREATEST(s.p_min, 1e-12)), 0), SAFE_DIVIDE(s.main.y + 1, IFNULL(s.main.mu, s.main.med) + 1)) surge,
+      ORDER BY IFNULL(-LOG10(GREATEST(s.p_min, 1e-12)), 0), (s.main.y + 1) / (IFNULL(s.main.mu, s.main.med) + 1)) surge,
     PERCENT_RANK() OVER (PARTITION BY s.market, s.kind ORDER BY IFNULL(s.main.vel, 0) + .5 * IFNULL(s.main.accel, 0)) momentum,
     PERCENT_RANK() OVER (PARTITION BY s.market, s.kind ORDER BY IFNULL(s.creators3, 0)) breadth
   FROM s),
