@@ -200,9 +200,12 @@ def test_run_cluster_keeps_the_label_and_counts_the_drift_candidate_when_nothing
 
 
 def test_a_match_carried_by_votes_below_the_match_cosine_keeps_its_label():
-    """A shared hashtag and the recent sighting make 0.75 a continuity match (cluster.assign); rule (b) still asks for
+    """A shared hashtag and creator make 0.75 a continuity match (cluster.assign); rule (b) still asks for
     0.82, so two shared members alone do not rename it."""
-    got, decisions = drifted(["p1", "p2"], ["p1", "p2"], cos=0.75)
+    old = an_item("topic_a", at(0.75), OLD_WORDS, ["football"], label=OLD_LABEL, recent_members=["p1", "p2"])
+    c = a_cluster("c9", at(1.0), NEW_WORDS, ["football"], label=NEW_LABEL)
+    old["creators"] = c["creators"] = ["publisher"]
+    got, decisions = planned(old, c)
     assert decisions[0]["kind"] == "match" and decisions[0]["cosine"] < cluster.MATCH_COSINE
     assert got["map_rows"][0]["label"] == OLD_LABEL and got["label_changes"] == []
     assert got["label_drift_candidates"] == []
