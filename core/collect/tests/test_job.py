@@ -964,7 +964,7 @@ def test_reference_reads_prior_valid_days_with_a_parameterised_select():
 # main and the chain
 
 def test_collect_cap_override_can_lower_but_not_raise():
-    assert job.collect_caps({})["ENGINE_DAILY"]["collect"] == 2000
+    assert job.collect_caps({})["ENGINE_DAILY"]["collect"] == 4000
     assert job.collect_caps({"COLLECT_CAP_OVERRIDE": "150"})["ENGINE_DAILY"]["collect"] == 150
     share = job.load_caps()["ENGINE_DAILY"]["collect"]
     for bad in (str(share + 100), str(share + 1), "-1", "lots"):

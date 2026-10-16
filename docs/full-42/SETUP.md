@@ -59,18 +59,18 @@ Identity-Aware Proxy directly on Cloud Run (`gcloud run deploy --iap`), with the
 
 ## Cost and credit guards
 
-This table is the only place caps are set; every other document points here. ENGINE_DAILY, VIDEO_DAILY, MONTHLY and MODEL_DAILY_USD were raised 3 Oct 2026 at Albert's request.
+This table is the only place caps are set; every other document points here. ENGINE_DAILY, VIDEO_DAILY, MONTHLY and MODEL_DAILY_USD were raised 3 Oct 2026 at Albert's request; ENGINE_DAILY's collect share and MONTHLY again on 16 Oct 2026.
 
 | Cap | Value | What stops |
 |---|---|---|
-| ENGINE_DAILY | 2,400 credits: collect 2000, confirm 300, reserve 100 (raised 3 Oct 2026 at Albert's request, from 1,200) | The morning job's step stops at its share |
+| ENGINE_DAILY | 4,400 credits: collect 4000, confirm 300, reserve 100 (raised 16 Oct 2026 at Albert's request, from 2,400, which he set on 3 Oct from 1,200) | The morning job's step stops at its share |
 | PULSE_DAILY | 60 credits for the intraday pulse, a share of its own outside ENGINE_DAILY (Albert, 29 September) | The pulse stops for the day |
 | VIDEO_DAILY | 60 clips and 600 credits a day for video reading (BUILD.md 2.6; raised 3 Oct 2026 at Albert's request, from the clips and credits he set on 2 October), a share of its own outside ENGINE_DAILY; both must be above 0 for any clip to be read, and the model spend counts against MODEL_DAILY_USD. The 20-clip hand check runs on the first days read | The understand job's video step stops at whichever is reached first |
 | ASK_DAILY | 600 credits, all questions and investigations together | Ask answers from the warehouse only, with a notice |
 | SCHEDULED_DAILY | 120 credits, the share of ASK_DAILY that scheduled questions may spend (Albert, 29 September) | The due schedule is skipped with a runs row naming the reason, and its next due day tries again |
 | EVAL_DAILY | 0 live credits; evaluations run in replay mode from cached responses; 100 live for a deliberate refresh | The eval run |
 | BUILD_DAILY | 600 credits for building and probes until the morning schedule starts, then 150; staging test runs of the collect and brief jobs spend the engine's shares, and Ask tests spend ASK_DAILY | The builder's test runs |
-| MONTHLY | 80,000 credits over everything (raised 3 Oct 2026 at Albert's request) | Ask is throttled first, then build, and the morning run is protected until the balance floor |
+| MONTHLY | 180,000 credits over everything (raised 16 Oct 2026 at Albert's request, from 80,000 set on 3 Oct: the engine at 4,400 a day for 31 days plus Ask, video, pulse and build at their own caps) | Ask is throttled first, then build, and the morning run is protected until the balance floor |
 | BALANCE_FLOOR | 20,000 credits | Every job refuses to start below it; alert at 30 days of spend |
 | MODEL_DAILY_USD | USD 50 a day (raised 3 Oct 2026 at Albert's request). About USD 1,500 a month at that level (Albert, 28 September: cost first) | Ask falls back to T0 and the fast model; unexplained trends are held back, reason shown, numbers and posts alongside |
 | EVAL_MODEL_USD | USD 40 per evaluation run, counted apart from MODEL_DAILY_USD | The eval run stops and reports what it scored |
@@ -80,7 +80,7 @@ This table is the only place caps are set; every other document points here. ENG
 - Google Cloud: budget alerts at 50, 90 and 100% of a monthly amount Albert sets, to Albert and a second person. Spend caps (preview) on Cloud Run in production.
 - Cloud Run: max instances 3 for the app and agent, min 0; jobs with parallelism 1, an explicit task timeout and max retries 1. Schedulers use the Africa/Johannesburg time zone.
 
-Expected monthly running cost (estimates from list prices on 28 September 2026, to be replaced by measured cost per answer and per morning in Stage 1A): SocialCrawl up to 80,000 credits (45,000 until 3 October 2026, a rate the existing balance covered for about five and a half months); Google Cloud infrastructure about USD 100 to 200; models between USD 800 and 3,500 depending on question volume and how often deep questions run, which is why MODEL_DAILY_USD exists. The estimates differ by that much, so measured numbers decide the default model per role. Transcripts for every clip would add about 150,000 credits a month, so 42 transcribes only clips that matter.
+Expected monthly running cost (estimates from list prices on 28 September 2026, to be replaced by measured cost per answer and per morning in Stage 1A): SocialCrawl up to 180,000 credits (80,000 from 3 to 16 October 2026, 45,000 before that); Google Cloud infrastructure about USD 100 to 200; models between USD 800 and 3,500 depending on question volume and how often deep questions run, which is why MODEL_DAILY_USD exists. The estimates differ by that much, so measured numbers decide the default model per role. Transcripts for every clip would add about 150,000 credits a month, so 42 transcribes only clips that matter.
 
 ## Monitoring (as code, core/setup/monitoring.py and the f42-watchdog job in core/setup/watchdog.py, adapted from ops/monitoring/apply_monitoring.py)
 

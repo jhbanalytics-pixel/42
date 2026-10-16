@@ -207,7 +207,7 @@ def test_pulse_share_refuses_past_60_and_charges_nothing():
 
 def test_adding_the_pulse_share_changes_no_other_cap():
     assert make("collect").share_caps == {
-        "collect": 2000, "confirm": 300, "reserve": 100, "ask": 600, "eval": 0, "build": 150, "pulse": 60,
+        "collect": 4000, "confirm": 300, "reserve": 100, "ask": 600, "eval": 0, "build": 150, "pulse": 60,
         "video": 600}
 
 

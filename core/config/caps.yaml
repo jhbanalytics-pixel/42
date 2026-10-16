@@ -3,8 +3,8 @@
 # core/collect/socialcrawl_client.py reads this file.
 
 ENGINE_DAILY:
-  total: 2400
-  collect: 2000
+  total: 4400
+  collect: 4000
   confirm: 300
   reserve: 100
 
@@ -26,7 +26,7 @@ BUILD_DAILY:
   after_schedule: 150
 
 MONTHLY:
-  total: 80000
+  total: 180000
   throttle_order: [ask, build]           # stopped first when the month runs out
   protected: [collect, confirm, reserve] # the morning run, stopped only by the balance floor
 
