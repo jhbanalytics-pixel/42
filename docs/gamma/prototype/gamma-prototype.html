@@ -1,0 +1,580 @@
+<title>42 Gamma Field Notebook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Recursive:slnt,wght,CASL,CRSV,MONO@-15..0,300..800,0..1,0..1,0..1&display=swap">
+<style>
+/* Layout: rail | notebook | specimen tray on desktop; one column, bottom nav and bottom sheet on phones.
+   Tokens follow the vendored ogilvy-intelligence-design-system (daylight paper, ink, Ogilvy red) plus one cool focus hue. */
+:root{
+  --paper:#F5EEE4; --paper-2:#E8DED2; --panel:#FBF7F1; --ink:#15120F; --ink-2:#4A433D; --ink-3:#6B625A;
+  --rule:#D6CABB; --red:#E41424; --red-text:#A60815; --on-red:#FFFFFF; --focus:#2F5573; --focus-soft:#DCE6EE;
+  --hatch:#857A6E; --warn-bg:#F3E3C6; --warn-ink:#6A4300;
+  --sans:"Recursive","Segoe UI",system-ui,sans-serif; --serif:"Newsreader",Georgia,"Times New Roman",serif;
+  --mono:"Recursive",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --s13:.8125rem; --s16:1rem; --s21:1.3125rem; --s32:2rem;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0B0A09; --paper-2:#15120F; --panel:#15120F; --ink:#F2ECE4; --ink-2:#C9C0B6; --ink-3:#A1978D;
+  --rule:#2F2925; --red:#E41424; --red-text:#FF5C68; --on-red:#FFFFFF; --focus:#8FB3D1; --focus-soft:#1D2A35;
+  --hatch:#7D746B; --warn-bg:#3A2C12; --warn-ink:#F2CF8C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0B0A09; --paper-2:#15120F; --panel:#15120F; --ink:#F2ECE4; --ink-2:#C9C0B6; --ink-3:#A1978D;
+  --rule:#2F2925; --red:#E41424; --red-text:#FF5C68; --on-red:#FFFFFF; --focus:#8FB3D1; --focus-soft:#1D2A35;
+  --hatch:#7D746B; --warn-bg:#3A2C12; --warn-ink:#F2CF8C; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:400 var(--s16)/1.5 var(--sans);font-variation-settings:"MONO" 0,"CASL" 0}
+.mono,.n{font-family:var(--mono);font-variation-settings:"MONO" 1,"CASL" 0;font-variant-numeric:tabular-nums}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:var(--s32);line-height:1.15;letter-spacing:-.01em}
+h2{font-size:var(--s21);line-height:1.25}
+h3{font-size:var(--s16)}
+p{margin:0}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+.lbl{font-size:var(--s13);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.small{font-size:var(--s13);color:var(--ink-2)}
+.serif{font-family:var(--serif);font-size:var(--s21);line-height:1.4;font-weight:400}
+
+/* Shell */
+.banner{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--warn-bg);color:var(--warn-ink);font-size:var(--s13)}
+.banner b{font-weight:600}
+.banner .sp{flex:1}
+.banner select,.banner button{font:inherit;font-size:var(--s13);color:var(--warn-ink);background:transparent;border:1px solid currentColor;border-radius:6px;padding:4px 8px;min-height:32px}
+.shell{display:grid;grid-template-columns:200px minmax(0,1fr) 380px;min-height:calc(100vh - 48px)}
+.shell.notray{grid-template-columns:200px minmax(0,1fr) 0}
+.rail{border-right:1px solid var(--rule);padding:20px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;align-self:start;height:100vh}
+.mark{font:600 1.75rem/1 var(--sans);letter-spacing:-.04em;padding:0 10px 18px}
+.mark span{color:var(--red-text)}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--ink-2);min-height:40px;text-align:left;width:100%}
+.nav[aria-current="page"]{background:var(--paper-2);color:var(--ink);font-weight:600}
+.nav:hover{background:var(--paper-2)}
+.nav .k{margin-left:auto;font-size:var(--s13);color:var(--ink-3)}
+.rail .foot{margin-top:auto;display:flex;flex-direction:column;gap:6px;padding:10px}
+.main{min-width:0;padding-block:28px 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.col{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+.tray{border-left:1px solid var(--rule);background:var(--panel);position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:20px}
+.shell.notray .tray{display:none}
+
+/* Market tabs */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.tab{padding:10px 14px;min-height:44px;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);border-color:var(--ink);font-weight:600}
+.dateline{display:flex;gap:12px;flex-wrap:wrap;align-items:baseline;color:var(--ink-3);font-size:var(--s13)}
+
+/* Notices */
+.notice{border:1px solid var(--rule);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:var(--panel)}
+.notice.issue{border-color:var(--warn-ink);background:var(--warn-bg);color:var(--warn-ink)}
+.coverage{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.coverage div{display:flex;flex-direction:column;gap:2px}
+.coverage .v{font-size:var(--s16)}
+
+/* Item rows */
+.list{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:18px 0;border-top:1px solid var(--rule);text-align:left;width:100%}
+.row:hover .ttl{text-decoration:underline;text-underline-offset:3px}
+.row .ttl{font-size:var(--s16);font-weight:600}
+.row .why{grid-column:1/-1;color:var(--ink-2)}
+.row .meta{grid-column:1/-1;display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:var(--s13);color:var(--ink-2)}
+.dist{display:flex;align-items:center;gap:8px}
+.dist .bar{width:96px;height:8px;border:1px solid var(--ink-3);border-radius:4px;overflow:hidden;position:relative}
+.dist .bar i{position:absolute;inset:0 auto 0 0;background:var(--ink-2)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:var(--s13);padding:2px 8px;border:1px solid var(--rule);border-radius:999px;color:var(--ink-2);white-space:nowrap}
+.state{font-weight:600;color:var(--ink)}
+
+/* Day strip */
+.strip{display:flex;gap:3px;align-items:flex-end;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
+.d{width:10px;height:14px;border-radius:2px;flex:0 0 auto;position:relative}
+.d.p{background:var(--ink)}
+.d.a{background:transparent;border-bottom:2px solid var(--ink-3);height:14px}
+.d.n{background:repeating-linear-gradient(135deg,var(--hatch) 0 2px,transparent 2px 5px);border:1px solid var(--hatch)}
+.d.brk::before{content:"";position:absolute;left:-3px;top:-6px;bottom:-4px;width:2px;background:var(--focus)}
+.strip.big .d{width:16px;height:22px}
+.strip.big .d.a{height:22px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:var(--s13);color:var(--ink-2);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend .d{width:10px;height:12px}
+
+/* Confidence marks: fill, never colour alone */
+.cf{display:inline-flex;align-items:center;gap:6px;font-size:var(--s13);font-weight:600;color:var(--ink-2)}
+.cf i{width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.cf.obs i{background:var(--ink)}
+.cf.cor i{background:var(--ink);box-shadow:0 0 0 2px var(--panel),0 0 0 3.5px var(--ink)}
+.cf.sgl i{border:1.5px solid var(--ink)}
+.cf.inf i{border:1.5px dashed var(--ink)}
+
+/* Item page */
+.back{font-size:var(--s13);color:var(--ink-2);display:inline-flex;gap:6px;min-height:32px;align-items:center}
+.record{border:1px solid var(--rule);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:18px;background:var(--panel)}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 20px}
+.fact{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fact .v{font-size:var(--s21);line-height:1.2}
+.fact .v.na{color:var(--ink-3);font-size:var(--s16)}
+.fact .b{font-size:var(--s13);color:var(--ink-2)}
+.verdict{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;padding:14px 16px;border-radius:10px;border:1.5px dashed var(--ink-3)}
+.verdict.go{border-style:solid;border-color:var(--ink)}
+.verdict .vw{font-weight:600;font-size:var(--s21);grid-row:span 2}
+.sec{display:flex;flex-direction:column;gap:12px}
+.lineage{display:flex;flex-direction:column;gap:0;border-left:2px solid var(--ink-3);margin-left:6px}
+.lineage li{list-style:none;position:relative;padding:4px 0 14px 18px}
+.lineage li::before{content:"";position:absolute;left:-7px;top:9px;width:12px;height:12px;border-radius:50%;background:var(--paper);border:2px solid var(--ink)}
+.lineage ol{margin:0;padding:0}
+.analog{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.analog i{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--ink-3)}
+.analog i.f{background:var(--ink-3)}
+.analog i.e{border-style:dotted;opacity:.6}
+
+/* Specimens */
+.specs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.spec{border:1px solid var(--rule);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;text-align:left;background:var(--panel);width:100%}
+.spec[aria-pressed="true"]{outline:2px solid var(--focus);outline-offset:1px}
+.thumb{aspect-ratio:9/12;max-width:100%;background:linear-gradient(160deg,var(--paper-2),var(--rule));display:flex;align-items:flex-end;justify-content:space-between;padding:8px;font-size:var(--s13);color:var(--ink-2)}
+.spec .cap{padding:10px;display:flex;flex-direction:column;gap:4px;font-size:var(--s13)}
+.spec .cap q{color:var(--ink);font-size:var(--s13)}
+
+/* Tray */
+.tray h2{font-size:var(--s16)}
+.tray .stack{display:flex;flex-direction:column;gap:16px}
+.about{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;font-size:var(--s13)}
+.about dt{color:var(--ink-3)}
+.about dd{margin:0}
+mark{background:var(--focus-soft);color:var(--ink);padding:0 2px;border-radius:2px}
+.close{min-height:36px;min-width:36px;border:1px solid var(--rule);border-radius:8px;display:none}
+
+/* Buttons */
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{min-height:44px;padding:10px 16px;border-radius:8px;border:1px solid var(--rule);font-weight:600;font-size:var(--s13);display:inline-flex;align-items:center;gap:8px}
+.btn:hover{background:var(--paper-2)}
+.btn.primary{background:var(--red);border-color:var(--red);color:var(--on-red)}
+.btn.primary:hover{filter:brightness(.95);background:var(--red)}
+.kbd{font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:.72rem;border:1px solid var(--rule);border-radius:4px;padding:0 4px;color:var(--ink-3)}
+
+/* Ask */
+.askbox{display:flex;gap:8px;flex-wrap:wrap}
+.askbox input{flex:1 1 260px;min-width:0;min-height:48px;border:1px solid var(--rule);border-radius:10px;padding:10px 14px;font:inherit;background:var(--panel);color:var(--ink)}
+.log{display:flex;flex-direction:column;gap:6px;font-size:var(--s13);color:var(--ink-2);border-left:2px solid var(--rule);padding-left:12px}
+.claims{display:flex;flex-direction:column;gap:14px;margin:0;padding:0}
+.claims li{list-style:none;display:flex;flex-direction:column;gap:6px}
+.ev{display:inline-flex;gap:6px;flex-wrap:wrap}
+.ev button{font-size:var(--s13);border:1px solid var(--rule);border-radius:999px;padding:2px 10px;min-height:28px}
+.gaps{border-left:3px solid var(--ink-3);padding:8px 14px;display:flex;flex-direction:column;gap:6px}
+
+/* Compare */
+.multi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.panel{border:1px solid var(--rule);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.panel svg{width:100%;height:auto;display:block}
+.nc{flex:1;min-height:90px;border-radius:6px;background:repeating-linear-gradient(135deg,var(--hatch) 0 2px,transparent 2px 7px);display:flex;align-items:center;justify-content:center;font-size:var(--s13);color:var(--ink);text-align:center;padding:8px}
+.nc span{background:var(--panel);padding:2px 6px;border-radius:4px}
+
+/* Concepts */
+.concepts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.concept{border:1px solid var(--rule);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.concept .stage{padding:16px;min-height:280px;display:flex;flex-direction:column;gap:10px}
+.concept .notes{padding:14px 16px;border-top:1px solid var(--rule);font-size:var(--s13);display:flex;flex-direction:column;gap:6px;color:var(--ink-2)}
+.concept.rec{border:2px solid var(--ink)}
+.cA{background:var(--panel)}
+.cA .hed{font-family:var(--serif);font-size:1.5rem;line-height:1.2}
+.cA .dek{font-family:var(--serif);font-size:var(--s16);color:var(--ink-2)}
+.cC{background:var(--paper-2);position:relative}
+.cC svg{width:100%;height:auto}
+
+/* Palette */
+.pal{position:fixed;inset:0;background:color-mix(in srgb,var(--ink) 35%,transparent);display:flex;align-items:flex-start;justify-content:center;padding-top:12vh;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));z-index:20}
+.pal .box{background:var(--panel);border:1px solid var(--rule);border-radius:12px;width:min(560px,100%);padding:8px;display:flex;flex-direction:column;gap:4px}
+.pal input{min-height:48px;border:0;border-bottom:1px solid var(--rule);background:transparent;color:var(--ink);font:inherit;padding:8px 12px}
+.pal button{text-align:left;padding:10px 12px;border-radius:8px;min-height:40px;display:flex;justify-content:space-between}
+.pal button:hover,.pal button:focus-visible{background:var(--paper-2)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;font-size:var(--s13);z-index:30}
+.bottomnav{display:none}
+.skel{color:var(--ink-3)}
+
+@media (max-width:1180px){.shell{grid-template-columns:180px minmax(0,1fr) 320px}}
+@media (max-width:960px){
+  .shell,.shell.notray{display:block}
+  .rail{display:none}
+  .main{padding-block:20px calc(96px + env(safe-area-inset-bottom,0px))}
+  .tray{position:fixed;left:0;right:0;bottom:0;top:auto;height:auto;max-height:78vh;border-left:0;border-top:1px solid var(--rule);border-radius:16px 16px 0 0;z-index:15;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));box-shadow:0 -8px 30px color-mix(in srgb,var(--ink) 20%,transparent)}
+  .close{display:inline-flex;align-items:center;justify-content:center}
+  .bottomnav{display:flex;position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--rule);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);z-index:10}
+  .bottomnav button{flex:1;min-height:56px;font-size:var(--s13);color:var(--ink-2)}
+  .bottomnav button[aria-current="page"]{color:var(--ink);font-weight:600;box-shadow:inset 0 2px 0 var(--ink)}
+  .concepts,.multi{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:620px){
+  .strip{gap:2px}.d{width:8px;height:12px}.d.a{height:12px}.strip.big .d{width:9px;height:18px}.strip.big .d.a{height:18px}
+  .facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .coverage{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .specs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  h1{font-size:1.75rem}
+}
+@media (prefers-reduced-motion:no-preference){
+  .fade{animation:fade .16s ease-out}
+  @keyframes fade{from{opacity:.4}to{opacity:1}}
+}
+</style>
+
+<div class="banner" role="note">
+  <b>Prototype.</b><span>Every market, item, count and post here is illustrative, written to show the journey. None of it is 42 output or real collected data.</span>
+  <span class="sp"></span>
+  <label for="scenario">Morning</label>
+  <select id="scenario">
+    <option value="zero">No trend cleared (like 16 Oct)</option>
+    <option value="one">One trend cleared</option>
+    <option value="partial">Kenya collection partial</option>
+    <option value="failed">Detection failed</option>
+    <option value="loading">Still loading</option>
+  </select>
+  <button id="theme" type="button" aria-label="Switch theme">Theme</button>
+</div>
+
+<div class="shell" id="shell">
+  <nav class="rail" aria-label="Main">
+    <div class="mark">42<span>.</span></div>
+    <button class="nav" data-go="today">Today</button>
+    <button class="nav" data-go="ask">Ask</button>
+    <button class="nav" data-go="compare">Compare</button>
+    <button class="nav" data-go="dossier">Dossier <span class="k" id="dcount">0</span></button>
+    <button class="nav" data-go="concepts">Concepts</button>
+    <div class="foot small"><span><span class="kbd">Ctrl</span> <span class="kbd">K</span> commands</span><span>Gamma 3.1 prototype</span></div>
+  </nav>
+  <main class="main" id="main" tabindex="-1"></main>
+  <aside class="tray" id="tray" aria-label="Evidence"></aside>
+</div>
+
+<nav class="bottomnav" aria-label="Main">
+  <button data-go="today">Today</button><button data-go="ask">Ask</button><button data-go="compare">Compare</button><button data-go="dossier">Dossier</button><button data-go="concepts">Concepts</button>
+</nav>
+
+<script>
+(function(){
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 28-day window ending 16 Oct 2026. Index 0 = 19 Sep. SocialCrawl collection began about 28 Sep (index 9).
+const START=new Date(Date.UTC(2026,8,19));
+const dayLabel=i=>{const d=new Date(START.getTime()+i*864e5);return d.getUTCDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getUTCMonth()]};
+const BREAK=23; // 12 Oct: panel protocol restarted
+// p present, a collected and absent, n not collected
+function strip(spec){return spec.split("").map((c,i)=>({s:c,i}))}
+
+const M={ZA:"South Africa",NG:"Nigeria",KE:"Kenya"};
+const COVER={
+  ZA:{posts:"2,141",plat:"5 of 6",loc:"71%",pulls:"3 a day"},
+  NG:{posts:"1,988",plat:"5 of 6",loc:"64%",pulls:"3 a day"},
+  KE:{posts:"1,545",plat:"4 of 6",loc:"23%",pulls:"1 a day"}
+};
+
+const ITEMS=[
+ {id:"za-spaza",m:"ZA",kind:"Format",title:"Spaza restock runs",
+  why:"People film the weekly restock trip for a family spaza shop: the cash-and-carry haul, the price board, the packing.",
+  hold:"Local creators: 6 of 8 needed",dist:.75,next:"Tomorrow, 05:15",
+  counts:[null,null,null,null,null,null,null,null,null,0,0,0,0,0,0,0,0,0,0,0,0,2,0,3,5,4,7,9],
+  firstSeen:15+6,record:{days:"7 of 8",peak:"9 posts, 16 Oct",peakShare:"18%",ret7:null,creators:"6",returning:"3 of 6",tiers:"4 nano, 2 micro",plats:"TikTok feed, culture desk panel"},
+  verdict:{w:"Too early",t:"42 judges lasting or spike 14 days after first seen in measured lanes. This is day 7. Next read 23 Oct."},
+  lineage:{ok:false,why:"Not shown: on a second clustering run of the same day this item split differently, so its history is not yet stable."},
+  analog:{n:3,need:10},
+  conf:"sgl",specs:[0,1,2]},
+ {id:"za-sideeye",m:"ZA",kind:"Sound",title:"Gogo side-eye duet sound",
+  why:"A clip of a grandmother's slow side-eye used as a duet reaction to unsolicited advice.",
+  hold:"Mostly one account: 61% of posts come from one creator",dist:.4,next:"Tomorrow, 05:15",
+  counts:[null,null,null,null,null,null,null,null,null,0,0,0,0,0,0,0,0,0,1,0,2,0,0,6,8,11,13,12],
+  firstSeen:18,record:{days:"8 of 10",peak:"13 posts, 15 Oct",peakShare:"25%",ret7:null,creators:"5",returning:"1 of 5",tiers:"3 nano, 1 mid, 1 unknown",plats:"TikTok feed"},
+  verdict:{w:"Too early",t:"Day 10 of 14. Concentration in one account would also block a verdict until it falls under half of posts."},
+  lineage:{ok:true,steps:[["18 Sep","Not seen: before 42 collected"],["7 Oct","First seen by 42 on the TikTok feed, one creator"],["12 Oct","Panel protocol restarted: counts before and after are not compared"],["13 Oct","Second and third creators use the sound"]]},
+  analog:{n:1,need:10},conf:"sgl",specs:[3,4]},
+ {id:"ng-owambe",m:"NG",kind:"Format",title:"Owambe colour-code reveals",
+  why:"Guests reveal the aso-ebi colour for a party with a staged unboxing, then the family group's reactions.",
+  hold:"Second platform: only TikTok is measured so far",dist:.6,next:"Tomorrow, 05:15",
+  counts:[null,null,null,null,null,null,null,null,null,0,0,0,0,0,0,0,4,0,0,6,9,7,0,10,14,12,16,15],
+  firstSeen:16,record:{days:"10 of 12",peak:"16 posts, 15 Oct",peakShare:"14%",ret7:"0.9",creators:"17",returning:"9 of 17",tiers:"9 nano, 6 micro, 2 unknown",plats:"TikTok feed"},
+  verdict:{w:"Too early",t:"Day 12 of 14. A week after its first high day it kept 0.9 of that week's level. 42 does not call lasting or spike before day 14, and only once its call has beaten simple rules (experiment E2)."},
+  lineage:{ok:true,steps:[["5 Oct","First seen by 42 on the TikTok feed"],["9 Oct","Joined by a smaller cluster about the same reveal, merged by the matcher"],["12 Oct","Panel protocol restarted"]]},
+  analog:{n:4,need:10},conf:"cor",specs:[5,6,7]},
+ {id:"ke-matatu",m:"KE",kind:"Community",title:"Matatu art tour clips",
+  why:"Short tours of decorated matatus: the artwork, the sound system, the crew naming the route.",
+  hold:"Market unconfirmed: 58% of posts lack a confident Kenyan location",dist:null,next:"Tomorrow, 05:15",
+  counts:[null,null,null,null,null,null,null,null,null,0,0,0,0,0,3,0,0,0,2,0,0,4,0,5,4,0,6,5],
+  firstSeen:14,record:{days:"9 of 14",peak:"6 posts, 15 Oct",peakShare:"19%",ret7:null,creators:"8",returning:"2 of 8",tiers:"5 nano, 3 unknown",plats:"TikTok feed (1 pull a day in Kenya)"},
+  verdict:{w:"Abstained",t:"42 does not judge Kenyan items when most posts have no confident Kenyan location. Kenya's feed is read once a day, against three times in South Africa and Nigeria."},
+  lineage:{ok:false,why:"Not shown: locality is too weak to say this is one Kenyan behaviour."},
+  analog:{n:0,need:10},conf:"inf",specs:[8,9]}
+];
+const NOT_TRENDS={ZA:[["Final-whistle reactions to the Springbok test","Event reaction: the posts are about one match, not a behaviour"],["#SpringSale haul","Promotion: 7 of 9 posts are paid partnerships"]],NG:[["Fuel price reaction skits","News reaction: no use of the format outside the news window yet"]],KE:[["#Trending","Generic tag: not a pattern on its own"]]};
+const CLEARED={id:"za-choir",m:"ZA",kind:"Format",title:"Taxi-rank choir clips",
+  why:"Commuters at taxi ranks start a hymn and strangers join in; the clips end on the taxi pulling off.",
+  finding:"In South Africa, taxi-rank sing-alongs have been seen on 16 of the last 18 days, posted by 41 different creators on three platforms.",
+  counts:[null,null,null,null,null,null,null,null,null,0,4,0,6,7,9,0,8,11,10,12,14,12,13,15,17,16,18,19],
+  firstSeen:10,record:{days:"17 of 18",peak:"19 posts, 16 Oct",peakShare:"8%",ret7:"1.1",creators:"41",returning:"22 of 41",tiers:"26 nano, 11 micro, 2 mid, 2 unknown",plats:"TikTok feed, YouTube Shorts board, X panel"},
+  verdict:{w:"Lasting",t:"Example only. 42 shows this word only if experiment E2 shows its lasting-or-spike call beats simple rules in at least two markets. Until then the record above is all a card carries."},
+  lineage:{ok:true,steps:[["29 Sep","First seen by 42 on the TikTok feed"],["4 Oct","Seen on the YouTube Shorts board"],["12 Oct","Panel protocol restarted"],["14 Oct","Seen on the X panel; brand accounts begin replying, not posting"]]},
+  analog:{n:6,need:10},conf:"cor",specs:[10,11,12],state:"Emerging"};
+
+const SPECS=[
+ {p:"TikTok",dur:"0:38",who:"Creator A · nano · ZA",when:"14 Oct",q:"Monday restock run for my mum's spaza, prices went up again",hl:"restock run",loc:"Creator's home market from profile region",ind:"Not linked to other posters in this set"},
+ {p:"TikTok",dur:"0:52",who:"Creator B · micro · ZA",when:"15 Oct",q:"Cash-and-carry haul for the shop, R2,300 this week",hl:"haul for the shop",loc:"Place named in caption",ind:"Independent"},
+ {p:"Instagram",dur:"0:21",who:"Creator C · nano · ZA",when:"16 Oct",q:"Packing day at the spaza, small business things",hl:"Packing day",loc:"Creator's home market from profile region",ind:"Independent"},
+ {p:"TikTok",dur:"0:12",who:"Creator D · mid · ZA",when:"13 Oct",q:"When you tell gogo you're vegan now",hl:"gogo",loc:"Place named in caption",ind:"Posted 8 of 13 posts in this set"},
+ {p:"TikTok",dur:"0:09",who:"Creator E · nano · ZA",when:"15 Oct",q:"Duet with the side-eye, my aunt's advice about my hair",hl:"side-eye",loc:"Language only: not a location",ind:"Independent"},
+ {p:"TikTok",dur:"0:44",who:"Creator F · micro · NG",when:"12 Oct",q:"The colour for my cousin's wedding is finally out",hl:"colour",loc:"Creator's home market from profile region",ind:"Independent"},
+ {p:"TikTok",dur:"0:31",who:"Creator G · nano · NG",when:"14 Oct",q:"Family group chat reacting to the aso-ebi reveal",hl:"aso-ebi reveal",loc:"Place named in caption",ind:"Independent"},
+ {p:"TikTok",dur:"0:27",who:"Creator H · nano · NG",when:"15 Oct",q:"Unboxing the fabric before the owambe",hl:"Unboxing the fabric",loc:"Creator's home market from profile region",ind:"Reposted 2 of Creator G's posts"},
+ {p:"TikTok",dur:"1:02",who:"Creator I · nano · location unknown",when:"14 Oct",q:"Route 46 interior tour, the graffiti is crazy",hl:"interior tour",loc:"No confident location",ind:"Independent"},
+ {p:"TikTok",dur:"0:40",who:"Creator J · nano · KE",when:"15 Oct",q:"Matatu culture Nairobi, sound system check",hl:"Matatu culture",loc:"Place named in caption",ind:"Independent"},
+ {p:"TikTok",dur:"0:47",who:"Creator K · nano · ZA",when:"9 Oct",q:"Bree taxi rank this morning, someone started and everyone joined",hl:"everyone joined",loc:"Place named in caption",ind:"Independent"},
+ {p:"YouTube",dur:"0:58",who:"Creator L · micro · ZA",when:"12 Oct",q:"Strangers singing at the rank, I cried",hl:"Strangers singing",loc:"Creator's home market from profile region",ind:"Independent"},
+ {p:"X",dur:"0:33",who:"Creator M · nano · ZA",when:"15 Oct",q:"Never seen a taxi rank this peaceful, the hymn at the end",hl:"the hymn",loc:"Creator's home market from profile region",ind:"Independent"}
+];
+
+
+// Derive every strip and record figure from the same daily counts, so they cannot disagree.
+[...ITEMS,CLEARED].forEach(it=>{
+  const c=it.counts, first=c.findIndex(v=>v>0);
+  it.days=c.map(v=>v==null?"n":v>0?"p":"a").join("");
+  const seen=c.slice(first).filter(v=>v>0).length, span=c.length-first;
+  const tot=c.reduce((a,v)=>a+(v||0),0), pk=Math.max(...c.filter(v=>v!=null)), pi=c.lastIndexOf(pk);
+  it.record.days=seen+" of "+span; it.record.peak=pk+" posts, "+dayLabel(pi); it.record.peakShare=Math.round(100*pk/tot)+"%";
+});
+let S={view:"today",market:"ZA",item:null,spec:null,saved:[],scenario:"zero",asked:false};
+try{const t=localStorage.getItem("g31-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}
+
+function cf(k){const w={obs:"Observed",cor:"Corroborated",sgl:"Single source",inf:"Inferred"}[k];return `<span class="cf ${k}"><i aria-hidden="true"></i>${w}</span>`}
+const lexical=it=>it.kind==="Sound"||it.kind==="Hashtag";
+const absentWord=it=>lexical(it)?"collected, not seen":"collected, no matching cluster";
+function dayStrip(it,big){
+  const cells=it.days.split("").slice(0,28).map((c,i)=>{
+    const t={p:"present",a:absentWord(it),n:"not collected"}[c];
+    return `<span class="d ${c}${i===BREAK?" brk":""}" title="${dayLabel(i)}: ${t}${i===BREAK?" · protocol restarted":""}"></span>`}).join("");
+  const p=(it.days.match(/p/g)||[]).length, n=(it.days.match(/n/g)||[]).length;
+  return `<div class="strip${big?" big":""}" role="img" aria-label="Days present: seen on ${p} days, not collected on ${n} days, of the 28 days to 16 October; protocol restarted 12 October">${cells}</div>`;
+}
+function legend(it){return `<div class="legend"><span><i class="d p"></i>seen</span><span><i class="d a"></i>${absentWord(it)}</span><span><i class="d n"></i>not collected</span><span><i class="d brk" style="background:none"></i>protocol restarted</span></div>`}
+function countLine(it){
+  const w=560,h=120,pad=28,vals=it.counts,max=Math.max(...vals.filter(v=>v!=null),4);
+  const x=i=>pad+i*(w-pad*2)/27, y=v=>h-22-(v/max)*(h-44);
+  let d="",on=false;vals.forEach((v,i)=>{if(v==null){on=false;return}d+=(on?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1);on=true});
+  const last=vals.length-1;
+  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Posts a day in measured lanes. Peak ${max}. Days before 28 September were not collected.">
+   <rect x="${pad}" y="10" width="${x(9)-pad}" height="${h-32}" fill="url(#hatch)" opacity=".6"/>
+   <defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="6" fill="var(--hatch)"/></pattern></defs>
+   <line x1="${pad}" x2="${w-pad}" y1="${h-22}" y2="${h-22}" stroke="var(--rule)"/>
+   <line x1="${x(BREAK)-3}" x2="${x(BREAK)-3}" y1="8" y2="${h-22}" stroke="var(--focus)" stroke-width="2"/>
+   <text x="${x(BREAK)-9}" y="18" font-size="11" fill="var(--ink-2)" text-anchor="end" font-family="var(--mono)">protocol restarted 12 Oct</text>
+   <path d="${d}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/>
+   <circle cx="${x(last)}" cy="${y(vals[last])}" r="3.5" fill="var(--ink)"/>
+   <text x="${pad}" y="${h-6}" font-size="11" fill="var(--ink-3)" font-family="var(--mono)">${dayLabel(0)}</text>
+   <text x="${x(9)}" y="${h-6}" font-size="11" fill="var(--ink-3)" font-family="var(--mono)">${dayLabel(9)}</text>
+   <text x="${w-pad}" y="${h-6}" font-size="11" fill="var(--ink-3)" text-anchor="end" font-family="var(--mono)">${dayLabel(27)}</text>
+   <text x="${x(last)-6}" y="${y(vals[last])-8}" font-size="11" fill="var(--ink)" text-anchor="end" font-family="var(--mono)">${vals[last]}</text>
+  </svg>`;
+}
+
+function render(){
+  document.querySelectorAll("nav [data-go]").forEach(b=>{b.setAttribute("aria-current",b.dataset.go===S.view||(S.view==="item"&&b.dataset.go==="today")?"page":"false")});
+  $("#dcount").textContent=S.saved.length;
+  const main=$("#main");
+  main.innerHTML={today:vToday,item:vItem,ask:vAsk,compare:vCompare,dossier:vDossier,concepts:vConcepts}[S.view]();
+  main.firstElementChild&&main.firstElementChild.classList.add("fade");
+  renderTray();
+  bind(main);
+}
+
+function vToday(){
+  const sc=S.scenario, m=S.market, c=COVER[m];
+  const tabs=`<div class="tabs" role="tablist" aria-label="Market">${Object.keys(M).map(k=>`<button class="tab" role="tab" id="tab-${k}" aria-selected="${k===m}" tabindex="${k===m?0:-1}" data-market="${k}">${M[k]}</button>`).join("")}</div>`;
+  if(sc==="loading"){
+    return `<div class="col"><div class="dateline mono"><span>Friday 16 October 2026</span><span>Morning run</span></div><h1>This morning's record is still being checked</h1>${tabs}
+    <div class="notice" aria-live="polite"><span class="lbl">Where the run is</span><span class="mono small">Collect done 02:41 · Understand done 04:22 · Detect running · Confirm and explain waiting</span><span>Yesterday's Today stays readable below until this morning's checks finish. Nothing new is shown until it has passed them.</span></div>
+    <p class="skel small">Yesterday's list loads from storage first; no placeholder cards are drawn.</p></div>`;
+  }
+  const failed=sc==="failed", partial=sc==="partial"&&m==="KE";
+  const cleared=sc==="one"&&m==="ZA";
+  const watching=ITEMS.filter(i=>i.m===m).sort((a,b)=>(b.dist??-1)-(a.dist??-1));
+  const head=failed?"No trends today: detection did not finish"
+    :cleared?"Taking off, 16 October 2026"
+    :"Nothing cleared the bar today";
+  const sentence=failed?"Collection ran, but the detection step stopped at 05:02. 42 is not judging anything this morning rather than judging on half a run."
+    :cleared?CLEARED.finding
+    :`42 is watching ${watching.length} ${M[m]==="Kenya"?"Kenyan":M[m]==="Nigeria"?"Nigerian":"South African"} patterns that are building but are not trends yet. Each says what it is missing.`;
+  let body="";
+  if(failed){
+    body=`<div class="notice issue" role="status"><span class="lbl" style="color:inherit">Data issue</span><span>Detect stopped after the statistics step. Collection itself was valid for all three markets. The morning run will be retried at 07:00; this page updates when it finishes.</span></div>`;
+  } else {
+    if(partial) body+=`<div class="notice issue" role="status"><span class="lbl" style="color:inherit">Thin coverage in Kenya</span><span>The Kenyan TikTok feed returned 2 of 3 expected pages yesterday. Items that depend on it show yesterday as not collected and do not count it as a quiet day.</span></div>`;
+    if(cleared){
+      body+=`<section class="sec" aria-labelledby="cl"><h2 id="cl">Cleared</h2><div class="list">${row(CLEARED,true)}</div></section>`;
+    }
+    body+=`<section class="sec" aria-labelledby="wt"><div><h2 id="wt">Watching</h2><p class="small">Ordered by how close each is to the bar, not by a score. None of these is a trend.</p></div><div class="list">${watching.map(i=>row(i,false)).join("")}</div></section>`;
+    body+=`<section class="sec" aria-labelledby="nt"><h2 id="nt">Moving, but not a trend pattern</h2><div class="list">${(NOT_TRENDS[m]||[]).map(([t,r])=>`<div class="row" style="cursor:default"><span class="ttl">${esc(t)}</span><span></span><span class="why">${esc(r)}</span></div>`).join("")}</div></section>`;
+  }
+  const cov=`<section class="sec" aria-labelledby="cv"><h2 id="cv">What 42 read for ${M[m]}</h2><div class="coverage">
+    <div><span class="lbl">Posts read</span><span class="v n">${c.posts}</span></div>
+    <div><span class="lbl">Platforms</span><span class="v n">${partial?"3 of 6":c.plat}</span></div>
+    <div><span class="lbl">Confident location</span><span class="v n">${c.loc}</span></div>
+    <div><span class="lbl">Feed pulls</span><span class="v n">${c.pulls}</span></div></div>
+    ${m==="KE"?`<p class="small">Kenya's location share is low, so Kenyan items abstain more often. That is a coverage limit, not a quiet market.</p>`:""}</section>`;
+  return `<div class="col"><div class="dateline mono"><span>Friday 16 October 2026</span><span>Ready 06:24 SAST</span><span>Checks: trust gate, one for every screen</span></div>
+   <div style="display:flex;flex-direction:column;gap:12px"><h1>${head}</h1><p class="serif">${esc(sentence)}</p></div>${tabs}${body}${cov}</div>`;
+}
+function row(it,isCleared){
+  const meta=isCleared
+    ?`<span class="state">${it.state}</span>${cf(it.conf)}<span class="mono">${it.record.creators} creators · ${it.record.days} days · ${it.record.plats.split(",").length} platforms</span>`
+    :`${it.dist==null?`<span class="chip">Abstained</span>`:`<span class="dist"><span class="bar" aria-hidden="true"><i style="width:${Math.round(it.dist*100)}%"></i></span><span class="mono">${esc(it.hold.split(":")[1]||"")}</span></span>`}<span>${esc(it.hold.split(":")[0])}</span><span class="mono">next check ${esc(it.next)}</span>`;
+  return `<button class="row" data-open="${it.id}"><span class="ttl">${esc(it.title)} <span class="small" style="font-weight:400">· ${it.kind}</span></span>${dayStrip(it)}<span class="why">${esc(it.why)}</span><span class="meta">${meta}</span></button>`;
+}
+function find(id){return id===CLEARED.id?CLEARED:ITEMS.find(i=>i.id===id)}
+
+function vItem(){
+  const it=find(S.item), r=it.record, isC=it===CLEARED, v=it.verdict;
+  const go=isC;
+  const facts=[["Days seen",r.days,"in measured lanes since first seen"],["Highest day",r.peak,"posts in measured lanes"],["Share on highest day",r.peakShare,"spikes put most of a wave on one day"],
+    ["A week later",r.ret7?r.ret7+" of that week":null,"needs 7 days after the first high day"],["Creators",r.creators,"distinct, measured lanes only"],["Returning",r.returning,"posted again after their first week"]];
+  return `<div class="col">
+  <button class="back" data-go="today">← ${M[it.m]}, Today</button>
+  <div style="display:flex;flex-direction:column;gap:10px"><span class="lbl">${it.kind} · ${M[it.m]}${isC?" · "+it.state:" · watching, not a trend"}</span><h1>${esc(it.title)}</h1><p class="serif">${esc(it.why)}</p>
+   <div class="actions"><button class="btn primary" data-save="${it.id}">Add to dossier</button><button class="btn" data-ask="${it.id}">Ask about this</button><button class="btn" data-compare="${it.id}">Compare markets</button></div></div>
+
+  <section class="record" aria-labelledby="rec"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><h2 id="rec">The record</h2>${cf(it.conf)}</div>
+   <div class="sec"><span class="lbl">Days present, 19 Sep to 16 Oct</span>${dayStrip(it,true)}${legend(it)}${lexical(it)?"":`<p class="small">This is a topic, so a quiet day means no cluster matched it that day. That is partly a result of 42&#39;s own matching, not only of what people posted.</p>`}</div>
+   <div class="sec"><span class="lbl">Posts a day in measured lanes</span>${countLine(it)}<p class="small">Measured lanes are the feeds, boards and panels 42 reads the same way every day. Search finds are evidence only and are not counted here, so this line cannot rise because 42 searched harder.</p></div>
+   <div class="facts">${facts.map(([l,val,b])=>`<div class="fact"><span class="lbl">${l}</span><span class="v n${val?"":" na"}">${val?esc(val):"Not yet"}</span><span class="b">${b}</span></div>`).join("")}</div>
+   <p class="small"><span class="mono">${esc(r.tiers)}</span> · platforms measured: ${esc(r.plats)}</p>
+  </section>
+
+  <section class="verdict${go?" go":""}" aria-labelledby="vd"><span class="vw" id="vd">${v.w}</span><span class="lbl">Lasting or spike</span><span>${esc(v.t)}</span></section>
+
+  <section class="sec" aria-labelledby="sp"><h2 id="sp">Posts</h2><div class="specs">${it.specs.map(i=>spec(i)).join("")}</div></section>
+
+  <section class="sec" aria-labelledby="ln"><h2 id="ln">How it formed</h2>${it.lineage.ok?`<ol class="lineage">${it.lineage.steps.map(([d,t])=>`<li><span class="mono small">${d}</span><br>${esc(t)}</li>`).join("")}</ol>`:`<p class="small">${esc(it.lineage.why)}</p>`}</section>
+
+  <section class="sec" aria-labelledby="an"><h2 id="an">Has this happened before?</h2>
+   <div class="analog" role="img" aria-label="${it.analog.n} close analogues of ${it.analog.need} needed">${Array.from({length:it.analog.need},(_,i)=>`<i class="${i<it.analog.n?"f":"e"}"></i>`).join("")}<span class="mono small">${it.analog.n} close ${it.analog.n===1?"analogue":"analogues"} so far, ${it.analog.need} needed</span></div>
+   <p class="small">42 shows what happened next to earlier items like this only once it has at least ${it.analog.need} close ones from the same market and the same way of collecting. Items seen before 28 September were collected differently and are not compared.</p></section>
+  </div>`;
+}
+function spec(i){const s=SPECS[i];return `<button class="spec" data-spec="${i}" aria-pressed="${S.spec===i}"><span class="thumb" aria-hidden="true"><span>${s.p}</span><span class="mono">${s.dur}</span></span><span class="cap"><q>${esc(s.q)}</q><span class="mono" style="color:var(--ink-3)">${s.p} · ${esc(s.who)} · ${s.when}</span></span></button>`}
+
+function renderTray(){
+  const t=$("#tray"), sh=$("#shell");
+  if(S.spec==null){sh.classList.add("notray");t.innerHTML="";t.hidden=true;return}
+  sh.classList.remove("notray");t.hidden=false;
+  const s=SPECS[S.spec];
+  const q=esc(s.q).replace(esc(s.hl),`<mark>${esc(s.hl)}</mark>`);
+  t.innerHTML=`<div class="stack fade"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Post</h2><button class="close" data-close aria-label="Close post">✕</button></div>
+   <div class="thumb" style="aspect-ratio:9/10;border-radius:8px"><span>${s.p}</span><span class="mono">${s.dur}</span></div>
+   <p>“${q}”</p>
+   <dl class="about"><dt>Posted</dt><dd class="mono">${s.when} 2026 · ${esc(s.who)}</dd><dt>Location basis</dt><dd>${esc(s.loc)}</dd><dt>Independence</dt><dd>${esc(s.ind)}</dd><dt>Checks</dt><dd>Quote matches the post word for word · not marked paid</dd></dl>
+   <div class="actions"><button class="btn" data-savespec="${S.spec}">Add post to dossier</button><a class="btn" href="#" aria-disabled="true" onclick="return false">Open on ${s.p}</a></div>
+   <p class="small">In the prototype the link is inert. In 42 it opens the original post.</p></div>`;
+  bind(t);
+  if(innerWidth<=960)$("[data-close]",t).focus();
+}
+
+function vAsk(){
+  const it=find(S.item||"za-spaza");
+  const qv=`Is "${it.title}" lasting or a one-week thing?`;
+  if(!S.asked)return `<div class="col"><h1>Ask</h1><form class="askbox" id="askf"><label for="q" class="lbl" style="flex-basis:100%">Question</label><input id="q" value="${esc(qv)}"><button class="btn primary" type="submit">Ask</button></form>
+   <p class="small">Estimated cost before you start: up to 60 credits and about a minute. Ask shows each step while it works and can be stopped.</p></div>`;
+  return `<div class="col"><h2>${esc(qv)}</h2><p class="mono small">${M[it.m]} · posts from 19 Sep to 16 Oct 2026 · 41 posts from 2 platforms</p>
+   <div class="log" id="log" aria-live="polite"></div><div id="ans"></div></div>`;
+}
+function runAsk(){
+  const it=find(S.item||"za-spaza"),log=$("#log"),ans=$("#ans");
+  const steps=["Reading 42's record for this item: 28 days, measured lanes","Searching TikTok, "+M[it.m]+", 9 to 16 October: 41 posts found","Checking quotes against posts: 6 of 6 match","Checking claims"];
+  let i=0;const tick=()=>{if(i<steps.length){log.insertAdjacentHTML("beforeend",`<span class="fade">${esc(steps[i++])}</span>`);setTimeout(tick,reduce?0:420)}else done()};
+  const done=()=>{ans.innerHTML=`<div class="sec fade" style="gap:18px">
+    <p class="serif">It is too early to say. It has been seen on most days since it appeared, by a small group of mostly new creators, but 42 has only ${it.record.days.split(" ")[0]} days of it and will not call lasting or spike before day 14.</p>
+    <ol class="claims">
+     <li>${cf("obs")}<span>Seen in measured lanes on ${it.record.days} days since it was first seen.</span><span class="ev"><button data-spec="${it.specs[0]}">TikTok · ${SPECS[it.specs[0]].who.split(" · ")[0]}</button><button data-spec="${it.specs[1]}">+${it.specs.length-1}</button></span></li>
+     <li>${cf(it.conf)}<span>${it.record.creators} distinct creators, ${it.record.returning} posting again after their first week.</span><span class="ev"><button data-spec="${it.specs[1]}">${SPECS[it.specs[1]].p} · ${SPECS[it.specs[1]].who.split(" · ")[0]}</button></span></li>
+     <li>${cf("inf")}<span>The restock trip appears to be the hook, not the shop itself. Inferred from captions; no transcript was read.</span></li>
+    </ol>
+    <div class="gaps"><span class="lbl">What we do not know</span><span>Whether it holds after day 14. Only one platform is measured. Days before 28 September were not collected, so an earlier wave cannot be ruled out.</span></div>
+    <div class="actions"><button class="btn primary" data-save="${it.id}">Add to dossier</button><button class="btn" data-go="compare">Compare markets</button></div>
+    <p class="mono small">Illustrative run · 46 credits · 38 s</p></div>`;bind(ans)};
+  tick();
+}
+
+function vCompare(){
+  const it=find(S.item||"ng-owambe");
+  const mk=(m)=>{
+    if(m===it.m)return `<div class="panel"><span class="lbl">${M[m]}</span>${countLine(it).replace('viewBox','class="mini" viewBox')}<span class="mono small">${it.record.days} days seen</span></div>`;
+    if(m==="KE")return `<div class="panel"><span class="lbl">${M[m]}</span><div class="nc"><span>Not comparable: 23% confident location</span></div><span class="small">42 does not compare Kenya until more posts are located.</span></div>`;
+    return `<div class="panel"><span class="lbl">${M[m]}</span><div class="nc" style="background:none;border:1px dashed var(--ink-3)"><span>Collected on all 19 days, not seen</span></div><span class="small">A real zero: the feed was read and the item did not appear.</span></div>`;
+  };
+  return `<div class="col"><h1>Compare markets</h1><p class="small">${esc(it.title)} · same window, same lanes, same scale. A market 42 could not read shows as not comparable instead of disappearing.</p>
+   <div class="multi">${["ZA","NG","KE"].map(mk).join("")}</div>
+   <section class="sec"><h2>Earlier waves</h2><p>No earlier wave under the current way of collecting. 42's older memory (June to September) used different sources and counts, so it is shown as a fact, not a comparison: <span class="mono">not seen before 28 Sep</span>.</p></section></div>`;
+}
+function vDossier(){
+  if(!S.saved.length)return `<div class="col"><h1>Dossier</h1><p>Nothing saved yet. Use <b>Add to dossier</b> on an item or a post. Each saved thing keeps its record and where it came from.</p><div class="actions"><button class="btn" data-go="today">Go to Today</button></div></div>`;
+  return `<div class="col"><h1>Dossier</h1><p class="small">Draft. Single source and Inferred material needs a reviewer's tick before the dossier can be approved and exported.</p>
+   <div class="list">${S.saved.map((x,k)=>{const lab=x.t==="item"?find(x.id).title:"Post: “"+SPECS[x.id].q+"”";const c=x.t==="item"?find(x.id).conf:"sgl";const needs=c==="sgl"||c==="inf";
+     return `<div class="row" style="cursor:default"><span class="ttl">${esc(lab)}</span><span>${cf(c)}</span><span class="meta"><label style="display:inline-flex;gap:8px;align-items:center;min-height:32px"><input type="checkbox" id="tick${k}" ${needs?"":"checked disabled"}> ${needs?"Reviewed":"No tick needed"}</label><span class="mono">saved with its record of 16 Oct</span></span></div>`}).join("")}</div>
+   <div class="actions"><button class="btn primary" id="approve">Approve version</button></div><p class="small" id="apmsg" aria-live="polite"></p></div>`;
+}
+function vConcepts(){
+  const it=ITEMS[2];
+  return `<div class="col" style="max-width:1100px"><h1>Three directions</h1><p>The same held Nigerian item drawn three ways. The prototype you have been using is direction B.</p>
+  <div class="concepts">
+   <div class="concept"><div class="stage cA"><span class="lbl">A · Morning Paper</span><span class="hed">The aso-ebi reveal is becoming its own genre</span><span class="dek">Seventeen creators in Nigeria now stage the colour reveal for a party as a small unboxing, and most keep posting.</span><span class="small">Footnotes 1 to 3 open the posts.</span></div>
+    <div class="notes"><b>Strength</b><span>Fastest to read; closest to how strategists write for clients; exports naturally.</span><b>Risk</b><span>Well-set prose makes thin evidence sound certain. The headline above overstates a held item.</span></div></div>
+   <div class="concept rec"><div class="stage" style="background:var(--panel)"><span class="lbl">B · Field Notebook · recommended</span><h3>${it.title}</h3>${dayStrip(it)}<span class="mono small">${it.record.creators} creators · ${it.record.days} days · 1 platform</span><span class="small">Held: second platform not yet measured</span>${cf(it.conf)}</div>
+    <div class="notes"><b>Strength</b><span>Finding, then record, then posts. Gaps and abstentions are visible facts, and the grammar carries over to Compare, Coverage and Dossiers.</span><b>Risk</b><span>Denser at 06:30; needs editorial discipline so the record does not swamp the finding.</span></div></div>
+   <div class="concept"><div class="stage cC"><span class="lbl">C · Culture Atlas</span>
+     <svg viewBox="0 0 300 180" role="img" aria-label="Sketch of a culture map with clusters as places"><g fill="none" stroke="var(--ink-3)"><circle cx="80" cy="70" r="38"/><circle cx="205" cy="60" r="30"/><circle cx="170" cy="130" r="26"/><path d="M110 82 Q150 100 160 112" stroke-dasharray="3 3"/></g><g fill="var(--ink)" font-size="11" font-family="var(--sans)"><circle cx="92" cy="74" r="5"/><text x="58" y="40">Celebration</text><text x="182" y="28">Fashion</text><text x="150" y="168">Family</text><text x="98" y="94">reveals</text></g></svg>
+     <span class="small">Clusters as places, routes as lineage.</span></div>
+    <div class="notes"><b>Strength</b><span>Most memorable; good for pitching.</span><b>Risk</b><span>Distances and neighbours imply relationships 42 cannot measure; weakest on mobile and for screen readers.</span></div></div>
+  </div>
+  <section class="sec"><h2>Why B</h2><p>42's data is weeks deep and uneven by market. The most useful and honest thing it can show is what it observed and what it did not, before any interpretation. B is the only direction whose basic marks show gaps, abstentions and confidence as part of every object. Today keeps A's single serif finding sentence; item pages borrow C's one honest idea, lineage, as a dated list.</p></section></div>`;
+}
+
+function bind(root){
+  root.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+  root.querySelectorAll("[data-market]").forEach(b=>{b.onclick=()=>{S.market=b.dataset.market;render();$("#tab-"+S.market).focus()};
+    b.onkeydown=e=>{const ks=Object.keys(M),i=ks.indexOf(S.market);if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();S.market=ks[(i+(e.key==="ArrowRight"?1:2))%3];render();$("#tab-"+S.market).focus()}}});
+  root.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>{S.item=b.dataset.open;S.spec=null;go("item")});
+  root.querySelectorAll("[data-spec]").forEach(b=>b.onclick=()=>{S.spec=+b.dataset.spec;renderTray();root.querySelectorAll(".spec").forEach(x=>x.setAttribute("aria-pressed",String(+x.dataset.spec===S.spec)))});
+  root.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>{const k=S.spec;S.spec=null;renderTray();const back=document.querySelector(`[data-spec="${k}"]`);back&&back.focus()});
+  root.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>save({t:"item",id:b.dataset.save}));
+  root.querySelectorAll("[data-savespec]").forEach(b=>b.onclick=()=>save({t:"spec",id:+b.dataset.savespec}));
+  root.querySelectorAll("[data-ask]").forEach(b=>b.onclick=()=>{S.item=b.dataset.ask;S.asked=false;go("ask")});
+  root.querySelectorAll("[data-compare]").forEach(b=>b.onclick=()=>{S.item=b.dataset.compare;go("compare")});
+  const f=$("#askf",root);if(f)f.onsubmit=e=>{e.preventDefault();S.asked=true;render();runAsk()};
+  const ap=$("#approve",root);if(ap)ap.onclick=()=>{const open=[...document.querySelectorAll('.list input[type=checkbox]:not(:checked)')].length;$("#apmsg").textContent=open?`${open} item${open>1?"s":""} still need a reviewer's tick.`:"Version approved and frozen. Export would be available in 42."};
+}
+function save(x){if(!S.saved.some(y=>y.t===x.t&&y.id===x.id))S.saved.push(x);$("#dcount").textContent=S.saved.length;toast("Added to dossier")}
+function toast(t){const el=document.createElement("div");el.className="toast";el.setAttribute("role","status");el.textContent=t;document.body.appendChild(el);setTimeout(()=>el.remove(),1800)}
+function go(v){S.view=v;if(v!=="item")S.spec=null;render();$("#main").focus({preventScroll:false});scrollTo(0,0)}
+
+document.querySelectorAll("nav [data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+$("#scenario").onchange=e=>{S.scenario=e.target.value;if(e.target.value==="partial")S.market="KE";if(e.target.value==="one")S.market="ZA";go("today")};
+$("#theme").onclick=()=>{const r=document.documentElement,cur=r.dataset.theme||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"),nx=cur==="dark"?"light":"dark";r.dataset.theme=nx;try{localStorage.setItem("g31-theme",nx)}catch(e){}};
+
+// Command palette
+function palette(){
+  if($(".pal"))return;
+  const opener=document.activeElement;
+  const cmds=[["Go to Today","today"],["Ask a question","ask"],["Compare markets","compare"],["Open dossier","dossier"],["See the three directions","concepts"]];
+  const w=document.createElement("div");w.className="pal";w.innerHTML=`<div class="box" role="dialog" aria-modal="true" aria-label="Commands"><label for="palq" class="lbl" style="padding:8px 12px 0">Commands</label><input id="palq" placeholder="Type a command"><div id="pall"></div></div>`;
+  document.body.appendChild(w);
+  const list=$("#pall",w),inp=$("#palq",w);
+  const draw=()=>{const q=inp.value.toLowerCase();list.innerHTML=cmds.filter(c=>c[0].toLowerCase().includes(q)).map(c=>`<button data-c="${c[1]}">${c[0]}</button>`).join("");list.querySelectorAll("button").forEach(b=>b.onclick=()=>{w.remove();go(b.dataset.c)})};
+  const shut=()=>{w.remove();opener&&opener.focus&&opener.focus()};
+  draw();inp.oninput=draw;inp.focus();
+  w.onclick=e=>{if(e.target===w)shut()};
+  w.onkeydown=e=>{
+    if(e.key==="Escape"){e.preventDefault();shut();return}
+    if(e.key==="Enter"&&e.target===inp){const b=list.querySelector("button");b&&b.click();return}
+    if(e.key==="Tab"){const f=[inp,...list.querySelectorAll("button")],i=f.indexOf(document.activeElement);e.preventDefault();f[(i+(e.shiftKey?f.length-1:1))%f.length].focus()}
+  };
+}
+document.addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();palette();return}
+  if(e.key==="Escape"&&S.spec!=null&&!$(".pal")){const k=S.spec;S.spec=null;renderTray();const back=document.querySelector(`[data-spec="${k}"]`);back&&back.focus()}
+});
+render();
+})();
+</script>
