@@ -121,7 +121,7 @@ def figure_sweep(ctx: RunContext, warehouse, question: str, platforms=None) -> d
         return out
     finally:
         wh.QUERY_TIMEOUT_S.reset(wait)
-    ctx.queries[result["query_id"]]["tool"] = "figure_sweep"
+    wh.mark_sweep(ctx, result)
     window = (since, until)
     rows = [r for r in result["rows"] if wh._inside(r, window)]
     out["matched"] = len(rows)

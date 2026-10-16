@@ -11,7 +11,7 @@ from datetime import date, datetime
 import pytest
 
 from core.agent import figures
-from core.agent.context import Refused, RunContext
+from core.agent.context import SWEEP_TOOL, Refused, RunContext
 from core.agent.tests.test_ask_depth_replay import ReplayWarehouse, posts_table
 from core.agent.tools import article as article_tool
 from core.agent.tools.sc_adapter import page_markdown
@@ -99,7 +99,7 @@ def test_the_figure_sweep_stores_every_window_post_that_matches_and_carries_a_pe
     assert sorted(ctx.evidence) == ["poll1", "poll2"]
     assert out["posts"] == 2 and out["matched"] == 2
     query = next(iter(ctx.queries.values()))
-    assert query["tool"] == "figure_sweep" and query["params"]["market"] == "ZA"
+    assert query["tool"] == SWEEP_TOOL and query["params"]["market"] == "ZA"
 
 
 def test_a_failed_sweep_reports_and_does_not_raise():
