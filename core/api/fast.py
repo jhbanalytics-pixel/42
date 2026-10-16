@@ -208,14 +208,12 @@ def _days_before(day, n):
 
 
 def _hidden_start(p):
-    """hidden_people's reads: the suppression list, then the creators rows of the ids on it."""
-    p.start("suppressed_creators")
+    """hidden_people's read: the hidden-people rows, one read, as privacy.read_hidden reads them."""
+    p.start("hidden_people_rows")
 
 
 def _hidden_then(p):
-    ids = p.peek("suppressed_creators")
-    if ids:
-        p.start("creators_by_id", sorted(ids))
+    """Nothing further: the rows carry every handle, so no creators rows are read after the list."""
 
 
 def _run_cards(p, run, market):
@@ -243,7 +241,7 @@ def discover_plan(p, market):
     from core.api import searching, today
 
     _cards_plan(p, market)
-    if market in ("all", *MARKETS) and p.peek("suppressed_creators") is not None:
+    if market in ("all", *MARKETS) and p.peek("hidden_people_rows") is not None:
         day = dt.datetime.now(today.SAST).date().isoformat()
         p.start("search_signals", _days_before(day, searching.SEARCH_DAYS - 1), day,
                 list(MARKETS) if market == "all" else [market])
@@ -302,13 +300,15 @@ def communities_plan(p, market):
     if market not in MARKETS:
         return
     p.start("latest_detect_run")
-    _hidden_start(p)
-    _hidden_start(p)  # people read the list twice: once for the cards, once for the names
+    p.start("suppressed_creators")  # people.suppressed, for the cards
+    _hidden_start(p)  # hidden_people, for the names
     p.start("first_ok_collect_date")
     p.start("sensitive_items")
     p.start("generic_items")
     run = p.peek("latest_detect_run")
-    _hidden_then(p)
+    ids = p.peek("suppressed_creators")
+    if ids:
+        p.start("creators_by_id", sorted(ids))  # people's own handle read of the suppressed ids
     if not run:
         return
     start, end = people._window(run)
@@ -332,7 +332,7 @@ def today_plan(p, date):
         p.start("breaking_signals", since.isoformat())
     day = date or p.peek("latest_brief_date")
     _hidden_then(p)
-    if p.peek("suppressed_creators") is not None:  # searching_now reads nothing while the list cannot be read
+    if p.peek("hidden_people_rows") is not None:  # searching_now reads nothing while the list cannot be read
         p.start("search_signals", _days_before(search_day, searching.SEARCH_DAYS - 1), search_day,
                 list(searching.MARKETS))
     if not day:

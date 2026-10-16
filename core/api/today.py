@@ -299,8 +299,7 @@ def without_hidden(value, hidden):
             for k in skins.NAME_KEYS if isinstance(e, dict) else ():
                 if isinstance(e.get(k), str) and " ".join(e[k].split()).lower().lstrip("@") in names:
                     e[k] = skins.URL_MASK
-    skins._mask_strings(out, masked, lambda text: text)
-    return _mask_labels(out, masked)
+    return _mask_labels(skins._mask_strings(out, masked, lambda text: text), masked)
 
 
 def _mask_labels(value, masked):
