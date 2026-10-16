@@ -305,7 +305,7 @@ def build_manifest(
         manifest["effects"].append(
             storage.receipt_effect(
                 applied['jobs']['release_id'],
-                dec.sha_text(Path(storage_output).read_text(encoding="utf-8")),
+                storage.receipt_sha256(storage_output),
                 {"lane": 3, "person": owner},
                 1 + max(e["apply_order"] for e in manifest["effects"]),
             )

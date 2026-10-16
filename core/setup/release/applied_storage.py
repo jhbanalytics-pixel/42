@@ -962,7 +962,7 @@ def receipt_path(manifest, packet_dir):
         return None
     path = _inside(packet_dir, Path(packet_dir) / RECEIPT_FILE)
     require(
-        path.is_file() and so.sha_bytes(path.read_bytes()) == ref["receipt_sha256"],
+        path.is_file() and receipt_sha256(path) == ref["receipt_sha256"],
         "Locked applied-storage receipt differs",
     )
     return path
@@ -1541,9 +1541,19 @@ def produce(
         "deferred_effect_ids": ["E-JOB-VIEWS"],
     }
     body["receipt_sha256"] = receipt_hash(body)
-    with Path(output).open("x", encoding="utf-8") as file:
-        file.write(json.dumps(body, indent=2, sort_keys=True) + "\n")
+    write_receipt(output, body)
     return body
+
+
+def write_receipt(output, body):
+    """Write once, with LF line endings on every platform: Windows text mode would otherwise write CRLF."""
+    with Path(output).open("x", encoding="utf-8", newline="\n") as file:
+        file.write(json.dumps(body, indent=2, sort_keys=True) + "\n")
+
+
+def receipt_sha256(path):
+    """The receipt's hash over its stored bytes: what the manifest records and what every check compares."""
+    return so.sha_bytes(Path(path).read_bytes())
 
 
 def verify(
@@ -1615,4 +1625,4 @@ def verify(
     )
     native = (native_factory or Native)(bound)
     _native_checks(repo, bindings["target"], bound, durable, digest, native, inventory)
-    return so.sha_bytes(path.read_bytes())
+    return receipt_sha256(path)
