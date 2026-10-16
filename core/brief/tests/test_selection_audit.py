@@ -40,8 +40,10 @@ def candidates(monkeypatch, rows, *, g1=(), deadline=False):
         return {"market": market, "row": row}
 
     monkeypatch.setattr(job, "_prepare", prepare)
+    # Held decisions: no candidate here is Today-bound, so none folds into another (job._fold_plan).
     monkeypatch.setattr(job, "_gate", lambda cand, result: SimpleNamespace(
-        rule="G1" if cand["row"]["item_id"] in g1 or (cand["market"], cand["row"]["item_id"]) in g1 else None))
+        rule="G1" if cand["row"]["item_id"] in g1 or (cand["market"], cand["row"]["item_id"]) in g1 else None,
+        publish=False, where="held"))
     monkeypatch.setattr(job, "PACK_WORKERS", 1)
     for name in ("FORCE_RERUN", "RUN_DATE", "BRIEF_RECOVERY_UNTIL"):
         monkeypatch.delenv(name, raising=False)
