@@ -116,6 +116,26 @@ def test_hashtag_rows_are_per_platform_with_one_citable_sample(ctx, con):
     assert ("tiktok", "afrobeats") not in tags  # the NG post is outside the market
 
 
+def test_platform_generic_hashtags_are_never_ranked_or_sampled(ctx, con):
+    """#fyp rode on 30 of the posts here and would lead the list; it names no topic, so it is not counted (Albert,
+    16 October: #fyp led a South Africa answer as a finding and cited MTN8 final posts as its samples). Any spelling
+    of a stoplisted tag is left out, and a real topic tag on the same posts keeps every count."""
+    con.executemany("INSERT INTO intelligence_42_core.posts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+        (f"obs1_g{i:03d}", "tiktok", f"https://www.tiktok.com/@za_{i}/video/g{i}", f"za_{i}",
+         datetime(2026, 10, 1, 8, i), date(2026, 10, 1), "ZA", "ext_region", f"match day {i}",
+         ["#FYP", "Viral", "fypシ", "tiktoksouthafrica", "mtn8"], None, 10 + i) for i in range(5)])
+    wh = DuckWarehouse(con)
+    out = store_breadth(ctx, wh)
+    tags = {r["hashtag"] for r in _rows(ctx, out["hashtags"])}
+    assert {"amapiano", "gqomchallenge", "mtn8", "tiktoksouthafrica"} <= tags
+    assert not tags & {"fyp", "#fyp", "viral", "fypシ"}
+    mtn8 = next(r for r in _rows(ctx, out["hashtags"]) if r["hashtag"] == "mtn8")
+    assert (mtn8["posts"], mtn8["creators"]) == (5, 5)
+    sql, params = next(run for run in wh.runs if "UNNEST(p.hashtags)" in run[0])
+    assert "|fyp|" in params["generic_tags"] and "|viral|" in params["generic_tags"]
+    assert "|mtn8|" not in params["generic_tags"]
+
+
 def test_a_named_platform_limits_every_count_and_binds_the_stored_x_name(ctx, con):
     wh = DuckWarehouse(con)
     out = store_breadth(ctx, wh, platforms=["x"])
