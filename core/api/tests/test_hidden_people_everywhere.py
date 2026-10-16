@@ -72,3 +72,10 @@ def test_a_hide_by_handle_reaches_today_discover_topic_and_compare():
             "evidence": [{"id": "p1", "platform": "tiktok", "handle": "@newperson", "text": "hi"}]}
     shown = today.without_hidden(card, today.hidden_people(store))
     assert shown["title"] == "Why @*** is everywhere" and shown["evidence"] == []
+
+
+def test_a_bare_string_is_masked_too():
+    """Card titles, lexicon labels and seed terms reach the mask as plain strings; a string comes back as a new value,
+    so the label pass must start from the masked text, not the input."""
+    hidden = privacy.read_hidden(store_mod.get_store())
+    assert privacy.mask(f"Posts by @{HANDLE}", hidden) == "Posts by @***"
