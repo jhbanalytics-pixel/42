@@ -188,7 +188,10 @@ def fit_topics(docs, embeddings):
     probs = [float(p) for p in (probs if probs is not None else [0.0] * n)]
     if all(t == -1 for t in topics):
         return topics, probs, {}
-    keywords = {t: [w for w, _ in model.get_topic(t) or []][:TOP_KEYWORDS] for t in set(topics) if t != -1}
+    # BERTopic pads a topic with fewer than ten scored words with ("", 1e-05). Those blanks are not keywords: kept,
+    # they gave caption-less clusters the label ", , " and a shared "" keyword that voted unrelated clusters together.
+    keywords = {t: [w for w, score in model.get_topic(t) or [] if str(w).strip() and score > 0][:TOP_KEYWORDS]
+                for t in set(topics) if t != -1}
     return topics, probs, keywords
 
 
@@ -201,7 +204,7 @@ def clean_keywords(words):
     fragments = {part for w in lowered if GEN_PAIR.search(w) for part in re.split(r"[\W_]+", w)}
     fragments |= {w for i, w in enumerate(lowered)
                   if w in GEN_SECONDS and GEN_WORDS & set(lowered[max(i - 1, 0):i + 2])}
-    kept = [w for w in words if passes_age_scan(w) and str(w).lower() not in fragments]
+    kept = [w for w in words if str(w).strip() and passes_age_scan(w) and str(w).lower() not in fragments]
     while True:
         bad = {i + k for i, (a, b) in enumerate(zip(kept, kept[1:])) if not passes_age_scan(f"{a} {b}")
                for k in (0, 1)}
@@ -231,7 +234,7 @@ def label_candidates(keywords, hashtags, sounds):
     """The label candidates that pass the age scan, in order: the top three keywords, the top hashtag, the top sound.
     The keywords are scanned one by one, joined with single spaces and in adjacent pairs, because the comma between
     them hides "gen, alpha" from the scan."""
-    top = [str(k) for k in keywords[:LABEL_KEYWORDS]]
+    top = [str(k) for k in keywords if str(k).strip()][:LABEL_KEYWORDS]
     scanned = top + [" ".join(top)] + [f"{a} {b}" for a, b in zip(top, top[1:])]
     candidates = [", ".join(top)] if top and all(passes_age_scan(t) for t in scanned) else []
     candidates += [f"#{_tag(h)}" for h in hashtags[:1]] + [f"sound {s}" for s in sounds[:1]]
@@ -465,11 +468,16 @@ def is_dormant(last_seen, run_date):
     return last_seen is not None and (run_date - last_seen).days >= DORMANT_DAYS
 
 
+def _words(keywords):
+    """The non-blank keywords as a set. Blanks stored before fit_topics dropped BERTopic's padding share nothing."""
+    return {k for k in keywords or [] if str(k).strip()}
+
+
 def _votes(cluster, item, cos, run_date):
     got = []
     if cos >= MATCH_COSINE:
         got.append("cosine")
-    a, b = set(cluster["keywords"]), set(item.get("keywords") or [])
+    a, b = _words(cluster["keywords"]), _words(item.get("keywords"))
     if a and b and len(a & b) / len(a | b) >= KEYWORD_JACCARD:
         got.append("keywords")
     if (_specific_tags(cluster["hashtags"]) & _specific_tags(item.get("hashtags") or [])
@@ -567,7 +575,7 @@ def label_drift(cluster, decision, item):
         return None
     if decision["cosine"] is None or decision["cosine"] < MATCH_COSINE or not _is_name(cluster["label"]):
         return None
-    a, b = set(cluster["keywords"]), set(item.get("keywords") or [])
+    a, b = _words(cluster["keywords"]), _words(item.get("keywords"))
     if not a or not b or len(a & b) / len(a | b) >= KEYWORD_JACCARD or cluster["label"] == item["label"]:
         return None
     shared = len({p for p, _ in cluster["members"]} & set(item.get("recent_members") or ()))

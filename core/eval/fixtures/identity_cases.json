@@ -322,6 +322,42 @@
    ]
   },
   {
+   "id": "blank-keywords-shared-creator",
+   "category": "blank_keywords",
+   "expect": null,
+   "cluster": {
+    "keywords": [
+     "",
+     "",
+     ""
+    ],
+    "hashtags": [
+     "amapiano"
+    ],
+    "creators": [
+     "cr_dj"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "fashion-haul",
+     "cosine": 0.3,
+     "days_since_seen": 2,
+     "keywords": [
+      "",
+      "",
+      ""
+     ],
+     "hashtags": [
+      "outfit"
+     ],
+     "creators": [
+      "cr_dj"
+     ]
+    }
+   ]
+  },
+  {
    "id": "shared-publisher-generic-keywords",
    "category": "shared_publisher",
    "expect": null,

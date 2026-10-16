@@ -61,6 +61,7 @@ def test_current_matcher_on_the_synthetic_cases():
         "duplicate-fragment-hashtag-only": "variant_split",
         "duplicate-fragment-hashtag-keywords": "correct",
         "competing-unrelated-nearer": "correct",
+        "blank-keywords-shared-creator": "correct",
         # Open: a shared publisher plus generic keyword overlap still continues an identity across subjects.
         "shared-publisher-generic-keywords": "incorrect_merge",
     }
