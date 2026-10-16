@@ -24,6 +24,8 @@ The costed collect table in SOURCES.md plans rows the 17 Oct plan (`python -m co
 
 Ranked in the `candidate` section below. The strongest are `tiktok/search/suggestions` (what people in each country are typing into TikTok search, 1 credit), `reddit/subreddit/search` (a query run inside r/southafrica, r/Nigeria or r/Kenya, located by where it was asked), `instagram/search/hashtag`, Facebook groups, `facebook/events` and `tiktok/effect/videos` (format trends, the way song/videos tracks a sound). Each needs a probe of its response shape and in-market share, and the collect share has no room left for them.
 
+`python -m core.collect.probe --candidates` is that probe: one call a market to TikTok suggestions, the market's subreddit, Facebook groups and the first group's posts, and Instagram and YouTube Shorts by hashtag, on each market's first research term of the day. 18 calls, 30 credits held, capped at 40 on the build share after the morning schedule; it stops after any call charged above its hold. It prints each route's rows and how many core.detect.geo places in the market, abroad or nowhere. `facebook/events` is left out (the 28 Sept probe returned no Johannesburg events and no Lagos or Nairobi city id is known), and so is `tiktok/effect/videos` (it needs an effect id no stored post carries). A candidate earns a morning lane on its placed-in-market share, against 2 to 15% for X, Facebook, Reddit, YouTube and Threads search in the 16 Oct audit.
+
 ## Ruled out, and why
 
 - `search/forums` fuses Reddit, Hacker News and Naver. Reddit is already read at 1 credit a call, Hacker News is US tech and Naver is Korean, so it adds 10 credits a call and no local reach.

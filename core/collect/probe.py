@@ -40,6 +40,15 @@ raw_responses locally and prints the core/config/markets.yaml instagram_location
     py -3.13 -m core.collect.probe --ig-locations --plan             the searches and the total hold
     python -m core.collect.probe --ig-locations                      inside the f42-probe job only
     py -3.13 -m core.collect.probe --ig-locations-report <run_id>    local, read only
+
+--candidates makes one call to each endpoint audit candidate (docs/full-42/research/14-socialcrawl-endpoint-audit.md)
+a market, on that market's first research term of the day (row 14's first search), on the build share after the morning schedule,
+stopping before any call that would take the run past CANDIDATE_CAP (40). Each line gives the rows and how many
+core.detect.geo places in the market, abroad or nowhere, and a total per route closes the run: the in-market share
+that decides whether a candidate earns a morning lane.
+
+    py -3.13 -m core.collect.probe --candidates --plan               the calls and the total hold, no network
+    python -m core.collect.probe --candidates                        inside the f42-probe job only
 """
 
 import argparse
@@ -508,6 +517,189 @@ def ig_report(run_id, raw):
     return 0
 
 
+# probe.py --candidates: one body from each endpoint audit candidate, a market at a time ----------------------
+
+# Each market's first research term of the day (row 14's first search) is searched where a lane would search it: TikTok suggestions in the market's
+# region, the market's own subreddit, Facebook groups (and the first group's posts), and as a hashtag on Instagram
+# and YouTube Shorts. 10 credits a market, 30 a run, under CANDIDATE_CAP on the build share after the morning
+# schedule. facebook/events is not probed: the 28 Sept probe (9a) returned no events for Johannesburg and no
+# Lagos or Nairobi city id is known. tiktok/effect/videos is not probed: it needs an effect id no stored post has.
+CANDIDATE_CAP = 40
+SUBREDDITS = {"ZA": "southafrica", "NG": "Nigeria", "KE": "Kenya"}
+CANDIDATE_MARKETS = ("ZA", "NG", "KE")
+TEXT_KEYS = ("text", "title", "description", "caption", "name", "body", "selftext", "content", "suggestion")
+REGION_KEYS = ("region", "country", "country_code")
+PLACE_KEYS = ("location", "city", "profile_location")
+
+
+def candidate_queries(today):
+    """{market: the first research term row 14 searches today}: a real term, where row 16's queries are seed
+    placeholders until a live run reads seed_queue."""
+    from core.collect import research_terms
+    from core.collect import seeds as seeding
+
+    out = {}
+    for row in seeding.research_rows(research_terms.load_terms(), today):
+        if row["market"] in CANDIDATE_MARKETS and row["query"]:
+            out.setdefault(row["market"], row["query"])
+    return out
+
+
+def as_hashtag(query):
+    return re.sub(r"[^\w]", "", str(query).replace("#", ""))
+
+
+def candidate_plan(today, queries=None):
+    """(calls, dropped): the candidate calls in run order, and the (market, route, value) rule 1 blocks."""
+    from core.collect.gdelt import blocked
+
+    queries = candidate_queries(today) if queries is None else queries
+    calls, dropped = [], []
+    for market in CANDIDATE_MARKETS:
+        query = queries.get(market)
+        if not query:
+            dropped.append((market, "*", "no research term"))
+            continue
+        tag = as_hashtag(query)
+        rows = [
+            ("sug", "tiktok/search/suggestions", {"query": query, "region": market}, None),
+            ("sub", "reddit/subreddit/search", {"subreddit": SUBREDDITS[market], "query": query, "sort": "new",
+                                                "timeframe": "week"}, None),
+            ("fbg", "facebook/search/groups", {"query": query}, None),
+            ("fbp", "facebook/group/posts", {"sort_by": "CHRONOLOGICAL"}, "fbg"),
+            ("yth", "youtube/search/hashtag", {"hashtag": tag, "type": "shorts", "max_age_days": 7}, None),
+            ("igh", "instagram/search/hashtag", {"hashtag": tag, "type": "recent", "max_age_days": 7}, None),
+        ]
+        for short, route, params, source in rows:
+            value = params.get("query") or params.get("hashtag")
+            if value is not None and (not value or blocked(value)):
+                dropped.append((market, route, value))
+                continue
+            call = {"id": f"cand-{market.lower()}-{short}", "route": route, "method": PRICED[route].method,
+                    "params": params, "market": market, "purpose": "endpoint audit candidate"}
+            if source:
+                call["derive"] = {"url": f"cand-{market.lower()}-{source}"}
+            calls.append(call)
+    return calls, dropped
+
+
+def candidate_hold(p):
+    return quote_for(p["route"], p["method"], {**p["params"], **{k: "<derived>" for k in p.get("derive", {})}})
+
+
+def _strings(row, keys, depth=0):
+    """Strings under keys anywhere in row, three levels deep at most."""
+    out = []
+    if depth > 3:
+        return out
+    if isinstance(row, dict):
+        for k, v in row.items():
+            if k in keys and isinstance(v, str) and v.strip():
+                out.append(v)
+            elif isinstance(v, (dict, list)):
+                out += _strings(v, keys, depth + 1)
+    elif isinstance(row, list):
+        for v in row[:20]:
+            out += _strings(v, keys, depth + 1)
+    return out
+
+
+def place(route, market, row):
+    """'local', 'foreign' or 'unknown' for one response row, by core.detect.geo on its region, place and text."""
+    from core.detect import geo
+
+    if isinstance(row, str):
+        row = {"text": row}
+    platform = route.split("/", 1)[0]
+    region = next(iter(_strings(row, REGION_KEYS)), None)
+    where = next(iter(_strings(row, PLACE_KEYS)), None)
+    text = " ".join(_strings(row, TEXT_KEYS))[:2000] or None
+    found, conf, _ = geo.geo_for_post(platform, market, ext_region=region, profile_location=where, text=text)
+    if not geo.is_known(conf):
+        return "unknown"
+    return "local" if geo.is_local(found, conf, market) else "foreign"
+
+
+def group_url(rows):
+    """The first public group's url in a facebook/search/groups answer."""
+    for row in rows:
+        for value in _strings(row, ("url", "link", "group_url")):
+            if "facebook.com/groups/" in value:
+                return value
+    return None
+
+
+def tally(route, market, rows):
+    counts = {"rows": 0, "local": 0, "foreign": 0, "unknown": 0}
+    for row in rows:
+        counts["rows"] += 1
+        counts[place(route, market, row)] += 1
+    return counts
+
+
+def print_candidate_plan(calls, dropped):
+    for p in calls:
+        print(f"{p['id']:14} {p['market']:3} {p['route']:28} {candidate_hold(p):>4}  "
+              f"{json.dumps(p['params'], separators=(',', ':'))}{'  url from ' + p['derive']['url'] if 'derive' in p else ''}")
+    for market, route, value in dropped:
+        print(f"dropped: {market} {route} {value}")
+    print(f"{len(calls)} calls, total hold {sum(candidate_hold(p) for p in calls)} credits, cap {CANDIDATE_CAP}")
+
+
+def run_candidates(client, calls, run_id):
+    """One call per candidate, stopping before any hold that would take the run past CANDIDATE_CAP and after any
+    call charged more than its hold or not answered. Prints a
+    line per call (rows, and how many core.detect.geo places in the market, abroad or nowhere) and a total per
+    route. Bodies and the key are never printed; suggestions print as the phrases TikTok offers."""
+    spent, made, results, totals = 0, 0, {}, {}
+    try:
+        for p in calls:
+            params = dict(p["params"])
+            if "derive" in p:
+                source = results.get(p["derive"]["url"])
+                url = group_url(source.items) if source is not None else None
+                if not url:
+                    print(f"{p['id']} {p['route']} skipped: no group url in {p['derive']['url']}")
+                    continue
+                params["url"] = url
+            held = quote_for(p["route"], p["method"], params)
+            if spent + held > CANDIDATE_CAP:
+                print(f"stopped before {p['id']}: {spent:g} charged plus {held} held is over the cap of {CANDIDATE_CAP}")
+                break
+            result = client.call(p["route"], params, method=p["method"], market=p["market"], seed_key=p["id"],
+                                 lane=None)
+            made += 1
+            spent += result.credits_charged
+            results[p["id"]] = result
+            counts = tally(p["route"], p["market"], result.items)
+            total = totals.setdefault(p["route"], {"rows": 0, "local": 0, "foreign": 0, "unknown": 0, "credits": 0})
+            for k, v in counts.items():
+                total[k] += v
+            total["credits"] += result.credits_charged
+            print(f"{p['id']} {p['route']} {p['market']} {result.status} held={held} "
+                  f"charged={result.credits_charged:g} rows={counts['rows']} local={counts['local']} "
+                  f"foreign={counts['foreign']} unknown={counts['unknown']}")
+            if p["route"] == "tiktok/search/suggestions":
+                phrases = [s for r in result.items[:10] for s in (_strings(r, TEXT_KEYS + ("keyword", "query"))
+                                                                  if isinstance(r, dict) else [r])[:1]]
+                print(f"  suggestions: {' | '.join(str(s)[:60] for s in phrases)}")
+            if result.status not in SUCCESS_STATUSES:
+                print(f"stopped after {p['id']}: {result.status}")
+                break
+            if result.credits_charged > held:
+                print(f"stopped after {p['id']}: charged {result.credits_charged:g} against a hold of {held}")
+                break
+    except Exception as exc:
+        print(f"stopped: {type(exc).__name__}")
+    for route, t in totals.items():
+        placed = t["local"] + t["foreign"]
+        share = f"{100 * t['local'] / placed:.0f}% of placed rows in market" if placed else "no row placed"
+        print(f"total {route}: {t['rows']} rows, {t['credits']:g} credits, local={t['local']} foreign={t['foreign']} "
+              f"unknown={t['unknown']}, {share}")
+    print(f"done: {made} calls, {spent:g} credits charged for run_id {run_id}")
+    return 0
+
+
 def print_plan(probes):
     print(f"{'id':6} {'method':6} {'route':28} {'market':6} {'list':>4} {'hold':>4}  params  purpose")
     for p in probes:
@@ -524,6 +716,7 @@ def main(argv=None, *, client=None, clock=None, today=None, query=None, read=Non
     args.add_argument("--routes", help="comma-separated routes from BODY_ROUTES and PRICE_ROUTES: one body each")
     args.add_argument("--ig-locations", action="store_true", help="Instagram location searches for IG_CITIES")
     args.add_argument("--ig-locations-report", metavar="RUN_ID", help="print markets.yaml blocks from a run; local")
+    args.add_argument("--candidates", action="store_true", help="one body from each endpoint audit candidate")
     opts = args.parse_args(argv)
     now = (clock or (lambda: datetime.now(timezone.utc)))()
     today = today or now.astimezone(SAST).date()
@@ -534,6 +727,17 @@ def main(argv=None, *, client=None, clock=None, today=None, query=None, read=Non
             def read(run_id):
                 return read_run(run_id)[1]
         return ig_report(opts.ig_locations_report, read(opts.ig_locations_report))
+    if opts.candidates:
+        calls, dropped = candidate_plan(today)
+        if opts.plan:
+            print_candidate_plan(calls, dropped)
+            return 0
+        run_id = "probe-candidates-" + now.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        client = client or live_client(run_id, schedule_started=True)
+        print(f"run_id {run_id}")
+        for market, route, value in dropped:
+            print(f"dropped: {market} {route} {value}")
+        return run_candidates(client, calls, run_id)
     if opts.ig_locations:
         calls, dropped = ig_plan()
         if opts.plan:

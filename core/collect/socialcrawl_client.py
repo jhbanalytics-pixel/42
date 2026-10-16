@@ -425,6 +425,14 @@ PRICED = {
         1, ("hashtag", "region", "trim") + SEARCH_FREE + LABEL_FREE, add=LABELLED_4, pages="max_pages"),
     "tiktok/search/music": rule(1, ("query", "cursor", "sort_by", "filter_by", "region")),
     "tiktok/search/suggestions": rule(1, ("query", "region")),
+    # Endpoint audit candidates, priced for probe.py --candidates (one body each before any lane is built). No
+    # paid add-on is priced: reddit include_body, facebook include=details or relevant_to, instagram max_pages and
+    # seen, youtube include all stay refused.
+    "reddit/subreddit/search": rule(1, ("subreddit", "query", "sort", "timeframe", "cursor")),
+    "instagram/search/hashtag": rule(5, ("hashtag", "type", "max_age_days", "min_views", "cursor")),
+    "youtube/search/hashtag": rule(1, ("hashtag", "type", "max_age_days", "continuationToken")),
+    "facebook/search/groups": rule(1, ("query", "page")),
+    "facebook/group/posts": rule(1, ("url", "group_id", "sort_by", "cursor")),
     "youtube/search/advanced": rule(
         1,
         ("query", "order", "duration", "event_type", "license", "category", "region", "language", "published_after",
