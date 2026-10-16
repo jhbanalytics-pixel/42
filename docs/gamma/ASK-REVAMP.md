@@ -58,12 +58,12 @@ Albert's own question is the reference case: "What share of the vote does each p
 
 1. **Plan.** One planner call splits the question into 4 to 10 searches. Questions that ask for figures from published sources (polls, prices, market shares) are flagged as figure questions.
 2. **Live sweep.** Searches fan out in parallel through SocialCrawl, which Ogilvy already pays for, so no new provider is needed:
-   - platform search on TikTok, X, Facebook, Instagram, YouTube and Reddit;
+   - platform search on TikTok, X, Facebook, Instagram, YouTube, Reddit, Threads, LinkedIn, Pinterest, Quora, Rumble and Hacker News, plus forum search;
    - `/v1/search/everywhere` (15 platforms in one call);
    - `/v1/web/search` with full text;
    - `/v1/search/news`.
 
-   Results are paged until the depth budget or the stopping rule (step 6) ends the sweep. Deep reads up to 8,000 posts.
+   Results are paged until the depth budget or the stopping rule (step 6) ends the sweep. Deep reads up to 8,000 posts and Ultra Search up to 20,000.
 3. **Clean.** The cleaning steps are:
    - exact and near-duplicate removal (MinHash);
    - collapsing copied-text campaigns;
@@ -94,14 +94,17 @@ Albert's own question is the reference case: "What share of the vote does each p
 
 | Depth | Posts, up to | Platforms | Web pages | Credit cap | Estimated cost per question |
 |---|---|---|---|---|---|
-| Quick | 600 | 3 | 6 | 30 | under £0.25 |
-| Standard | 2,500 | 6 | 16 | 100 | about £0.50 to £1 |
-| Deep | 8,000 | 6 | 40 | 300 | about £1 to £4.50 |
+| Quick | 600 | 3 | 6 | 120 | about £0.30 |
+| Standard | 2,500 | 8 | 16 | 500 | about £1.20 |
+| Deep (recommended) | 8,000 | 13 | 40 | 1,600 | about £4 |
+| Ultra Search | 20,000 | 13 | 80 | 4,000 | about £10, plus about £2 of model cost |
 
 How the estimates are built (list prices fetched on 16 Oct; full table with sources in the research note):
 
-- **SocialCrawl.** Search pages cost 1 to 42 credits, depending on the endpoint. `search/everywhere` costs 20 and web search costs 2 per 10 results. Cache hits are free and empty pages are refunded. At the Growth pack (20,000 credits for £49), 3,000 to 5,000 posts is about 200 to 1,500 credits, or £0.50 to £3.70.
-- **Stance classification.** Classifying about 4,000 posts on the flash model is about 600,000 input tokens, roughly US$0.45 at the repo's own price constant (`general_question_policy.py:182-185`).
+- **SocialCrawl.** Search pages cost 1 to 42 credits depending on the endpoint and return 10 to 50 rows. `search/everywhere` costs 20 and web search costs 2 per 10 results. Cache hits are free and empty pages are refunded. A realistic blend is 0.05 to 0.2 credits per post, so each cap above is posts times 0.2, the expensive end. At the Growth pack (20,000 credits for £49, about £0.00245 a credit) the caps convert to the pounds shown; most runs should land nearer half the cap, because the stopping rule ends them early.
+- **Ultra Search, worked out.** 20,000 posts at 0.05 to 0.2 credits a post is 1,000 to 4,000 credits, or £2.45 to £9.80. Stance classification on the flash model is about 3 million input tokens for 20,000 posts, roughly US$2.25 at the repo's own price constant (`general_question_policy.py:182-185`). Wall time is about 8 minutes at SocialCrawl's concurrency of 50. Ultra Search pauses at 1,600 credits (the Deep cap) and asks before it spends more.
+- **Platforms.** SocialCrawl's approved catalogue (`engine/tests/fixtures/socialcrawl_catalog_2026_09_04.json`) has keyword search for TikTok, X, Facebook, Instagram, YouTube, Reddit, Threads, LinkedIn, Pinterest, Quora, Rumble and Hacker News, plus `search/forums`, `search/everywhere`, `google_news/search` and `web/search`. Deep and Ultra Search use all of them, 13 sources counting forums. Bluesky, Snapchat, Twitch, Kick, Kwai, Truth Social and Telegram have no search route in that catalogue, only profile, post or comment lookups, so Ask cannot sweep them by topic.
+- **Stance classification.** Classifying about 4,000 posts on the flash model is about 600,000 input tokens, roughly US$0.45.
 
 Cost controls:
 
@@ -112,7 +115,7 @@ Cost controls:
 - Deep asks before spending past its cap.
 - Spend draws on the existing funded-lane ledger (`funded_lane.py:34-41`: monthly cap 25,000 credits, reserve floor 225,000).
 
-**The whole monthly ledger would cover only about 80 Deep questions, and daily collection already draws on it.** So Ask needs its own allowance, which is decision D5.
+**The whole monthly ledger (25,000 credits) would cover only about 15 Deep questions or 6 Ultra Search questions at their caps, and daily collection already draws on it.** So Ask needs its own allowance, which is decision D5.
 
 ## 4. Experiment E8: accuracy before anything ships
 
@@ -147,5 +150,5 @@ The work depends on four things:
 
 | # | Decision | When | Recommendation |
 |---|---|---|---|
-| D5 | Paid live retrieval for Ask: a monthly SocialCrawl credit allowance for Ask, separate from daily collection | Before G8 build, after E8's offline run | Yes, start at 7,500 credits a month (about £18) for E8 and early use, then review from real cost per question |
+| D5 | Paid live retrieval for Ask: a monthly SocialCrawl credit allowance for Ask, separate from daily collection | Before G8 build, after E8's offline run | Yes. Buy the Pro pack (150,000 credits for £299, credits never expire) and give Ask its own ledger of 30,000 credits a month, about £60 at Pro rates, which covers roughly 10 Deep and 3 Ultra Search questions at their caps, or about twice that if runs stop near half the cap as expected; review from real cost per question after E8 |
 | D6 | Policy: may Ask report published election poll figures? Today's instruction bans election claims | Before G8 build | Yes for reporting published polls with their source and method; keep the ban on persuasion, prediction and any claim drawn from social posts about how people will vote |

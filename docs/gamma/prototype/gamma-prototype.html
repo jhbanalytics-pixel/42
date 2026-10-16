@@ -652,7 +652,7 @@ html.rx-live .rxglow{opacity:var(--rx-op,1)}
   .handle{display:block;width:36px;height:4px;border-radius:2px;background:var(--edge);margin:0 auto 8px}
   .scrim{display:block;position:fixed;inset:0;z-index:29;background:color-mix(in srgb,var(--bg) 40%,transparent)}
   .close{display:inline-flex}
-  .dock{display:grid;grid-template-columns:var(--dc,1fr 1fr 1fr 1fr 1fr);transition:grid-template-columns var(--t-mid) var(--e-out);position:fixed;left:0;right:0;bottom:0;z-index:20;border-top:1px solid var(--line);background:var(--bg);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);view-transition-name:dock}
+  .dock{display:grid;grid-template-columns:var(--dc,1fr 1fr 1fr 1fr 1fr 1fr);transition:grid-template-columns var(--t-mid) var(--e-out);position:fixed;left:0;right:0;bottom:0;z-index:20;border-top:1px solid var(--line);background:var(--bg);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);view-transition-name:dock}
   .dock button{min-height:58px;display:flex;align-items:center;justify-content:center;gap:4px;font:500 12.5px var(--ui);letter-spacing:-.01em;color:var(--ink-3);position:relative;overflow:hidden;white-space:nowrap;min-width:0}
   .dock button::before{content:"";position:absolute;top:0;left:16%;right:16%;height:4px;background:var(--signal);opacity:0;-webkit-mask:var(--wave-x) 0 0/12px 4px repeat-x;mask:var(--wave-x) 0 0/12px 4px repeat-x;transition:opacity var(--t-fast)}
   .dock button::after{content:"";position:absolute;inset:8px 6px;border-radius:2px;background:radial-gradient(closest-side,color-mix(in srgb,var(--signal) 16%,transparent),transparent);opacity:0;transform:scale(.6);transition:opacity var(--t-mid) var(--e-out),transform var(--t-mid) var(--e-out);z-index:-1}
@@ -714,6 +714,50 @@ html.rx-live .rxglow{opacity:var(--rx-op,1)}
 }
 @media (forced-colors:active){.tc .bar,.meter i.f::after,.clock i.f::after,.key .kp{background:CanvasText}.frame::before{display:none}}
 
+
+/* Depth slider (effort bar). The fire only runs with motion allowed; reduced motion keeps the hot gradient and the flag. */
+.dslide{border:1px solid var(--edge);background:var(--panel);padding:16px 20px 12px;display:flex;flex-direction:column;gap:8px;position:relative;transition:border-color var(--t-mid),box-shadow var(--t-mid)}
+.dsh{display:flex;justify-content:space-between;align-items:baseline;gap:8px 16px;flex-wrap:wrap}
+.dsl{font:500 13px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.dsl b{font:600 18px var(--ui);letter-spacing:-.01em;text-transform:none;color:var(--ink);margin-left:8px}
+.dflag{font:500 11px/1.3 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);border:1px solid var(--line-2);padding:4px 8px}
+.dflag.hot{color:var(--bad);border-color:var(--bad)}
+.dends{display:flex;justify-content:space-between;font:400 12px var(--mono);color:var(--ink-3)}
+.dtrack{position:relative;height:66px}
+.dfire{position:absolute;left:-20px;right:-20px;top:0;height:54px;width:calc(100% + 40px);pointer-events:none;z-index:1}
+.dsh,.dends{position:relative;z-index:2}
+.drail{z-index:2;position:absolute;left:0;right:0;top:44px;height:6px;margin-top:-3px;background:var(--bg-2);border:1px solid var(--line-2)}
+.drail i{position:absolute;top:50%;width:2px;height:12px;margin:-6px 0 0 -1px;background:var(--line-2);left:calc(11px + var(--i) / 3 * (100% - 22px))}
+.dfill{position:absolute;left:0;top:-1px;bottom:-1px;width:calc(11px + var(--k) / 3 * (100% - 22px));background:linear-gradient(90deg,var(--ink-3),var(--signal-fill));transition:width 420ms var(--e-out),background 420ms}
+.fire .dfill{background:linear-gradient(90deg,#5A080C,var(--signal-fill) 55%,#FF9F43)}
+.fire{border-color:var(--signal);box-shadow:0 0 0 1px var(--signal),0 10px 40px -12px color-mix(in srgb,var(--signal-fill) 70%,transparent)}
+.dtrack input{position:absolute;left:0;right:0;top:22px;width:100%;height:44px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer;z-index:3}
+.dtrack input:focus{outline:none}
+.dtrack input::-webkit-slider-runnable-track{height:44px;background:transparent}
+.dtrack input::-moz-range-track{height:44px;background:transparent}
+.dtrack input::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:11px;background:var(--ink);border:2px solid var(--panel);box-shadow:0 0 0 1px var(--ink);transition:transform 200ms var(--e-digit),box-shadow 200ms}
+.dtrack input::-moz-range-thumb{width:18px;height:18px;border-radius:0;background:var(--ink);border:2px solid var(--panel);box-shadow:0 0 0 1px var(--ink)}
+.dtrack input:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 1px var(--ink),0 0 0 5px color-mix(in srgb,var(--signal) 45%,transparent)}
+.dtrack input:focus-visible::-moz-range-thumb{box-shadow:0 0 0 1px var(--ink),0 0 0 5px color-mix(in srgb,var(--signal) 45%,transparent)}
+.dtrack input:active::-webkit-slider-thumb{transform:scale(1.15)}
+.fire .dtrack input::-webkit-slider-thumb{background:#FFE6C2;box-shadow:0 0 0 1px var(--signal),0 0 18px 4px color-mix(in srgb,#FF9F43 70%,transparent)}
+.fire .dtrack input::-moz-range-thumb{background:#FFE6C2;box-shadow:0 0 0 1px var(--signal),0 0 18px 4px color-mix(in srgb,#FF9F43 70%,transparent)}
+.dstops{position:relative;height:56px}
+.dstops button{position:absolute;top:0;left:calc(11px + var(--i) / 3 * (100% - 22px));transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;min-height:44px;padding:2px 4px;color:var(--ink-3)}
+.dstops button:first-child{transform:translateX(-11px);align-items:flex-start}
+.dstops button:last-child{transform:translateX(calc(-100% + 11px));align-items:flex-end}
+.dstops b{font:500 13px var(--ui)}
+.dstops span{font:400 11px var(--mono)}
+.dstops small{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--signal)}
+.dstops button.on{color:var(--ink)}
+.dstops button:hover{color:var(--ink)}
+.est .hotc .v,.est .hotc .k{color:var(--bad)}
+@media (prefers-reduced-motion:no-preference){
+  .fire .dtrack input::-webkit-slider-thumb{animation:flick 900ms ease-in-out infinite alternate}
+  @keyframes flick{50%{box-shadow:0 0 0 1px var(--signal),0 0 26px 8px color-mix(in srgb,#FF9F43 60%,transparent)}}
+  .dflag.hot{animation:breathe 1.6s ease-in-out infinite}
+}
+@media (max-width:640px){.dslide{padding:14px 14px 10px}.dends span:last-child{text-align:right}.dstops span{font-size:10.5px}}
 /* ===================== v5 Deep Ask: live fan-out, figures, proof ===================== */
 .hero .serif.wide{max-width:min(60ch,100%)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
@@ -750,6 +794,7 @@ html.rx-live .rxglow{opacity:var(--rx-op,1)}
 .phases span::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--signal-fill);transform-origin:left;transform:scaleX(var(--p,0))}
 .now{display:flex;justify-content:space-between;gap:12px 24px;align-items:center;padding:20px 24px 12px;flex-wrap:wrap}
 .now .t{font:400 14px/1.5 var(--mono);color:var(--ink-2);min-width:0;flex:1 1 320px}
+.now .gate{display:flex;gap:8px;flex-wrap:wrap;color:var(--ink)}
 .now .t b{color:var(--signal);font-weight:500;margin-right:8px;text-transform:uppercase;letter-spacing:.06em;font-size:12px}
 .now .ctl{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 .livec{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid var(--line);margin-top:auto}
@@ -912,6 +957,73 @@ canvas.cloud{display:block;width:100%;height:340px}
   .prec td:first-child{grid-column:1/-1}
   .prec td.hm{display:none}
 }
+
+/* ===================== v6 Globes ===================== */
+.gtabs{display:flex;border:1px solid var(--edge);width:fit-content;max-width:100%}
+.gtabs button{font:500 14px var(--ui);padding:0 20px;min-height:44px;border-left:1px solid var(--line);color:var(--ink-2);position:relative}
+.gtabs button:first-child{border-left:0}
+.gtabs button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+.gtabs button[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--signal-fill)}
+.gwrap{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;align-items:start}
+.gstage{position:relative;height:min(680px,74vh);min-height:420px;background:var(--bg);overflow:hidden}
+.gcv{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+.gcv:active{cursor:grabbing}
+.gcv:focus-visible{outline:2px solid var(--signal);outline-offset:-4px}
+.gzoom{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;border:1px solid var(--edge);background:var(--panel);z-index:2}
+.gzoom button{width:44px;height:44px;font:500 18px var(--mono);color:var(--ink-2);border-top:1px solid var(--line)}
+.gzoom button:first-child{border-top:0}
+.gzoom button:hover{color:var(--ink);background:var(--bg-2)}
+.ghint{position:absolute;left:16px;bottom:12px;font-size:11px;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;z-index:2}
+.gside{display:flex;flex-direction:column;gap:12px;min-width:0}
+.gblock{border:1px solid var(--line);background:var(--panel);padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.gblock h3{font-size:18px}
+.prail{display:flex;flex-direction:column}
+.pchip{display:flex;gap:12px;align-items:center;padding:6px 8px;min-height:48px;border:1px solid transparent;text-align:left;color:var(--ink-3);transition:border-color var(--t-fast),color var(--t-fast),background-color var(--t-fast)}
+.pchip[aria-pressed="true"]{color:var(--ink)}
+.pchip:hover{border-color:var(--line-2)}
+.pchip .pn{display:flex;flex-direction:column;gap:2px}
+.pchip .pn b{font:500 14px var(--ui)}
+.pchip .pn span{font:400 12px var(--mono);color:var(--ink-3)}
+.uring{width:32px;height:32px;flex:0 0 auto}
+.uring .ur0{fill:none;stroke:var(--hatch);stroke-width:5;stroke-dasharray:2 2}
+.uring .ur1{fill:none;stroke:var(--signal-fill);stroke-width:5}
+.pchip[aria-pressed="false"] .ur1{stroke:var(--ink-3)}
+.gsum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.gsum>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.gsum .k{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.gsum .v{font:500 1.25rem/1 var(--mono);letter-spacing:-.02em}
+.glist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;max-height:340px;overflow:auto}
+.glist li{display:grid;grid-template-columns:minmax(0,1fr) 72px 86px;gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.glist.za li{grid-template-columns:minmax(0,1fr) 86px}
+.glist li:first-child{border-top:0}
+.glist li i{font-style:normal;color:var(--ink-3)}
+.glist li .n{font:500 13px var(--mono);text-align:right}
+.glist li .b{height:6px;background:var(--bg-2);position:relative}
+.glist li .b i{position:absolute;inset:0;background:var(--signal-fill);transform-origin:left;transform:scaleX(var(--w))}
+.glist li.wh .n{color:var(--ink-3);font-weight:400}
+.glist li.on button{color:var(--signal)}
+.glist button{text-align:left;font:500 13px var(--ui);min-height:36px;color:var(--ink)}
+.glist button .m{font-size:11px;color:var(--ink-3);margin-left:4px}
+.glist button:hover{color:var(--signal)}
+.gfilters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.gsel{display:flex;flex-direction:column;gap:4px;min-width:0}
+.gsel .k,.gseg .k{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.gsel select{min-height:40px;border:1px solid var(--edge);background:var(--bg);color:var(--ink);font:400 13px var(--ui);padding:0 8px;min-width:0}
+.gseg{display:flex;flex-direction:column;gap:4px;grid-column:1/-1}
+.gseg>div{display:flex;border:1px solid var(--edge);width:fit-content;max-width:100%}
+.gseg label{position:relative;cursor:pointer}
+.gseg input{position:absolute;opacity:0;width:1px;height:1px}
+.gseg label span{display:flex;align-items:center;min-height:40px;padding:0 14px;font:500 13px var(--ui);color:var(--ink-2);border-left:1px solid var(--line)}
+.gseg label:first-child span{border-left:0}
+.gseg input:checked+span{background:var(--ink);color:var(--bg)}
+.gseg input:focus-visible+span{outline:2px solid var(--signal);outline-offset:-4px}
+.unk{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px dashed var(--line-2);padding:10px 12px;min-height:48px;text-align:left;font:500 13px var(--ui);color:var(--ink);background:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--hatch) 22%,transparent) 5px 6px)}
+.unk .n{font:500 16px var(--mono)}
+.gdl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;margin:0;font-size:13px}
+.gdl dt{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}
+.gdl dd{margin:0}
+@media (max-width:1080px){.gwrap{grid-template-columns:minmax(0,1fr)}.gstage{height:min(560px,62vh)}}
+@media (max-width:640px){.gstage{height:420px;min-height:0}.gtabs{width:100%}.gtabs button{flex:1;padding:0 8px;font-size:13px}.ghint{display:none}.gfilters{grid-template-columns:minmax(0,1fr)}.glist li{grid-template-columns:minmax(0,1fr) 48px 80px}}
 </style>
 
 <header class="top">
@@ -942,8 +1054,9 @@ canvas.cloud{display:block;width:100%;height:340px}
     <button data-go="compare" style="--n:2"><span class="no">03</span>Compare</button>
     <button data-go="dossier" style="--n:3"><span class="no">04</span>Dossier<span class="k" id="dcount">0</span></button>
     <button data-go="concepts" style="--n:4"><span class="no">05</span>Concepts</button>
+    <button data-go="globes" style="--n:5"><span class="no">06</span>Globes</button>
     </div>
-    <div class="foot small"><span><span class="kbd">Ctrl</span> <span class="kbd">K</span> commands</span><span class="m" style="font-size:12px;color:var(--ink-3)">Gamma 3.1 · v5</span></div>
+    <div class="foot small"><span><span class="kbd">Ctrl</span> <span class="kbd">K</span> commands</span><span class="m" style="font-size:12px;color:var(--ink-3)">Gamma 3.1 · v7</span></div>
   </nav>
   <main id="main" tabindex="-1"></main>
   <aside class="tray" id="tray" aria-label="Post evidence"></aside>
@@ -952,7 +1065,7 @@ canvas.cloud{display:block;width:100%;height:340px}
 <div class="rxglow" aria-hidden="true"></div>
 <div class="rx" id="cursor" aria-hidden="true"><i></i><i></i><i></i><i></i><div class="tag"></div></div>
 <nav class="dock" aria-label="Main">
-  <button data-go="today"><span class="no">01</span>Today</button><button data-go="ask"><span class="no">02</span>Ask</button><button data-go="compare"><span class="no">03</span>Compare</button><button data-go="dossier"><span class="no">04</span>Dossier</button><button data-go="concepts"><span class="no">05</span>Concepts</button>
+  <button data-go="today"><span class="no">01</span>Today</button><button data-go="ask"><span class="no">02</span>Ask</button><button data-go="compare"><span class="no">03</span>Compare</button><button data-go="dossier"><span class="no">04</span>Dossier</button><button data-go="concepts"><span class="no">05</span>Concepts</button><button data-go="globes"><span class="no">06</span>Globes</button>
 </nav>
 
 <script>
@@ -1121,14 +1234,14 @@ function swap(fn,cls){
   }
   fn();
 }
-const VIEWS=()=>({today:vToday,item:vItem,ask:vAsk,compare:vCompare,dossier:vDossier,concepts:vConcepts});
+const VIEWS=()=>({today:vToday,item:vItem,ask:vAsk,compare:vCompare,dossier:vDossier,concepts:vConcepts,globes:vGlobes});
 // Build the next view off-document (parsing and string work happen before the transition starts),
 // then the transition callback only swaps nodes.
 function build(){const d=document.createElement("div");d.innerHTML=VIEWS()[S.view]();return d}
 function render(pre){
   const navs=document.querySelectorAll(".nav [data-go],.dock [data-go]");
   navs.forEach(b=>b.setAttribute("aria-current",b.dataset.go===S.view||(S.view==="item"&&b.dataset.go==="today")?"page":"false"));
-  const order=["today","ask","compare","dossier","concepts"],ci=Math.max(0,order.indexOf(S.view==="item"?"today":S.view));
+  const order=["today","ask","compare","dossier","concepts","globes"],ci=Math.max(0,order.indexOf(S.view==="item"?"today":S.view));
   $(".dock").style.setProperty("--dc",order.map((_,i)=>i===ci?"1.25fr":"1fr").join(" "));
   $("#railcur").textContent="0"+(ci+1);
   $("#dcount").textContent=S.saved.length;
@@ -1142,6 +1255,7 @@ function render(pre){
   bind(main);
   mountLattices(main);
   mountDeep(main);
+  mountGlobes(main);
   if(!inVT)fixRag(main);
   countUp(main);
 }
@@ -1357,11 +1471,13 @@ const POLLS=[
  {n:900,mode:"Online panel",dates:"24 to 30 Sep",src:"Publisher 2 release, 2 Oct",v:[38,25,16,10,5]},
  {n:1200,mode:"Face to face",dates:"28 Sep to 6 Oct",src:"Publisher 3 report, 9 Oct",v:[41,29,12,7,7]},
  {n:1050,mode:"Phone",dates:"1 to 10 Oct",src:"Publisher 4 release, 13 Oct",v:[38,27,14,8,6]}];
-const PLAT=[["TikTok",1980],["X",1702],["Facebook",1146],["Instagram",734],["YouTube",402],["Reddit",250]];
+const PLAT=[["TikTok",1820],["X",1560],["Facebook",1050],["Instagram",680],["YouTube",370],["Reddit",230],["Threads",150],["LinkedIn",120],["Pinterest",70],["Forums",50],["Quora",50],["Rumble",34],["Hacker News",30]];
+const PLW={3:"three",8:"eight",13:"thirteen"};
 const DEPTHS=[
- {name:"Quick",cap:600,plats:3,pages:6,time:"20 s",credits:30,posts:512,web:6,used:22,took:"21 s",scale:.6,early:"stopped at 512 of 600 posts: the searches ran out of new matching posts"},
- {name:"Standard",cap:2500,plats:6,pages:16,time:"1 min",credits:100,posts:2140,web:16,used:84,took:"58 s",scale:.8,early:"stopped early at 2,140 of 2,500 posts: shares moved less than 1 point over the last 600"},
- {name:"Deep",cap:8000,plats:6,pages:40,time:"3 min",credits:300,posts:6214,web:38,used:284,took:"2 min 41 s",scale:1,early:"stopped early at 6,214 of 8,000 posts: shares moved less than 1 point over the last 2,000"}];
+ {name:"Quick",cap:600,plats:3,pages:6,time:"20 s",credits:120,posts:512,web:6,used:64,took:"21 s",scale:.6,early:"stopped at 512 of 600 posts: the searches ran out of new matching posts"},
+ {name:"Standard",cap:2500,plats:8,pages:16,time:"1 min",credits:500,posts:2140,web:16,used:268,took:"58 s",scale:.8,early:"stopped early at 2,140 of 2,500 posts: shares moved less than 1 point over the last 600"},
+ {name:"Deep",cap:8000,plats:13,pages:40,time:"3 min",credits:1600,posts:6214,web:38,used:790,took:"2 min 41 s",scale:1,rec:1,early:"stopped early at 6,214 of 8,000 posts: shares moved less than 1 point over the last 2,000"},
+ {name:"Ultra Search",cap:20000,plats:13,pages:80,time:"8 min",credits:4000,posts:16480,web:72,used:2040,took:"7 min 36 s",scale:1.15,hot:1,early:"you approved going past 1,600 credits · stopped early at 16,480 of 20,000 posts: shares moved less than 1 point over the last 4,000"}];
 const QPOLL="What share of the vote does each party have in Gauteng, according to recent polls?";
 const SUBQ=["party support Gauteng poll 2026","voting intention Joburg, Tshwane, Ekurhuleni","#GautengVotes","“voting for” + party names, Gauteng","news: Gauteng poll results","poll releases, last 30 days"];
 const ENDP=[["X",'search "Gauteng poll" · page 14'],["TikTok","#GautengVotes · page 3"],["Facebook","48 public groups and pages"],["Web","news and poll releases"],["Instagram","#Joburg · comments"],["YouTube","comments on 22 news videos"],["Reddit","r/southafrica · 9 threads"],["X","replies to party accounts · page 6"],["TikTok",'search "who are you voting for" · page 9']];
@@ -1388,12 +1504,12 @@ const PM=PARTIES.slice(0,5).map((_,i)=>{const vs=POLLS.map(q=>q.v[i]);return{vs,
 function chipsRow(){const cur=S.askMode==="item"?1:0;
   return `<div class="chips" role="group" aria-label="Sample questions">${[["poll","Party support in Gauteng, from recent polls"],["item","Is the spaza restock trend lasting?"]].map(([k,t],i)=>`<button type="button" class="chip" data-chip="${k}" aria-pressed="${i===cur}">${t}</button>`).join("")}</div>`}
 function estHTML(k){const D=DEPTHS[k];
-  return `<div><span class="k">Max posts</span><span class="v">${roll(D.cap)}</span></div><div><span class="k">Platforms</span><span class="v">${roll(D.plats)}</span></div><div><span class="k">Web pages</span><span class="v">${roll(D.pages)}</span></div><div><span class="k">About</span><span class="v">${D.time}</span></div><div><span class="k">Credit cap</span><span class="v">${roll(D.credits)}</span></div>`}
+  return `<div><span class="k">Max posts</span><span class="v">${roll(D.cap)}</span></div><div><span class="k">Platforms</span><span class="v">${roll(D.plats)}</span></div><div><span class="k">Web pages</span><span class="v">${roll(D.pages)}</span></div><div><span class="k">About</span><span class="v">${D.time}</span></div><div class="${D.hot?"hotc":""}"><span class="k">Credit cap${D.hot?" · high":""}</span><span class="v">${roll(D.credits)}</span></div>`}
 function vDeepIdle(){const k=S.depth;
-  return `<div class="col"><div class="herorow"><div class="hero solo"><span class="eyebrow">02 / Ask · live</span><h1 style="view-transition-name:hero-title">Ask anything. Get the number.</h1><p class="serif wide">42 pulls up to <span id="hcap">${num(DEPTHS[k].cap)}</span> posts live from <span id="hpl">${DEPTHS[k].plats===6?"six":"three"}</span> platforms and the open web, then lays out the figures with the posts and pages behind every one.</p></div><p class="note">Accuracy first: every figure is checked against the text it came from, and anything 42 could not read is shown, not hidden.</p></div>
+  return `<div class="col"><div class="herorow"><div class="hero solo"><span class="eyebrow">02 / Ask · live</span><h1 style="view-transition-name:hero-title">Ask anything. Get the number.</h1><p class="serif wide">42 pulls up to <span id="hcap">${num(DEPTHS[k].cap)}</span> posts live from <span id="hpl">${PLW[DEPTHS[k].plats]}</span> platforms and the open web, then lays out the figures with the posts and pages behind every one.</p></div><p class="note">Accuracy first: every figure is checked against the text it came from, and anything 42 could not read is shown, not hidden.</p></div>
   <form class="askbox" id="askf" style="view-transition-name:ask-q"><label for="q" class="sr">Question</label><textarea id="q" rows="1">${esc(QPOLL)}</textarea><button class="btn pri" type="submit" data-cursor="Run a live search">Ask</button></form>
   ${chipsRow()}
-  <div class="dset"><div class="depth" role="radiogroup" aria-label="How deep to search" style="--k:${k}">${DEPTHS.map((D,i)=>`<input type="radio" name="depth" id="dp${i}" value="${i}"${i===k?" checked":""}><label for="dp${i}" data-cursor="${D.name} search"><b>${D.name}</b><span>${num(D.cap)} posts</span></label>`).join("")}<i class="dthumb" aria-hidden="true"></i></div>
+  <div class="dset">${sliderHTML(k)}
   <div class="est" id="est">${estHTML(k)}</div></div>
   <p class="small">42 stops early once the answer stops changing and asks before it spends past the cap. In this prototype every question runs the sample, with illustrative figures.</p></div>`}
 
@@ -1446,11 +1562,11 @@ function vDeep(){
      <div class="fu"><span class="eyebrow">Ask next</span><div class="chips">${["Break this down by metro","How has it moved since August?","Show the posts behind Party B"].map(t=>`<button type="button" class="chip" data-fu>${t}</button>`).join("")}</div></div></div>
     ${proofHTML(N)}
     <div class="actions"><button type="button" class="btn pri" data-saveans><span class="ic">${ICON.dossier}</span>Add to dossier</button><button type="button" class="btn" data-export>Export chart and data</button><button type="button" class="btn" data-newq>New question</button></div>
-    <p class="m small">Illustrative run · ${D.name} · ${D.used} of ${D.credits} credits · ${D.took}${D.early?" · "+D.early:""}</p></div>
+    <p class="m small">Illustrative run · ${D.name} · ${num(D.used)} of ${num(D.credits)} credits · ${D.took}${D.early?" · "+D.early:""}</p></div>
   </div></div>`}
 function runbarHTML(D){
   return `<div class="runbar"><div class="phases" aria-hidden="true">${["Plan","Sweep","Clean","Extract","Answer"].map((p,i)=>`<span data-ph="${i}"><b>0${i+1}</b>${p}</span>`).join("")}</div>
-   <div class="now"><span class="t" id="nowt"><b>Plan</b>Splitting your question into six searches</span><span class="ctl"><span class="m small"><span id="cred">0</span> of ${D.credits} credits</span><button type="button" class="btn" id="skip" data-cursor="Skip to the answer">Show answer now</button></span></div>
+   <div class="now"><span class="t" id="nowt"><b>Plan</b>Splitting your question into six searches</span><span class="ctl"><span class="m small"><span id="cred">0</span> of ${num(D.credits)} credits</span><button type="button" class="btn" id="skip" data-cursor="Skip to the answer">Show answer now</button></span></div>
    <div class="subq" aria-hidden="true">${SUBQ.map((s,i)=>`<span style="--j:${i}">${esc(s)}</span>`).join("")}</div>
    <div class="livec" aria-hidden="true"><div><span class="k">Posts pulled</span><span class="v" id="lv0">0</span></div><div><span class="k">Web pages</span><span class="v" id="lv1">0</span></div><div><span class="k">Polls found</span><span class="v" id="lv2">0</span></div><div><span class="k">Figures checked</span><span class="v" id="lv3">0</span></div></div>
    <p class="sr" aria-live="polite" id="drlive">Planning the searches</p></div>`}
@@ -1540,7 +1656,7 @@ function runDeep(){
   if(deepRun)deepRun.stop();
   const k=S.depth,D=DEPTHS[k],N=deepNums(k),T=deepT(k),dr=$("#dr");if(!dr)return;
   const cv=dr.querySelector("canvas.cloud"),cd=cloud(cv,N,T);
-  const ph=[...dr.querySelectorAll("[data-ph]")],nowt=$("#nowt"),cred=$("#cred"),live=$("#drlive"),lv=[0,1,2,3].map(i=>$("#lv"+i)),
+  const ph=[...dr.querySelectorAll("[data-ph]")];let nowt=$("#nowt"),cred=$("#cred");const _x=0,live=$("#drlive"),lv=[0,1,2,3].map(i=>$("#lv"+i)),
     fc=[...dr.querySelectorAll("[data-fc]")],fb=[...dr.querySelectorAll("[data-fb]")],ss=[...dr.querySelectorAll("[data-s]")],sc=[...dr.querySelectorAll("[data-sc]")],
     sq=[...dr.querySelectorAll(".subq span")],pc=$("#pc"),pl=[...dr.querySelectorAll(".pl button")];
   const set=(el,v)=>{if(el&&el._v!==v){el._v=v;el.textContent=v;if(el.classList.contains("v")){el.classList.remove("tick");void el.offsetWidth;el.classList.add("tick")}}};
@@ -1550,7 +1666,9 @@ function runDeep(){
   const say=s=>{if(s!==lastLive){lastLive=s;live.textContent=s}};
   function frame(now){
     raf=0;if(!dr.isConnected||stopped)return;
+    if(paused){return}
     const t=now-t0;
+    if(D.hot&&!S.okPast&&D.used*cl01(t/T.end)>=1600){gate(now);return}
     const P=[[0,T.plan],[T.plan,T.sweep],[T.sweep,T.clean],[T.polls[0]-400*T.sc,T.polls[3]+300*T.sc],[T.clean,T.res]];
     P.forEach(([a,b],i)=>{const p=cl01((t-a)/(b-a)),el=ph[i];el.style.setProperty("--p",p.toFixed(3));el.classList.toggle("on",p>0&&p<1);el.classList.toggle("ok",p>=1)});
     // Sweep: each platform fills on its own eased curve; the total is their sum, so the numbers always agree.
@@ -1566,7 +1684,7 @@ function runDeep(){
     set(lv[2],String(found));
     const chk=Math.min(found*5,Math.floor(cl01((t-T.polls[0])/(T.polls[3]+600*T.sc-T.polls[0]))*20));set(lv[3],chk+" of 20");
     if(!res&&t>=T.clean){res=true;pc.classList.add("res");countUp(pc)}
-    set(cred,String(Math.floor(D.used*cl01(t/T.end))));
+    set(cred,num(Math.floor(D.used*cl01(t/T.end))));
     let msg;const lf=found&&t-T.polls[found-1]<900*T.sc?found:0;
     if(t<T.plan){msg=["Plan","Splitting your question into six searches"];say("Planning the searches")}
     else if(lf){const q=POLLS[lf-1];msg=["Extract",`Found Poll ${lf} · n=${num(q.n)} · ${q.mode} · figures match the source`]}
@@ -1594,14 +1712,84 @@ function runDeep(){
     live.isConnected&&(live.textContent="Answer ready");
     const ann=document.createElement("p");ann.className="sr";ann.setAttribute("role","status");ann.textContent=`Answer ready. Party A leads in Gauteng at about ${PM[0].m}%, Party B second at about ${PM[1].m}%.`;top.appendChild(ann);
   }
-  $("#skip").onclick=finish;
+  // Ultra Search asks before it spends past 1,600 credits (the Deep cap): the clock stops until the person answers.
+  let paused=0;
+  function gate(now){paused=now||performance.now();const box=dr.querySelector(".now");if(!box)return;set(cred,"1,600");
+    box.innerHTML=`<span class="t gate" role="alertdialog" aria-labelledby="gq"><b>Check</b><span id="gq">1,600 credits spent, the Deep limit. Ultra Search can use up to ${num(D.credits)}. Continue?</span></span><span class="ctl"><button type="button" class="btn pri" id="gok">Continue to ${num(D.credits)}</button><button type="button" class="btn" id="gno">Stop here</button></span>`;
+    $("#gok").focus();live.textContent="Paused at 1,600 credits. Continue or stop.";
+    $("#gok").onclick=()=>{S.okPast=true;box.innerHTML=`<span class="t" id="nowt"></span><span class="ctl"><span class="m small"><span id="cred">1,600</span> of ${num(D.credits)} credits</span><button type="button" class="btn" id="skip" data-cursor="Skip to the answer">Show answer now</button></span>`;
+      nowt=$("#nowt");cred=$("#cred");$("#skip").onclick=finish;if(reduce){finish();return}t0+=performance.now()-paused;paused=0;raf=requestAnimationFrame(frame)};
+    $("#gno").onclick=()=>{stopped=true;S.asked=false;S.deepDone=false;go("ask",true);toast("Stopped at 1,600 credits. Nothing more was spent")}}
+  $("#skip").onclick=()=>{if(D.hot&&!S.okPast){if(raf)cancelAnimationFrame(raf);raf=0;gate()}else finish()};
   deepRun={stop(){stopped=true;if(raf)cancelAnimationFrame(raf)}};
-  if(reduce){finish();return}
+  if(reduce){if(D.hot&&!S.okPast){gate();return}finish();return}
   raf=requestAnimationFrame(frame);
 }
+/* Depth slider: an effort bar for Ask. Native range input underneath (keyboard, screen readers), custom marks on top.
+   The top stop, Ultra Search, sets the bar on fire and always flags the higher cost. */
+const DFLAG=["Lowest cost · up to 120 credits, about £0.30","Up to 500 credits, about £1.20","Recommended · up to 1,600 credits, about £4","High cost · up to 4,000 credits, about £10 · asks before passing 1,600"];
+function sliderHTML(k){const D=DEPTHS[k];
+  return `<div class="dslide${D.hot?" fire":""}" id="dslide" style="--k:${k}">
+   <div class="dsh"><span class="dsl">Depth <b id="dname">${D.name}</b></span><span class="dflag${D.hot?" hot":""}" id="dflag">${DFLAG[k]}</span></div>
+   <div class="dends" aria-hidden="true"><span>Faster</span><span>Deeper, wider audience</span></div>
+   <div class="dtrack"><canvas class="dfire" aria-hidden="true"></canvas><span class="drail" aria-hidden="true"><span class="dfill"></span>${DEPTHS.map((_,i)=>`<i style="--i:${i}"></i>`).join("")}</span>
+    <input type="range" id="depth" min="0" max="${DEPTHS.length-1}" step="1" value="${k}" aria-label="Search depth" aria-valuetext="${D.name}: up to ${num(D.cap)} posts, ${DFLAG[k]}" data-cursor="Slide for depth"></div>
+   <div class="dstops">${DEPTHS.map((X,i)=>`<button type="button" tabindex="-1" data-dstop="${i}" class="${i===k?"on":""}" style="--i:${i}"><b>${X.name}</b><span>${num(X.cap)}</span>${X.rec?"<small>Recommended</small>":""}</button>`).join("")}</div></div>`}
+function bindSlider(root){
+  const w=$("#dslide",root);if(!w)return;const r=$("#depth",w),cv=$(".dfire",w);
+  const fx=fireFX(cv,w);
+  const set=k=>{k=Math.max(0,Math.min(DEPTHS.length-1,k));if(k===S.depth&&r.value==k)return;const was=DEPTHS[S.depth].hot;S.depth=k;r.value=k;const D=DEPTHS[k];
+    w.style.setProperty("--k",k);w.classList.toggle("fire",!!D.hot);$("#dname",w).textContent=D.name;const f=$("#dflag",w);f.textContent=DFLAG[k];f.classList.toggle("hot",!!D.hot);
+    r.setAttribute("aria-valuetext",`${D.name}: up to ${num(D.cap)} posts, ${DFLAG[k]}`);
+    w.querySelectorAll("[data-dstop]").forEach(b=>b.classList.toggle("on",+b.dataset.dstop===k));
+    const e=$("#est");e.innerHTML=estHTML(k);countUp(e);$("#hcap").textContent=num(D.cap);$("#hpl").textContent=PLW[D.plats];
+    fx.set(!!D.hot,!was&&!!D.hot)};
+  r.oninput=()=>set(+r.value);
+  w.querySelectorAll("[data-dstop]").forEach(b=>b.onclick=()=>{set(+b.dataset.dstop);r.focus()});
+  fx.set(!!DEPTHS[S.depth].hot,false);
+}
+// Fire: additive particles rising from the filled part of the rail. Runs only while Ultra Search is selected and on screen.
+const FIRE=window.__fire={frames:0,ms:[]};
+function fireFX(cv,w){
+  const ctx=cv.getContext("2d");let on=false,raf=0,W=0,H=0,dpr=1,ps=[],last=0,grow=0,T=0;
+  const size=()=>{const b=cv.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);W=b.width;H=b.height;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)};
+  const rail=()=>{const rr=w.querySelector(".drail").getBoundingClientRect(),cb=cv.getBoundingClientRect(),k=S.depth/(DEPTHS.length-1);return{x0:rr.left-cb.left,x1:rr.left-cb.left+11+k*(rr.width-22),y:rr.top-cb.top+rr.height/2}};
+  const dark=()=>document.documentElement.dataset.theme?document.documentElement.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
+  function spawn(n,burst){const R=rail();for(let i=0;i<n;i++){const x=burst?R.x1+(Math.random()-.5)*16:R.x0+Math.pow(Math.random(),.6)*(R.x1-R.x0);
+    ps.push({x,y:R.y+(Math.random()-.5)*4,vx:(Math.random()-.5)*(burst?90:14),vy:-(burst?60+Math.random()*90:24+Math.random()*46),life:0,max:burst?.5+Math.random()*.5:.55+Math.random()*.7,r:burst?3+Math.random()*4:4+Math.random()*7,ph:Math.random()*6})}}
+  const col=(t,a)=>{// white-hot to amber to signal red to ember
+    const st=[[255,244,214],[255,176,64],[228,20,36],[90,8,12]],u=Math.min(.999,t)*3,i=Math.floor(u),f=u-i,c=st[i].map((v,j)=>v+(st[i+1][j]-v)*f);return `rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`};
+  function draw(now){
+    const d0=performance.now(),dt=Math.min(.05,(now-(last||now))/1000);last=now;
+    if(!cv.isConnected){raf=0;return}
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+    if(on)spawn(Math.round(dt*120),false);
+    T+=dt;grow+=((on?1:0)-grow)*Math.min(1,dt*(on?5:7));
+    if(grow>.01){const R=rail(),L=R.x1-R.x0,hm=Math.min(40,R.y-4);
+      // three flame layers along the filled rail, taller towards the thumb
+      const lay=(k,c0,c1,blur)=>{ctx.beginPath();ctx.moveTo(R.x0,R.y+3);
+        for(let x=R.x0;x<=R.x1+8;x+=4){const u=(x-R.x0)/Math.max(1,L),tp=.25+.75*Math.pow(Math.min(1,u),1.4),n=.55+.3*Math.sin(x*.09+T*7.3)*Math.sin(x*.031-T*4.1)+.18*Math.sin(x*.21+T*12.7)+.12*Math.sin(x*.47-T*17);
+          ctx.lineTo(x,R.y-hm*k*tp*n*grow)}
+        ctx.lineTo(R.x1+8,R.y+3);ctx.closePath();const g=ctx.createLinearGradient(0,R.y,0,R.y-hm*k);g.addColorStop(0,c0);g.addColorStop(1,c1);ctx.fillStyle=g;ctx.shadowBlur=blur;ctx.shadowColor=c0;ctx.fill();ctx.shadowBlur=0};
+      ctx.globalCompositeOperation=dark()?"lighter":"source-over";
+      lay(1,"rgba(228,20,36,.85)","rgba(228,20,36,0)",14);lay(.68,"rgba(255,140,40,.85)","rgba(255,140,40,0)",8);lay(.36,"rgba(255,236,190,.9)","rgba(255,236,190,0)",0)}
+    ctx.globalCompositeOperation=dark()?"lighter":"source-over";
+    for(const p of ps){p.life+=dt/p.max;p.vy-=dt*40;p.vx+=Math.sin(now/180+p.ph)*dt*30;p.x+=p.vx*dt;p.y+=p.vy*dt}
+    ps=ps.filter(p=>p.life<1);
+    for(const p of ps){const a=(1-p.life)*(dark()?.55:.7),rad=p.r*(1-p.life*.6),g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rad);
+      g.addColorStop(0,col(p.life,a));g.addColorStop(1,col(Math.min(.99,p.life+.25),0));ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,rad,0,7);ctx.fill()}
+    ctx.globalCompositeOperation="source-over";
+    FIRE.frames++;FIRE.ms.push(performance.now()-d0);if(FIRE.ms.length>240)FIRE.ms.shift();
+    raf=(on||ps.length||grow>.01)&&!document.hidden?requestAnimationFrame(draw):0;if(!raf){last=0;ctx.clearRect(0,0,W,H)}
+  }
+  const onVis=()=>{if(!cv.isConnected){document.removeEventListener("visibilitychange",onVis);return}if(!document.hidden&&(on||ps.length)&&!raf){last=0;raf=requestAnimationFrame(draw)}};document.addEventListener("visibilitychange",onVis);
+  const ro=new ResizeObserver(()=>{if(!cv.isConnected){ro.disconnect();return}size()});ro.observe(cv);size();
+  return{set(v,ignite){on=v&&!reduce;if(!on&&reduce){ctx.clearRect(0,0,W,H)}if(on&&ignite)spawn(46,true);if((on||ps.length)&&!raf){last=0;raf=requestAnimationFrame(draw)}}};
+}
+
 function bindDeep(root){
   root.querySelectorAll("[data-chip]").forEach(b=>b.onclick=()=>{if(b.dataset.chip==="item"){S.item="za-spaza";S.askMode="item"}else S.askMode="deep";S.asked=false;S.deepDone=false;go("ask",true)});
-  const fs=$(".depth",root);if(fs)fs.querySelectorAll("input").forEach(r=>r.onchange=()=>{S.depth=+r.value;fs.style.setProperty("--k",S.depth);const e=$("#est");e.innerHTML=estHTML(S.depth);countUp(e);const D=DEPTHS[S.depth];$("#hcap").textContent=num(D.cap);$("#hpl").textContent=D.plats===6?"six":"three"});
+  bindSlider(root);
   const pc=$("#pc",root);
   root.querySelectorAll("[data-poll]").forEach(b=>{const on=()=>{if(!pc)return;pc.classList.add("dim");pc.querySelectorAll(".pd").forEach(x=>x.classList.toggle("hl",x.dataset.p===b.dataset.poll))},off=()=>{if(!pc)return;pc.classList.remove("dim");pc.querySelectorAll(".pd.hl").forEach(x=>x.classList.remove("hl"))};
     b.onmouseenter=on;b.onfocus=on;b.onmouseleave=off;b.onblur=off;
@@ -1616,6 +1804,207 @@ function bindDeep(root){
   root.querySelectorAll("[data-export]").forEach(b=>b.onclick=()=>toast("Export would download the chart as PNG and the figures as CSV"));
   root.querySelectorAll("[data-saveans]").forEach(b=>b.onclick=()=>save({t:"ans",id:"Party support in Gauteng"}));
   root.querySelectorAll("[data-newq]").forEach(b=>b.onclick=()=>{S.asked=false;S.deepDone=false;S.askMode="deep";go("ask",true)});
+}
+
+/* ===================== v6 Globes =====================
+   Three globes on one hand-written canvas engine (orthographic sphere, no library): Platforms, South Africa and
+   Communities. Sample data only, but every count follows the location plan's rules: counts only, a cell needs at
+   least 10 posts and 5 creators or it is withheld, "province unknown" is its own count and is never spread across
+   provinces, every platform shows its unlocated share, and precision is either tagged or tagged plus named.
+   Land: Natural Earth 110m land (public domain) sampled on 18,000 Fibonacci points. Provinces: Natural Earth 10m
+   admin-1, simplified to 0.04 degrees. The product build uses three.js (already a dependency); this is the look. */
+const LAND_B64="AAAAAAAAABAAQkBISAgJISMhJASEhJAVEhICAkLICQgYIQMg5oBMhJABMDRABsTIgRg4Igdm5kBMmJmhNfMlZs3MtLl9EvPyorG11vbS1l7aW0traWstraWltbSUltbS1lpaSltra20tbd723tv5/ztr9+2t/P2Vt/P2Vtb+21t5+ytv5++trN23s/L3Vsbu31t5O2sv5e+sjJ2Xk/J3VlbO3EkZOSMn5e6k7JyZ03J3QlbOzEnZOSOn5+aE/Jyb0zNzQm7OzYnZOXOnZ+aE/JyZ03NzQm7Pzcn5OTe35+aE3J6b0/Nzam7Ozcm5OTen5+a03Jyb03Nzam7Pzam5OTUn5+b0nJyb03Nzam7Ozak5OTen5+bU3JybU3Nyam7Pzak5OTen5+TUnJybU3Nyam7Hzak5OTen5ubUnIybUXNyakbFzak5GTen5uTUjIyTU3NyZkbNyYkZGSej5/TUjJqTkXNqRkbNyYkZFSMj5/TUjJqTETNqTk7O6YkZFSMj5tScnIiTU3NqTkzMqAk5FScn5tSMmJwTE3MqRkzMqAkxEScn5NScmJhRE3IqRkzMqSkxOScn5FSMmJhRE3IiRkzMqRk5PSMnZMSMmJoREzJ6RkzNiBkxNSMmZPSMmJrREyJqRk7J6BkxNSMmZNSMmJLRE2JqRkzIqAkxJaMnZNSMmJJRE2JqRk3JqAkxJaOm5NScmpJRE2JKTk/JqDkxJaOm5JSUmpJTE2JKTk3JqTkxJaegxJScmpJTUmJKTkXJqTklJaekxJSckpJTUkpKTkGJqTklJaek1JSckpJRU0pKTkGJKSklJaeglJSckhJRUUpKTkGpKSklJaOglJSckhJTUEoKTkEpKSglJaKklBScklJTcEoKTEEpKSglJaKklBScklJTUEoKTEkpKSglpaKklBSYklJSUEoKTE0pKSAlpYKmlBSYklJSQGoKDQkpKTAlhaaC1BQYElJSQUoKBQEpKTAlpaSA1BQaklJSQEoKBQGpqTAkpKSAlBQKglJTQUgKBQWpKTgkpKaAkBQKAlJTQEhKBQGpKTwEpKaAkBQKAlJTQAhKRQEhKSQEpKaAEBQKAkJTWAhKCQGhKSQEpKaAEJQCAkJRSAhICQGhKCQEhKaAEJQCAkJRWAhISQGhKCQEhKKQEJQSAkJRSAhIQQEhKCQEhKCQEJACCkJRWAgIAQEhKAUEhKCQEJCCCkJQSAgICQEhIAUUhKKwEBASCkJASCgICUUhICUEhaKyEBASCkJASSgIAQWhICQVhIKSUBASCkJASygIAWWhICUUhICSUBACCkJASSgIAWWhICUUhICSUBQCikJASSgIACWhoAQUhICSUBQACkJBSSoIACWpqAQUhICCUBAACkJRASoIAAWpqAAUBIACUBAACkJRASoIAAWpoAAUBKICUBAACkJRASgIRAWoIAAUhKICUBAACkBRASgIRAWoIAAUhaICUBCICkBBASgIRAWoKAAVgKICUBCIClBRASgCRQWoIBAVgIICUBCIilBBASgARQWooBAVgaICUACKClBBISgABUWgoBAVgKIiUACKClBBISoABUWgiBAVgaIiUEAKilBBISgARUWggBAUgaJiUEAKilABMSgABUWggBAUgIJiUEAOikABISgiBcWggBgUgAJiUEAKilABISgAB8WogBQUgAJiUEAKilABISgABcSogBQUgQNiVEAKikABISoARYSggBQVgAJiUAAKCkABKSgABYSggBQUgAJiUAAKCkEBKSgABYSgABQUgAJCUAAKCEEBKCgABYSgABQUgAJSUAAKCEERKCgCBYSgABQUgCJQUAAKCEERKCgCRaSgABQQgqJQUAAKCEEBKCgARaCgABQRgqJQUASKSEEBKCoARaGgABQRgiJQUASKQkEBKCIA1bO2/vb//////paeQkEBKCIARaCoCBSVgCJQZASKQkERKCIARaCICBSFgCJQRACKQBERKCoBRaCICBSFAiJQRACKQBERKAoBRaCICBSBIiJQVACKQBEROApBRaCICBSBIiJQFICKQBEROAJFRKCoCBWBIiJQFICKQBERKgJFRKAoCBWBIiJQBIqKQBEQKgJFRKAoCBWBIiBUBIqIQFEQKgJFQKAIGBGBIiBUBIqAQBEQIgJFQKAIFBGBIiBUBIqAQBEQIgJFQKgIFAGBIiBUBIqAQBEwIgJFQKgIFAGBIiBEBIqAQBEgAgJFQKgIFAGBImBEBIqAQBEoAgJFQIgIFAGBImAEBIqAEBEoAgJFwIgIFAGBIkAEBAqAEBEoAgIFwAgIFAABIkAEBAqAEBAoAAIEgAgIFAAhIlAABAgAERAoAAIEgAAIEAAhIEAABAAAARAgAAIAgAAIEAACAEAABAAAARAgAAIAgAAIEAACAEAABAAAgRAgAAQAgEAIAAACAEAAAAAAgRAAAAQAgAAAAAACAQAACAAAAQAAAAQAgAAAAAACAQAACAAAABAAAAQCAAAQAAACAAAACAQAABAAAAQAAAAQAAACAAAACAAAAAAAAAQAAAAQCAAAAAAACAAAACAQAAAAAAAQAAAAACAACAAAACAAAAAAAAAQAAAAQAAACAAAACAAAAAAAAAQAAAAQAAAAAAAACAAAACAAAAAAAAAQAAAAAAAACAAAACAAAAAAAAAQAAAAAAAAAAAAACAAAAAAAAAQAAAAAABAAAAAACAAAAAAAAAQAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABCAABISCkBISQkBIQUkJKSEgJKCkhJaOkhJSWktJTWlpKT2lpLT2tpae0tJaW09J7WlpP7/l5PT/n5/X8nJ/X8/t+fs/v+/19P6/n5/X8nt//+/t/f+/v7wAAAAAA";
+const ZAPROV={"Northern Cape":[[[17.08,-28.03],[17.18,-28.1],[17.21,-28.23],[17.35,-28.23],[17.4,-28.4],[17.32,-28.47],[17.42,-28.59],[17.4,-28.7],[17.58,-28.68],[17.63,-28.76],[17.91,-28.78],[18.17,-28.9],[18.75,-28.84],[19.12,-28.96],[19.29,-28.88],[19.27,-28.74],[19.46,-28.71],[19.57,-28.53],[19.98,-28.42],[19.98,-24.75],[20.36,-25.03],[20.54,-25.38],[20.66,-25.47],[20.64,-25.62],[20.79,-25.89],[20.84,-26.13],[20.61,-26.49],[20.61,-26.75],[20.69,-26.89],[20.91,-26.8],[21.12,-26.87],[21.43,-26.82],[21.66,-26.86],[21.76,-26.8],[21.78,-26.68],[22.06,-26.62],[22.25,-26.35],[22.55,-26.21],[22.62,-26.11],[22.71,-26.13],[22.7,-26.41],[22.82,-26.45],[22.92,-26.16],[23.06,-26.1],[23.1,-25.99],[23.37,-26.02],[23.35,-26.08],[23.23,-26.06],[23.22,-26.12],[23.3,-26.14],[23.22,-26.27],[23.28,-26.34],[23.27,-26.48],[23.58,-26.62],[23.49,-26.74],[23.99,-26.91],[24.01,-27.07],[23.89,-27.26],[24.08,-27.36],[24.03,-27.51],[24.12,-27.63],[24.11,-27.74],[24.44,-27.7],[24.36,-27.9],[24.52,-28.1],[24.69,-27.83],[24.69,-27.64],[24.8,-27.61],[24.79,-27.68],[25.03,-27.71],[24.82,-27.91],[24.93,-28.1],[25.01,-28.07],[24.9,-28.29],[24.87,-28.65],[24.34,-29.65],[24.43,-29.78],[24.78,-29.99],[24.91,-30.2],[25.18,-30.46],[25.47,-30.61],[25.52,-30.8],[25.48,-31.03],[25.35,-31.23],[25.22,-31.2],[24.77,-31.39],[24.56,-31.4],[24.5,-31.7],[24.15,-31.79],[24.0,-31.72],[23.86,-31.8],[23.7,-31.67],[23.4,-31.68],[23.07,-31.98],[23.03,-31.89],[22.61,-31.78],[22.29,-31.57],[22.09,-31.89],[22.1,-32.06],[21.97,-32.2],[21.6,-32.22],[21.31,-32.38],[21.12,-32.61],[20.87,-32.68],[20.71,-32.92],[20.42,-32.94],[20.19,-32.74],[20.08,-32.46],[20.21,-32.28],[20.17,-32.19],[19.92,-32.36],[19.63,-32.44],[19.6,-32.6],[19.53,-32.64],[19.47,-32.58],[19.43,-32.31],[19.49,-32.23],[19.48,-32.08],[19.33,-32.03],[19.26,-31.88],[19.03,-31.89],[19.07,-31.58],[18.9,-31.01],[18.94,-30.72],[18.56,-30.47],[18.41,-30.5],[18.25,-30.78],[17.97,-30.82],[17.82,-31.17],[17.62,-30.93],[17.28,-30.35],[16.82,-29.1],[16.47,-28.62],[16.67,-28.46],[16.74,-28.48],[16.8,-28.37],[16.77,-28.27],[16.82,-28.26],[16.89,-28.08],[17.08,-28.03]]],"KwaZulu-Natal":[[[28.98,-28.91],[28.86,-28.77],[28.94,-28.61],[29.19,-28.54],[29.23,-28.44],[29.66,-28.16],[29.63,-28.04],[29.72,-27.81],[29.68,-27.66],[29.77,-27.58],[29.72,-27.48],[29.86,-27.38],[30.15,-27.38],[30.4,-27.27],[30.98,-27.35],[31.15,-27.32],[31.24,-27.23],[31.53,-27.31],[31.97,-27.32],[31.99,-26.81],[32.89,-26.85],[32.68,-27.52],[32.55,-28.17],[32.4,-28.39],[32.39,-28.54],[32.08,-28.8],[32.02,-28.78],[32.02,-28.83],[32.07,-28.81],[32.01,-28.87],[31.77,-28.92],[31.37,-29.33],[31.01,-29.88],[31.06,-29.9],[30.89,-30.05],[30.2,-31.08],[30.06,-30.85],[29.79,-30.71],[29.46,-30.62],[29.19,-30.64],[29.12,-30.58],[29.3,-30.32],[29.13,-30.25],[29.12,-30.09],[29.02,-29.98],[29.15,-29.91],[29.11,-29.75],[29.28,-29.61],[29.28,-29.49],[29.44,-29.34],[29.31,-29.09],[28.98,-28.91]]],"Free State":[[[28.86,-28.77],[28.62,-28.57],[28.38,-28.63],[28.3,-28.71],[28.15,-28.7],[28.01,-28.88],[27.75,-28.91],[27.35,-29.48],[27.0,-29.67],[27.31,-30.13],[27.38,-30.14],[27.35,-30.32],[27.4,-30.37],[27.33,-30.39],[27.36,-30.43],[27.29,-30.43],[27.3,-30.49],[27.01,-30.53],[27.03,-30.59],[26.85,-30.68],[26.63,-30.68],[26.44,-30.56],[26.28,-30.58],[26.15,-30.49],[25.89,-30.54],[25.73,-30.68],[25.29,-30.54],[24.91,-30.2],[24.78,-29.99],[24.43,-29.78],[24.34,-29.65],[24.87,-28.65],[24.9,-28.27],[25.27,-27.8],[25.8,-27.58],[25.99,-27.64],[26.06,-27.72],[26.25,-27.43],[26.51,-27.39],[26.45,-27.35],[26.49,-27.25],[26.41,-27.18],[26.58,-27.09],[26.63,-27.0],[26.86,-26.91],[26.92,-26.96],[26.93,-26.86],[27.18,-26.96],[27.31,-26.86],[27.47,-26.88],[27.62,-26.73],[27.76,-26.78],[27.96,-26.67],[28.04,-26.82],[28.49,-26.97],[28.53,-27.06],[28.66,-27.01],[28.65,-26.96],[28.82,-27.04],[28.99,-27.0],[29.11,-27.15],[29.44,-27.25],[29.63,-27.51],[29.77,-27.45],[29.72,-27.48],[29.77,-27.59],[29.68,-27.66],[29.72,-27.81],[29.63,-28.04],[29.66,-28.16],[29.23,-28.44],[29.19,-28.54],[28.97,-28.57],[28.86,-28.77]]],"Eastern Cape":[[[28.64,-30.13],[29.02,-29.98],[29.12,-30.09],[29.13,-30.25],[29.3,-30.32],[29.14,-30.61],[29.33,-30.66],[29.47,-30.62],[29.79,-30.71],[30.06,-30.85],[30.2,-31.08],[29.86,-31.41],[29.41,-31.68],[29.21,-31.94],[28.55,-32.56],[27.1,-33.53],[26.48,-33.76],[25.79,-33.74],[25.63,-33.86],[25.61,-33.93],[25.7,-34.03],[24.95,-33.99],[24.83,-34.21],[23.64,-33.98],[23.69,-33.87],[23.37,-33.78],[23.63,-33.62],[23.51,-33.46],[23.26,-33.4],[22.75,-33.4],[23.07,-32.78],[23.11,-32.83],[23.37,-32.77],[23.24,-32.51],[23.33,-32.35],[23.6,-32.32],[23.76,-32.2],[23.89,-32.23],[24.03,-32.17],[24.18,-31.95],[24.13,-31.89],[24.15,-31.76],[24.5,-31.7],[24.56,-31.4],[24.77,-31.39],[25.22,-31.2],[25.38,-31.21],[25.51,-30.93],[25.47,-30.61],[25.61,-30.61],[25.73,-30.68],[25.89,-30.54],[26.15,-30.49],[26.28,-30.58],[26.44,-30.56],[26.63,-30.68],[26.85,-30.68],[27.03,-30.59],[27.01,-30.53],[27.3,-30.49],[27.29,-30.43],[27.36,-30.43],[27.33,-30.39],[27.4,-30.37],[27.35,-30.32],[27.45,-30.31],[27.71,-30.58],[28.08,-30.66],[28.13,-30.46],[28.23,-30.37],[28.22,-30.27],[28.38,-30.14],[28.64,-30.13]]],"Limpopo":[[[29.25,-22.18],[29.76,-22.13],[30.33,-22.34],[30.84,-22.28],[31.26,-22.36],[31.54,-23.16],[31.53,-23.46],[31.86,-23.96],[31.71,-24.05],[31.45,-24.02],[31.25,-24.1],[31.2,-24.04],[31.08,-24.08],[31.06,-24.32],[31.19,-24.31],[31.24,-24.37],[31.16,-24.38],[31.26,-24.51],[31.22,-24.56],[30.98,-24.58],[30.97,-24.53],[30.74,-24.46],[30.73,-24.58],[30.67,-24.62],[30.72,-24.7],[30.64,-24.74],[30.62,-24.86],[30.49,-24.95],[30.42,-24.85],[30.18,-24.86],[30.15,-25.11],[29.98,-25.09],[30.0,-25.33],[29.77,-25.39],[29.14,-25.39],[29.17,-25.3],[29.04,-25.27],[29.04,-25.14],[29.13,-25.11],[28.97,-25.07],[28.92,-24.9],[28.68,-24.97],[28.63,-25.05],[28.36,-25.18],[28.39,-25.22],[28.61,-25.16],[28.66,-25.25],[28.37,-25.32],[28.13,-25.2],[28.09,-25.12],[28.2,-25.13],[28.22,-25.08],[28.1,-25.01],[27.62,-24.98],[27.52,-25.1],[27.17,-24.98],[27.02,-24.72],[26.75,-24.87],[26.44,-24.81],[26.4,-24.63],[26.53,-24.46],[26.84,-24.27],[26.97,-23.72],[27.13,-23.53],[27.35,-23.39],[27.55,-23.36],[27.61,-23.22],[27.75,-23.22],[27.77,-23.13],[27.93,-23.06],[27.94,-22.96],[28.3,-22.6],[28.91,-22.45],[29.04,-22.22],[29.25,-22.18]]],"North West":[[[26.33,-24.62],[26.4,-24.63],[26.44,-24.81],[26.73,-24.87],[27.02,-24.72],[27.17,-24.98],[27.52,-25.1],[27.62,-24.98],[28.1,-25.01],[28.22,-25.08],[28.08,-25.15],[28.29,-25.32],[28.05,-25.4],[27.97,-25.36],[28.05,-25.54],[27.98,-25.55],[27.92,-25.83],[27.73,-25.88],[27.64,-25.8],[27.53,-25.84],[27.46,-25.89],[27.39,-26.12],[27.29,-26.15],[27.32,-26.29],[27.19,-26.38],[27.23,-26.5],[27.16,-26.53],[27.24,-26.64],[27.35,-26.58],[27.41,-26.64],[27.57,-26.65],[27.61,-26.7],[27.48,-26.87],[27.31,-26.86],[27.18,-26.96],[26.93,-26.86],[26.92,-26.96],[26.86,-26.91],[26.63,-27.0],[26.58,-27.09],[26.41,-27.18],[26.49,-27.25],[26.45,-27.35],[26.51,-27.39],[26.25,-27.43],[26.06,-27.71],[25.82,-27.58],[25.5,-27.68],[25.27,-27.8],[25.07,-28.05],[24.94,-28.1],[24.82,-27.91],[25.03,-27.71],[24.79,-27.68],[24.76,-27.61],[24.67,-27.67],[24.69,-27.83],[24.52,-28.1],[24.36,-27.9],[24.44,-27.7],[24.11,-27.74],[24.12,-27.63],[24.03,-27.51],[24.08,-27.36],[23.89,-27.26],[24.01,-27.07],[23.99,-26.91],[23.49,-26.74],[23.58,-26.62],[23.27,-26.48],[23.28,-26.34],[23.22,-26.27],[23.3,-26.14],[23.22,-26.12],[23.23,-26.06],[23.35,-26.08],[23.37,-26.02],[23.1,-25.99],[23.06,-26.1],[22.92,-26.16],[22.82,-26.45],[22.7,-26.41],[22.71,-26.13],[22.62,-26.11],[22.72,-25.98],[22.84,-25.48],[23.01,-25.31],[23.46,-25.28],[23.92,-25.63],[24.18,-25.63],[24.34,-25.75],[24.66,-25.82],[25.05,-25.74],[25.39,-25.74],[25.59,-25.62],[25.84,-25.02],[25.87,-24.75],[26.33,-24.62]]],"Mpumalanga":[[[31.93,-24.28],[31.99,-24.5],[32.0,-25.64],[31.91,-25.81],[31.95,-25.96],[31.83,-25.98],[31.34,-25.74],[31.12,-25.91],[30.78,-26.47],[30.8,-26.81],[30.88,-26.77],[30.98,-27.04],[31.24,-27.23],[31.15,-27.32],[30.98,-27.35],[30.39,-27.27],[30.15,-27.38],[29.86,-27.38],[29.81,-27.46],[29.63,-27.51],[29.44,-27.25],[29.11,-27.15],[28.99,-27.0],[28.82,-27.04],[28.65,-26.96],[28.66,-27.01],[28.53,-27.06],[28.49,-26.97],[28.26,-26.89],[28.41,-26.76],[28.4,-26.66],[28.51,-26.61],[28.53,-26.5],[28.77,-26.52],[28.86,-26.4],[28.81,-26.31],[28.72,-26.34],[28.53,-26.22],[28.5,-26.08],[28.63,-25.97],[28.87,-26.0],[29.09,-25.5],[28.95,-25.6],[28.85,-25.5],[28.8,-25.54],[28.83,-25.69],[28.76,-25.71],[28.73,-25.63],[28.71,-25.68],[28.63,-25.53],[28.63,-25.33],[28.78,-25.23],[28.75,-25.11],[28.43,-25.22],[28.37,-25.22],[28.37,-25.17],[28.63,-25.05],[28.68,-24.97],[28.92,-24.9],[28.97,-25.07],[29.13,-25.11],[29.04,-25.14],[29.04,-25.27],[29.17,-25.3],[29.14,-25.39],[29.86,-25.37],[30.0,-25.33],[29.98,-25.09],[30.15,-25.11],[30.18,-24.86],[30.42,-24.85],[30.49,-24.95],[30.62,-24.86],[30.64,-24.74],[30.72,-24.7],[30.67,-24.62],[30.73,-24.58],[30.74,-24.46],[30.97,-24.53],[30.98,-24.58],[31.22,-24.56],[31.26,-24.51],[31.16,-24.38],[31.24,-24.37],[31.19,-24.31],[31.06,-24.32],[31.08,-24.08],[31.2,-24.04],[31.25,-24.1],[31.45,-24.02],[31.71,-24.05],[31.86,-23.96],[31.93,-24.28]]],"Western Cape":[[[23.64,-33.98],[23.39,-34.03],[23.41,-34.11],[23.06,-34.08],[23.0,-34.03],[23.03,-34.09],[22.94,-34.08],[22.73,-33.98],[22.77,-34.03],[22.58,-33.99],[22.19,-34.08],[22.11,-34.14],[22.13,-34.19],[21.95,-34.22],[21.89,-34.34],[21.75,-34.39],[21.54,-34.35],[21.31,-34.42],[20.91,-34.36],[20.81,-34.4],[20.84,-34.47],[20.48,-34.47],[20.0,-34.82],[19.86,-34.75],[19.64,-34.77],[19.4,-34.6],[19.3,-34.62],[19.36,-34.5],[19.29,-34.41],[19.12,-34.4],[19.09,-34.36],[19.14,-34.29],[18.82,-34.38],[18.86,-34.15],[18.8,-34.09],[18.48,-34.11],[18.44,-34.16],[18.49,-34.34],[18.45,-34.34],[18.31,-34.14],[18.37,-33.93],[18.49,-33.86],[18.43,-33.7],[18.28,-33.45],[17.95,-33.1],[18.13,-33.2],[18.02,-33.01],[17.9,-33.04],[17.84,-32.82],[17.97,-32.7],[18.12,-32.77],[18.3,-32.61],[18.35,-32.26],[18.28,-31.89],[18.2,-31.7],[17.77,-31.16],[17.82,-31.17],[17.97,-30.82],[18.25,-30.78],[18.41,-30.5],[18.56,-30.47],[18.74,-30.58],[18.94,-30.72],[18.9,-31.01],[19.07,-31.58],[19.03,-31.89],[19.26,-31.88],[19.33,-32.03],[19.48,-32.08],[19.49,-32.23],[19.43,-32.31],[19.47,-32.58],[19.59,-32.61],[19.61,-32.46],[19.92,-32.36],[20.17,-32.19],[20.21,-32.28],[20.08,-32.41],[20.1,-32.52],[20.19,-32.74],[20.42,-32.94],[20.71,-32.92],[20.87,-32.68],[21.12,-32.61],[21.19,-32.46],[21.55,-32.24],[21.97,-32.2],[22.1,-32.06],[22.09,-31.89],[22.29,-31.57],[22.61,-31.78],[23.03,-31.89],[23.07,-31.98],[23.4,-31.68],[23.7,-31.67],[23.86,-31.8],[24.02,-31.72],[24.15,-31.79],[24.13,-31.89],[24.18,-31.95],[24.09,-32.12],[23.89,-32.23],[23.76,-32.2],[23.6,-32.32],[23.33,-32.35],[23.24,-32.42],[23.28,-32.67],[23.37,-32.77],[23.11,-32.83],[23.07,-32.78],[22.74,-33.36],[23.26,-33.4],[23.56,-33.5],[23.62,-33.64],[23.37,-33.78],[23.69,-33.87],[23.64,-33.98]],[[37.66,-46.83],[37.9,-46.89],[37.81,-46.97],[37.62,-46.95],[37.58,-46.9],[37.66,-46.83]]],"Gauteng":[[[27.58,-26.74],[27.57,-26.65],[27.41,-26.64],[27.35,-26.58],[27.24,-26.64],[27.16,-26.53],[27.23,-26.5],[27.19,-26.38],[27.32,-26.29],[27.29,-26.15],[27.39,-26.12],[27.46,-25.89],[27.64,-25.8],[27.73,-25.88],[27.92,-25.83],[27.98,-25.55],[28.05,-25.54],[27.97,-25.36],[28.05,-25.4],[28.17,-25.33],[28.64,-25.26],[28.61,-25.16],[28.75,-25.11],[28.78,-25.23],[28.63,-25.33],[28.67,-25.66],[28.73,-25.63],[28.76,-25.71],[28.83,-25.69],[28.8,-25.54],[28.85,-25.5],[28.95,-25.6],[29.09,-25.5],[28.87,-26.0],[28.63,-25.97],[28.5,-26.13],[28.53,-26.22],[28.72,-26.34],[28.81,-26.31],[28.86,-26.4],[28.77,-26.52],[28.53,-26.5],[28.51,-26.61],[28.4,-26.66],[28.41,-26.76],[28.26,-26.89],[28.04,-26.82],[27.96,-26.67],[27.76,-26.78],[27.58,-26.74]]]};
+const GK={posts:10,creators:5};
+const CC={ZA:[25,-29],NG:[8,9.5],KE:[37.9,.2],ZW:[29.8,-19],BW:[24,-22.3],LS:[28.3,-29.6],GH:[-1,7.9],CM:[12.3,5.7],GB:[-1.5,52.5],US:[-98,39],UG:[32.3,1.4],TZ:[35,-6.3],AE:[54,24]};
+const CN={ZA:"South Africa",NG:"Nigeria",KE:"Kenya",ZW:"Zimbabwe",BW:"Botswana",LS:"Lesotho",GH:"Ghana",CM:"Cameroon",GB:"United Kingdom",US:"United States",UG:"Uganda",TZ:"Tanzania",AE:"UAE"};
+const FLOW=[["ZA","ZA",.38],["NG","NG",.30],["KE","KE",.12],["ZW","ZA",.04],["BW","ZA",.015],["LS","ZA",.01],["GB","ZA",.01],["GH","NG",.03],["CM","NG",.01],["GB","NG",.025],["US","NG",.02],["UG","KE",.02],["TZ","KE",.015],["AE","KE",.005]];
+const GPLAT=[["TikTok",9800,.78],["Instagram",6200,.64],["X",7400,.31],["Facebook",4100,.22],["YouTube",3300,.09],["Reddit",900,.14],["Threads",700,.06]].map(([n,t,l])=>({n,t,l,flows:FLOW.map(([f,m,w])=>({f,m,c:Math.round(t*l*w),cr:Math.max(1,Math.round(t*l*w/7))}))}));
+const PROV={"Gauteng":[3120,1480,412,"GP"],"Western Cape":[1640,720,233,"WC"],"KwaZulu-Natal":[1210,610,190,"KZN"],"Eastern Cape":[420,260,74,"EC"],"Limpopo":[190,120,41,"LP"],"Mpumalanga":[230,140,48,"MP"],"North West":[110,80,22,"NW"],"Free State":[160,90,31,"FS"],"Northern Cape":[7,4,3,"NC"]};
+const PUNK=[2960,1310];
+const GCOMM=[
+ ["Amapiano dance","ZA","Gauteng",1840,[28.05,-26.2]],["Spaza restock","ZA","Gauteng",640,[27.9,-26.25]],["Taxi-rank choir","ZA","KwaZulu-Natal",410,[31,-29.85]],["Braai content","ZA","Western Cape",920,[18.6,-33.95]],
+ ["Matric hustle","ZA","Eastern Cape",530,[26.5,-33.3]],["Springbok fans","ZA","Western Cape",2210,[18.45,-33.9]],["Load-shedding humour","ZA","Gauteng",1370,[28.2,-25.75]],["Thrift Joburg","ZA","Gauteng",380,[28.0,-26.1]],
+ ["Owambe and aso-ebi","NG","Lagos",1520,[3.4,6.5]],["Afrobeats covers","NG","Lagos",2050,[3.35,6.6]],["Abuja food spots","NG","FCT",460,[7.5,9.06]],["Owerri comedy","NG","Imo",690,[7.03,5.48]],
+ ["Matatu art","KE","Nairobi",520,[36.82,-1.29]],["Gengetone","KE","Nairobi",870,[36.9,-1.25]],["Mombasa food","KE","Mombasa",300,[39.67,-4.04]],["Eldoret running clubs","KE","Uasin Gishu",240,[35.27,.52]]
+].map(([n,m,where,mem,ll],i)=>({n,m,where,mem,ll,i}));
+const GREL=[[0,1],[0,6],[0,9],[1,7],[2,5],[3,5],[4,6],[6,13],[8,9],[9,11],[10,8],[12,13],[13,9],[14,15],[3,10],[5,15]];
+const GCF={"Amapiano dance":{"Gauteng":.42,"KwaZulu-Natal":.18,"Limpopo":.12},"Spaza restock":{"Gauteng":.2,"Limpopo":.1},"Taxi-rank choir":{"KwaZulu-Natal":.25,"Gauteng":.06},"Braai content":{"Western Cape":.3,"Free State":.08},"Springbok fans":{"Western Cape":.35,"Gauteng":.15,"Free State":.12},"Thrift Joburg":{"Gauteng":.3}};
+const PTOP={"Gauteng":["Load-shedding humour","Taxi fares","Amapiano drops"],"Western Cape":["Rugby","Braai","Water outages"],"KwaZulu-Natal":["Durban July","Taxi-rank choir","Beach weekends"],"Eastern Cape":["Matric results","Initiation season","Rugby"],"Limpopo":["Amapiano","Marula festival","Fuel prices"],"Mpumalanga":["Kruger trips","Mine jobs","Amapiano"],"North West":["Sun City","Fuel prices","Matric"],"Free State":["Cheetahs rugby","Farm life","Fuel prices"],"Northern Cape":["Withheld","",""]};
+const GL={tab:"plat",plats:new Set(GPLAT.map(p=>p.n)),za:{plat:"All",days:28,prec:"both",comm:"All",sel:null},cm:{mode:"lattice",sel:null}};
+const GLX=window.__globe={frames:0,ms:[]};
+let LAND=null;
+function landPts(){if(LAND)return LAND;const b=atob(LAND_B64),N=18000,out=[];
+  for(let i=0;i<N;i++)if(b.charCodeAt(i>>3)>>(i&7)&1){const y=1-2*(i+.5)/N,la=Math.asin(y),lo=(i*2.399963229728653)%(2*Math.PI);out.push([lo>Math.PI?lo-2*Math.PI:lo,la])}
+  return LAND=out.map(([lo,la])=>({lo,la,cl:Math.cos(la),sl:Math.sin(la)}))}
+const fmtC=c=>c<GK.posts?"fewer than 10":num(c);
+function zaCounts(){const f=GL.za,pf={All:1,TikTok:.46,Instagram:.31,X:.15,Facebook:.08}[f.plat],df={7:.27,14:.52,28:1}[f.days];
+  const out={};for(const [p,[t,nm,cr]] of Object.entries(PROV)){const cw=f.comm==="All"?1:((GCF[f.comm]||{})[p]??.02)*4;
+    const posts=Math.round((t+(f.prec==="both"?nm:0))*pf*df*cw),creators=Math.round(cr*pf*Math.sqrt(df)*Math.min(1,cw));out[p]={posts,creators,ok:posts>=GK.posts&&creators>=GK.creators,tagged:Math.round(t*pf*df*cw)}}
+  const unk=Math.round((PUNK[0]+(f.prec==="both"?PUNK[1]:0))*pf*df*(f.comm==="All"?1:.3));return{prov:out,unk}}
+function platTotals(){let tot=0,loc=0;const agg={};GPLAT.filter(p=>GL.plats.has(p.n)).forEach(p=>{tot+=p.t;loc+=Math.round(p.t*p.l);p.flows.forEach(f=>{const k=f.f+">"+f.m;agg[k]=agg[k]||{f:f.f,m:f.m,c:0,cr:0};agg[k].c+=f.c;agg[k].cr+=f.cr})});
+  return{tot,loc,flows:Object.values(agg).sort((a,b)=>b.c-a.c)}}
+
+function ring(p){const r=16,c=2*Math.PI*r,on=c*p;return `<svg class="uring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="${r}" class="ur0"/><circle cx="20" cy="20" r="${r}" class="ur1" stroke-dasharray="${on.toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 20 20)"/></svg>`}
+function vGlobes(){
+  const t=GL.tab;
+  const tabs=[["plat","Platforms"],["za","South Africa"],["cm","Communities"]].map(([k,n])=>`<button type="button" role="tab" id="gt-${k}" aria-selected="${t===k}" tabindex="${t===k?0:-1}" aria-controls="gpanel" data-gtab="${k}">${n}</button>`).join("");
+  return `<div class="col"><div class="herorow"><div class="hero solo"><span class="eyebrow">06 / Globes · sample data</span><h1 style="view-transition-name:hero-title">Where the posts come from.</h1><p class="serif wide">Every platform, every province and every community on a globe you can turn, with the same numbers in a list beside it.</p></div><p class="note">Sample data until the location service ships. The rules are already real: a place needs 10 posts and 5 creators to show, and posts with no province stay in their own count.</p></div>
+  <div class="gtabs" role="tablist" aria-label="Globes">${tabs}</div>
+  <div class="gwrap" id="gpanel" role="tabpanel" aria-labelledby="gt-${t}">${t==="plat"?gPlatSide():t==="za"?gZaSide():gCmSide()}</div></div>`}
+function stage(label){return `<div class="gstage frame"><canvas class="gcv" tabindex="0" role="img" aria-label="${label}. Drag or use the arrow keys to turn it; plus and minus zoom." data-cursor="Drag to turn"></canvas>
+  <div class="gzoom"><button type="button" data-gz="1" aria-label="Zoom in">+</button><button type="button" data-gz="-1" aria-label="Zoom out">−</button><button type="button" data-gz="0" aria-label="Reset view">↺</button></div><span class="ghint m" aria-hidden="true">Drag to turn · scroll to zoom</span></div>`}
+function gPlatSide(){const T=platTotals(),mx=T.flows[0]?.c||1;
+  return `${stage("Globe of where posts were made, by platform")}<aside class="gside">
+   <div class="gblock"><span class="eyebrow">Platforms · tap to toggle</span><div class="prail">${GPLAT.map(p=>`<button type="button" class="pchip" data-gplat="${p.n}" aria-pressed="${GL.plats.has(p.n)}">${ring(p.l)}<span class="pn"><b>${p.n}</b><span>${Math.round(p.l*100)}% located</span></span></button>`).join("")}</div></div>
+   <div class="gblock"><div class="gsum"><div><span class="k">Posts</span><span class="v">${roll(T.tot)}</span></div><div><span class="k">Located</span><span class="v">${roll(T.loc)}</span></div><div><span class="k">Unlocated</span><span class="v">${Math.round(100-100*T.loc/Math.max(1,T.tot))}%</span></div></div>
+    <p class="small">Unlocated posts carry no tag, no account country and no named place. 42 leaves them off the globe instead of guessing.</p></div>
+   <div class="gblock"><span class="eyebrow">Made in → collected for</span><ol class="glist">${T.flows.map(f=>`<li class="${f.c<GK.posts?"wh":""}"><span>${CN[f.f]}${f.f!==f.m?` <i aria-hidden="true">→</i> ${f.m}`:""}</span><span class="b" aria-hidden="true"><i style="--w:${(f.c/mx).toFixed(3)}"></i></span><span class="n">${fmtC(f.c)}</span></li>`).join("")}</ol></div></aside>`}
+function gZaSide(){const f=GL.za,C=zaCounts(),rows=Object.entries(C.prov).sort((a,b)=>b[1].posts-a[1].posts),sel=f.sel&&C.prov[f.sel];
+  const opt=(id,lab,vals,cur)=>`<label class="gsel"><span class="k">${lab}</span><select id="${id}">${vals.map(([v,t])=>`<option value="${v}"${String(v)===String(cur)?" selected":""}>${t}</option>`).join("")}</select></label>`;
+  return `${stage("Globe of South Africa with provinces raised by posts")}<aside class="gside">
+   <div class="gblock gfilters">${opt("zplat","Platform",[["All","All platforms"],["TikTok","TikTok"],["Instagram","Instagram"],["X","X"],["Facebook","Facebook"]],f.plat)}${opt("zdays","Period",[[7,"Last 7 days"],[14,"Last 14 days"],[28,"Last 28 days"]],f.days)}${opt("zcomm","Community",[["All","All communities"],...Object.keys(GCF).map(k=>[k,k])],f.comm)}
+    <div class="gseg" role="radiogroup" aria-label="Precision"><span class="k">Precision</span><div>${[["tag","Tagged only"],["both","Tagged + named"]].map(([v,t])=>`<label><input type="radio" name="zprec" value="${v}"${f.prec===v?" checked":""}><span>${t}</span></label>`).join("")}</div></div></div>
+   <div class="gblock"><button type="button" class="unk" data-unk aria-describedby="unkd"><b>In South Africa, province unknown</b><span class="n">${num(C.unk)}</span></button><p class="small" id="unkd">Kept as its own count. 42 never spreads these across provinces.</p></div>
+   <div class="gblock" id="zdetail" aria-live="polite">${sel?zDetail(f.sel,sel):`<p class="small">Choose a province on the globe or in the list to see its numbers.</p>`}</div>
+   <div class="gblock"><span class="eyebrow">Provinces</span><ol class="glist za">${rows.map(([p,v])=>`<li class="${v.ok?"":"wh"}${f.sel===p?" on":""}"><button type="button" data-prov="${p}" aria-pressed="${f.sel===p}">${p}</button><span class="n">${v.ok?num(v.posts):"withheld"}</span></li>`).join("")}</ol></div></aside>`}
+function zDetail(p,v){if(!v.ok)return `<span class="eyebrow">${p}</span><p class="small">Withheld: fewer than ${GK.posts} posts or ${GK.creators} creators in this view, so the count is not shown.</p>`;
+  const top=Object.entries(GCF).map(([k,w])=>[k,(w[p]||.02)]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
+  return `<span class="eyebrow">${p} · ${GL.za.days} days</span><div class="gsum"><div><span class="k">Posts</span><span class="v">${roll(v.posts)}</span></div><div><span class="k">Creators</span><span class="v">${roll(v.creators)}</span></div><div><span class="k">Tagged</span><span class="v">${Math.round(100*v.tagged/Math.max(1,v.posts))}%</span></div></div>
+   <dl class="gdl"><dt>Top communities</dt><dd>${top.join(", ")}</dd><dt>Top topics</dt><dd>${PTOP[p].filter(Boolean).join(", ")}</dd></dl><div class="actions"><button type="button" class="btn" data-gev>Open evidence</button></div>`}
+function gCmSide(){const c=GL.cm,s=c.sel!=null?GCOMM[c.sel]:null,mx=Math.max(...GCOMM.map(x=>x.mem));
+  return `${stage("Globe of communities and how they connect")}<aside class="gside">
+   <div class="gblock"><div class="gseg" role="radiogroup" aria-label="Layout"><span class="k">Layout</span><div>${[["lattice","By relation"],["map","On the map"]].map(([v,t])=>`<label><input type="radio" name="cmode" value="${v}"${c.mode===v?" checked":""}><span>${t}</span></label>`).join("")}</div></div>
+    <p class="small">${c.mode==="map"?"Each community sits where most of its members post from. Sample placement: the real one needs the location service.":"Communities placed by how they connect, not by place. Lines join communities that share creators."}</p></div>
+   <div class="gblock" id="cdetail" aria-live="polite">${s?`<span class="eyebrow">${s.m} · ${s.where}</span><h3>${s.n}</h3><div class="gsum"><div><span class="k">Creators</span><span class="v">${roll(s.mem)}</span></div><div><span class="k">Connected</span><span class="v">${GREL.filter(r=>r.includes(s.i)).length}</span></div></div><div class="chips">${GREL.filter(r=>r.includes(s.i)).map(r=>{const o=GCOMM[r[0]===s.i?r[1]:r[0]];return `<button type="button" class="chip" data-gcm="${o.i}">${o.n}</button>`}).join("")}</div>`:`<p class="small">Choose a community to fly to it.</p>`}</div>
+   <div class="gblock"><span class="eyebrow">Communities</span><ol class="glist">${[...GCOMM].sort((a,b)=>b.mem-a.mem).map(x=>`<li class="${c.sel===x.i?"on":""}"><button type="button" data-gcm="${x.i}" aria-pressed="${c.sel===x.i}">${x.n} <span class="m">${x.m}</span></button><span class="b" aria-hidden="true"><i style="--w:${(x.mem/mx).toFixed(3)}"></i></span><span class="n">${num(x.mem)}</span></li>`).join("")}</ol></div></aside>`}
+
+/* ---- engine ---- */
+const D2R=Math.PI/180;
+function globeEngine(cv,mode){
+  const ctx=cv.getContext("2d");let W=0,H=0,dpr=1,R=0,cx=0,cy=0,pal=readPal(),raf=0,last=0,vis=true;
+  const st={lon:mode==="za"?25:mode==="cm"?20:15,lat:mode==="za"?-29:mode==="cm"?0:8,z:mode==="za"?3.4:mode==="cm"?1.05:1,vl:0,va:0,idle:0,fly:null,t:0,hover:null};
+  const land=landPts();
+  const size=()=>{const b=cv.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);W=b.width;H=b.height;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)};
+  const P=(lon,lat,alt=0)=>{const l0=st.lon*D2R,p0=st.lat*D2R,la=lat*D2R,dl=lon*D2R-l0,cl=Math.cos(la),sl=Math.sin(la),cd=Math.cos(dl);
+    const x=cl*Math.sin(dl),y=Math.cos(p0)*sl-Math.sin(p0)*cl*cd,z=Math.sin(p0)*sl+Math.cos(p0)*cl*cd,k=1+alt;
+    return[cx+x*R*k,cy-y*R*k,z,z>0||(x*x+y*y)*k*k>1]};
+  const fly=(lon,lat,z)=>{let dl=((lon-st.lon+540)%360)-180;if(reduce){st.lon+=dl;st.lat=lat;st.z=z;kick();return}st.fly={a:{lon:st.lon,lat:st.lat,z:st.z},b:{lon:st.lon+dl,lat,z},t:0};kick()};
+  const dark=()=>document.documentElement.dataset.theme?document.documentElement.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
+  function base(){
+    const dk=dark(),sig=pal.sig;
+    // atmosphere: a soft red halo outside the rim
+    const g=ctx.createRadialGradient(cx,cy,R*.92,cx,cy,R*1.32);g.addColorStop(0,rgb(sig,dk?.34:.22));g.addColorStop(.35,rgb(sig,dk?.12:.07));g.addColorStop(1,rgb(sig,0));ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R*1.32,0,7);ctx.fill();
+    ctx.fillStyle=rgb(mix(pal.bg,pal.sig,dk?.06:.04));ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();
+    // fresnel rim inside the sphere
+    const f=ctx.createRadialGradient(cx-R*.25,cy-R*.3,R*.2,cx,cy,R);f.addColorStop(0,rgb(pal.ink,dk?.05:.0));f.addColorStop(.75,rgb(sig,0));f.addColorStop(1,rgb(sig,dk?.28:.18));ctx.fillStyle=f;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();
+    // dotted land
+    const l0=st.lon*D2R,p0=st.lat*D2R,cp=Math.cos(p0),sp=Math.sin(p0),ds=Math.max(1.1,Math.min(2.6,R/170))*(mode==="za"?1.25:1);
+    const buckets=[[],[],[],[]];
+    for(const d of land){const dl=d.lo-l0,cd=Math.cos(dl),z=sp*d.sl+cp*d.cl*cd;if(z<=0)continue;const x=d.cl*Math.sin(dl),y=cp*d.sl-sp*d.cl*cd,sx=cx+x*R,sy=cy-y*R;if(sx<-4||sx>W+4||sy<-4||sy>H+4)continue;buckets[Math.min(3,(z*4)|0)].push(sx,sy)}
+    buckets.forEach((b,i)=>{ctx.fillStyle=rgb(pal.ink,(dk?.16:.22)+i*(dk?.1:.11));ctx.beginPath();for(let j=0;j<b.length;j+=2)ctx.rect(b[j]-ds/2,b[j+1]-ds/2,ds,ds);ctx.fill()});
+  }
+  function arc(a,b,h,t0,live){const pts=[];const A=[Math.cos(a[1]*D2R)*Math.cos(a[0]*D2R),Math.sin(a[1]*D2R),Math.cos(a[1]*D2R)*Math.sin(a[0]*D2R)],B=[Math.cos(b[1]*D2R)*Math.cos(b[0]*D2R),Math.sin(b[1]*D2R),Math.cos(b[1]*D2R)*Math.sin(b[0]*D2R)];
+    const om=Math.acos(Math.max(-1,Math.min(1,A[0]*B[0]+A[1]*B[1]+A[2]*B[2])))||1e-6,so=Math.sin(om);
+    for(let i=0;i<=40;i++){const u=i/40,ka=Math.sin((1-u)*om)/so,kb=Math.sin(u*om)/so,v=[A[0]*ka+B[0]*kb,A[1]*ka+B[1]*kb,A[2]*ka+B[2]*kb];
+      const lat=Math.asin(v[1])/D2R,lon=Math.atan2(v[2],v[0])/D2R;pts.push(P(lon,lat,h*Math.sin(Math.PI*u)*Math.min(1,om*1.4)))}
+    ctx.strokeStyle=rgb(pal.sig,.55);ctx.lineWidth=1.2;ctx.beginPath();let on=false;for(const q of pts){if(q[3]){on?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);on=true}else on=false}ctx.stroke();
+    if(live){for(let j=0;j<3;j++){const u=((st.t*.00028+t0+j/3)%1),q=pts[Math.round(u*40)];if(!q[3])continue;const g=ctx.createRadialGradient(q[0],q[1],0,q[0],q[1],6);g.addColorStop(0,rgb([255,236,200],.95));g.addColorStop(.4,rgb(pal.sig,.7));g.addColorStop(1,rgb(pal.sig,0));ctx.fillStyle=g;ctx.beginPath();ctx.arc(q[0],q[1],6,0,7);ctx.fill()}}}
+  function spike(ll,h,w,hot){const a=P(ll[0],ll[1],0),b=P(ll[0],ll[1],h);if(!a[3]&&!b[3])return;const g=ctx.createLinearGradient(a[0],a[1],b[0],b[1]);g.addColorStop(0,rgb(pal.sig,.95));g.addColorStop(1,rgb(hot?[255,200,120]:pal.sig,hot?.95:.35));
+    ctx.strokeStyle=g;ctx.lineWidth=w;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();ctx.lineCap="butt";
+    const c=ctx.createRadialGradient(b[0],b[1],0,b[0],b[1],w*2.4);c.addColorStop(0,rgb([255,230,200],.9));c.addColorStop(1,rgb(pal.sig,0));ctx.fillStyle=c;ctx.beginPath();ctx.arc(b[0],b[1],w*2.4,0,7);ctx.fill()}
+  function label(x,y,s,c,al="left"){ctx.font=`500 11px ${pal.font}`;ctx.textAlign=al;ctx.textBaseline="middle";ctx.lineWidth=4;ctx.lineJoin="round";ctx.strokeStyle=rgb(pal.bg,.9);ctx.strokeText(s,x,y);ctx.fillStyle=c;ctx.fillText(s,x,y)}
+  /* layers */
+  const hits=[];
+  function layPlat(){const T=platTotals(),mx=Math.max(1,...T.flows.map(f=>f.c)),orig={};
+    T.flows.forEach(f=>{if(f.c<GK.posts||f.cr<GK.creators)return;orig[f.f]=(orig[f.f]||0)+f.c;if(f.f!==f.m)arc(CC[f.f],CC[f.m],.28,(f.c%97)/97,!reduce)});
+    const om=Math.max(1,...Object.values(orig));
+    Object.entries(orig).sort((a,b)=>P(...CC[a[0]])[2]-P(...CC[b[0]])[2]).forEach(([k,c])=>{const h=.04+.34*Math.sqrt(c/om);spike(CC[k],h,Math.max(2.5,R/90),k===st.hover);const q=P(CC[k][0],CC[k][1],h);if(q[3]&&q[2]>-.2){label(q[0]+8,q[1],`${k} ${num(c)}`,rgb(pal.ink,.95));hits.push({x:q[0],y:q[1],r:14,k})}})}
+  function layZa(){const C=zaCounts(),mx=Math.max(1,...Object.values(C.prov).map(v=>v.ok?v.posts:0)),order=Object.keys(ZAPROV).map(p=>{let sx=0,sy=0,n=0;ZAPROV[p][0].forEach(q=>{sx+=q[0];sy+=q[1];n++});return{p,c:[sx/n,sy/n]}}).sort((a,b)=>P(...a.c)[2]-P(...b.c)[2]);
+    for(const {p,c} of order){const v=C.prov[p],h=v.ok?.004+.07*Math.sqrt(v.posts/mx):.002,sel=GL.za.sel===p,hov=st.hover===p,it=v.ok?Math.sqrt(v.posts/mx):0;
+      for(const rg of ZAPROV[p]){const bs=rg.map(q=>P(q[0],q[1],0)),tp=rg.map(q=>P(q[0],q[1],h));
+        // walls
+        ctx.fillStyle=rgb(mix(pal.panel,pal.sig,.25+.45*it));ctx.strokeStyle=rgb(pal.sig,.25);ctx.lineWidth=.6;
+        for(let i=0;i<rg.length-1;i++){const a=bs[i],b=bs[i+1],c2=tp[i+1],d=tp[i];if(!(a[3]&&b[3]))continue;if((b[0]-a[0])*(d[1]-a[1])-(b[1]-a[1])*(d[0]-a[0])>0)continue;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(c2[0],c2[1]);ctx.lineTo(d[0],d[1]);ctx.closePath();ctx.fill()}
+        const path=new Path2D();tp.forEach((q,i)=>i?path.lineTo(q[0],q[1]):path.moveTo(q[0],q[1]));path.closePath();
+        ctx.fillStyle=v.ok?rgb(mix(pal.panel,pal.sig,.18+.72*it)):rgb(pal.panel,.9);if(sel||hov){ctx.shadowBlur=24;ctx.shadowColor=rgb(pal.sig,.9)}ctx.fill(path);ctx.shadowBlur=0;
+        if(!v.ok){ctx.save();ctx.clip(path);ctx.strokeStyle=rgb(pal.hatch,.8);ctx.lineWidth=1;ctx.beginPath();for(let o=-W;o<W;o+=7){ctx.moveTo(o,0);ctx.lineTo(o+H,H)}ctx.stroke();ctx.restore()}
+        ctx.strokeStyle=sel?rgb([255,214,170]):rgb(pal.ink,.55);ctx.lineWidth=sel?2:1;ctx.stroke(path);
+        hits.push({path,k:p})}
+      const q=P(c[0],c[1],h);if(q[3])label(q[0],q[1],`${PROV[p][3]} ${v.ok?num(v.posts):"<10"}`,sel?rgb(pal.sig):rgb(pal.ink),"center")}}
+  function layCm(){const c=GL.cm,mx=Math.max(...GCOMM.map(x=>x.mem)),N=GCOMM.length,mt=st.morph;
+    const pos=GCOMM.map((x,i)=>{const y=1-2*(i+.5)/N,r=Math.sqrt(1-y*y),ph=i*2.399963,lat0=Math.asin(y)/D2R*.8,lon0=Math.atan2(Math.sin(ph)*r,Math.cos(ph)*r)/D2R;
+      const a=[lon0,lat0],b=x.ll;return[a[0]+(((b[0]-a[0]+540)%360)-180)*mt,a[1]+(b[1]-a[1])*mt]});
+    GREL.forEach(([i,j],k)=>arc(pos[i],pos[j],.18*(1-mt*.6),k/GREL.length,!reduce));
+    const o=GCOMM.map((x,i)=>({x,q:P(pos[i][0],pos[i][1],.02)})).sort((a,b)=>a.q[2]-b.q[2]);
+    for(const {x,q} of o){if(!q[3])continue;const r=3+11*Math.sqrt(x.mem/mx),sel=c.sel===x.i,hov=st.hover===x.i,dz=.35+.65*Math.max(0,q[2]);
+      if(sel||hov){const g=ctx.createRadialGradient(q[0],q[1],0,q[0],q[1],r*4.5);g.addColorStop(0,rgb(pal.sig,.75));g.addColorStop(1,rgb(pal.sig,0));ctx.fillStyle=g;ctx.beginPath();ctx.arc(q[0],q[1],r*4.5,0,7);ctx.fill()}
+      if(!reduce){const ph=((st.t/1600)+x.i*.13)%1;ctx.strokeStyle=rgb(pal.sig,(1-ph)*.5*dz);ctx.lineWidth=1;ctx.beginPath();ctx.arc(q[0],q[1],r+ph*r*2.2,0,7);ctx.stroke()}
+      ctx.fillStyle=sel?rgb([255,226,196]):rgb(mix(pal.ink,pal.sig,.25),dz);ctx.beginPath();ctx.arc(q[0],q[1],r,0,7);ctx.fill();ctx.strokeStyle=rgb(pal.sig,sel?1:.6*dz);ctx.lineWidth=sel?2:1;ctx.stroke();
+      if(q[2]>.25||sel)label(q[0]+r+6,q[1],x.n,sel?rgb(pal.sig):rgb(pal.ink,dz));hits.push({x:q[0],y:q[1],r:r+8,k:x.i})}}
+  st.morph=GL.cm.mode==="map"?1:0;st.mt=st.morph;
+  function draw(now){
+    const d0=performance.now(),dt=Math.min(.05,(now-(last||now))/1000);last=now;st.t=reduce?0:now;
+    if(!cv.isConnected){raf=0;return}
+    // motion: flight, inertia, idle spin
+    if(st.fly){st.fly.t=Math.min(1,st.fly.t+dt/1.15);const e=st.fly.t<.5?4*st.fly.t**3:1-Math.pow(-2*st.fly.t+2,3)/2,a=st.fly.a,b=st.fly.b;st.lon=a.lon+(b.lon-a.lon)*e;st.lat=a.lat+(b.lat-a.lat)*e;st.z=a.z+(b.z-a.z)*e;if(st.fly.t>=1)st.fly=null}
+    else if(!st.drag){st.lon+=st.vl*dt;st.lat=Math.max(-75,Math.min(75,st.lat+st.va*dt));st.vl*=Math.pow(.04,dt);st.va*=Math.pow(.04,dt);st.idle+=dt;if(!reduce&&st.idle>2.5&&mode!=="za")st.lon+=dt*5}
+    const mt=GL.cm.mode==="map"?1:0;st.morph+=(mt-st.morph)*(reduce?1:Math.min(1,dt*2.4));
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);R=Math.min(W,H)*.4*st.z;cx=W/2;cy=H/2;hits.length=0;
+    base();if(mode==="plat")layPlat();else if(mode==="za")layZa();else layCm();
+    GLX.frames++;GLX.ms.push(performance.now()-d0);if(GLX.ms.length>240)GLX.ms.shift();
+    const moving=st.fly||st.drag||Math.abs(st.vl)>.05||Math.abs(st.va)>.05||Math.abs(st.morph-mt)>.001;
+    raf=vis&&!document.hidden&&(moving||(!reduce&&mode!=="za"))?requestAnimationFrame(draw):0;if(!raf)last=0;
+  }
+  const kick=()=>{if(!raf&&cv.isConnected){last=0;raf=requestAnimationFrame(draw)}};
+  // pointer: drag to turn, wheel and pinch to zoom, tap to pick
+  const pts=new Map();let downAt=null,pd0=0,z0=1;
+  const pick=(x,y)=>{for(let i=hits.length-1;i>=0;i--){const h=hits[i];if(h.path?(ctx.setTransform(dpr,0,0,dpr,0,0),ctx.isPointInPath(h.path,x*dpr,y*dpr)):Math.hypot(h.x-x,h.y-y)<h.r)return h.k}return null};
+  cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY]);downAt=[e.clientX,e.clientY,performance.now()];st.drag=true;st.fly=null;st.idle=0;if(pts.size===2){const [a,b]=[...pts.values()];pd0=Math.hypot(a[0]-b[0],a[1]-b[1]);z0=st.z}kick()});
+  cv.addEventListener("pointermove",e=>{const b=cv.getBoundingClientRect();if(!pts.has(e.pointerId)){const k=pick(e.clientX-b.left,e.clientY-b.top);if(k!==st.hover){st.hover=k;cv.style.cursor=k!=null?"pointer":"grab";kick()}return}
+    const p=pts.get(e.pointerId),dx=e.clientX-p[0],dy=e.clientY-p[1];pts.set(e.pointerId,[e.clientX,e.clientY]);
+    if(pts.size===2){const [a,c]=[...pts.values()];st.z=Math.max(.8,Math.min(6,z0*Math.hypot(a[0]-c[0],a[1]-c[1])/Math.max(1,pd0)));kick();return}
+    const k=57/R;st.lon-=dx*k;st.lat=Math.max(-75,Math.min(75,st.lat+dy*k));st.vl=-dx*k*60;st.va=dy*k*60;kick()});
+  const up=e=>{pts.delete(e.pointerId);if(pts.size)return;st.drag=false;st.idle=0;
+    if(downAt&&Math.hypot(e.clientX-downAt[0],e.clientY-downAt[1])<6&&performance.now()-downAt[2]<500){const b=cv.getBoundingClientRect();const k=pick(e.clientX-b.left,e.clientY-b.top);st.vl=st.va=0;if(k!=null)ctl.onpick&&ctl.onpick(k)}
+    downAt=null;kick()};
+  cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
+  cv.addEventListener("wheel",e=>{e.preventDefault();st.fly=null;st.z=Math.max(.8,Math.min(6,st.z*Math.exp(-e.deltaY*.0015)));st.idle=0;kick()},{passive:false});
+  cv.addEventListener("keydown",e=>{const m={ArrowLeft:[-10,0],ArrowRight:[10,0],ArrowUp:[0,8],ArrowDown:[0,-8]}[e.key];if(m){e.preventDefault();fly(st.lon+m[0],Math.max(-75,Math.min(75,st.lat+m[1])),st.z)}
+    else if(e.key==="+"||e.key==="="){e.preventDefault();fly(st.lon,st.lat,Math.min(6,st.z*1.3))}else if(e.key==="-"){e.preventDefault();fly(st.lon,st.lat,Math.max(.8,st.z/1.3))}});
+  const io=new IntersectionObserver(es=>{vis=es[es.length-1].isIntersecting;if(vis)kick()});io.observe(cv);
+  const ro=new ResizeObserver(()=>{if(!cv.isConnected){ro.disconnect();io.disconnect();insts.delete(inst);return}size();kick()});ro.observe(cv);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)kick()});
+  const inst={cv,redraw(){pal=readPal();kick()}};insts.add(inst);
+  size();
+  const home={plat:[15,8,1],za:[25,-29,3.4],cm:[20,0,1.05]};
+  const ctl={fly,kick,st,home:()=>{const h=GL.cm.mode==="map"&&mode==="cm"?[22,-6,1.7]:home[mode];fly(...h)},zoom:d=>fly(st.lon,st.lat,Math.max(.8,Math.min(6,st.z*(d>0?1.35:1/1.35)))),onpick:null};
+  kick();return ctl;
+}
+let GENG=null;
+function mountGlobes(root){const cv=root.querySelector("canvas.gcv");if(!cv)return;const mode=GL.tab;const g=GENG=globeEngine(cv,mode);
+  if(mode==="za"){g.onpick=k=>{GL.za.sel=k;gRefresh()};if(GL.za.sel){}}
+  if(mode==="cm"){g.onpick=k=>gPickCm(k);if(GL.cm.mode==="map"){g.st.lon=22;g.st.lat=-6;g.st.z=1.7}if(GL.cm.sel!=null){const x=GCOMM[GL.cm.sel],ll=GL.cm.mode==="map"?x.ll:null;if(ll){g.st.lon=ll[0];g.st.lat=ll[1]}}}
+  if(mode==="plat")g.onpick=k=>toast(`${CN[k]}: ${num(platTotals().flows.filter(f=>f.f===k).reduce((a,f)=>a+f.c,0))} located posts made here`);
+  root.querySelectorAll("[data-gz]").forEach(b=>b.onclick=()=>{const d=+b.dataset.gz;d?g.zoom(d):g.home()});
+}
+function gPickCm(i){GL.cm.sel=i;const x=GCOMM[i];gRefresh(true);
+  if(GENG){if(GL.cm.mode==="map")GENG.fly(x.ll[0],x.ll[1],2.6);else{const N=GCOMM.length,y=1-2*(i+.5)/N,r=Math.sqrt(1-y*y),ph=i*2.399963;GENG.fly(Math.atan2(Math.sin(ph)*r,Math.cos(ph)*r)/D2R,Math.asin(y)/D2R*.8,1.25)}}}
+// Re-render only the side panel so the globe keeps turning; the canvas reads GL on every frame.
+function gRefresh(keepView){const side=$(".gside");if(!side)return;const tmp=document.createElement("div");tmp.innerHTML=GL.tab==="plat"?gPlatSide():GL.tab==="za"?gZaSide():gCmSide();
+  const ns=tmp.querySelector(".gside");side.replaceWith(ns);bindGlobes($("#main"),true);countUp(ns);fixRag(ns);GENG&&GENG.kick()}
+function bindGlobes(root,sideOnly){
+  if(!sideOnly){const tabs=[...root.querySelectorAll("[data-gtab]")];
+    tabs.forEach((t,i)=>{t.onclick=()=>{if(GL.tab===t.dataset.gtab)return;GL.tab=t.dataset.gtab;const pre=build();swap(()=>{render(pre);$("#gt-"+GL.tab).focus({preventScroll:true})})};
+      t.onkeydown=e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();tabs[(i+(e.key==="ArrowRight"?1:tabs.length-1))%tabs.length].click()}}})}
+  root.querySelectorAll("[data-gplat]").forEach(b=>b.onclick=()=>{const n=b.dataset.gplat;if(GL.plats.has(n)){if(GL.plats.size>1)GL.plats.delete(n)}else GL.plats.add(n);gRefresh()});
+  const zs=(id,k,cast)=>{const e=$("#"+id,root);if(e)e.onchange=()=>{GL.za[k]=cast?cast(e.value):e.value;gRefresh()}};zs("zplat","plat");zs("zdays","days",Number);zs("zcomm","comm");
+  root.querySelectorAll("input[name=zprec]").forEach(r=>r.onchange=()=>{GL.za.prec=r.value;gRefresh()});
+  root.querySelectorAll("[data-prov]").forEach(b=>b.onclick=()=>{GL.za.sel=b.dataset.prov;gRefresh();const c=ZAPROV[b.dataset.prov][0];let sx=0,sy=0;c.forEach(q=>{sx+=q[0];sy+=q[1]});GENG&&GENG.fly(sx/c.length,sy/c.length,4.6)});
+  root.querySelectorAll("[data-unk]").forEach(b=>b.onclick=()=>toast("These posts are in South Africa but carry no province. They are never spread across provinces"));
+  root.querySelectorAll("[data-gev]").forEach(b=>b.onclick=()=>toast("In 42 this opens the province's posts in the evidence view"));
+  root.querySelectorAll("input[name=cmode]").forEach(r=>r.onchange=()=>{GL.cm.mode=r.value;gRefresh();GENG&&GENG.home()});
+  root.querySelectorAll("[data-gcm]").forEach(b=>b.onclick=()=>gPickCm(+b.dataset.gcm));
 }
 
 function vCompare(){
@@ -1758,8 +2147,9 @@ function bind(root){
   const f=$("#askf",root);if(f){const q=$("#q",f);
     const fit=()=>{if(!CSS.supports("field-sizing","content")){q.style.height="auto";q.style.height=q.scrollHeight+"px"}};fit();q.oninput=fit;
     q.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();f.requestSubmit()}};
-    f.onsubmit=e=>{e.preventDefault();S.asked=true;S.deepDone=false;const pre=build();swap(()=>{render(pre);(S.askMode==="item"?runAsk:runDeep)()})}}
+    f.onsubmit=e=>{e.preventDefault();S.asked=true;S.deepDone=false;S.okPast=false;const pre=build();swap(()=>{render(pre);(S.askMode==="item"?runAsk:runDeep)()})}}
   bindDeep(root);
+  bindGlobes(root);
   const ap=$("#approve",root);
   if(ap){const boxes=[...root.querySelectorAll('.drow input[type=checkbox]')];
     const upd=()=>{const open=boxes.filter(b=>!b.checked).length;ap.disabled=open>0;ap.textContent=open?`Approve · ${open} tick${open>1?"s":""} needed`:"Approve version";if(!open)$("#apmsg").textContent=""};
@@ -1872,7 +2262,7 @@ mq.addEventListener("change",()=>{if(!mq.matches){show(false);setTarget("",null)
 function palette(){
   if($(".pal"))return;
   const opener=document.activeElement;
-  const cmds=[["Go to Today","today","01"],["Ask a question","ask","02"],["Compare markets","compare","03"],["Open dossier","dossier","04"],["See the three directions","concepts","05"]];
+  const cmds=[["Go to Today","today","01"],["Ask a question","ask","02"],["Compare markets","compare","03"],["Open dossier","dossier","04"],["See the three directions","concepts","05"],["Open the globes","globes","06"]];
   const w=document.createElement("div");w.className="pal";w.innerHTML=`<div class="box" role="dialog" aria-modal="true" aria-label="Commands"><label for="palq" class="sr">Command</label><input id="palq" placeholder="Type a command" autocomplete="off"><div id="pall"></div><div class="hint" aria-hidden="true">↑↓ move · Enter open · Esc close</div></div>`;
   document.body.appendChild(w);
   const list=$("#pall",w),inp=$("#palq",w);
