@@ -12,8 +12,9 @@ Supporting material, all in this folder:
 | 4. Experiments with baselines and go/no-go | section 3 below |
 | 5. Visual concepts and working prototype | the published prototype (link in the thread) and `prototype/gamma-prototype.html` |
 | 6. Delivery plan | section 4 below |
+| 7. Deep Ask (added 16 Oct at Albert's request) | [ASK-REVAMP.md](ASK-REVAMP.md): live pulls of thousands of posts, figures checked against their source, charts and proof; slice G8, experiment E8, decisions D5 and D6 |
 
-**What Albert needs to do now: nothing.** Gamma waits for Beta. The four decisions Gamma will eventually need are listed in section 5, each with a recommendation, and none is due before Beta is live and accepted.
+**What Albert needs to do now: nothing.** Gamma waits for Beta. The six decisions Gamma will eventually need are listed in section 5, each with a recommendation, and none is due before Beta is live and accepted.
 
 ---
 
@@ -102,6 +103,7 @@ Gamma ships slices G0 to G4 and G7, plus G2 if its backtest passes. G5 and G6 ru
 | G4 One gate, the Watching day, the item page | Server gate result used by every screen; Today's zero day becomes Watching (distance to bar, missing evidence, next check); one item page (finding, record, specimens, lineage when E4 passes, "N analogues so far"); one figure component that always prints window and basis; warm-up guard on states and charts; fonts no longer block first paint (`main.jsx:43`); one market control; save to dossier from any card | Gamma thread (product experience) | G3 API; E7 result | none | Playwright journeys desktop and mobile, keyboard-only and reduced motion; throttled phone profile (150 ms, 1.6 Mbps, CPU 4x) largest contentful paint at or under 3.0 s against 6.9 to 8.0 s measured on 16 Oct; no target under 24 px anywhere and primary controls at the repo's 44 px; zero text and non-text contrast failures in both themes, including the not-collected hatch; empty, partial and failed states each covered by a test |
 | G5 Lasting or spike (shadow, then shown on go) | E2 and E3 scored weekly in shadow; verdict shown only after a go | Gamma thread | G3; label maturity (first read early December) | none | E2 go criteria met and reported per market, or a documented no-go with the record shipped alone |
 | G6 Lineage and analogues (shadow) | E4 transition log and E5 analogue scoring | Gamma thread | Beta matcher live plus 14 days; E4 human labels | none | E4 and E5 go or no-go reports; nothing shown without a go |
+| G8 Deep Ask | Live retrieval through SocialCrawl, figure records checked against their source sentence, account-level social shares with intervals, a `charts[]` reply field, the answer and Proof screens (ASK-REVAMP.md) | Gamma thread, building on the near-term fix from the Ask depth thread | Beta accepted and its Ask lanes closed; D5, D6; E8 passes | per question: Quick under £0.25, Standard about £0.50 to £1, Deep about £1 to £4.50, within the D5 allowance | E8 bars met; every current Ask honesty test passes; Playwright journeys for the run, answer and Proof states on desktop and phone |
 | G7 Release | Rebase on Beta's final accepted source; full suite on the exact candidate; independent review; release packet; Albert's release approval; deploy; live readiness and one real data cycle checked; menu version and What's new describe only what shipped | Gamma thread; reviewer; Albert approves | Beta live and accepted; G0 to G4 | normal deploy | exact revision and image digest serving, smoke checks, one morning cycle inspected, pending items listed as undeployed |
 
 ### 4.2 Order and what can start now
@@ -135,5 +137,8 @@ Cross-platform diffusion after id de-duplication across routes and the tests are
 | D2 | Switch on statistical tests for the series that pass the existing backtest gate | After G2, from about early November | Yes for passing series only; failing series stay `none` with the reason shown |
 | D3 | Storage release for the clean-wave views | Before G3 merges | Yes, additive views only, with old and new readers rehearsed and a rollback target |
 | D4 | Five strategists for the 30-minute E7 prototype test (two of them can also label E4 transitions) | Any time before G4; the earlier, the earlier E7 runs | Yes; it is the only usefulness evidence the plan has before release |
+
+| D5 | A monthly SocialCrawl allowance for live Ask retrieval (ASK-REVAMP.md section 3) | Before G8 build | Yes, start at 7,500 credits a month (about £18), then review from real cost per question |
+| D6 | Whether Ask may report published election poll figures; today's answering instruction bans election claims | Before G8 build | Yes for published polls with source and method shown; keep the ban on persuasion, prediction and vote claims drawn from social posts |
 
 Gamma's own release approval comes separately at G7.

@@ -71,6 +71,7 @@ button{background:none;border:0;cursor:pointer;padding:0}
 .serif{font-family:var(--serif);font-weight:400;font-size:clamp(1.375rem,2.1vw,1.75rem);line-height:1.28;letter-spacing:-.005em;color:var(--ink-2);max-width:min(44ch,100%)}
 .small{font-size:13px;line-height:1.45;color:var(--ink-2)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+table.sr{display:block}
 
 /* Press, hover, selected, focus: four distinct states (spec 3) */
 button,a,[role=tab],.card{transition:transform 80ms var(--e-out),background-color var(--t-fast) var(--e-out),color var(--t-fast) var(--e-out),border-color var(--t-fast) var(--e-out),box-shadow 160ms var(--e-out)}
@@ -712,6 +713,205 @@ html.rx-live .rxglow{opacity:var(--rx-op,1)}
   .issue,.ghost,.gaps{padding:16px}
 }
 @media (forced-colors:active){.tc .bar,.meter i.f::after,.clock i.f::after,.key .kp{background:CanvasText}.frame::before{display:none}}
+
+/* ===================== v5 Deep Ask: live fan-out, figures, proof ===================== */
+.hero .serif.wide{max-width:min(60ch,100%)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font:400 13px/1.3 var(--ui);border:1px solid var(--line-2);padding:8px 12px;min-height:40px;color:var(--ink-2);background:var(--panel);text-align:left;transition:border-color var(--t-fast),color var(--t-fast),background-color var(--t-fast)}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip:active{background:var(--bg-2)}
+.chip[aria-pressed="true"]{border-color:var(--signal);color:var(--ink);box-shadow:inset 3px 0 0 var(--signal-fill)}
+.dset{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px 24px;align-items:stretch}
+.depth{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));position:relative;border:1px solid var(--edge);background:var(--panel)}
+.depth input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.depth label{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:12px 16px;cursor:pointer;border-left:1px solid var(--line);min-height:72px}
+.depth label:first-of-type{border-left:0}
+.depth label b{font:500 15px var(--ui)}
+.depth label span{font:400 12px var(--mono);color:var(--ink-3)}
+.depth input:checked+label span{color:var(--ink-2)}
+.depth input:focus-visible+label{outline:2px solid var(--signal);outline-offset:-5px}
+.depth .dthumb{position:absolute;z-index:0;top:-1px;bottom:-1px;left:-1px;width:calc((100% + 2px) / 3);border:1px solid var(--signal);background:color-mix(in srgb,var(--signal) 9%,var(--panel));transform:translateX(calc(var(--k,2) * 100%));transition:transform 460ms var(--e-out)}
+.depth .dthumb::after{content:"";position:absolute;left:0;right:0;top:-1px;height:3px;background:var(--signal-fill)}
+.est{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--line);background:var(--panel)}
+.est>div{padding:12px 16px;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;gap:6px;min-width:0}
+.est>div:first-child{border-left:0}
+.est .v{font:500 1.375rem/1 var(--mono);letter-spacing:-.02em;white-space:nowrap}
+.est .k{font:500 11px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+
+.dr{display:flex;flex-direction:column;gap:24px}
+.drtop{border:1px solid var(--line);background:var(--panel);min-height:236px;display:flex;flex-direction:column;view-transition-name:drtop}
+.runbar{display:flex;flex-direction:column;flex:1}
+.phases{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-bottom:1px solid var(--line)}
+.phases span{padding:12px 16px;font:500 11px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);border-left:1px solid var(--line);position:relative;transition:color var(--t-fast)}
+.phases span:first-child{border-left:0}
+.phases span b{font-weight:500;margin-right:6px}
+.phases span.on{color:var(--ink)}.phases span.on b{color:var(--signal)}
+.phases span.ok{color:var(--ink-2)}
+.phases span::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--signal-fill);transform-origin:left;transform:scaleX(var(--p,0))}
+.now{display:flex;justify-content:space-between;gap:12px 24px;align-items:center;padding:20px 24px 12px;flex-wrap:wrap}
+.now .t{font:400 14px/1.5 var(--mono);color:var(--ink-2);min-width:0;flex:1 1 320px}
+.now .t b{color:var(--signal);font-weight:500;margin-right:8px;text-transform:uppercase;letter-spacing:.06em;font-size:12px}
+.now .ctl{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.livec{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid var(--line);margin-top:auto}
+.livec>div{padding:12px 24px;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:4px;min-width:0}
+.livec>div:first-child{border-left:0}
+.livec .v{font:500 1.75rem/1 var(--mono);letter-spacing:-.03em}
+.livec .k{font:500 11px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.subq{display:flex;gap:8px;flex-wrap:wrap;padding:0 24px 16px}
+.subq span{font:400 12px var(--mono);color:var(--ink-3);border:1px solid var(--line);padding:4px 8px;transition:color var(--t-fast),border-color var(--t-fast)}
+.subq span.hot{color:var(--ink);border-color:var(--signal)}
+
+.dverdict{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:16px 48px;padding:24px;align-items:end;flex:1}
+.dverdict .vl{display:flex;flex-direction:column;gap:12px;min-width:0}
+.dverdict .vs{font:400 clamp(1.75rem,3.1vw,2.625rem)/1.12 var(--serif);letter-spacing:-.01em;margin:0;max-width:34ch;text-wrap:balance;color:var(--ink)}
+.dverdict .vsub{margin:0;max-width:62ch;color:var(--ink-2)}
+.dverdict .big{display:flex;flex-direction:column;gap:8px;border-left:1px solid var(--line);padding-left:24px}
+.dverdict .big .n{font:500 clamp(3.5rem,6vw,5rem)/.9 var(--mono);letter-spacing:-.05em;color:var(--signal)}
+.dverdict .big .n small{font-size:.45em;letter-spacing:0}
+.nw{white-space:nowrap}
+.dverdict .big .s{font:400 12px/1.4 var(--mono);color:var(--ink-3)}
+.badges{display:flex;gap:8px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;gap:8px;font:500 11px/1.2 var(--mono);letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line-2);padding:6px 8px;color:var(--ink-2)}
+.badge.ok{border-color:color-mix(in srgb,var(--signal) 55%,var(--line-2));color:var(--ink)}
+.badge.ok::before{content:"";width:8px;height:8px;background:var(--signal-fill);box-shadow:var(--fill-edge,none)}
+.badge.il{border-style:dashed;color:var(--warn)}
+
+.dgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;view-transition-name:dgrid}
+.cpanel{border:1px solid var(--line);background:var(--panel);padding:20px 24px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.cpanel .hd{display:flex;flex-direction:column;gap:6px}
+.cpanel h3{font-size:17px;line-height:1.25}
+.pc{display:flex;flex-direction:column}
+.pr{display:grid;grid-template-columns:72px minmax(0,1fr) 76px;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line)}
+.pr:first-child{border-top:0}
+.pr .nm{font:500 13px var(--ui)}
+.pr .tr{position:relative;height:30px;background:repeating-linear-gradient(90deg,var(--line) 0 1px,transparent 1px 20%) 0 0/100% 100%;transition:background-color var(--t-fast)}
+.pr:hover .tr{background-color:color-mix(in srgb,var(--signal) 6%,transparent)}
+.pr .md{position:absolute;left:0;top:9px;height:12px;width:calc(var(--m) * 2%);background:var(--ink-2);transform-origin:left;transform:scaleX(0);transition:transform 820ms var(--e-out) calc(var(--r) * 90ms)}
+.pr.lead .md{background:var(--signal-fill);box-shadow:var(--fill-edge,none)}
+.pr .rg{position:absolute;top:14px;height:2px;left:calc(var(--lo) * 2%);width:calc((var(--hi) - var(--lo)) * 2%);background:var(--ink);transform:scaleX(0);transition:transform 520ms var(--e-out) calc(360ms + var(--r) * 90ms)}
+.pr .rg::before,.pr .rg::after{content:"";position:absolute;top:-5px;width:2px;height:12px;background:var(--ink)}
+.pr .rg::before{left:0}.pr .rg::after{right:0}
+.pr .pd{position:absolute;top:7px;width:8px;height:16px;margin-left:-4px;left:calc(var(--v) * 2%);border:1.5px solid var(--ink);background:var(--panel);opacity:0;transform:scale(0);transition:opacity 200ms var(--e-out),transform 320ms var(--e-digit),background-color var(--t-fast)}
+.pr .pd.vis{opacity:1;transform:none}
+.pc.res .md,.pc.res .rg{transform:none}
+.pr .val{display:flex;flex-direction:column;align-items:flex-end;gap:2px;opacity:0;transition:opacity 300ms var(--e-out) calc(var(--r) * 90ms)}
+.pc.res .val{opacity:1}
+.pr .val .n{font:500 1.5rem/1 var(--mono);letter-spacing:-.03em}
+.pr.lead .val .n{color:var(--signal)}
+.pr .val .n small{font-size:.6em}
+.pr .val .r{font:400 11px var(--mono);color:var(--ink-3)}
+.pc.dim .pd:not(.hl){opacity:.18}
+.pc .pd.hl{background:var(--signal-fill);border-color:var(--signal);transform:scale(1.15)}
+.ax{display:grid;grid-template-columns:72px minmax(0,1fr) 76px;gap:12px;padding-top:4px}
+.ax .tk{position:relative;height:14px;font:400 11px var(--mono);color:var(--ink-3)}
+.ax .tk i{position:absolute;left:calc(var(--v) * 2%);transform:translateX(-50%);font-style:normal}
+.ax .tk i:first-child{transform:none}.ax .tk i:last-child{transform:translateX(-100%)}
+.pl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.pl button{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:8px;width:100%;text-align:left;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line);font:400 12.5px/1.4 var(--mono);color:var(--ink-2);opacity:0;visibility:hidden;transform:translateX(-12px);transition:opacity 260ms var(--e-out),transform 360ms var(--e-out),visibility 0s 260ms,color var(--t-fast);min-height:40px}
+.pl button.vis{opacity:1;visibility:visible;transform:none;transition:opacity 260ms var(--e-out),transform 360ms var(--e-out),visibility 0s,color var(--t-fast)}
+.pl button b{font-weight:500;color:var(--ink)}
+.pl .dt{white-space:nowrap}
+.pl button:hover,.pl button:focus-visible{color:var(--ink)}
+.pl button .ck{color:var(--signal);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.cloudwrap{position:relative;border:1px solid var(--line);background:var(--bg)}
+canvas.cloud{display:block;width:100%;height:340px}
+
+.fun{display:flex;flex-direction:column}
+.fr{display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr) 88px;gap:8px 24px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.fr:first-child{border-top:0}
+.fr .lb{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fr .lb b{font:500 14px var(--ui)}
+.fr .lb span{font-size:12.5px;color:var(--ink-3)}
+.fr .b{height:10px;background:var(--bg-2);position:relative;overflow:hidden}
+.fr .b i{position:absolute;inset:0;background:var(--ink-2);transform-origin:left;transform:scaleX(var(--w,0))}
+.fr:last-child .b i{background:var(--signal-fill)}
+.fr .c{font:500 16px var(--mono);text-align:right}
+.srcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.sc{display:flex;flex-direction:column;gap:4px;border:1px solid var(--line);padding:10px 12px;min-width:0;transition:border-color var(--t-fast)}
+.sc b{font:500 13px var(--ui)}
+.sc .m{font-size:13px;color:var(--ink-2)}
+.sc.hot{border-color:var(--signal)}
+.sc.no .m{color:var(--ink-3)}
+.sc.hat{border-style:dashed;background:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--hatch) 28%,transparent) 5px 6px)}
+
+.proof{display:flex;flex-direction:column;gap:16px}
+.proof>.small,.proof [role=tabpanel]>.small{max-width:none}
+.ptabs{display:flex;gap:0;border:1px solid var(--edge);width:fit-content;max-width:100%;flex-wrap:wrap}
+.ptabs button{font:500 13px var(--ui);padding:0 16px;min-height:40px;border-left:1px solid var(--line);color:var(--ink-2)}
+.ptabs button:first-child{border-left:0}
+.ptabs button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+.prec{width:100%;border-collapse:collapse;font:400 13px/1.45 var(--ui)}
+.prec th{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:8px 12px 8px 0;border-bottom:1px solid var(--line-2);white-space:nowrap}
+.prec td{padding:12px 12px 12px 0;border-bottom:1px solid var(--line);vertical-align:top}
+.prec td.n{font-family:var(--mono);white-space:nowrap}
+.prec tr.pm td{border-bottom:0;padding-bottom:2px}
+.prec .qt{display:block;margin-top:0;font:italic 400 15px/1.4 var(--serif);color:var(--ink-2);max-width:none}
+.prec .qt mark{background:color-mix(in srgb,var(--signal) 22%,transparent);color:var(--ink);box-shadow:none;padding:0 2px}
+.prec .ok{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--signal);white-space:nowrap}
+.pfilter{display:flex;gap:8px;flex-wrap:wrap}
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.post{border:1px solid var(--line);background:var(--panel);padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0;transition:border-color var(--t-fast),transform var(--t-mid) var(--e-out)}
+.post:hover{border-color:var(--ink)}
+.post .ph{display:flex;justify-content:space-between;gap:8px;font:400 12px var(--mono);color:var(--ink-3)}
+.post .ph b{color:var(--ink);font-weight:500}
+.post .tx{margin:0;font:400 15px/1.45 var(--ui);color:var(--ink)}
+.post .pf{display:flex;justify-content:space-between;gap:8px;align-items:center;font:400 12px var(--mono);color:var(--ink-2);border-top:1px solid var(--line);padding-top:10px}
+.post .pf .st{display:inline-flex;gap:6px;align-items:center}
+.post .pf .st i{width:8px;height:8px;background:var(--ink-2)}
+.post[data-pt="0"] .pf .st i{background:var(--signal-fill)}
+.post[hidden]{display:none}
+.after{display:flex;flex-direction:column;gap:32px}
+.after[hidden]{display:none}
+.fu{display:flex;flex-direction:column;gap:8px}
+
+@media (prefers-reduced-motion:no-preference){
+  .subq span{animation:in var(--t-mid) var(--e-out) both;animation-delay:calc(var(--j) * 130ms)}
+  .dverdict.vin>*{animation:rise 620ms var(--e-out) both;animation-delay:calc(var(--j,0) * 110ms)}
+  .dverdict.vin .vl>*{animation:rise 620ms var(--e-out) both;animation-delay:calc(var(--j,0) * 90ms)}
+  @keyframes rise{from{opacity:0;transform:translateY(16px)}}
+  .after.rise>*{animation:rise 560ms var(--e-out) both;animation-delay:calc(160ms + var(--j,0) * 90ms)}
+  .phases span::after{transition:transform 120ms linear}
+  .livec .v.tick{animation:tick 260ms var(--e-out)}
+  @keyframes tick{from{color:var(--signal)}}
+  .wall .post{animation:in var(--t-mid) var(--e-out) both;animation-delay:calc(var(--j,0) * 45ms)}
+  .vt-ans::view-transition-old(root),.vt-ans::view-transition-new(root){animation:none}
+  .vt-ans::view-transition-old(drtop){animation:vt-out 200ms var(--e-in-out) both}
+  .vt-ans::view-transition-new(drtop){animation:vt-in 420ms var(--e-out) 120ms both}
+  .vt-ans::view-transition-group(drtop),.vt-ans::view-transition-group(dgrid){animation-duration:520ms}
+}
+@media (max-width:1080px){.dgrid,.dset{grid-template-columns:minmax(0,1fr)}.dverdict{grid-template-columns:minmax(0,1fr) 220px}}
+@media (max-width:640px){
+  .est{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .est>div{border-left:0;border-top:1px solid var(--line)}
+  .est>div:nth-child(even){border-left:1px solid var(--line)}
+  .est>div:nth-child(-n+2){border-top:0}
+  .est>div:last-child{grid-column:1/-1}
+  .est .v{font-size:1.125rem}
+  .depth label{padding:10px 12px;min-height:64px}
+  .depth label span{font-size:11px}
+  .phases span{padding:10px 6px;letter-spacing:.02em;font-size:10.5px;text-align:center}
+  .phases span b{display:none}
+  .now{padding:16px}
+  .now .t{flex-basis:100%;font-size:13px}
+  .livec{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .livec>div{padding:10px 16px;border-top:1px solid var(--line)}
+  .livec>div:nth-child(odd){border-left:0}
+  .livec .v{font-size:1.375rem}
+  .subq{padding:0 16px 12px}
+  .dverdict{grid-template-columns:minmax(0,1fr);padding:20px 16px}
+  .dverdict .big{border-left:0;border-top:1px solid var(--line);padding:16px 0 0}
+  .cpanel{padding:16px}
+  .pr,.ax{grid-template-columns:56px minmax(0,1fr) 60px;gap:8px}
+  .pr .val .n{font-size:1.25rem}
+  canvas.cloud{height:300px}
+  .fr{grid-template-columns:minmax(0,1fr) 72px}
+  .fr .lb{grid-column:1/-1}
+  .prec thead{display:none}
+  .prec tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .prec td{border:0;padding:0}
+  .prec td:first-child{grid-column:1/-1}
+  .prec td.hm{display:none}
+}
 </style>
 
 <header class="top">
@@ -743,7 +943,7 @@ html.rx-live .rxglow{opacity:var(--rx-op,1)}
     <button data-go="dossier" style="--n:3"><span class="no">04</span>Dossier<span class="k" id="dcount">0</span></button>
     <button data-go="concepts" style="--n:4"><span class="no">05</span>Concepts</button>
     </div>
-    <div class="foot small"><span><span class="kbd">Ctrl</span> <span class="kbd">K</span> commands</span><span class="m" style="font-size:12px;color:var(--ink-3)">Gamma 3.1 · v4</span></div>
+    <div class="foot small"><span><span class="kbd">Ctrl</span> <span class="kbd">K</span> commands</span><span class="m" style="font-size:12px;color:var(--ink-3)">Gamma 3.1 · v5</span></div>
   </nav>
   <main id="main" tabindex="-1"></main>
   <aside class="tray" id="tray" aria-label="Post evidence"></aside>
@@ -850,7 +1050,7 @@ const SPECS=[
   it.peak=pk; it.peakDay=dayLabel(pi); it.peakShare=Math.round(100*pk/tot); it.total=tot;
   it.day=it.span; it.today=c[c.length-1];
 });
-let S={view:"today",market:"ZA",item:null,spec:null,saved:[],scenario:"zero",asked:false};
+let S={view:"today",market:"ZA",item:null,spec:null,saved:[],scenario:"zero",asked:false,askMode:"deep",depth:2,deepDone:false};
 try{const t=localStorage.getItem("g31-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}
 
 function cf(k,vt){const w={obs:"Observed",cor:"Corroborated",sgl:"Single source",inf:"Inferred"}[k];return `<span class="cf ${k}"${vt?` style="view-transition-name:${vt}"`:""}><i aria-hidden="true"></i>${w}</span>`}
@@ -941,12 +1141,13 @@ function render(pre){
   renderTray();
   bind(main);
   mountLattices(main);
+  mountDeep(main);
   if(!inVT)fixRag(main);
   countUp(main);
 }
 // Rag guard: no block may end on a last line under a quarter of its width. Balance first, then narrow the
 // measure in small steps. Runs after every render, when fonts arrive and on resize.
-const RAG="p,.why,.note,.rd .b,.r,.q,.gaps>span,.tx>span:not(.ev),.ghost,.latcap,h1,h2,h3,.dek,.hed,.qt,.notes span,.nt .t,.drow>span:first-child,.about dd,.small,.eyebrow";
+const RAG=".vs,.vsub,.post .tx,p,.why,.note,.rd .b,.r,.q,.gaps>span,.tx>span:not(.ev),.ghost,.latcap,h1,h2,h3,.dek,.hed,.qt,.notes span,.nt .t,.drow>span:first-child,.about dd,.small,.eyebrow";
 function lineInfo(el){
   const r=document.createRange();r.selectNodeContents(el);const rs=[...r.getClientRects()].filter(x=>x.width>0.5);if(!rs.length)return null;
   const rows=[];rs.forEach(x=>{const row=rows.find(o=>Math.abs(o.top-x.top)<x.height*.5);if(row){row.l=Math.min(row.l,x.left);row.r=Math.max(row.r,x.right)}else rows.push({top:x.top,l:x.left,r:x.right})});
@@ -1108,11 +1309,12 @@ function renderTray(){
   }
 }
 
-function vAsk(){
+function vAsk(){return S.askMode==="item"?vAskItem():vDeep()}
+function vAskItem(){
   const it=find(S.item||"za-spaza");
   const qv=`Is "${it.title}" lasting or a one-week thing?`;
   if(!S.asked)return `<div class="col"><div class="herorow"><div class="hero solo"><span class="eyebrow">02 / Ask</span><h1 style="view-transition-name:hero-title">Ask the record.</h1><p class="serif">Answers cite posts, say how sure they are, and list what 42 does not know.</p></div><p class="note">Estimated cost before you start: up to 60 credits and about a minute. Ask shows each step while it works and can be stopped.</p></div>
-   <form class="askbox" id="askf"><label for="q" class="sr">Question</label><textarea id="q" rows="1">${esc(qv)}</textarea><button class="btn pri" type="submit" data-cursor="Ask the record">Ask</button></form></div>`;
+   <form class="askbox" id="askf"><label for="q" class="sr">Question</label><textarea id="q" rows="1">${esc(qv)}</textarea><button class="btn pri" type="submit" data-cursor="Ask the record">Ask</button></form>${chipsRow()}</div>`;
   return `<div class="col"><div class="hero solo"><span class="eyebrow">02 / Ask · ${M[it.m]} · 19 Sep to 16 Oct 2026 · 41 posts from 2 platforms</span><h2 style="font-size:clamp(1.5rem,2.6vw,2rem)">${nb(qv)}</h2></div>
    <div class="askrun">${latBlock("ask",it.m)}<div class="log" id="log" aria-live="polite"></div></div><div id="ans"></div></div>`;
 }
@@ -1142,6 +1344,280 @@ function runAsk(){
   askTimers.push(setTimeout(()=>{if(ans.isConnected)done()},ASK_END));
 }
 
+
+/* ===================== v5 Deep Ask =====================
+   One clock drives the phase rail, the live counters, the poll chart and the post cloud, so the work
+   visibly becomes the answer. All figures are illustrative placeholders (party names included). Rules kept:
+   counters only count up and never pass the truth, social share is per account (not per post) with a
+   Wilson interval, every poll figure is shown next to the source sentence it was checked against. */
+const PARTIES=["Party A","Party B","Party C","Party D","Party E","Other"];
+const SOC=[.34,.29,.17,.09,.06,.05];
+const POLLS=[
+ {n:1512,mode:"Phone",dates:"20 Sep to 2 Oct",src:"Publisher 1 release, 4 Oct",v:[36,27,14,8,6]},
+ {n:900,mode:"Online panel",dates:"24 to 30 Sep",src:"Publisher 2 release, 2 Oct",v:[38,25,16,10,5]},
+ {n:1200,mode:"Face to face",dates:"28 Sep to 6 Oct",src:"Publisher 3 report, 9 Oct",v:[41,29,12,7,7]},
+ {n:1050,mode:"Phone",dates:"1 to 10 Oct",src:"Publisher 4 release, 13 Oct",v:[38,27,14,8,6]}];
+const PLAT=[["TikTok",1980],["X",1702],["Facebook",1146],["Instagram",734],["YouTube",402],["Reddit",250]];
+const DEPTHS=[
+ {name:"Quick",cap:600,plats:3,pages:6,time:"20 s",credits:30,posts:512,web:6,used:22,took:"21 s",scale:.6,early:"stopped at 512 of 600 posts: the searches ran out of new matching posts"},
+ {name:"Standard",cap:2500,plats:6,pages:16,time:"1 min",credits:100,posts:2140,web:16,used:84,took:"58 s",scale:.8,early:"stopped early at 2,140 of 2,500 posts: shares moved less than 1 point over the last 600"},
+ {name:"Deep",cap:8000,plats:6,pages:40,time:"3 min",credits:300,posts:6214,web:38,used:284,took:"2 min 41 s",scale:1,early:"stopped early at 6,214 of 8,000 posts: shares moved less than 1 point over the last 2,000"}];
+const QPOLL="What share of the vote does each party have in Gauteng, according to recent polls?";
+const SUBQ=["party support Gauteng poll 2026","voting intention Joburg, Tshwane, Ekurhuleni","#GautengVotes","“voting for” + party names, Gauteng","news: Gauteng poll results","poll releases, last 30 days"];
+const ENDP=[["X",'search "Gauteng poll" · page 14'],["TikTok","#GautengVotes · page 3"],["Facebook","48 public groups and pages"],["Web","news and poll releases"],["Instagram","#Joburg · comments"],["YouTube","comments on 22 news videos"],["Reddit","r/southafrica · 9 threads"],["X","replies to party accounts · page 6"],["TikTok",'search "who are you voting for" · page 9']];
+const POSTS=[
+ {p:"X",h:"@tshwane_tuesdays",d:"14 Oct",t:"Three years of no water on Thursdays. I'm giving Party B my vote this time.",pt:1,city:"Tshwane"},
+ {p:"TikTok",h:"@kasi.brief",d:"12 Oct",t:"Party A's rally in Soweto was packed. Whatever the polls say, the ground is still with them.",pt:0,city:"Soweto"},
+ {p:"Facebook",h:"Ratepayers group, Ekurhuleni",d:"11 Oct",t:"Our street has voted Party A for twenty years. Most of us are sticking with them.",pt:0,city:"Ekurhuleni"},
+ {p:"Instagram",h:"@joburg.notes",d:"13 Oct",t:"Party C's housing plan is the only one with numbers in it. Leaning that way.",pt:2,city:"Johannesburg"},
+ {p:"YouTube",h:"Comment on a news debate",d:"10 Oct",t:"Party B won that debate easily and they have my vote.",pt:1,city:"Johannesburg"},
+ {p:"Reddit",h:"r/southafrica thread",d:"9 Oct",t:"First time voting in Midrand. Party D gets my vote for the local issues.",pt:3,city:"Midrand"},
+ {p:"X",h:"@vaal_daily",d:"15 Oct",t:"Party E were the only ones who showed up after the floods. They've earned my vote.",pt:4,city:"Vereeniging"},
+ {p:"TikTok",h:"@pretoria.ppl",d:"14 Oct",t:"Not voting Party A again after the electricity mess. Party B or nobody.",pt:1,city:"Pretoria"}];
+const PAGES=[["Publisher 1 release","Poll 1 figures and method","4 Oct"],["Publisher 2 release","Poll 2 figures and method","2 Oct"],["Publisher 3 report","Poll 3 figures, sample design","9 Oct"],["Publisher 4 release","Poll 4 figures and method","13 Oct"],["News report on Poll 3","Context only, no new figures","10 Oct"],["Electoral commission page","Registered voters by metro","Sep"]];
+const median=a=>{const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+const wilson=(p,n)=>{const z=1.96,d=1+z*z/n;return Math.round(1000*z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/d)/10};
+function deepNums(k){
+  const D=DEPTHS[k],posts=D.posts,pl=PLAT.slice(0,D.plats),tot=pl.reduce((a,p)=>a+p[1],0);
+  let acc=0;const plats=pl.map(([n,v],i)=>{const c=i===pl.length-1?posts-acc:Math.round(posts*v/tot);acc+=c;return[n,c]});
+  const unique=Math.round(posts*4812/6214),region=Math.round(unique*3960/4812),topic=Math.round(region*2488/3960),accounts=Math.round(topic*1612/2488);
+  return{posts,plats,unique,region,topic,accounts,soc:SOC.map(p=>({p:Math.round(p*100),ci:wilson(p,accounts)}))};
+}
+const PM=PARTIES.slice(0,5).map((_,i)=>{const vs=POLLS.map(q=>q.v[i]);return{vs,m:median(vs),lo:Math.min(...vs),hi:Math.max(...vs)}});
+
+function chipsRow(){const cur=S.askMode==="item"?1:0;
+  return `<div class="chips" role="group" aria-label="Sample questions">${[["poll","Party support in Gauteng, from recent polls"],["item","Is the spaza restock trend lasting?"]].map(([k,t],i)=>`<button type="button" class="chip" data-chip="${k}" aria-pressed="${i===cur}">${t}</button>`).join("")}</div>`}
+function estHTML(k){const D=DEPTHS[k];
+  return `<div><span class="k">Max posts</span><span class="v">${roll(D.cap)}</span></div><div><span class="k">Platforms</span><span class="v">${roll(D.plats)}</span></div><div><span class="k">Web pages</span><span class="v">${roll(D.pages)}</span></div><div><span class="k">About</span><span class="v">${D.time}</span></div><div><span class="k">Credit cap</span><span class="v">${roll(D.credits)}</span></div>`}
+function vDeepIdle(){const k=S.depth;
+  return `<div class="col"><div class="herorow"><div class="hero solo"><span class="eyebrow">02 / Ask · live</span><h1 style="view-transition-name:hero-title">Ask anything. Get the number.</h1><p class="serif wide">42 pulls up to <span id="hcap">${num(DEPTHS[k].cap)}</span> posts live from <span id="hpl">${DEPTHS[k].plats===6?"six":"three"}</span> platforms and the open web, then lays out the figures with the posts and pages behind every one.</p></div><p class="note">Accuracy first: every figure is checked against the text it came from, and anything 42 could not read is shown, not hidden.</p></div>
+  <form class="askbox" id="askf" style="view-transition-name:ask-q"><label for="q" class="sr">Question</label><textarea id="q" rows="1">${esc(QPOLL)}</textarea><button class="btn pri" type="submit" data-cursor="Run a live search">Ask</button></form>
+  ${chipsRow()}
+  <div class="dset"><div class="depth" role="radiogroup" aria-label="How deep to search" style="--k:${k}">${DEPTHS.map((D,i)=>`<input type="radio" name="depth" id="dp${i}" value="${i}"${i===k?" checked":""}><label for="dp${i}" data-cursor="${D.name} search"><b>${D.name}</b><span>${num(D.cap)} posts</span></label>`).join("")}<i class="dthumb" aria-hidden="true"></i></div>
+  <div class="est" id="est">${estHTML(k)}</div></div>
+  <p class="small">42 stops early once the answer stops changing and asks before it spends past the cap. In this prototype every question runs the sample, with illustrative figures.</p></div>`}
+
+function pollChart(done){
+  const rows=PM.map((r,i)=>`<div class="pr${i===0?" lead":""}" style="--r:${i}"><span class="nm">${PARTIES[i]}</span><span class="tr" aria-hidden="true"><i class="md" style="--m:${r.m}"></i><i class="rg" style="--lo:${r.lo};--hi:${r.hi}"></i>${r.vs.map((v,j)=>`<i class="pd${done?" vis":""}" data-p="${j+1}" style="--v:${v}"></i>`).join("")}</span><span class="val"><span class="n">${roll(r.m)}<small>%</small></span><span class="r">${r.lo} to ${r.hi}</span></span></div>`).join("");
+  return `<div class="pc${done?" res":""}" id="pc" aria-hidden="true">${rows}<div class="ax"><span></span><span class="tk">${[0,10,20,30,40,50].map(v=>`<i style="--v:${v}">${v}%</i>`).join("")}</span><span></span></div></div>
+  <table class="sr"><caption>Median share in four published polls, with the lowest and highest poll</caption><tr><th>Party</th><th>Median</th><th>Range</th></tr>${PM.map((r,i)=>`<tr><td>${PARTIES[i]}</td><td>${r.m}%</td><td>${r.lo} to ${r.hi}%</td></tr>`).join("")}</table>
+  <ol class="pl" aria-label="Polls found">${POLLS.map((q,j)=>`<li><button type="button" class="${done?"vis":""}" data-poll="${j+1}" data-cursor="Highlight poll"><b>P${j+1}</b><span>n=${num(q.n)} · ${q.mode} · <span class="dt">${q.dates}</span></span><span class="ck">checked</span></button></li>`).join("")}</ol>`}
+
+function proofHTML(N){
+  const pv=(q,j)=>`‘In Gauteng, Party A is on <mark>${q.v[0]}%</mark>, Party B <mark>${q.v[1]}%</mark>, Party C <mark>${q.v[2]}%</mark>, Party D <mark>${q.v[3]}%</mark> and Party E <mark>${q.v[4]}%</mark>.’`;
+  return `<section class="sec proof" aria-labelledby="proofh"><div class="sh"><div class="l"><span class="no">02</span><h2 id="proofh">Proof</h2></div></div>
+  <p class="small">Every figure above links back to what 42 pulled. Poll figures are matched character for character against the publisher's own sentence; a figure that does not match is dropped, not guessed.</p>
+  <div class="ptabs" role="tablist" aria-label="Proof">${[["polls","Poll records · 4"],["posts","Posts · "+num(N.accounts)+" accounts"],["pages","Web pages · "+DEPTHS[S.depth].web]].map(([k,t],i)=>`<button type="button" role="tab" id="pt-${k}" aria-controls="pp-${k}" aria-selected="${i===0}" tabindex="${i===0?0:-1}" data-ptab="${k}">${t}</button>`).join("")}</div>
+  <div role="tabpanel" id="pp-polls" aria-labelledby="pt-polls"><table class="prec"><thead><tr><th>Poll</th><th>Fieldwork</th><th>Sample</th><th class="hm">A</th><th class="hm">B</th><th class="hm">C</th><th class="hm">D</th><th class="hm">E</th><th>Check</th></tr></thead><tbody>
+   ${POLLS.map((q,j)=>`<tr class="pm"><td><b>Poll ${j+1}</b> · ${q.src}</td><td class="n">${q.dates}</td><td class="n">n=${num(q.n)} · ${q.mode}</td>${q.v.map(v=>`<td class="n hm">${v}%</td>`).join("")}<td><span class="ok">Matches source</span></td></tr><tr class="qrow"><td colspan="9"><span class="qt">${pv(q,j)}</span></td></tr>`).join("")}</tbody></table>
+   <p class="small">Remaining shares are other parties and undecided. Two publishers do not say how they weighted their samples; 42 shows their figures as published and does not adjust them.</p></div>
+  <div role="tabpanel" id="pp-posts" aria-labelledby="pt-posts" hidden><div class="pfilter chips" role="group" aria-label="Filter posts">${["All",...PARTIES.slice(0,5)].map((p,i)=>`<button type="button" class="chip" data-pf="${i-1}" aria-pressed="${i===0}">${p}</button>`).join("")}</div>
+   <div class="wall">${POSTS.filter(s=>N.plats.some(p=>p[0]===s.p)).map((s,i)=>`<article class="post" data-pt="${s.pt}" style="--j:${i}"><div class="ph"><span><b>${s.p}</b> · ${esc(s.h)}</span><span>${s.d}</span></div><p class="tx">${esc(s.t)}</p><div class="pf"><span class="st"><i aria-hidden="true"></i>Backs ${PARTIES[s.pt]}</span><span>${s.city}</span></div></article>`).join("")}</div>
+   <div class="actions"><button type="button" class="btn" data-allposts>Show all ${num(N.accounts)} accounts</button></div></div>
+  <div role="tabpanel" id="pp-pages" aria-labelledby="pt-pages" hidden><table class="prec"><thead><tr><th>Page</th><th>Used for</th><th>Published</th></tr></thead><tbody>${PAGES.map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td class="n">${r[2]}</td></tr>`).join("")}</tbody></table><p class="small">Six of ${DEPTHS[S.depth].web} pages shown. Pages that repeated a poll without new figures count once.</p></div></section>`}
+
+function vDeep(){
+  if(!S.asked)return vDeepIdle();
+  const k=S.depth,D=DEPTHS[k],N=deepNums(k),done=S.deepDone,s0=N.soc[0],s1=N.soc[1];
+  const FR=[["Collected","posts and comments, live",N.posts],["Unique posts","duplicates and likely bots removed",N.unique],["In Gauteng","located with confidence",N.region],["On topic","about who they will vote for",N.topic],["Accounts","each account counted once",N.accounts]];
+  const top=done?verdictHTML(N):runbarHTML(D);
+  return `<div class="col"><div class="hero solo"><span class="eyebrow">02 / Ask · ${D.name} · live pull 16 Oct 2026, 14:20 · Gauteng · last 30 days</span><h2 style="font-size:clamp(1.5rem,2.6vw,2rem);view-transition-name:ask-q">${nb(QPOLL)}</h2></div>
+  <div class="dr" id="dr">
+   <div class="drtop" id="drtop">${top}</div>
+   <div class="dgrid">
+    <section class="cpanel" aria-labelledby="pch"><div class="hd"><h3 id="pch">What the polls say</h3><span class="eyebrow">Median of 4 published polls · each mark is one poll</span></div>${pollChart(done)}</section>
+    <section class="cpanel" aria-labelledby="sch"><div class="hd"><h3 id="sch">What social says</h3><span class="eyebrow">Share of ${num(N.accounts)} accounts backing a party · each dot is about 4 posts while searching, 4 accounts once settled</span></div>
+     <div class="cloudwrap"><canvas class="cloud" aria-hidden="true"></canvas></div>
+     <ul class="sr">${N.soc.map((s,i)=>`<li>${PARTIES[i]}: ${s.p}% of accounts, plus or minus ${s.ci.toFixed(1)} points</li>`).join("")}</ul>
+     <p class="small">Who people post in support of, not how Gauteng will vote. People who post skew younger and more urban, so 42 never mixes these shares into the poll figures.</p></section>
+   </div>
+   <section class="cpanel" aria-labelledby="fh" style="view-transition-name:fun"><div class="hd"><h3 id="fh">How 42 got here</h3><span class="eyebrow">6 searches · ${D.plats} platforms · ${D.web} web pages · 4 polls</span></div>
+    <div class="fun">${FR.map(([a,b,v],i)=>`<div class="fr"><span class="lb"><b>${a}</b><span>${b}</span></span><span class="b" aria-hidden="true"><i data-fb="${i}" style="--w:${done?(v/N.posts).toFixed(4):0}"></i></span><span class="c" data-fc="${i}">${done?num(v):"0"}</span></div>`).join("")}</div>
+    <div class="srcs">${PLAT.map(([n],i)=>{const p=N.plats[i];return p?`<span class="sc" data-sc="${i}"><b>${n}</b><span class="m" data-s="${i}">${done?num(p[1]):"0"} posts</span></span>`:`<span class="sc no"><b>${n}</b><span class="m">not searched at ${D.name}</span></span>`}).join("")}<span class="sc" data-sc="web"><b>Web pages</b><span class="m" data-s="web">${done?D.web:0} pages</span></span><span class="sc hat"><b>WhatsApp, Telegram</b><span class="m">not collected</span></span></div></section>
+   <div class="after${done?"":""}" id="after"${done?"":" hidden"}>
+    <section class="sec"><div class="sh"><div class="l"><span class="no">01</span><h2>The facts</h2></div></div>
+    <ol class="claims">
+     <li>${cf("cor")}<span class="tx"><span>All four polls published between 2 and 13 October put Party A first and Party B second in Gauteng.</span><span class="ev">${POLLS.map((q,j)=>`<button type="button" data-poll="${j+1}" data-pjump="1" data-cursor="Show poll">Poll ${j+1}</button>`).join("")}</span></span></li>
+     <li>${cf("cor")}<span class="tx"><span>Party A's share ranges from ${PM[0].lo}% to ${PM[0].hi}% across the polls; the median is ${PM[0].m}%.</span><span class="ev"><button type="button" data-ptabgo="polls">4 poll records</button></span></span></li>
+     <li>${cf("obs")}<span class="tx"><span>On social, Party B is closer to the lead: ${s1.p}% of ${num(N.accounts)} accounts back it, against ${s0.p}% for Party A (plus or minus ${s0.ci.toFixed(1)} points).</span><span class="ev"><button type="button" data-ptabgo="posts">${num(N.accounts)} accounts</button></span></span></li>
+     <li>${cf("inf")}<span class="tx"><span>The gap between polls and posts most likely reflects who posts, not a shift in support. Inferred; posts alone cannot test it.</span></span></li>
+    </ol></section>
+    <div class="ansgrid"><div class="gaps"><span class="eyebrow">What we do not know</span><span>How two of the four polls weighted their samples. Turnout, which polls and posts both miss. WhatsApp and Telegram, where much political talk happens, are not collected.</span></div>
+     <div class="fu"><span class="eyebrow">Ask next</span><div class="chips">${["Break this down by metro","How has it moved since August?","Show the posts behind Party B"].map(t=>`<button type="button" class="chip" data-fu>${t}</button>`).join("")}</div></div></div>
+    ${proofHTML(N)}
+    <div class="actions"><button type="button" class="btn pri" data-saveans><span class="ic">${ICON.dossier}</span>Add to dossier</button><button type="button" class="btn" data-export>Export chart and data</button><button type="button" class="btn" data-newq>New question</button></div>
+    <p class="m small">Illustrative run · ${D.name} · ${D.used} of ${D.credits} credits · ${D.took}${D.early?" · "+D.early:""}</p></div>
+  </div></div>`}
+function runbarHTML(D){
+  return `<div class="runbar"><div class="phases" aria-hidden="true">${["Plan","Sweep","Clean","Extract","Answer"].map((p,i)=>`<span data-ph="${i}"><b>0${i+1}</b>${p}</span>`).join("")}</div>
+   <div class="now"><span class="t" id="nowt"><b>Plan</b>Splitting your question into six searches</span><span class="ctl"><span class="m small"><span id="cred">0</span> of ${D.credits} credits</span><button type="button" class="btn" id="skip" data-cursor="Skip to the answer">Show answer now</button></span></div>
+   <div class="subq" aria-hidden="true">${SUBQ.map((s,i)=>`<span style="--j:${i}">${esc(s)}</span>`).join("")}</div>
+   <div class="livec" aria-hidden="true"><div><span class="k">Posts pulled</span><span class="v" id="lv0">0</span></div><div><span class="k">Web pages</span><span class="v" id="lv1">0</span></div><div><span class="k">Polls found</span><span class="v" id="lv2">0</span></div><div><span class="k">Figures checked</span><span class="v" id="lv3">0</span></div></div>
+   <p class="sr" aria-live="polite" id="drlive">Planning the searches</p></div>`}
+function verdictHTML(N){const D=DEPTHS[S.depth];
+  return `<div class="dverdict vin"><div class="vl" style="--j:0"><span class="eyebrow" style="--j:0"><b>Answer</b> · corroborated by 4 polls</span><p class="vs" style="--j:1">Party A leads in Gauteng at about ${PM[0].m}%, with Party B second at about ${PM[1].m}%.</p><p class="vsub" style="--j:2">All four published polls agree on that order. They differ by up to ${PM[0].hi-PM[0].lo} points on the leader, so read ${PM[0].m}% as the middle of a ${PM[0].lo} to ${PM[0].hi}% range.</p>
+   <div class="badges" style="--j:3"><span class="badge ok">20 of 20 figures match their source</span><span class="badge ok">${num(N.posts)} posts read live</span><span class="badge il">Illustrative figures, placeholder parties</span></div></div>
+   <div class="big" style="--j:1" aria-hidden="true"><span class="eyebrow">Party A · median</span><span class="n">${roll(PM[0].m)}<small>%</small></span><span class="s"><span class="nw">range ${PM[0].lo} to ${PM[0].hi}%</span> · <span class="nw">4 polls,</span> <span class="nw">${num(POLLS.reduce((a,q)=>a+q.n,0))} respondents in total</span></span></div></div><div class="livec"><div><span class="k">Posts pulled</span><span class="v">${num(N.posts)}</span></div><div><span class="k">Web pages</span><span class="v">${D.web}</span></div><div><span class="k">Polls found</span><span class="v">4</span></div><div><span class="k">Figures checked</span><span class="v">20 of 20</span></div></div>`}
+
+/* Post cloud: posts fly in from their platform, form a turning sphere, duplicates and out-of-region posts
+   drop out, repeat posts by one account merge, and what is left settles into one bar of dots per party. */
+const DEEP=window.__deep={frames:0,ms:[]};
+function cloud(cv,N,T){
+  const ctx=cv.getContext("2d");let W=0,H=0,dpr=1,pal=readPal(),lastT=0,L={};
+  const n=Math.max(24,Math.round(N.posts/4));
+  let sd=11;const rnd=()=>(sd=(sd*9301+49297)%233280)/233280;
+  const pc=N.plats.map(p=>p[1]),tot=pc.reduce((a,b)=>a+b,0),cum=[];{let a=0;pc.forEach(v=>{a+=v/tot;cum.push(a)})}
+  const perm=a=>{for(let i=a.length-1;i>0;i--){const j=(rnd()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+  const dots=[];for(let i=0;i<n;i++){const y=1-2*(i+.5)/n,r=Math.sqrt(1-y*y),ph=i*2.399963,u=rnd();let s=cum.findIndex(c=>u<=c);if(s<0)s=pc.length-1;
+    dots.push({x:Math.cos(ph)*r,y,z:Math.sin(ph)*r,src:s,ta:0,fate:0,tf:0,party:-1,slot:0})}
+  const inv=y=>y<.5?Math.sqrt(y/2):1-Math.sqrt(2*(1-y))/2;
+  perm([...dots.keys()]).forEach((d,k)=>{dots[d].ta=T.plan+inv((k+.5)/n)*(T.sweep-T.plan)});
+  const dupN=Math.round(n*(1-N.unique/N.posts)),outN=Math.round(n*(N.unique-N.region)/N.posts),offN=Math.round(n*(N.region-N.topic)/N.posts),repN=Math.round(n*(N.topic-N.accounts)/N.posts);
+  const fo=perm([...dots.keys()]);let q=0;const cd=T.clean-T.sweep;
+  for(let j=0;j<dupN;j++,q++){const d=dots[fo[q]];d.fate=1;d.tf=T.sweep+rnd()*cd*.45}
+  for(let j=0;j<outN;j++,q++){const d=dots[fo[q]];d.fate=2;d.tf=T.sweep+(.45+rnd()*.4)*cd}
+  for(let j=0;j<offN;j++,q++){const d=dots[fo[q]];d.fate=3;d.tf=T.sweep+(.4+rnd()*.5)*cd}
+  for(let j=0;j<repN;j++,q++){const d=dots[fo[q]];d.fate=4;d.tf=T.clean+rnd()*(T.res-T.clean)*.3}
+  const keep=fo.slice(q),pd=SOC.map(p=>Math.round(p*keep.length));pd[pd.length-1]=keep.length-pd.slice(0,-1).reduce((a,b)=>a+b,0);
+  const rows=SOC.map(()=>[]);{let o=0;pd.forEach((c,pi)=>{for(let j=0;j<c;j++){const d=dots[keep[o++]];d.party=pi;d.slot=rows[pi].length;rows[pi].push(d)}})}
+  const FL=650*T.sc,RD=760*T.sc,cl01=v=>v<0?0:v>1?1:v,eo=k=>1-Math.pow(1-k,3),eio=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
+  const hit=new Array(pc.length).fill(-1e9);
+  function lay(){const r=cv.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);W=r.width||320;H=r.height||300;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+    const R=Math.min(W,H)*.33,np=pc.length,an=[];for(let s=0;s<np;s++){const a=-Math.PI/2+(s+.5)*2*Math.PI/np;an.push([W/2+Math.cos(a)*W*.46,H/2+Math.sin(a)*H*.44,Math.cos(a)])}
+    const lw=W<420?58:70,vw=W<420?62:78,avail=W-lw-vw-12,top=14,rh=(H-28)/SOC.length,mx=Math.max(...pd,1);let h=1;
+    while(h<8&&Math.ceil(mx/h)*Math.min(8,(rh-14)/h)>avail)h++;const pp=Math.min(8,(rh-14)/h,avail/Math.ceil(mx/h));
+    L={R,an,lw,vw,top,rh,h,pp,ds:Math.max(1.6,pp*.66),f:R*3.2}}
+  const proj=(d,t)=>{const yaw=.7+t*.00032,cy=Math.cos(yaw),sy=Math.sin(yaw),tl=.34,ct=Math.cos(tl),st=Math.sin(tl);
+    const x1=d.x*cy-d.z*sy,z1=d.x*sy+d.z*cy,y1=d.y*ct-z1*st,z2=d.y*st+z1*ct,s=L.f/(L.f+z2*L.R);return[W/2+x1*L.R*s,H/2+y1*L.R*s,z2]};
+  const grid=d=>{const col=Math.floor(d.slot/L.h),rr=d.slot%L.h,y0=L.top+d.party*L.rh+(L.rh-L.h*L.pp)/2;return[L.lw+col*L.pp,y0+rr*L.pp]};
+  function draw(t){
+    const d0=performance.now();lastT=t;if(!W)lay();const k=dpr;ctx.setTransform(k,0,0,k,0,0);ctx.clearRect(0,0,W,H);
+    const fin=t>=T.end,B=new Map(),add=(c,a,x,y,s)=>{a=Math.round(a*10)/10;if(a<=0||s<=0)return;const key=c+a;let b=B.get(key);if(!b){b={c,a,r:[]};B.set(key,b)}b.r.push(x-s/2,y-s/2,s)};
+    const sph=cl01((t-T.plan*.6)/400)*(1-cl01((t-T.clean)/(500*T.sc)));
+    if(sph>0){ctx.strokeStyle=rgb(pal.line,.9*sph);ctx.lineWidth=1;ctx.setLineDash([2,4]);ctx.beginPath();ctx.ellipse(W/2,H/2,L.R*1.08,L.R*1.08*Math.sin(.34)+L.R*.08,0,0,7);ctx.stroke();ctx.beginPath();ctx.arc(W/2,H/2,L.R*1.08,0,7);ctx.stroke();ctx.setLineDash([]);
+      ctx.strokeStyle=rgb(pal.sig,.5*sph);ctx.beginPath();ctx.moveTo(W/2-6,H/2);ctx.lineTo(W/2+6,H/2);ctx.moveTo(W/2,H/2-6);ctx.lineTo(W/2,H/2+6);ctx.stroke()}
+    ctx.beginPath();let trails=0;
+    for(const d of dots){
+      if(!fin&&t<d.ta)continue;
+      if(d.fate===1||d.fate===2){if(fin||t>d.tf+620)continue}
+      if((d.fate===3||d.fate===4)&&(fin||t>T.res))continue;
+      if(d.fate===0&&(fin||t>=T.clean+d.party*90*T.sc+(d.slot/Math.max(1,pd[d.party]))*320*T.sc+RD)){const g=grid(d);add(d.party===0?"s":"i2",1,g[0],g[1],L.ds);continue}
+      const p=proj(d,t),depth=.35+.65*(1-(p[2]+1)/2);let x=p[0],y=p[1],a=depth,c="i",s=L.ds*.62*(L.f/(L.f+p[2]*L.R));
+      const fl=(t-d.ta)/FL;
+      if(fl<1){const an=L.an[d.src],e=eio(cl01(fl)),bx=-(p[1]-an[1])*.18*Math.sin(Math.PI*e),by=(p[0]-an[0])*.18*Math.sin(Math.PI*e);
+        x=an[0]+(p[0]-an[0])*e+bx;y=an[1]+(p[1]-an[1])*e+by;c="s";a=.95;if(fl<.08)hit[d.src]=t;
+        const e2=eio(cl01(fl-.1));ctx.moveTo(an[0]+(p[0]-an[0])*e2+bx,an[1]+(p[1]-an[1])*e2+by);ctx.lineTo(x,y);trails++}
+      else if(fl<1.4){c="s";a=Math.max(depth,1.4-fl)}
+      if(d.fate===1&&t>=d.tf){const q=(t-d.tf)/620;c="s";a=1-q;s*=1+q*1.5}
+      else if(d.fate===2&&t>=d.tf){const q=eo(cl01((t-d.tf)/620));x+=(x-W/2)*.7*q;y+=(y-H/2)*.7*q;a*=1-q;c="i3"}
+      else if((d.fate===3||d.fate===4)&&t>=d.tf){const q=cl01((t-d.tf)/420),z=cl01((t-T.clean)/((T.res-T.clean)*.6));a=a+(.2-a)*q;a*=1-z;c="i3"}
+      else if(d.fate===0&&t>=T.clean){const rs=T.clean+d.party*90*T.sc+(d.slot/Math.max(1,pd[d.party]))*320*T.sc,q=cl01((t-rs)/RD);
+        if(q>0){const g=grid(d),e=eo(q);x+=(g[0]-x)*e;y+=(g[1]-y)*e;a=a+(1-a)*e;s=s+(L.ds-s)*e;c=d.party===0?"s":(q>.5?"i2":"i")}}
+      add(c,a,x,y,s)}
+    if(trails){ctx.strokeStyle=rgb(pal.sig,.42);ctx.lineWidth=1;ctx.stroke()}
+    const col={s:pal.sig,i:pal.ink,i2:pal.ink,i3:pal.ink3};
+    for(const b of B.values()){ctx.fillStyle=rgb(col[b.c],b.c==="i2"?Math.min(b.a,.82):b.a);ctx.beginPath();const r=b.r;for(let i=0;i<r.length;i+=3)ctx.rect(r[i],r[i+1],r[i+2],r[i+2]);ctx.fill()}
+    const la=fin?0:cl01((t-T.plan*.5)/300)*(1-cl01((t-T.clean)/(400*T.sc)));
+    if(la>0){ctx.font=`500 11px ${pal.font}`;ctx.textBaseline="middle";N.plats.forEach(([nm],s)=>{const an=L.an[s],hot=t-hit[s]<180;ctx.textAlign=an[2]>.3?"right":an[2]<-.3?"left":"center";ctx.lineWidth=4;ctx.lineJoin="round";ctx.strokeStyle=rgb(pal.bg,la);ctx.strokeText(nm.toUpperCase(),an[0],an[1]);ctx.fillStyle=rgb(hot?pal.sig:pal.ink3,la);ctx.fillText(nm.toUpperCase(),an[0],an[1])})}
+    const va=fin?1:cl01((t-(T.res-260*T.sc))/(300*T.sc));
+    if(va>0){ctx.textBaseline="middle";SOC.forEach((_,i)=>{const y=L.top+i*L.rh+L.rh/2,sv=N.soc[i],cols=Math.ceil(pd[i]/L.h),xe=L.lw+cols*L.pp;
+      ctx.font=`500 12px ${pal.font}`;ctx.textAlign="left";ctx.fillStyle=rgb(i===0?pal.ink:pal.ink3,va);ctx.fillText(PARTIES[i].replace("Party ",W<420?"":"Party "),0,y);
+      ctx.textAlign="right";ctx.font=`500 15px ${pal.font}`;ctx.fillStyle=rgb(i===0?pal.sig:pal.ink,va);ctx.fillText(sv.p+"%",W,y-7);
+      ctx.font=`400 11px ${pal.font}`;ctx.fillStyle=rgb(pal.ink3,va);ctx.fillText("±"+sv.ci.toFixed(1),W,y+9);
+      const half=sv.p?sv.ci*(xe-L.lw)/sv.p:0;if(half>=1.5){ctx.strokeStyle=rgb(pal.ink,va*.8);ctx.lineWidth=1;const yy=y-L.h*L.pp/2-4;ctx.beginPath();ctx.moveTo(xe-half,yy);ctx.lineTo(xe+half,yy);ctx.moveTo(xe-half,yy-3);ctx.lineTo(xe-half,yy+3);ctx.moveTo(xe+half,yy-3);ctx.lineTo(xe+half,yy+3);ctx.stroke()}})}
+    DEEP.frames++;DEEP.ms.push(performance.now()-d0);if(DEEP.ms.length>240)DEEP.ms.shift();
+  }
+  lay();
+  const ro=new ResizeObserver(()=>{if(!cv.isConnected){ro.disconnect();insts.delete(inst);return}const w=cv.getBoundingClientRect().width;if(Math.abs(w-W)>1){lay();draw(lastT)}});ro.observe(cv);
+  const inst={cv,redraw(){pal=readPal();draw(lastT)}};insts.add(inst);
+  return{draw,hit};
+}
+function mountDeep(root){const cv=root.querySelector("canvas.cloud");if(cv&&S.deepDone){const k=S.depth,T=deepT(k);cloud(cv,deepNums(k),T).draw(Infinity)}}
+function deepT(k){const sc=DEPTHS[k].scale;return{sc,plan:1300*sc,sweep:6600*sc,clean:8200*sc,res:10200*sc,end:10500*sc,polls:[3800,4900,5900,7200].map(v=>v*sc)}}
+
+let deepRun=null;
+function runDeep(){
+  if(deepRun)deepRun.stop();
+  const k=S.depth,D=DEPTHS[k],N=deepNums(k),T=deepT(k),dr=$("#dr");if(!dr)return;
+  const cv=dr.querySelector("canvas.cloud"),cd=cloud(cv,N,T);
+  const ph=[...dr.querySelectorAll("[data-ph]")],nowt=$("#nowt"),cred=$("#cred"),live=$("#drlive"),lv=[0,1,2,3].map(i=>$("#lv"+i)),
+    fc=[...dr.querySelectorAll("[data-fc]")],fb=[...dr.querySelectorAll("[data-fb]")],ss=[...dr.querySelectorAll("[data-s]")],sc=[...dr.querySelectorAll("[data-sc]")],
+    sq=[...dr.querySelectorAll(".subq span")],pc=$("#pc"),pl=[...dr.querySelectorAll(".pl button")];
+  const set=(el,v)=>{if(el&&el._v!==v){el._v=v;el.textContent=v;if(el.classList.contains("v")){el.classList.remove("tick");void el.offsetWidth;el.classList.add("tick")}}};
+  const cl01=v=>v<0?0:v>1?1:v,eio=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+  const FV=[N.posts,N.unique,N.region,N.topic,N.accounts];
+  let t0=performance.now(),raf=0,found=0,res=false,lastLive="",stopped=false;
+  const say=s=>{if(s!==lastLive){lastLive=s;live.textContent=s}};
+  function frame(now){
+    raf=0;if(!dr.isConnected||stopped)return;
+    const t=now-t0;
+    const P=[[0,T.plan],[T.plan,T.sweep],[T.sweep,T.clean],[T.polls[0]-400*T.sc,T.polls[3]+300*T.sc],[T.clean,T.res]];
+    P.forEach(([a,b],i)=>{const p=cl01((t-a)/(b-a)),el=ph[i];el.style.setProperty("--p",p.toFixed(3));el.classList.toggle("on",p>0&&p<1);el.classList.toggle("ok",p>=1)});
+    // Sweep: each platform fills on its own eased curve; the total is their sum, so the numbers always agree.
+    let tot=0;N.plats.forEach(([,c],i)=>{const e=eio(cl01((t-T.plan-i*110*T.sc)/(T.sweep-T.plan-i*110*T.sc))),v=Math.floor(c*e);tot+=v;set(ss[i],num(v)+" posts")});
+    if(t>=T.sweep)tot=N.posts;
+    const wv=Math.floor(D.web*eio(cl01((t-T.plan-700*T.sc)/(T.sweep-T.plan-700*T.sc))));set(ss[N.plats.length],wv+" pages");
+    const cv2=[tot,Math.floor(N.unique*cl01((t-T.sweep)/((T.clean-T.sweep)*.5))),Math.floor(N.region*cl01((t-T.sweep-(T.clean-T.sweep)*.5)/((T.clean-T.sweep)*.5))),Math.floor(N.topic*cl01((t-T.clean)/((T.res-T.clean)*.4))),Math.floor(N.accounts*cl01((t-T.clean-(T.res-T.clean)*.3)/((T.res-T.clean)*.4)))];
+    cv2.forEach((v,i)=>{set(fc[i],num(v));const w=(v/N.posts).toFixed(3);if(fb[i]._w!==w){fb[i]._w=w;fb[i].style.setProperty("--w",w)}});
+    set(lv[0],num(tot));set(lv[1],String(wv));
+    sc.forEach((el,i)=>{const hot=i<N.plats.length?t-cd.hit[i]<200:(t>T.plan+700*T.sc&&t<T.sweep);el.classList.toggle("hot",hot)});
+    sq.forEach((el,i)=>el.classList.toggle("hot",t>T.plan&&t<T.sweep&&Math.floor((t-T.plan)/(520*T.sc))%sq.length===i));
+    while(found<4&&t>=T.polls[found]){const j=found+1;pc.querySelectorAll(`.pd[data-p="${j}"]`).forEach(x=>x.classList.add("vis"));pl[found].classList.add("vis");found++}
+    set(lv[2],String(found));
+    const chk=Math.min(found*5,Math.floor(cl01((t-T.polls[0])/(T.polls[3]+600*T.sc-T.polls[0]))*20));set(lv[3],chk+" of 20");
+    if(!res&&t>=T.clean){res=true;pc.classList.add("res");countUp(pc)}
+    set(cred,String(Math.floor(D.used*cl01(t/T.end))));
+    let msg;const lf=found&&t-T.polls[found-1]<900*T.sc?found:0;
+    if(t<T.plan){msg=["Plan","Splitting your question into six searches"];say("Planning the searches")}
+    else if(lf){const q=POLLS[lf-1];msg=["Extract",`Found Poll ${lf} · n=${num(q.n)} · ${q.mode} · figures match the source`]}
+    else if(t<T.sweep){const av=ENDP.filter(e=>e[0]==="Web"||N.plats.some(p=>p[0]===e[0])),e=av[Math.floor((t-T.plan)/(430*T.sc))%av.length];msg=["Sweep",`${e[0]} · ${e[1]}`];say(`Searching ${N.plats.length} platforms and the web`)}
+    else if(t<T.sweep+(T.clean-T.sweep)*.5){msg=["Clean",`Removing ${num(N.posts-N.unique)} duplicates and likely bots`];say("Cleaning the posts")}
+    else if(t<T.clean){msg=["Clean",`Keeping the ${num(N.region)} posts located in Gauteng`]}
+    else{msg=["Answer",`Reconciling 4 polls with ${num(N.accounts)} accounts`];say("Writing the answer")}
+    const h=`<b>${msg[0]}</b>${esc(msg[1])}`;if(nowt._h!==h){nowt._h=h;nowt.innerHTML=h}
+    cd.draw(t);
+    if(t>=T.end){finish();return}
+    raf=requestAnimationFrame(frame);
+  }
+  function finish(){
+    if(stopped)return;stopped=true;if(raf)cancelAnimationFrame(raf);
+    S.deepDone=true;
+    pc.querySelectorAll(".pd").forEach(x=>x.classList.add("vis"));pl.forEach(x=>x.classList.add("vis"));
+    if(!pc.classList.contains("res")){pc.classList.add("res");countUp(pc)}
+    FV.forEach((v,i)=>{fc[i].textContent=num(v);fb[i].style.setProperty("--w",(v/N.posts).toFixed(4))});
+    N.plats.forEach(([,c],i)=>{ss[i].textContent=num(c)+" posts"});ss[N.plats.length].textContent=D.web+" pages";sc.forEach(el=>el.classList.remove("hot"));
+    cd.draw(Infinity);
+    const after=$("#after"),top=$("#drtop");
+    const apply=()=>{top.innerHTML=verdictHTML(N);after.hidden=false;[...after.children].forEach((el,i)=>el.style.setProperty("--j",i));after.classList.add("rise");countUp(top)};
+    const tr=reduce?null:swap(apply,"vt-ans");if(reduce)apply();
+    const rag=()=>fixRag(dr);tr&&tr.finished?tr.finished.then(rag,rag):rag();
+    live.isConnected&&(live.textContent="Answer ready");
+    const ann=document.createElement("p");ann.className="sr";ann.setAttribute("role","status");ann.textContent=`Answer ready. Party A leads in Gauteng at about ${PM[0].m}%, Party B second at about ${PM[1].m}%.`;top.appendChild(ann);
+  }
+  $("#skip").onclick=finish;
+  deepRun={stop(){stopped=true;if(raf)cancelAnimationFrame(raf)}};
+  if(reduce){finish();return}
+  raf=requestAnimationFrame(frame);
+}
+function bindDeep(root){
+  root.querySelectorAll("[data-chip]").forEach(b=>b.onclick=()=>{if(b.dataset.chip==="item"){S.item="za-spaza";S.askMode="item"}else S.askMode="deep";S.asked=false;S.deepDone=false;go("ask",true)});
+  const fs=$(".depth",root);if(fs)fs.querySelectorAll("input").forEach(r=>r.onchange=()=>{S.depth=+r.value;fs.style.setProperty("--k",S.depth);const e=$("#est");e.innerHTML=estHTML(S.depth);countUp(e);const D=DEPTHS[S.depth];$("#hcap").textContent=num(D.cap);$("#hpl").textContent=D.plats===6?"six":"three"});
+  const pc=$("#pc",root);
+  root.querySelectorAll("[data-poll]").forEach(b=>{const on=()=>{if(!pc)return;pc.classList.add("dim");pc.querySelectorAll(".pd").forEach(x=>x.classList.toggle("hl",x.dataset.p===b.dataset.poll))},off=()=>{if(!pc)return;pc.classList.remove("dim");pc.querySelectorAll(".pd.hl").forEach(x=>x.classList.remove("hl"))};
+    b.onmouseenter=on;b.onfocus=on;b.onmouseleave=off;b.onblur=off;
+    if(b.dataset.pjump)b.onclick=()=>{pc&&pc.scrollIntoView({behavior:reduce?"auto":"smooth",block:"center"});on();setTimeout(off,1600)}});
+  const tabs=[...root.querySelectorAll("[data-ptab]")];
+  const pick=(k,focus)=>{tabs.forEach(t=>{const on=t.dataset.ptab===k;t.setAttribute("aria-selected",on);t.tabIndex=on?0:-1;$("#pp-"+t.dataset.ptab).hidden=!on;if(on&&focus)t.focus()});if(k==="posts")fixRag($("#pp-posts"))};
+  tabs.forEach((t,i)=>{t.onclick=()=>pick(t.dataset.ptab);t.onkeydown=e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();pick(tabs[(i+(e.key==="ArrowRight"?1:tabs.length-1))%tabs.length].dataset.ptab,true)}}});
+  root.querySelectorAll("[data-ptabgo]").forEach(b=>b.onclick=()=>{pick(b.dataset.ptabgo);$("#proofh").scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"})});
+  root.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>{const f=+b.dataset.pf;root.querySelectorAll("[data-pf]").forEach(x=>x.setAttribute("aria-pressed",x===b));root.querySelectorAll(".post").forEach(p=>p.hidden=f>=0&&+p.dataset.pt!==f)});
+  root.querySelectorAll("[data-fu]").forEach(b=>b.onclick=()=>toast("Prototype: a follow-up runs the same way, starting from this answer"));
+  root.querySelectorAll("[data-allposts]").forEach(b=>b.onclick=()=>toast("In 42 this opens every account with its posts and stance"));
+  root.querySelectorAll("[data-export]").forEach(b=>b.onclick=()=>toast("Export would download the chart as PNG and the figures as CSV"));
+  root.querySelectorAll("[data-saveans]").forEach(b=>b.onclick=()=>save({t:"ans",id:"Party support in Gauteng"}));
+  root.querySelectorAll("[data-newq]").forEach(b=>b.onclick=()=>{S.asked=false;S.deepDone=false;S.askMode="deep";go("ask",true)});
+}
+
 function vCompare(){
   const it=find(S.item||"ng-owambe");
   const zero=[...Array(9).fill(null),...Array(19).fill(0)];
@@ -1158,7 +1634,7 @@ function vCompare(){
 function vDossier(){
   if(!S.saved.length)return `<div class="col"><div class="herorow"><div class="hero solo"><span class="eyebrow">04 / Dossier · draft</span><h1 style="view-transition-name:hero-title">Nothing saved yet.</h1><p class="serif">Use Add to dossier on an item or a post. Each saved thing keeps its record and where it came from.</p></div><div class="ghostlist" aria-hidden="true"><i></i><i></i><i></i></div></div><div class="actions"><button class="btn" data-go="today">Go to Today</button></div></div>`;
   return `<div class="col"><div class="herorow"><div class="hero solo"><span class="eyebrow">04 / Dossier · draft · ${S.saved.length} saved</span><h1 style="view-transition-name:hero-title">Dossier</h1></div><p class="note">Single source and Inferred material needs a reviewer's tick before the dossier can be approved and exported.</p></div>
-   <div class="sec" style="border-top:1px solid var(--line)">${S.saved.map((x,k)=>{const lab=x.t==="item"?find(x.id).title:"Post: “"+SPECS[x.id].q+"”";const c=x.t==="item"?find(x.id).conf:"sgl";const needs=c==="sgl"||c==="inf";
+   <div class="sec" style="border-top:1px solid var(--line)">${S.saved.map((x,k)=>{const lab=x.t==="item"?find(x.id).title:x.t==="ans"?"Answer: "+x.id:"Post: “"+SPECS[x.id].q+"”";const c=x.t==="item"?find(x.id).conf:x.t==="ans"?"cor":"sgl";const needs=c==="sgl"||c==="inf";
      return `<div class="drow"><span style="font-weight:500">${esc(lab)}<br><span class="m" style="font-size:12px;color:var(--ink-3)">saved with its record of 16 Oct</span></span>${cf(c)}<label><input type="checkbox" id="tick${k}" ${needs?"":"checked disabled"}> ${needs?"Reviewed":"No tick needed"}</label></div>`}).join("")}</div>
    <div class="actions"><button class="btn pri" id="approve">Approve version</button></div><p class="small" id="apmsg" aria-live="polite"></p></div>`;
 }
@@ -1193,7 +1669,7 @@ function latBlock(mode,m){
 const hex=h=>{h=h.trim();if(h[0]!=="#")return[128,128,128];const n=parseInt(h.slice(1),16);return[n>>16,(n>>8)&255,n&255]};
 const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
 const rgb=(c,a=1)=>`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`;
-function readPal(){const cs=getComputedStyle(document.documentElement),g=n=>hex(cs.getPropertyValue(n));return{panel:g("--panel"),bg2:g("--bg-2"),raise:g("--raise"),line:g("--line-2"),ink:g("--ink"),ink3:g("--ink-3"),sig:g("--signal"),bad:g("--bad"),hatch:g("--hatch"),font:cs.getPropertyValue("--mono")}}
+function readPal(){const cs=getComputedStyle(document.documentElement),g=n=>hex(cs.getPropertyValue(n));return{bg:g("--bg"),panel:g("--panel"),bg2:g("--bg-2"),raise:g("--raise"),line:g("--line-2"),ink:g("--ink"),ink3:g("--ink-3"),sig:g("--signal"),bad:g("--bad"),hatch:g("--hatch"),font:cs.getPropertyValue("--mono")}}
 function mountLattices(root){root.querySelectorAll("canvas[data-lat]").forEach(cv=>lattice(cv,cv.dataset.lat,"ZNK".indexOf(cv.dataset.m[0])))}
 function lattice(cv,mode,mi){
   const ctx=cv.getContext("2d"),P=0.6155,dpr=Math.min(2,window.devicePixelRatio||1);
@@ -1277,12 +1753,13 @@ function bind(root){
   root.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>closeTray());
   root.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>save({t:"item",id:b.dataset.save}));
   root.querySelectorAll("[data-savespec]").forEach(b=>b.onclick=()=>save({t:"spec",id:+b.dataset.savespec}));
-  root.querySelectorAll("[data-ask]").forEach(b=>b.onclick=()=>{S.item=b.dataset.ask;S.asked=false;go("ask")});
+  root.querySelectorAll("[data-ask]").forEach(b=>b.onclick=()=>{S.item=b.dataset.ask;S.asked=false;S.askMode="item";go("ask",true)});
   root.querySelectorAll("[data-compare]").forEach(b=>b.onclick=()=>{S.item=b.dataset.compare;go("compare")});
   const f=$("#askf",root);if(f){const q=$("#q",f);
     const fit=()=>{if(!CSS.supports("field-sizing","content")){q.style.height="auto";q.style.height=q.scrollHeight+"px"}};fit();q.oninput=fit;
     q.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();f.requestSubmit()}};
-    f.onsubmit=e=>{e.preventDefault();S.asked=true;const pre=build();swap(()=>{render(pre);runAsk()})}}
+    f.onsubmit=e=>{e.preventDefault();S.asked=true;S.deepDone=false;const pre=build();swap(()=>{render(pre);(S.askMode==="item"?runAsk:runDeep)()})}}
+  bindDeep(root);
   const ap=$("#approve",root);
   if(ap){const boxes=[...root.querySelectorAll('.drow input[type=checkbox]')];
     const upd=()=>{const open=boxes.filter(b=>!b.checked).length;ap.disabled=open>0;ap.textContent=open?`Approve · ${open} tick${open>1?"s":""} needed`:"Approve version";if(!open)$("#apmsg").textContent=""};
@@ -1304,7 +1781,9 @@ function toast(t,undo){
   el.onmouseenter=()=>clearTimeout(tm);el.onmouseleave=arm;el.onfocusin=()=>clearTimeout(tm);el.onfocusout=arm;arm();
   if(undo)el.querySelector("button").onclick=()=>{undo();el.remove();toast("Removed from dossier")};
 }
-function go(v){
+function go(v,keep){
+  if(v==="ask"&&!keep&&S.askMode==="item"){S.askMode="deep";S.asked=false}
+  if(v==="ask"&&S.askMode==="deep"&&S.asked&&!S.deepDone&&S.view!=="ask")S.deepDone=true;
   S.view=v;if(v!=="item")S.spec=null;
   const pre=build();
   swap(()=>{render(pre);$("#main").focus({preventScroll:true});scrollTo(0,0)});
