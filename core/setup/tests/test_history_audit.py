@@ -136,9 +136,9 @@ def test_the_run_stops_before_passing_its_total_budget(tmp_path, monkeypatch):
 
 
 def test_a_missing_table_is_recorded_and_the_rest_still_runs(tmp_path):
-    client = FakeClient(missing=("intelligence_42_core.early_signal t",))
+    client = FakeClient(missing=("intelligence_42_core.coord_signals t",))
     md = run(tmp_path, client)
-    assert "## span_early_signal" in md and "Not shown: not found" in md
+    assert "## span_coord_signals" in md and "Not shown: not found" in md
     assert "## span_test_switch" in md
 
 

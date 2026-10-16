@@ -174,7 +174,6 @@ SPANS = [
     ("core", "post_items", "t.linked_on", "post to item links (NULL linked_on counted as dates NULL)"),
     ("core", "coord_signals", "t.metric_date", "co-action"),
     ("core", "breakout_signals", "t.metric_date", "creator breakouts"),
-    ("core", "early_signal", "t.metric_date", "CUSUM early flag, information only"),
     ("core", "test_switch", "t.switched_on", "series test switches"),
     ("core", "item_hourly", "DATE(t.hour)", "hourly counts, not wired"),
     ("core", "breaking_signals", "DATE(t.hour)", "Breaking, off while PULSE_READY is False"),
