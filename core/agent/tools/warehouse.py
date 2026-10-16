@@ -1281,7 +1281,10 @@ def rising_topics(ctx: RunContext, warehouse: Warehouse, date=None, window_days=
     end = resolve_dates("today", ctx.as_of)[1] if date is None else _day(date, "date")
     params = {"date": end, "since": end - dt.timedelta(days=window_days - 1)}
     where = ["t.metric_date BETWEEN @since AND @date"]
-    market = market or ctx.market
+    if market and ctx.market and str(market).strip().upper() != ctx.market:
+        raise Refused(f"rising_topics reads the question's market, {ctx.market}, and cannot read {market}. "
+                      "Leave market out of the call.")
+    market = str(market).strip().upper() if market else ctx.market
     if market:
         params["market"] = market
         where.append("t.market = @market")

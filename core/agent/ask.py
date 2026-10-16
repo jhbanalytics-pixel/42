@@ -17,7 +17,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, Callable
 from uuid import uuid4
@@ -237,12 +237,22 @@ _UNIT_DAYS = {"day": 1, "week": 7, "month": 30}
 _MONTHS = ("january", "february", "march", "april", "may", "june", "july", "august", "september", "october",
            "november", "december")
 _N = r"\d+|" + "|".join(_NUMBERS)
-_SPAN = re.compile(rf"\b(?:the )?(?:last|past|previous) (?:({_N}) (day|week|month)s?|(day|week|month))\b", re.I)
+_SPAN = re.compile(rf"\b(?:the )?(?:last|past|previous) (?:({_N}) (hour|day|week|month)s?|(day|week|month))\b", re.I)
 _BEFORE = re.compile(rf"\bthe ({_N}) (day|week|month)s? before\b", re.I)
 _THIS = re.compile(r"\bthis (week|month)\b", re.I)
-_SINCE = re.compile(rf"\bsince (?:the (start|beginning|middle) of |(mid)-? ?|(\d{{1,2}}) )?({'|'.join(_MONTHS)})\b",
-                    re.I)
+_MONTH_NAMES = "|".join(_MONTHS)
+_SINCE = re.compile(rf"\bsince (?:the (start|beginning|middle) of |(mid)-? ?|(\d{{1,2}}) )?({_MONTH_NAMES})"
+                    rf"(?: (\d{{1,2}})(?:st|nd|rd|th)?\b)?\b", re.I)
 _DAY = re.compile(r"\b(today|yesterday)\b", re.I)
+# Named calendar periods, read only when the question states no relative window: "in August", "during July 2026",
+# "from 2026-09-01 to 2026-09-10" and "between 2026-09-01 and 2026-09-10". A single named day ("on 24 September") is
+# left alone: questions name event days as context far more often than as the period to read.
+_IN_MONTH = re.compile(rf"\b(?:in|during|throughout) ({_MONTH_NAMES})(?:,? ((?:19|20)\d{{2}}))?\b", re.I)
+_RANGE = re.compile(r"\b(?:from|between) (\d{4}-\d{2}-\d{2}) (?:to|and|until|till) (\d{4}-\d{2}-\d{2})\b", re.I)
+# A past period none of the window patterns read: a year ("in 2025"), a weekend or an ISO date outside a range. A
+# question that names one and gets the default window is told so, rather than answered over the last 30 days as if
+# that was asked.
+_UNREAD_PERIOD = re.compile(r"\b(?:in|during|throughout) (?:19|20)\d{2}\b|\bweekend\b|\b\d{4}-\d{2}-\d{2}\b", re.I)
 # A window named after one of these is the period compared against, so it widens the window rather than setting it.
 _COMPARED = re.compile(r"(?:compared (?:with|to)|against|versus|vs\.?) $", re.I)
 _TREND_WORD = re.compile(r"\btrend(?:s|ing)?\b", re.I)
@@ -278,14 +288,42 @@ def detect_markets(question: str) -> list[str]:
     return sorted(first, key=first.get)
 
 
+def _count(number: str | None) -> int:
+    return int(number) if number and number.isdigit() else _NUMBERS.get(" ".join((number or "one").lower().split()), 1)
+
+
 def _days(number: str | None, unit: str) -> int:
-    count = int(number) if number and number.isdigit() else _NUMBERS.get(" ".join((number or "one").lower().split()), 1)
-    return count * _UNIT_DAYS[unit.lower()]
+    return _count(number) * _UNIT_DAYS[unit.lower()]
+
+
+def _span(match: re.Match) -> int | str:
+    """A 'last N <unit>' phrase as days, or as a resolve_dates hours expression when the unit is hours."""
+    number, unit, bare = match.groups()
+    if (unit or "").lower() == "hour":
+        return f"last {_count(number)} hours"
+    return _days(number, unit or bare)
+
+
+def _month_number(name: str) -> int:
+    return _MONTHS.index(name.lower()) + 1
+
+
+def _in_month(match: re.Match, today: date) -> str | None:
+    """'in August' as that whole month, in the latest year that starts on or before today unless a year is named. A
+    month still under way ends today."""
+    month, year = _month_number(match.group(1)), match.group(2)
+    year = int(year) if year else today.year if month <= today.month else today.year - 1
+    start = date(year, month, 1)
+    if start > today:
+        return None
+    end = (date(year + month // 12, month % 12 + 1, 1) - timedelta(days=1))
+    return f"{start.isoformat()} to {min(end, today).isoformat()}"
 
 
 def _since(match: re.Match, today: date) -> str | None:
     """The 'since <month>' phrase as a resolve_dates expression, in the latest year that keeps it on or before today."""
-    start_of, mid, day, month = match.groups()
+    start_of, mid, day, month, day_after = match.groups()
+    day = day or day_after
     number = int(day) if day else 15 if mid or (start_of or "").lower() == "middle" else 1
     try:
         since = date(today.year, _MONTHS.index(month.lower()) + 1, number)
@@ -301,11 +339,14 @@ def _window_expression(question: str, as_of: datetime) -> str | None:
     named sets it; a window named as the comparison ('compared with last month') adds its length."""
     today = as_of.astimezone(SAST).date()
     found = []  # (position, days or a resolve_dates expression)
-    found += [(m.start(), _days(m.group(1), m.group(2) or m.group(3))) for m in _SPAN.finditer(question)]
+    found += [(m.start(), _span(m)) for m in _SPAN.finditer(question)]
     found += [(m.start(), _days(m.group(1), m.group(2))) for m in _BEFORE.finditer(question)]
     found += [(m.start(), _UNIT_DAYS[m.group(1).lower()]) for m in _THIS.finditer(question)]
     found += [(m.start(), _since(m, today)) for m in _SINCE.finditer(question)]
     found += [(m.start(), m.group(1).lower()) for m in _DAY.finditer(question)]
+    if not any(value for _, value in found):
+        found += [(m.start(), _in_month(m, today)) for m in _IN_MONTH.finditer(question)]
+        found += [(m.start(), f"{m.group(1)} to {m.group(2)}") for m in _RANGE.finditer(question)]
     found = sorted((pos, bool(_COMPARED.search(question[:pos])), value) for pos, value in found if value)
     current = next((value for _, compared, value in found if not compared), None)
     against = next((value for _, compared, value in found if compared and isinstance(value, int)), None)
@@ -334,7 +375,16 @@ def _window(question: str, as_of: datetime) -> tuple[date, date]:
 
 def _names_window(question: str) -> bool:
     """True when the question states a window of its own, in any of the forms _window reads."""
-    return any(p.search(question) for p in (_SPAN, _BEFORE, _THIS, _SINCE, _DAY))
+    return any(p.search(question) for p in _WINDOW_PATTERNS)
+
+
+_WINDOW_PATTERNS = (_SPAN, _BEFORE, _THIS, _SINCE, _DAY, _IN_MONTH, _RANGE)
+
+
+def _unread_period(question: str, as_of: datetime) -> bool:
+    """True when the question names a past period (a year, a weekend, an ISO date) and resolved to the default window,
+    so the answer covers a period the question did not ask about."""
+    return bool(_UNREAD_PERIOD.search(question)) and _window_source(question, as_of) == DEFAULT_WINDOW
 
 
 def _parent_window(parent, as_of: datetime) -> tuple[date, date] | None:
@@ -357,6 +407,7 @@ def _current_trending_intent(question: str) -> bool:
     return bool(_TREND_ASK.search(question) and _TREND_WORD.search(question)
                 and not _TREND_HISTORY.search(question) and not _SINCE.search(question)
                 and not _SPAN.search(question) and not _BEFORE.search(question)
+                and not _IN_MONTH.search(question) and not _RANGE.search(question)
                 and not yesterday)
 
 
@@ -1758,6 +1809,12 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     discovered = None
     ctx = RunContext(run_id=run_id, tier=tier, as_of=as_of, market=market, window_start=window[0],
                      window_end=window[1], timings=timings)
+    if inherited is None and _unread_period(question, as_of):
+        ctx.research_gaps.append({
+            "what": "The period the question names",
+            "searched": f"Read as {_long_date(window[0])} to {_long_date(window[1])}, the default window",
+            "why": "42 could not read the question's dates, so this answer may not cover the period asked about; "
+                   "ask again with a range such as 2026-09-01 to 2026-09-10"})
     client = None
     client_notices = []
     if tier != "T3":
