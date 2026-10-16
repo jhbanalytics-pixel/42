@@ -59,12 +59,14 @@ def fake_item_id(kind, raw, platform=None):
 
 
 class FakeGeo:
-    """Lane L2's rules: only ZA, NG and KE; ext_region counts only on TikTok."""
+    """Lane L2's rules: only ZA, NG and KE; a reviewed place tag first; ext_region counts only on TikTok."""
 
     def __call__(self, platform, market, *, ext_region=None, home_market=None, profile_location=None,
-                 text=None, language=None):
+                 text=None, language=None, place_tag=None):
         if market not in ("ZA", "NG", "KE"):
             raise ValueError(f"geo_for_post takes ZA, NG or KE, not {market}")
+        if place_tag:
+            return place_tag, 0.95, "place_tag"
         if platform == "tiktok" and ext_region:
             return ext_region, 0.9, "ext_region"
         return None, None, None

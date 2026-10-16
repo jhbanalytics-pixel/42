@@ -72,7 +72,7 @@ WITH items AS (
 SELECT label, pack.market, COUNT(DISTINCT pack.post_id) total_posts7,
   COUNT(DISTINCT IF(measured, pack.post_id, NULL)) measured,
   COUNT(DISTINCT IF((geo_market = pack.market AND IFNULL(geo_confidence, 0) >= 0.7
-           AND geo_source IN ('ext_region', 'home_market', 'place_mention')) OR src.post_id IS NOT NULL,
+           AND geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention')) OR src.post_id IS NOT NULL,
            pack.post_id, NULL)) market_posts7
 FROM pack LEFT JOIN src ON src.post_id = pack.post_id AND src.source_market = pack.market
 WHERE pr <= 12 GROUP BY label, pack.market ORDER BY 2, 1"""

@@ -298,9 +298,9 @@ WITH state_keys AS (
     -- as before confirm finds were linked to their item.
     AND (seen.beyond_confirm
       OR (ps.geo_market = seen.market AND IFNULL(ps.geo_confidence, 0) >= 0.7
-          AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'))
+          AND ps.geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention'))
       OR (NOT IFNULL(NULLIF(ps.geo_market, '') != seen.market AND ps.geo_confidence >= 0.7
-                         AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)
+                         AND ps.geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention'), FALSE)
       AND EXISTS (
         SELECT 1
         FROM {core}.v_post_source_markets v
@@ -320,9 +320,9 @@ WITH state_keys AS (
 ), scored_posts AS (
   SELECT e.metric_date, e.item_id, e.market, e.post_id,
     ((e.geo_market = e.market AND IFNULL(e.geo_confidence, 0) >= 0.7
-      AND e.geo_source IN ('ext_region', 'home_market', 'place_mention'))
+      AND e.geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention'))
     OR (NOT IFNULL(NULLIF(e.geo_market, '') != e.market AND e.geo_confidence >= 0.7
-                       AND e.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)
+                       AND e.geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention'), FALSE)
     AND EXISTS (
       SELECT 1
       FROM {core}.v_post_source_markets v

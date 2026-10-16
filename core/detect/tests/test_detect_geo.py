@@ -169,3 +169,13 @@ def test_is_local():
     assert not is_local("TZ", 0.8, "KE")
     assert not is_local("KE", 0.3, "KE")
     assert not is_local(None, None, "KE")
+
+
+def test_place_tag_wins_over_every_other_signal():
+    assert geo_for_post("instagram", "KE", place_tag="KE", home_market="US", text="Lagos") == ("KE", 0.95, "place_tag")
+    assert geo_for_post("tiktok", "NG", place_tag="ng", ext_region="GB") == ("NG", 0.95, "place_tag")
+
+
+def test_place_tag_must_be_alpha2():
+    assert geo_for_post("instagram", "ZA", place_tag="Soweto", home_market="ZA") == ("ZA", 0.8, "home_market")
+    assert geo_for_post("instagram", "ZA", place_tag=None) == (None, None, None)

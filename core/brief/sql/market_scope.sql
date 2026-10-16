@@ -25,9 +25,9 @@ WITH seen AS (
     -- as before confirm finds were linked to their item.
     AND (seen.beyond_confirm
       OR (ps.geo_market = @market AND IFNULL(ps.geo_confidence, 0) >= 0.7
-          AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'))
+          AND ps.geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention'))
       OR (NOT IFNULL(NULLIF(ps.geo_market, '') != @market AND ps.geo_confidence >= 0.7
-                         AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)
+                         AND ps.geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention'), FALSE)
       AND EXISTS (
         SELECT 1
         FROM {core}.v_post_source_markets v
@@ -45,9 +45,9 @@ WITH seen AS (
   SELECT DISTINCT p.post_id
   FROM eligible_posts p
   WHERE (p.geo_market = @market AND IFNULL(p.geo_confidence, 0) >= 0.7
-         AND p.geo_source IN ('ext_region', 'home_market', 'place_mention'))
+         AND p.geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention'))
     OR (NOT IFNULL(NULLIF(p.geo_market, '') != @market AND p.geo_confidence >= 0.7
-                       AND p.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)
+                       AND p.geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention'), FALSE)
     AND EXISTS (
       SELECT 1
       FROM {core}.v_post_source_markets v

@@ -780,12 +780,13 @@ def safe_geo(fn):
         return value if isinstance(value, str) else None
 
     def geo(platform, market, *, ext_region=None, home_market=None, profile_location=None, text=None,
-            language=None):
+            language=None, place_tag=None):
         if not (isinstance(language, str) or (isinstance(language, list) and all(isinstance(x, str) for x in language))):
             language = None
+        tagged = {"place_tag": place_tag} if isinstance(place_tag, str) else {}
         try:
             return fn(platform, market, ext_region=only(ext_region), home_market=only(home_market),
-                      profile_location=only(profile_location), text=only(text), language=language)
+                      profile_location=only(profile_location), text=only(text), language=language, **tagged)
         except TypeError:
             return None, None, None
 

@@ -77,7 +77,7 @@ PUBLIC_FEED_MERGE_BUDGET_BYTES = 5 * 1024 ** 3
 PUBLIC_FEED_WRITE_FAILED = "public_feed_write_failed"
 METRICS = ("views", "likes", "comments", "shares", "engagement")
 GEO = ("geo_market", "geo_confidence", "geo_source")
-KNOWN_GEO = ("ext_region", "home_market", "place_mention")  # language alone is never a known location
+KNOWN_GEO = ("place_tag", "ext_region", "home_market", "place_mention")  # language alone is never a known location
 TYPES = {"duration_s": "FLOAT64", "geo_confidence": "FLOAT64", "published_at": "TIMESTAMP", "post_date": "DATE",
          "views": "INT64", "likes": "INT64", "comments": "INT64", "shares": "INT64", "engagement": "INT64",
          "hashtags": "ARRAY", "vendor_labels": "JSON"}

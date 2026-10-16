@@ -1836,7 +1836,7 @@ def test_bigquery_item_reach_counts_located_and_local_by_the_market_scope_rule()
     client = FakeClient(REACH_CATALOG, rows=[])
     BigQueryStore(client=client).item_reach(D30, "ZA", [STEP])
     sql = next(s for s, _ in client.calls if "INFORMATION_SCHEMA" not in s)
-    assert "geo_source IN ('ext_region', 'home_market', 'place_mention')" in sql
+    assert "geo_source IN ('place_tag', 'ext_region', 'home_market', 'place_mention')" in sql
     assert "COUNTIF(j.known OR j.own_feed) located7" in sql and "COUNTIF(j.in_market OR j.own_feed) local7" in sql
 
 

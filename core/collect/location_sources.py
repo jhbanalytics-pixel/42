@@ -17,6 +17,39 @@ def _countries():
     return codes, {name.casefold(): code for code, name in codes.items()}
 
 
+PLACE_ROUTES = {"instagram/location/posts": "instagram", "tiktok/location/posts": "tiktok"}
+
+
+@lru_cache(maxsize=1)
+def _reviewed_places():
+    """(platform, place id) -> market for every place listed in core/config/markets.yaml: the reviewed Instagram
+    hubs (instagram_locations) and the TikTok places marked reviewed under location_collection."""
+    import yaml
+
+    config = yaml.safe_load((Path(__file__).resolve().parents[1] / "config/markets.yaml").read_text(encoding="utf-8"))
+    places = {}
+    for market, block in (config.get("markets") or {}).items():
+        market = str(market).upper()
+        if market not in ("ZA", "NG", "KE") or not isinstance(block, dict):
+            continue
+        for value in (block.get("instagram_locations") or {}).get("values") or []:
+            if isinstance(value, str) and value.strip():
+                places[("instagram", value.strip())] = market
+        for place in (block.get("location_collection") or {}).get("tiktok_places") or []:
+            if isinstance(place, dict) and place.get("reviewed") and isinstance(place.get("id"), str) and place["id"].strip():
+                places[("tiktok", place["id"].strip())] = market
+    return places
+
+
+def place_tag(route, location_id):
+    """The country of the reviewed place a place route was read for, or None. An unlisted or unreviewed place id
+    never places a post."""
+    platform = PLACE_ROUTES.get(route)
+    if platform is None or not isinstance(location_id, str):
+        return None
+    return _reviewed_places().get((platform, location_id.strip()))
+
+
 def country_code(value):
     if not isinstance(value, str):
         return None
