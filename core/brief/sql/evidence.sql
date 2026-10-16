@@ -64,6 +64,9 @@ r AS (
     source_market_by_post.source_market,
     IFNULL(NULLIF(ps.text, ''), ps.transcript) quote_text, ps.hashtags,
     ps.views, ps.likes, ps.comments, ps.shares, ps.thumbnail_url, ps.duration_s, cr.handle,
+    -- What the post is made of, for the critic and the support check (held-topics slice 2): its sound and the
+    -- formats the enrich model gave it. A post with no enrich row has no formats, never a guess.
+    ps.sound_id, pe.formats,
     IFNULL(cr_flags.coord_score, 0) >= 1 flagged,
     IFNULL(pe.sponsored, FALSE) enrich_sponsored, IFNULL(pe.sponsor_read, FALSE) enrich_read,
     -- The vendor's paid label (posts.vendor_labels, core/collect/socialcrawl_client.py split_vendor_labels): a
@@ -104,8 +107,9 @@ r AS (
   ) cr_flags ON cr_flags.creator_id = ps.creator_id
   -- One row per post: post_enrichment can hold several rows for a post, which would repeat the evidence record.
   -- sponsor_read: a row the enrich model wrote, with its sponsored reading; embed and video rows leave it null.
+  -- formats: every row's, deduplicated and ordered in evidence.py _record.
   LEFT JOIN (SELECT post_id, MAX(near_dup_size) near_dup_size, LOGICAL_OR(sponsored) sponsored,
-               LOGICAL_OR(sponsored IS NOT NULL) sponsor_read
+               LOGICAL_OR(sponsored IS NOT NULL) sponsor_read, ARRAY_CONCAT_AGG(formats) formats
              FROM {core}.post_enrichment GROUP BY post_id) pe ON pe.post_id = s.post_id
   LEFT JOIN members mm ON mm.post_id = s.post_id
   LEFT JOIN pan_members pm ON pm.post_id = s.post_id

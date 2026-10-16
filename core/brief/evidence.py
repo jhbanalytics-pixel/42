@@ -228,6 +228,9 @@ def _record(row, tz, item=None):
         "engagement": {k: row[k] for k in ("views", "likes", "comments", "shares")},
         "flags": flags, "thumbnail_url": row["thumbnail_url"], "duration_s": row["duration_s"],
         "creator_tier": row["creator_tier"], "sponsor_checked": row["sponsor_checked"] is True,
+        # For the model checks only (explain.SUPPORT_FIELDS); payload.reader_evidence keeps them off stored cards.
+        # The model sees the sound as a letter (explain._sound_letters), never this vendor id.
+        "sound_id": row.get("sound_id") or None, "formats": sorted({f for f in row.get("formats") or [] if f}),
     }
     # The pack statement (C4 v3 appendix G) emits is_outlet. A row without the column gets no class, so the record
     # shape does not change until the pack carries it, and a post of unknown class never counts as a creator's reaction.

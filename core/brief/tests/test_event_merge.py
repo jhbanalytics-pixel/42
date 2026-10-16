@@ -62,11 +62,18 @@ def shadow(r):
     return r.chain.finished[0]["counts"]["event_merge_shadow"]
 
 
+def fourth(con):
+    """A fourth post of za_b's own (add_item makes three)."""
+    add_post(con, "ZA", "za_b", "za_b_p4", "za_b_c4", "instagram", geo="ZA")
+
+
 def two_items(con, *, shared=3):
     """za_a ranks first by worth; za_b has more creators in its 3 days, so Today shows za_b first (e-order-breadth);
-    they share `shared` of za_a's posts."""
+    they share `shared` of za_a's posts. za_b has 4 posts of its own, so the shared posts are under half of its posts
+    and it is judged on its own rather than folded before judging (job._fold_plan)."""
     add_item(con, "ZA", "za_a", 0.97, label="mtn8 final", creators3=4, posts3=12)
     add_item(con, "ZA", "za_b", 0.96, label="sundowns pirates", creators3=9, posts3=15)
+    fourth(con)
     link(con, "za_b", [f"za_a_p{k}" for k in range(1, shared + 1)])
 
 
@@ -107,6 +114,7 @@ def test_the_kept_card_is_the_one_today_shows_first_when_breadth_and_worth_disag
     con = world(n=0)
     add_item(con, "ZA", "za_a", 0.97, label="mtn8 final", creators3=6, posts3=10)
     add_item(con, "ZA", "za_b", 0.96, label="sundowns pirates", creators3=6, posts3=18)
+    fourth(con)
     link(con, "za_b", [f"za_a_p{k}" for k in range(1, 4)])
     r = brief(con, model=EventModel({"mtn8 final": MTN8, "sundowns pirates": MTN8_2}), confirm=FakeConfirm())
     assert za_cards(r) == ["za_b"]
@@ -134,6 +142,7 @@ def test_member_posts_count_every_post_of_the_post_set_not_only_the_pack():
     con = world(n=0)
     add_item(con, "ZA", "za_a", 0.97, label="mtn8 final")
     add_item(con, "ZA", "za_b", 0.96, label="sundowns pirates")
+    fourth(con)
     for k in (1, 2, 3):
         add_post(con, "ZA", "za_a", f"solo_p{k}", "solo", "tiktok", geo="ZA")
         link(con, "za_b", [f"solo_p{k}"])

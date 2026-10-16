@@ -114,6 +114,18 @@ def test_is_generic_for_stoplisted_hashtags_after_canonicalisation(raw):
     assert is_generic("hashtag", canonical_key("hashtag", raw))
 
 
+@pytest.mark.parametrize("raw", ["#southafricatiktok", "#SouthAfricaTikTok", "#kenyantiktok", "#MombasaTiktokers",
+                                 "#naijatiktok"])
+def test_is_generic_for_place_plus_platform_discovery_tags(raw):
+    # 16 Oct 2026: these reached the brief and were held as unrelated everyday posts under one tag.
+    assert is_generic("hashtag", canonical_key("hashtag", raw))
+
+
+@pytest.mark.parametrize("raw", ["#southafrica", "#kenya", "#mombasa", "#naija", "#lagos", "#viralnigeria"])
+def test_a_place_name_alone_is_still_a_real_tag(raw):
+    assert not is_generic("hashtag", canonical_key("hashtag", raw))
+
+
 def test_is_generic_folds_a_raw_spelling_too():
     assert is_generic("hashtag", "＃ＦｏｒＹｏｕＰａｇｅ")
 

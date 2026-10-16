@@ -126,7 +126,7 @@ CREATE TABLE core.item_locality_verified (
   population_digest VARCHAR NOT NULL);
 
 CREATE TABLE core.post_enrichment (post_id VARCHAR, embedding DOUBLE[], langs VARCHAR[], tone VARCHAR, stance VARCHAR,
-  sponsored BOOLEAN, near_dup_size BIGINT);
+  sponsored BOOLEAN, near_dup_size BIGINT, sounds VARCHAR[], formats VARCHAR[]);
 
 CREATE TABLE core.creators (
   creator_id VARCHAR, platform VARCHAR, handle VARCHAR, account_created_at TIMESTAMPTZ,
