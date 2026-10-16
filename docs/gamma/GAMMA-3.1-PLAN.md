@@ -138,7 +138,7 @@ Cross-platform diffusion after id de-duplication across routes and the tests are
 | D3 | Storage release for the clean-wave views | Before G3 merges | Yes, additive views only, with old and new readers rehearsed and a rollback target |
 | D4 | Five strategists for the 30-minute E7 prototype test (two of them can also label E4 transitions) | Any time before G4; the earlier, the earlier E7 runs | Yes; it is the only usefulness evidence the plan has before release |
 
-| D5 | A monthly SocialCrawl allowance for live Ask retrieval (ASK-REVAMP.md section 3) | Before G8 build | Yes: the Pro pack (150,000 credits, £299) and an Ask ledger of 30,000 credits a month (about £60), reviewed after E8 |
+| D5 | A monthly SocialCrawl allowance for live Ask retrieval (ASK-REVAMP.md section 3) | Before G8 build | Yes: raise ASK_DAILY to 2,500 credits and add 30,000 a month for Ask (about £60), reviewed after E8 |
 | D6 | Whether Ask may report published election poll figures; today's answering instruction bans election claims | Before G8 build | Yes for published polls with source and method shown; keep the ban on persuasion, prediction and vote claims drawn from social posts |
 
 Gamma's own release approval comes separately at G7.
