@@ -147,12 +147,16 @@ def test_evidence_record_has_the_contract_fields_and_flags():
     add_post(con, "p1", "c1", utc(day(1), 9), 500, text=None, transcript=transcript, url="https://t.example/p1",
              views=184000, likes=9100, comments=300, shares=120, thumbnail_url="https://t.example/p1.jpg",
              duration_s=21.0, creator_tier_at_post="mid", geo_market="ZA", geo_confidence=0.9,
-             geo_source="ext_region")
-    add_post(con, "p2", "c2", utc(day(1), 10), 400, text="caption words", transcript="spoken words")
+             geo_source="ext_region", sound_id="7301234567890")
+    add_post(con, "p2", "c2", utc(day(1), 10), 400, text="caption words", transcript="spoken words",
+             sound_id="7301234567890")
     duck.load(con, "core.creators", [
         {"creator_id": "c1", "platform": "tiktok", "handle": "@maker_one", "coord_score": 2},
         {"creator_id": "c2", "platform": "tiktok", "handle": "@maker_two", "coord_score": 0}])
-    duck.load(con, "core.post_enrichment", [{"post_id": "p1", "sponsored": True, "near_dup_size": 3},
+    # Two enrich rows for p1: one record, its formats merged once each in name order.
+    duck.load(con, "core.post_enrichment", [{"post_id": "p1", "sponsored": True, "near_dup_size": 3,
+                                             "formats": ["duet", "dance"]},
+                                            {"post_id": "p1", "formats": ["dance"]},
                                             {"post_id": "p2", "sponsored": False, "near_dup_size": 2}])
     pack, *_ = build(con)
     first, second = pack["evidence"]
@@ -164,12 +168,14 @@ def test_evidence_record_has_the_contract_fields_and_flags():
         "engagement": {"views": 184000, "likes": 9100, "comments": 300, "shares": 120},
         "flags": ["flagged", "sponsored", "near_duplicate"], "thumbnail_url": "https://t.example/p1.jpg",
         "duration_s": 21.0, "creator_tier": "mid", "sponsor_checked": True, "outlet_class": "creator",
+        "sound_id": "7301234567890", "formats": ["dance", "duet"],
     }
-    assert set(first) == CONTRACT_FIELDS | {"quote_text", "sponsor_checked"}
+    assert set(first) == CONTRACT_FIELDS | {"quote_text", "sponsor_checked", "sound_id", "formats"}
     assert len(first["text"]) == 280 and len(first["quote_text"]) == 450
     assert second["text"] == "caption words" and second["quote_text"] == "caption words"
     assert second["market"] is None and second["flags"] == ["market_assumed"]
     assert second["sponsor_checked"] is True
+    assert second["sound_id"] == "7301234567890" and second["formats"] == []
 
 
 @pytest.mark.parametrize("market,offset", [("NG", "+01:00"), ("KE", "+03:00")])
@@ -674,3 +680,4 @@ def test_only_an_enrich_row_with_a_sponsored_reading_counts_as_checked():
 
     assert sponsor_read(pack) == {"p_enrich_false": (False, True), "p_enrich_true": (True, True),
                                   "p_embed_only": (False, False), "p_embed_and_enrich": (False, True)}
+

@@ -3130,3 +3130,15 @@ def test_a_suppressed_board_creator_is_never_named_from_the_creators_table():
     assert "Lasizwe" not in json.dumps(za)
     assert za["boards"] == []
     assert za["coverage"] == {"issues": ["1 board entry without a name"]}
+
+
+def test_stored_cards_and_held_items_carry_no_formats_or_sound_the_checks_read():
+    # The model checks read each post's formats and sound label (explain.SUPPORT_FIELDS); the stored brief, which the
+    # API serves, keeps its evidence shape.
+    con = world(n=3)
+    add_item(con, "ZA", "za_one", 0.5, posts=1)
+    r = brief(con, model=FakeModel())
+    stored = payload(r, "ZA")
+    evidence = [e for c in all_cards(stored) for e in c["evidence"]]
+    evidence += [e for h in held_items(r, "ZA").values() for e in h["evidence"]]
+    assert evidence and not any({"formats", "sound_id"} & set(e) for e in evidence)
