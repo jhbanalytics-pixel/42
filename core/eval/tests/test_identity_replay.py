@@ -141,3 +141,43 @@ def test_missing_centroid_or_keywords_is_missing_data_not_absent_support():
     assert ir.selection_reasons(None, 1.0, 1, both, both) == ["missing_centroid"]
     assert ir.selection_reasons(0.95, 1.0, 9, both, both) == ["gap_over_recent"]
     assert ir.category(["gap_over_recent"]) == "other_weak_signal"
+
+
+def test_neutral_names_changing_is_not_a_changed_label():
+    kw = {"keywords": ["birthday", "love"]}
+    assert ir.selection_reasons(0.98, 0.6, 1, {**kw, "label": "Topic 54350b3e"},
+                                {**kw, "label": "Topic 7049417b"}) == ["supported_control"]
+    assert ir.selection_reasons(0.98, 0.6, 1, {**kw, "label": "Topic 54350b3e"},
+                                {**kw, "label": "birthday wishes"}) == ["supported_control"]
+    assert "label_changed" in ir.selection_reasons(0.98, 0.6, 1, {**kw, "label": "county pets"},
+                                                   {**kw, "label": "birthday wishes"})
+
+
+def test_another_items_cluster_as_close_is_counted_and_summarised_without_text(tmp_path):
+    # The item continues at 0.95, but another item's cluster of the day before sits at 0.99 to the new cluster, so the
+    # cosine did not single this item out.
+    def c(day, cid, item, label, keywords):
+        return {"market": "ke", "item_id": item, "cluster_date": day, "cluster_id": cid, "label": label,
+                "keywords": keywords, "match_kind": "match"}
+
+    def v(day, cid, item, vec):
+        return {"market": "ke", "item_id": item, "cluster_date": day, "cluster_id": cid, "centroid": vec}
+
+    clusters = [c("2026-10-01", "a1", "heater", "tank heater", ["tank", "heater"]),
+                c("2026-10-02", "a2", "heater", "hr manager", ["manager", "rude"]),
+                c("2026-10-01", "o1", "other", "work stories", ["work", "boss"])]
+    centroids = [v("2026-10-01", "a1", "heater", [1.0, 0.0, 0.0]), v("2026-10-02", "a2", "heater", [0.95, 0.31, 0.0]),
+                 v("2026-10-01", "o1", "other", [0.9, 0.43, 0.0])]
+    (tmp_path / "c.json").write_text(json.dumps({"rows": clusters}))
+    (tmp_path / "v.json").write_text(json.dumps({"rows": centroids}))
+    out = tmp_path / "out"
+    assert ir.main(["--clusters", str(tmp_path / "c.json"), "--centroids", str(tmp_path / "v.json"),
+                    "--out", str(out)]) == 0
+    [row] = label_rows(out).values()
+    assert (row["other_items_compared"], row["other_items_at_or_above"]) == ("1", "1")
+    assert row["selection_reasons"] == "high_cosine_no_keyword_support other_item_as_close label_changed"
+    text = (out / "summary.json").read_text()
+    base = json.loads(text)["total"]["baseline"]
+    assert base["other_item_pairs"] == 1 and base["other_item_pairs_at_or_above_match"] == 1
+    assert base["transitions_with_an_other_item_as_close"] == 1
+    assert not any(w in text for w in ("heater", "manager", "boss", "stories"))

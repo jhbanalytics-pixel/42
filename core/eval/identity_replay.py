@@ -18,7 +18,8 @@ numbers, the gap in days and the labels only:
     keywords_without_similarity     keyword Jaccard 0.10 or more, cosine under 0.82
     no_visible_identity             neither reaches the match rule
     gap_over_recent                 more than 7 days between the two clusters
-    label_changed                   the two daily labels differ
+    other_item_as_close             a cluster of another item on the earlier day is at least as close
+    label_changed                   the two daily labels differ, neither being a neutral "Topic 1a2b3c4d" name
     supported_control               cosine and keywords both reach the rule and nothing above applies
 A reason says why a transition is worth a look. It is not a verdict: these exports lack the hashtag, sound and creator
 evidence the matcher also used, and prior daily centroids stand in for the item's EMA centroid, so this is a proxy.
@@ -29,7 +30,8 @@ other weak signals, supported control) keeps up to --per-category transitions, i
 
 Outputs in --out: transitions.csv (every transition, its reasons and whether it was selected), label-me.csv (the
 selected transitions: selection columns, then the labels and keywords to judge, then an empty same_topic and
-label_note), and summary.json (counts only: total, selected, excluded, missing data, categories and reasons per market).
+label_note), and summary.json (counts only: total, selected, excluded, missing data, categories and reasons per market,
+and the cosine baseline between clusters of different items).
 same_topic takes y (one topic), n (separate topics) or u (cannot judge from labels and keywords). With --labels, the
 y and n answers become identity cases (cases.json, the core/eval/identity_eval.py format) scored with today's matcher
 on cosine and keywords alone; u answers are counted, never scored. label-me.csv, transitions.csv and cases.json hold
@@ -39,6 +41,7 @@ import csv
 import hashlib
 import json
 import math
+import re
 from collections import Counter, defaultdict
 from datetime import date
 from itertools import pairwise
@@ -55,10 +58,13 @@ CATEGORIES = ("missing_data", "high_cosine_no_keyword_support", "keywords_withou
 ANSWERS = {"y": "same", "n": "separate", "u": "unjudgeable"}
 FULL_LIMIT = 60
 PER_CATEGORY = 20
+# The neutral name an unlabelled cluster gets (cluster._neutral); two of them differing says nothing about the topic.
+PLACEHOLDER = re.compile(r"^topic [0-9a-f]{6,}$", re.IGNORECASE)
 TRANSITION_FIELDS = ["transition_id", "market", "item_id", "prev_date", "cur_date", "days", "match_kind", "cosine",
-                     "jaccard", "shared_keywords", "selection_category", "selection_reasons", "selected"]
+                     "jaccard", "other_items_compared", "other_items_at_or_above", "shared_keywords",
+                     "selection_category", "selection_reasons", "selected"]
 LABEL_FIELDS = ["transition_id", "market", "prev_date", "cur_date", "days", "match_kind", "cosine", "jaccard",
-                "selection_category", "selection_reasons",
+                "other_items_compared", "other_items_at_or_above", "selection_category", "selection_reasons",
                 "prev_label", "cur_label", "prev_keywords", "cur_keywords",
                 "same_topic", "label_note"]
 
@@ -102,7 +108,11 @@ def join(cluster_rows, centroid_rows):
     return joined
 
 
-def selection_reasons(cos, jac, days, prev, cur):
+def _named(label):
+    return bool(label.strip()) and not PLACEHOLDER.match(label.strip())
+
+
+def selection_reasons(cos, jac, days, prev, cur, other_at_or_above=0):
     """Why a transition is worth labelling, from cosine, keywords, gap and labels only. Never a verdict."""
     match, keywords = cluster.MATCH_COSINE, cluster.KEYWORD_JACCARD
     reasons = []
@@ -118,7 +128,9 @@ def selection_reasons(cos, jac, days, prev, cur):
         reasons.append("no_visible_identity")
     if days > cluster.RECENT_DAYS:
         reasons.append("gap_over_recent")
-    if prev["label"].strip().lower() != cur["label"].strip().lower():
+    if other_at_or_above:
+        reasons.append("other_item_as_close")
+    if _named(prev["label"]) and _named(cur["label"]) and prev["label"].strip().lower() != cur["label"].strip().lower():
         reasons.append("label_changed")
     return reasons or ["supported_control"]
 
@@ -149,10 +161,13 @@ def select(rows, full_limit=FULL_LIMIT, per_category=PER_CATEGORY):
 
 
 def transitions(joined):
-    by_item = defaultdict(list)
+    """Consecutive daily clusters of each item. Each also carries how many clusters of other items (or of none) on the
+    earlier day sit at least as close to the later cluster: the alternatives the cosine had to beat."""
+    by_item, by_day = defaultdict(list), defaultdict(list)
     for r in joined:
         if r["item_id"]:
             by_item[(r["market"], r["item_id"])].append(r)
+        by_day[(r["market"], r["cluster_date"])].append(r)
     out = []
     for (market, item_id), rows in sorted(by_item.items()):
         rows.sort(key=lambda r: (r["cluster_date"], r["cluster_id"]))
@@ -160,13 +175,17 @@ def transitions(joined):
             cos = _cosine(prev["centroid"], cur["centroid"])
             jac = _jaccard(prev["keywords"], cur["keywords"])
             days = (date.fromisoformat(cur["cluster_date"]) - date.fromisoformat(prev["cluster_date"])).days
-            reasons = selection_reasons(cos, jac, days, prev, cur)
+            others = [c for c in (_cosine(o["centroid"], cur["centroid"]) for o in by_day[(market, prev["cluster_date"])]
+                                  if o["item_id"] != item_id) if c is not None]
+            at_or_above = sum(c >= cos for c in others) if cos is not None else None
+            reasons = selection_reasons(cos, jac, days, prev, cur, at_or_above or 0)
             out.append({"transition_id": f"{market}:{item_id[:12]}:{cur['cluster_date']}:{cur['cluster_id']}",
                         "market": market, "item_id": item_id, "prev_date": prev["cluster_date"],
                         "cur_date": cur["cluster_date"],
                         "days": days,
                         "match_kind": cur["match_kind"], "prev_label": prev["label"], "cur_label": cur["label"],
-                        "cosine": cos, "jaccard": jac,
+                        "cosine": cos, "jaccard": jac, "other_items_compared": len(others),
+                        "other_items_at_or_above": at_or_above, "_others": others,
                         "shared_keywords": " ".join(sorted(set(prev["keywords"]) & set(cur["keywords"]))),
                         "selection_category": category(reasons), "selection_reasons": " ".join(reasons),
                         "_prev": prev, "_cur": cur})
@@ -185,12 +204,31 @@ def _counts(rows):
             "reasons": dict(sorted(reasons.items()))}
 
 
+def _quantile(values, q):
+    return values[min(len(values) - 1, int(q * len(values)))] if values else None
+
+
+def baseline(rows):
+    """How close clusters of different items already are: every cosine between a transition's later cluster and the
+    other items' clusters of the earlier day, against the transitions' own cosines. If they overlap, a high cosine
+    alone is weak identity evidence in this embedding space."""
+    others = sorted(c for t in rows for c in t.get("_others", []))
+    own = sorted(t["cosine"] for t in rows if t["cosine"] is not None)
+    return {"other_item_pairs": len(others),
+            "other_item_cosine": {"p50": _quantile(others, 0.5), "p90": _quantile(others, 0.9),
+                                  "max": others[-1] if others else None},
+            "other_item_pairs_at_or_above_match": sum(c >= cluster.MATCH_COSINE for c in others),
+            "transition_cosine": {"p50": _quantile(own, 0.5), "min": own[0] if own else None},
+            "transitions_with_an_other_item_as_close": sum(bool(t.get("other_items_at_or_above")) for t in rows)}
+
+
 def summary(rows):
     """Counts only, so it can be reviewed and shared: no labels, keywords, ids or answers."""
     per = defaultdict(list)
     for t in rows:
         per[t["market"]].append(t)
-    return {"total": _counts(rows), "markets": {m: _counts(v) for m, v in sorted(per.items())}}
+    return {"total": {**_counts(rows), "baseline": baseline(rows)},
+            "markets": {m: {**_counts(v), "baseline": baseline(v)} for m, v in sorted(per.items())}}
 
 
 def cases_from_labels(rows, labels):
