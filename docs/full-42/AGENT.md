@@ -19,7 +19,7 @@ The brain in BRAIN.md, built. Python on Cloud Run (f42-agent), with Gemini on Ve
 | T2 Brief | Comparison, "why is this rising", a brand across platforms | 3 to 5 researchers and the critic | 10 to 15 each | up to 300 |
 | T3 Investigation | New category or community, several angles, client deliverable | 5 to 8 researchers, critic, gap round | 15 each, 20 hard stop | up to 600 (the whole ASK_DAILY share); more only when Albert raises ASK_DAILY for that day in the plan screen |
 
-The app's depth slider (core/agent/depth.py) offers T0, T1 and T2 as Quick, Standard and Deep, each with its credit, live call and model hold ceilings from this table and its share of ASK_DAILY, read from `ask_depth` on health. Deep is open to a plain ask only while f42-agent has F42_T2_READY and F42_ASK_DEEP both set to 1.
+The app's depth slider (core/agent/depth.py) offers T0, T1 and T2 as Quick, Standard and Deep, each with its credit, live call and model hold ceilings from this table and its share of ASK_DAILY, read from `ask_depth` on health. Deep is open to a plain ask only while f42-agent has F42_T2_READY set to 1 and depth.DEEP_FOR_PLAIN_ASKS is True (off until Albert approves it).
 
 Move up a tier when the critic reports high risk or a key platform failed. Move down when memory holds current claims under 72 hours old. Credits within a tier: 55% first round, 25% reserved for the gap round, 20% for enrichment (comments, transcripts, video) on the top 10 to 20 items only. Stop paginating when a page adds under 20% new authors or nothing reaches the top of the ranking; three pages maximum unless the subject is a named entity.
 

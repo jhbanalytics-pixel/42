@@ -23,18 +23,22 @@ def test_deep_is_closed_with_a_reason_unless_opened():
     assert all(lv["open"] and lv["closed_reason"] is None for lv in depth.levels(deep=True, daily=600))
 
 
-def test_deep_needs_both_switches_set_to_exactly_1(monkeypatch):
-    for ready, deep, expected in (("1", "1", True), ("1", None, False), (None, "1", False), ("1", "true", False)):
-        for name, value in (("F42_T2_READY", ready), ("F42_ASK_DEEP", deep)):
-            if value is None:
-                monkeypatch.delenv(name, raising=False)
-            else:
-                monkeypatch.setenv(name, value)
-        assert depth.deep_open() is expected
+def test_deep_needs_t2_ready_and_the_switch(monkeypatch):
+    assert depth.DEEP_FOR_PLAIN_ASKS is False  # off until Albert approves it
+    assert depth.deep_open(True) is False
+    monkeypatch.setattr(depth, "DEEP_FOR_PLAIN_ASKS", True)
+    assert depth.deep_open(True) is True
+    assert depth.deep_open(False) is False
+    assert depth.deep_open("1") is False
 
 
-def test_share_follows_ask_daily_and_survives_a_bad_value(monkeypatch):
-    monkeypatch.setenv("ASK_DAILY", "1200")
-    assert depth.levels(deep=False)[2]["share_of_daily"] == 0.25
-    monkeypatch.setenv("ASK_DAILY", "lots")
+def test_share_follows_the_days_ask_credits():
+    assert depth.levels(deep=False, daily=1200)[2]["share_of_daily"] == 0.25
     assert depth.levels(deep=False)[2]["share_of_daily"] == 0.5
+
+
+def test_depth_reads_no_environment():
+    import inspect
+
+    source = inspect.getsource(depth)
+    assert "os.environ" not in source and "getenv" not in source and "import os" not in source

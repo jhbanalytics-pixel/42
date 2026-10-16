@@ -505,9 +505,9 @@ def validate(body):
         return "market must be ZA, NG, KE or null."
     if body.get("tier") == "T3" or (body.get("tier") == "T2" and not t2_ready()):
         return f"Tier {body['tier']} is not available until Stage 1B; use T0, T1 or leave it out."
-    # Deep on the depth slider (core/agent/depth.py) opens T2 to a plain ask only while F42_ASK_DEEP is on too.
+    # Deep on the depth slider (core/agent/depth.py) opens T2 to a plain ask only while DEEP_FOR_PLAIN_ASKS is on too.
     plain = body.get("skill") is None and body.get("spike") is None
-    if body.get("tier") == "T2" and body.get("skill") not in T2_SKILLS and not (plain and depth.deep_open()):
+    if body.get("tier") == "T2" and body.get("skill") not in T2_SKILLS and not (plain and depth.deep_open(t2_ready())):
         return ("Tier T2 is open only for the brand lens and the context pack (skill brand-implication or "
                 "context-pack) while Deep is switched off; use T0, T1 or leave it out.")
     if body.get("tier") not in ("T0", "T1", "T2", None):
@@ -2618,7 +2618,7 @@ def health():
 def ask_depth():
     """The depth slider's levels (core/agent/depth.py), or None when they cannot be read, so health still answers."""
     try:
-        return depth.levels(depth.deep_open())
+        return depth.levels(depth.deep_open(t2_ready()), daily=investigations.caps()["credits"])
     except Exception as exc:  # noqa: BLE001 - health must answer whatever the agent's import state
         log.warning("health: ask depth unavailable: %s", type(exc).__name__)
         return None
