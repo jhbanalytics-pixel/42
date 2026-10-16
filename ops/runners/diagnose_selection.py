@@ -1,7 +1,8 @@
 """Read-only check of which candidates the morning brief judged for one date, and which the pattern-first ordering
 (core/brief/sql/brief.sql, pattern-first-selection) would judge instead. Run from the repository root:
     py -3.13 -m ops.runners.diagnose_selection YYYY-MM-DD [--out FOLDER]
-Needs google-cloud-bigquery and gcloud ADC on this PC. SELECT only, each query capped at 2 GB billed.
+Needs google-cloud-bigquery and gcloud ADC on this PC; reads run as f42-builder through impersonation (RULES 13, as
+ops/card_outcome_report.py does). SELECT only, each query capped at 2 GB billed.
 
 Per market it runs the candidate statement twice on the date's detect run, once as this source orders it and once
 with the pattern bucket taken out of the ordering (the f9bd07c9 order), and reads the date's published brief payload.
@@ -28,6 +29,7 @@ from core.brief import job
 from core.detect import sqlrun
 
 P = "ogilvy-trends-v2"
+BUILDER = "f42-builder@ogilvy-trends-v2.iam.gserviceaccount.com"
 CORE, AGENT = "intelligence_42_core", "intelligence_42_agent"
 CAP = 2 * 10**9
 MARKETS = ("ZA", "NG", "KE")
@@ -85,12 +87,24 @@ def show(entry):
           f"{entry['news_clip_posts']}/{entry['enriched_posts']}  {entry['outcome'] or 'not judged'}")
 
 
+def make_client():
+    """A BigQuery client acting as f42-builder, impersonated from this PC's ADC for ten minutes (RULES 13)."""
+    import google.auth
+    from google.auth import impersonated_credentials
+
+    source, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    credentials = impersonated_credentials.Credentials(
+        source_credentials=source, target_principal=BUILDER,
+        target_scopes=["https://www.googleapis.com/auth/cloud-platform"], lifetime=600)
+    return bigquery.Client(project=P, credentials=credentials, location="US")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     ap.add_argument("date", type=dt.date.fromisoformat)
     ap.add_argument("--out", type=Path)
     args = ap.parse_args(argv)
-    client = bigquery.Client(project=P)
+    client = make_client()
     d = args.date
     new_sql = job.query_sql("candidates")  # for the locality authority in force, as the brief reads it
     old_sql = old_order(new_sql)

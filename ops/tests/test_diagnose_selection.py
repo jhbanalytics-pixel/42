@@ -30,7 +30,7 @@ def test_the_report_names_each_judged_item_with_its_hold_and_both_ranks(con, mon
     answers = iter([[{"market": "NG", "p": json.dumps(payload)}],
                     [], [], new_rows, old_rows, [], []])            # ZA, NG and KE, each new then old
     monkeypatch.setattr(diag, "query", lambda client, sql, params: next(answers))
-    monkeypatch.setattr(diag.bigquery, "Client", lambda project: None)
+    monkeypatch.setattr(diag, "make_client", lambda: None)
     assert diag.main([D.isoformat(), "--out", str(tmp_path)]) == 0
     report = json.loads((tmp_path / f"selection-{D.isoformat()}.json").read_text())
     ng = report["markets"]["NG"]
@@ -40,3 +40,17 @@ def test_the_report_names_each_judged_item_with_its_hold_and_both_ranks(con, mon
     assert (by["sound"]["new_rank"], by["sound"]["old_rank"], by["sound"]["outcome"]) == (1, 11, None)
     assert by["person"]["outcome"] == "The explanation did not pass our checks: Critic"
     assert "handle" not in capsys.readouterr().out
+
+
+def test_the_runner_reads_as_the_impersonated_builder_not_the_callers_own_login(monkeypatch):
+    import google.auth
+    from google.auth import impersonated_credentials
+
+    seen = {}
+    monkeypatch.setattr(google.auth, "default", lambda scopes: ("adc", "p"))
+    monkeypatch.setattr(impersonated_credentials, "Credentials",
+                        lambda **kw: seen.setdefault("creds", kw) and "builder")
+    monkeypatch.setattr(diag.bigquery, "Client", lambda **kw: seen.setdefault("client", kw))
+    diag.make_client()
+    assert seen["creds"]["source_credentials"] == "adc" and seen["creds"]["target_principal"] == diag.BUILDER
+    assert seen["client"]["credentials"] == "builder" and seen["client"]["project"] == diag.P
