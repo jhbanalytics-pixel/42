@@ -448,6 +448,13 @@ PRICED = {
     "facebook/search/posts": rule(
         1, ("query", "cursor", "start_date", "end_date", "recent_posts", "location_uid", "max_age_days", "seen")
         + RELEVANCE_FREE + LABEL_FREE, add=JUDGED_4, pages="max_pages"),
+    # The local sources' Android chart (core/collect/local_sources.py), one market a day Monday to Wednesday. It was
+    # planned at this list price and refused as not priced until 16 Oct 2026.
+    "google_play/app-list": rule(5, ("app_collection", "country", "language")),
+    # Row 16w, the morning run's wider net (core/collect/job.py WIDE_TOP). pinterest/search's include=engagement
+    # (1 a row) is left unpriced, so it is refused.
+    "bluesky/search": rule(1, ("query", "sort", "since", "until", "lang", "author")),
+    "pinterest/search": rule(1, ("query", "cursor", "trim", "limit")),
     "linkedin/search/posts": rule(
         5, ("page", "sort_by", "date_posted", "content_type", "from_company", "from_member", "query", "cursor")
         + RELEVANCE_FREE + LABEL_FREE, add=JUDGED_8),

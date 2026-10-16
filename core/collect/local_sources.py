@@ -9,8 +9,8 @@ One extra phase of the 02:00 collect job, about 40 credits a day from the collec
 - prism/profiles include=posts since yesterday: an Instagram gossip and blog panel per market, public
   pages chosen by interest (celebrity news, entertainment and music gossip), 2 credits a page;
 - google_play/app-list, the top free apps, one market a day on Monday (ZA), Tuesday (NG) and Wednesday
-  (KE). The route is not in PRICED yet, so the client refuses it: it is planned at its list price of 5,
-  recorded as not_priced and never called until core/collect/socialcrawl_client.py prices it;
+  (KE), 5 credits (priced in core/collect/socialcrawl_client.py since 16 Oct 2026; before that it was planned,
+  recorded as not_priced and never called);
 - free, fetched with requests under a User-Agent naming 42 and Ogilvy, with no email address: the App
   Store top free chart per market (labelled iPhone only until Google Play lands) and the news RSS feeds.
   The App Store chart is a baseline rank list, so a timeout, connection error, 429 or 5xx on it is fetched
@@ -249,7 +249,7 @@ def plan(day):
             fetches.append(Fetch("google_play", market, "google_play/app-list",
                                  _protocol("google_play/app-list", params, ("app_collection", "country")),
                                  "google_play", "board_google_play", "unbiased_rank", params,
-                                 "not priced in the client yet; held at the list price, never called"))
+                                 "top free Android apps, 5 credits"))
         fetches.append(Fetch("app_store", market, "apple_rss", APP_STORE.format(cc=market.lower()), "app_store",
                              "board_app_store_iphone", "unbiased_rank", note="iPhone only; live-verified 4 Jul 2026"))
         fetches += [Fetch(f.source, market, "rss", f.url, "news", "news_rss", "context", note=f.note)

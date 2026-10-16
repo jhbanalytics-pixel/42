@@ -149,6 +149,17 @@ SEARCH_PAGES, PAGES_SHARE, MULTI_CREDITS = 2, 2000, 10
 # run's order, so no other lane gives up a credit; none under a cap override.
 REELS_TOP = {"ZA": 1, "NG": 1, "KE": 1}
 REELS_ROW, REELS_ROUTE = "14i", "instagram/search/reels"
+# Row 16w, the wider net: each market's first row 16 queries (then row 14's) searched again on the platforms rows 14
+# and 16 never reach. LinkedIn goes through search/multi alone (5 a call), Bluesky and Pinterest search at 1 each.
+# The plan holds 21 a market, 63 a run, made route by route across the markets, cheapest first, so a day with little
+# room (the Monday and Thursday industry board) still spreads them over the markets. Like row 14i they carry no seed,
+# take only the room the share has left after the rows before them (so the curated panel and every earlier lane keep
+# their credits), come before row 14i, which gets what is left, and a body they cannot read fails that call, not the
+# run. Their posts are search_presence rows placed only from text, so their worth is judged on the locality and
+# candidate yield of their own series (docs/full-42/research/14-socialcrawl-endpoint-audit.md), not on volume. A count
+# of 0 turns a route off. Pinterest search takes no date, so its pins can be old; the detect windows judge them.
+WIDE_ROW = "16w"
+WIDE_TOP = (("bluesky/search", 3), ("pinterest/search", 3), ("search/multi", 3))
 # Local feed pulls a day. The task 0.5 probe measured the feed=local in-country share at ZA 83% (20 of 24),
 # NG 65% (17 of 26) and KE 12% (1 of 8), NG to KE overlap 1 video. BUILD.md 0.5 moves a market under 40%
 # to country-filtered search: KE keeps one pull as its measurement series, and the credits of its other
@@ -477,6 +488,36 @@ def reels_calls(market, regular, count):
     return calls
 
 
+def wide_params(route, query, market, day):
+    since = _since(day, 7)
+    if route == "search/multi":
+        return {"query": query, "platforms": "linkedin", "since": since}
+    if route == "bluesky/search":
+        return {"query": query, "sort": "latest", "since": since}
+    if route == "pinterest/search":
+        return {"query": query}
+    raise ValueError(f"no row {WIDE_ROW} call for route {route!r}")
+
+
+def wide_calls(market, day, regular, top=None):
+    """Row 16w for a market: for each (route, count) in top, that route's search on the market's first count
+    distinct queries of its planned row 16 calls, then of its row 14 calls (placebo searches left out). They carry
+    no seed, as row 14i's do not, and their protocol names the route's planned count."""
+    queries = []
+    for row in ("16", "14"):
+        for c in regular:
+            if c.row == row and c.seed is not None and c.lane != "placebo" and c.seed.query \
+                    and c.seed.query not in [q for q, _, _ in queries]:
+                queries.append((c.seed.query, c.seed_key, c.lane))
+    calls = []
+    for route, count in WIDE_TOP if top is None else top:
+        for query, key, lane in queries[:count]:
+            params = wide_params(route, query, market, day)
+            calls.append(Call(WIDE_ROW, route, params, market, lane, seed_key=key,
+                              protocol=search_protocol(route, params, count)))
+    return calls
+
+
 def reels_counts(room, top=None):
     """Row 14i calls a market within room credits, market by market in the run's order (MARKETS), each up to its
     count in top (REELS_TOP) while a call's hold still fits, as the run makes them."""
@@ -678,7 +719,7 @@ def interleaved(by_market):
 
 
 def drive(execute, day, config, *, x_trends, override, rank, evidence, queue=lambda market: ((), {}),
-          watched=(), curated_records=(), curated_limit=0, reels=None):
+          watched=(), curated_records=(), curated_limit=0, reels=None, wide=True):
     """The run's four phases. execute(by_market) runs one phase interleaved; rank(market) gives a market's
     ranked candidates after the harvest; queue(market) its live seeds and recorded uses; watched the watch
     calls (watch_calls), which open the expansion phase and take row 12 slots from the candidates; evidence()
@@ -700,19 +741,23 @@ def drive(execute, day, config, *, x_trends, override, rank, evidence, queue=lam
             m, day, rank(m), random.Random(f"{day.isoformat()}-{m}"), counted, search_calls(m, size), queue=live,
             uses=uses, counts=count_slots(len(watched)), cut=cut, pages=size.pages, multi_top=size.multi_top)
     execute(expansion, [cut_record(call, why) for call, why in cut])
+    spread = {m: wide_calls(m, day, expansion[m]) if wide else [] for m in MARKETS}
     later = {m: reels_calls(m, expansion[m], (reels or {}).get(m, 0)) for m in MARKETS}
     execute({m: panel_calls(m, day, config, curated_records, curated_limit)
              + [feed_pull(m, n) for n in (3,) if n <= FEED_PULLS[m]]
              for m in MARKETS})
     urls = evidence()
     execute({m: [Call("22", "prism/post-stats", {"urls": urls[m]}, m, "watchlist")] for m in MARKETS if urls.get(m)})
+    for route, _ in WIDE_TOP:
+        execute({m: [c for c in calls if c.route == route] for m, calls in spread.items()})
     execute({m: calls for m, calls in later.items() if calls})
     return skipped
 
 
 def _curated_limit(day, records, *, config, x_trends, share_cap, watches):
+    # Row 16w is left out: it takes only the room the curated panel leaves, as row 14i does.
     baseline = plan(day, config=config, x_trends=x_trends, share_cap=share_cap, watches=watches,
-                    include_curated=False, reels={})
+                    include_curated=False, reels={}, wide=False)
     cap = share_cap if share_cap is not None else load_caps()["ENGINE_DAILY"]["collect"]
     local_hold = local_sources.total_hold(local_sources.plan(day))
     residual = cap - baseline["total"] - local_hold
@@ -733,7 +778,7 @@ def reels_plan(day, curated_records, curated_limit, *, config, x_trends, share_c
 
 
 def plan(day, *, config=None, x_trends=False, share_cap=None, watches=(), include_curated=True, only_routes=None,
-         reels=None, curated=None):
+         reels=None, curated=None, wide=True):
     """Every call of a run per market in run order, with placeholders standing for the candidates, the
     seed_queue seeds and the evidence posts a live run finds, and the watch calls for watches (none from the
     command line, which reads no BigQuery). Under a cap override, calls that do not fit their share at their
@@ -755,13 +800,20 @@ def plan(day, *, config=None, x_trends=False, share_cap=None, watches=(), includ
     calls = {m: [] for m in (GLOBAL,) + MARKETS}
     over = {m: [] for m in (GLOBAL,) + MARKETS}
     research = seeding.research_rows(research_terms.load_terms(), day)
+    # Row 16w takes only the room every other planned call leaves beside the Google Trends and local holds, as a
+    # run's _Runner gives it.
+    wide_room = load_caps()["ENGINE_DAILY"]["collect"] - google_trends.MAX_SC_CREDITS \
+        - local_sources.total_hold(local_sources.plan(day))
 
     def execute(by_market, skipped=()):
         for market, block in interleaved(by_market):
             for call in block:
                 if only_routes is not None and call.route not in only_routes:
                     continue
-                if budget.fits(call, call.hold()):
+                if call.row == WIDE_ROW and sum(c.hold() for cs in calls.values() for c in cs) + call.hold() \
+                        > wide_room:
+                    over[market].append(call)
+                elif budget.fits(call, call.hold()):
                     budget.spend(call, call.hold())
                     calls[market].append(call)
                 else:
@@ -776,7 +828,7 @@ def plan(day, *, config=None, x_trends=False, share_cap=None, watches=(), includ
                                                         [s for s in research if s["market"] == m] +
                                                         google_trends.placeholder_seeds(m, day), {}),
                     watched=watch_calls(watches)[0], curated_records=curated_records,
-                    curated_limit=curated_limit, reels=reels)
+                    curated_limit=curated_limit, reels=reels, wide=wide and share_cap is None)
     if only_routes is None:
         location_calls, _ = location_sources.plan(day, config)
         execute({m: [Call(**c) for c in location_calls if c["market"] == m] for m in MARKETS})
@@ -1082,7 +1134,8 @@ class _Runner:
             if not self.budget.fits(call, hold):
                 self._record(call, "over_share", self.clock())
                 continue
-            if ((call.route in (REELS_ROUTE,) + location_sources.ROUTES or call.family == "profile") and self.reels_room is not None
+            if ((call.route in (REELS_ROUTE,) + location_sources.ROUTES or call.row == WIDE_ROW or call.family == "profile")
+                    and self.reels_room is not None
                     and self.run.credits + hold > self.reels_room):
                 unserved = Result("over_share", call.route, reason=location_sources.UNSERVED) if call.family == "profile" else None
                 self._record(call, "over_share", self.clock(), unserved)
@@ -1118,9 +1171,10 @@ class _Runner:
                 try:
                     parsed = self._parse(call, result, fetched)
                 except Exception:
-                    if call.route not in (REELS_ROUTE,) + location_sources.ROUTES and call.family != "profile":
+                    if call.route not in (REELS_ROUTE,) + location_sources.ROUTES and call.row != WIDE_ROW \
+                            and call.family != "profile":
                         raise
-                    # Row 14i is an extra search lane: a body it cannot read fails that call, not the run.
+                    # Rows 14i and 16w are extra search lanes: a body they cannot read fails that call, not the run.
                     log.exception("collect %s %s: response not parsed", call.market, call.route)
                     parsed, status = None, "unparsable"
                 self._record(call, status, fetched, result, parsed)
@@ -1547,7 +1601,8 @@ def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None,
     reels = dict(REELS_TOP) if share_cap is None and only_routes is None else {}
     drive(runner.execute, run_date, config, x_trends=x_trends, override=share_cap is not None, rank=rank,
           evidence=lambda: pick_evidence(runner.first_seen, focus), queue=queue, watched=watched,
-          curated_records=curated_records, curated_limit=curated_limit, reels=reels)
+          curated_records=curated_records, curated_limit=curated_limit, reels=reels,
+          wide=share_cap is None and only_routes is None)
     if only_routes is None:
         location_calls, held = location_sources.plan(run_date, config)
         runner.execute({m: [Call(**c) for c in location_calls if c["market"] == m] for m in MARKETS})

@@ -817,9 +817,9 @@ def read_candidates(path):
 # The proposal -------------------------------------------------------------------------------------------------
 
 def morning_totals(day):
-    """(SocialCrawl phases, local sources): the holds core.collect.job --plan prints for day, less the row 14i reel
+    """(SocialCrawl phases, local sources): the holds core.collect.job --plan prints for day, less the row 16w and 14i
     searches, which take only the room every other call leaves, so an entry added here takes its credits from them."""
-    return job.plan(day, reels={})["total"], local_sources.total_hold(local_sources.plan(day))
+    return job.plan(day, reels={}, wide=False)["total"], local_sources.total_hold(local_sources.plan(day))
 
 
 def budget_for(day):
@@ -1117,7 +1117,7 @@ def load_module(text, name="local_sources_draft_check"):
 def _totals(hubs_text, local_text, day):
     config = {"markets": job.load_config()["markets"], "hubs": yaml.safe_load(hubs_text)}
     module = load_module(local_text)
-    return job.plan(day, config=config, reels={})["total"], module.total_hold(module.plan(day))
+    return job.plan(day, config=config, reels={}, wide=False)["total"], module.total_hold(module.plan(day))
 
 
 def check_draft(hubs, local, new_hubs, new_local, day):

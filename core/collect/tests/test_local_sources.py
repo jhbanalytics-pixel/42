@@ -75,6 +75,8 @@ class FakeClient:
         if route == "web/scrape":
             body = envelope(SCRAPE[HOSTS[urlsplit(params["url"]).netloc]], params["url"])
             items = []
+        elif route == "google_play/app-list":
+            body, items = json.loads(json.dumps(GOOGLE_PLAY)), []
         else:
             body = json.loads(json.dumps(PROFILES))
             items = body["data"]["results"]
@@ -153,10 +155,9 @@ def test_paid_fetches_quote_through_the_client_and_never_add_a_proxy():
         assert f.paid
         assert f.route in ("web/scrape", "prism/profiles", "google_play/app-list")
         assert "proxy" not in f.params and "pdf_parse" not in f.params
+        assert f.priced() and f.hold() == quote_for(f.route, PRICED[f.route].method, f.params)
         if f.route == "google_play/app-list":
-            assert not f.priced() and f.hold() == 5
-        else:
-            assert f.priced() and f.hold() == quote_for(f.route, PRICED[f.route].method, f.params)
+            assert f.hold() == 5
 
 
 def test_scrape_holds_one_credit_and_the_panel_two_a_handle():
@@ -192,7 +193,7 @@ def test_plan_cli_prints_every_fetch_and_the_total_with_no_network(monkeypatch, 
         assert f"{market} hold" in out
     assert "total hold 34 credits" in out
     assert "cap 40" in out
-    assert "not priced" in out
+    assert "not priced" not in out and "google_play/app-list" in out
     for name in ls.DROPPED_FEEDS:
         assert name in out
 
@@ -310,7 +311,7 @@ def test_run_lands_rows_for_every_source_and_a_coverage_record_for_every_fetch()
         quote_for(call["route"], PRICED[call["route"]].method, call["params"])
         for call in client.calls
     )
-    assert {c["route"] for c in client.calls} == {"web/scrape", "prism/profiles"}
+    assert {c["route"] for c in client.calls} == {"web/scrape", "prism/profiles", "google_play/app-list"}
 
 
 def test_retired_local_sources_are_left_out_of_the_plan_and_write_no_health_row(monkeypatch, capsys):
@@ -445,12 +446,15 @@ def test_a_scraped_board_with_no_readable_entries_is_a_failed_fetch_not_a_valid_
     assert [c for c in out["counters"] if c["series"] == "board_boomplay"]
 
 
-def test_run_records_google_play_as_not_priced_without_calling():
+def test_run_reads_the_google_play_chart_at_5_now_it_is_priced():
+    # Before 16 Oct 2026 the route was planned but not priced, so every run recorded it not_priced and never read it.
     client = FakeClient()
     out = run(client)
     record = next(r for r in out["records"] if r["series"] == "board_google_play")
-    assert record["status"] == "not_priced" and record["calls"] == 0 and not record["ok"]
-    assert not [c for c in client.calls if c["route"] == "google_play/app-list"]
+    assert record["status"] == "ok" and record["calls"] == 1 and record["ok"]
+    calls = [c for c in client.calls if c["route"] == "google_play/app-list"]
+    assert [(c["market"], c["params"]) for c in calls] == [("ZA", {"app_collection": "topselling_free", "country": "za"})]
+    assert [c for c in out["counters"] if c["series"] == "board_google_play"]
 
 
 def test_robots_disallow_stops_a_scrape_before_any_credit():

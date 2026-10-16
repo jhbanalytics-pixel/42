@@ -151,6 +151,9 @@ ROUTES = {
     "tiktok/profile": ("profile", "tiktok", "profile_country", False, (), MARKETS),
     "instagram/profile/about": ("profile", "instagram", "profile_country", False, (), MARKETS),
     "twitter/tweet": ("search", "twitter", "search", False, (), MARKETS),
+    # Row 16w, the morning run's wider net (core/collect/job.py WIDE_TOP).
+    "bluesky/search": ("search", "bluesky", "search", False, ("sort",), MARKETS),
+    "pinterest/search": ("search", "pinterest", "search", False, (), MARKETS),
     "prism/post-stats": ("restat", None, "counter_post_views", False, (), MARKETS),
     "web/scrape": ("none", None, None, False, (), MARKETS + (GLOBAL,)),
 }
@@ -165,7 +168,8 @@ SEEDED = ("tiktok/profile/videos", "instagram/audio/reels", "tiktok/song/videos"
           "facebook/profile/posts")
 HOSTS = {"tiktok.com": "tiktok", "youtube.com": "youtube", "youtu.be": "youtube", "instagram.com": "instagram",
          "x.com": "twitter", "twitter.com": "twitter", "facebook.com": "facebook", "reddit.com": "reddit",
-         "threads.net": "threads", "threads.com": "threads", "linkedin.com": "linkedin"}
+         "threads.net": "threads", "threads.com": "threads", "linkedin.com": "linkedin", "bsky.app": "bluesky",
+         "pinterest.com": "pinterest"}
 HASHTAG = re.compile(r"#(\w+)")
 OFFSET_SPACE = re.compile(r"\s+(?=[+-]\d{2}:?\d{2}$)")
 
@@ -299,7 +303,8 @@ def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_f
             _post(out, ctx, {"post": data["post"], "computed": data.get("computed")}, platform)
     elif family in ("panel", "location", "watch") or route in ("tiktok/search/top", "tiktok/search/hashtag",
                                                                "instagram/search/reels", "youtube/search/advanced",
-                                                               "tiktok/location/posts"):
+                                                               "tiktok/location/posts", "bluesky/search",
+                                                               "pinterest/search"):
         for item in _rows(data):
             _post(out, ctx, item, platform, fallback=fallback)
     elif route == "search/multi":

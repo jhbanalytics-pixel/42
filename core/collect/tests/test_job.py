@@ -79,6 +79,20 @@ def body_for(route, params, market=None):
         return {"success": True, "data": {"items": [
             {"url": u, "status": "ok", "engagement": {"views": 100, "likes": 5, "comments": 1, "shares": 0}}
             for u in params["urls"]]}}
+    if route == "google_play/app-list":  # the local sources' Android chart
+        return json.loads((Path(__file__).resolve().parent / "fixtures" / "local_google_play.json").read_text(
+            encoding="utf-8"))
+    if route == "search/multi" and params.get("platforms") == "linkedin":  # row 16w
+        return {"success": True, "credits_used": 5, "data": {"sources": {"linkedin": {"items": [{"post": {
+            "id": f"li-{params['query']}", "url": "https://www.linkedin.com/posts/someone_activity-1",
+            "published_at": "2026-09-28T00:10:00Z", "author": {"username": "someone"},
+            "content": {"text": params["query"]}, "engagement": {"likes": 3}}}]}}}}
+    if route in ("bluesky/search", "pinterest/search"):  # row 16w
+        platform = route.split("/")[0]
+        return {"success": True, "data": {"items": [{"post": {
+            "id": f"{platform}-{params['query']}", "platform": platform, "url": f"https://example.org/{platform}/1",
+            "published_at": "2026-09-28T00:10:00Z", "author": {"username": "someone"},
+            "content": {"text": params["query"]}, "engagement": {"likes": 3}}}]}}
     region = params.get("region") or market
     return copy.deepcopy(FIXTURE.get(f"{route}|{region}") or FIXTURE[route])
 
@@ -304,7 +318,7 @@ def test_plan_covers_the_stage_1a_rows_for_every_market_within_the_collect_share
         rows = {c.row for c in planned["calls"][market]}
         assert {"1", "3", "6", "7", "8", "11", "12", "14", "16", "22", "23", "23a"} <= rows, market
     assert {c.row for c in planned["calls"]["GLOBAL"]} == {"4"}
-    assert {c.row for c in calls} - {job.REELS_ROW} == STAGE_1A
+    assert {c.row for c in calls} - {job.REELS_ROW, job.WIDE_ROW} == STAGE_1A
     assert all(c.market == "ZA" for c in calls if c.row == "2")
     total = sum(c.hold() for c in calls)
     assert 0 < total <= job.load_caps()["ENGINE_DAILY"]["collect"]
@@ -378,7 +392,7 @@ def test_row_5_plans_a_five_credit_call_for_every_configured_hub():
     for call in calls:
         assert call.row == "5" and call.source_market is None
         assert call.hold() == 5
-    assert planned["total"] == 1891  # 1830 and one row 14i reel search in the room left
+    assert planned["total"] == 1893  # 1830 and row 16w's 63, which leave row 14i no room for a reel search
     skips = [s for s in planned["skipped"] if s["route"] == "instagram/location/posts"]
     assert skips == []
 
@@ -1350,8 +1364,10 @@ def test_research_terms_rotate_inside_existing_search_holds():
     wednesday = job.plan(date(2026, 9, 30))
     monday = job.plan(MONDAY)
     expected = {
-        "2026-09-30": ({"ZA": (56, 7), "NG": (56, 7), "KE": (65, 7)}, 368, 1891, 1925),  # with one row 14i call
-        "2026-10-05": ({"ZA": (60, 7), "NG": (56, 7), "KE": (61, 7)}, 368, 1926, 1960),
+        # Row 16w's searches fill the room left: all 27 on the Wednesday (none left for row 14i), 19 on the Monday,
+        # whose industry board takes the rest.
+        "2026-09-30": ({"ZA": (56, 7), "NG": (56, 7), "KE": (65, 7)}, 394, 1893, 1927),
+        "2026-10-05": ({"ZA": (60, 7), "NG": (56, 7), "KE": (61, 7)}, 387, 1949, 1983),
     }
 
     for day, planned in (("2026-09-30", wednesday), ("2026-10-05", monday)):
@@ -1535,7 +1551,8 @@ def test_main_reads_live_seeds_and_appends_one_yield_row_per_seed_used():
     assert run_main(["--run-date", "2026-09-29"], bq=bq, client=client) == 0
     [(sql, params)] = [(s, p) for s, p in bq.queries if "seed_queue" in s]
     assert sql.lstrip().upper().startswith("SELECT") and params["d"].value == TUESDAY
-    cyril = [c for c in client.calls if c["params"].get("query") == "Cyril Ramaphosa"]
+    cyril = [c for c in client.calls if c["params"].get("query") == "Cyril Ramaphosa"
+             and c["params"].get("platforms") == job.MULTI_PLATFORMS]  # row 16w searches it again elsewhere
     assert [c["params"] for c in cyril] == [{"query": "Cyril Ramaphosa", "platforms": job.MULTI_PLATFORMS,
                                              "since": "2026-09-27"}]
     assert cyril[0]["item_id"] == "topic|cyril ramaphosa" and cyril[0]["lane"] == "expansion"
@@ -1694,7 +1711,7 @@ def test_the_real_client_ledgers_local_calls_in_lane_local_against_the_collect_s
                                raw=MemoryRawStore(), http=both_http, clock=lambda: NOW)
     run = local_collect(client)
     local = [r for r in ledger.rows if r["lane"] == "local"]
-    assert {r["route"] for r in local} == {"web/scrape", "prism/profiles"}
+    assert {r["route"] for r in local} == {"web/scrape", "prism/profiles", "google_play/app-list"}
     assert not [r for r in ledger.rows if r["route"] == "web/scrape" and r["lane"] != "local"]
     assert {r["job"] for r in ledger.rows} == {"collect"}
     assert sum(r["credits_charged"] for r in local) == run.local_credits > 0
@@ -1717,9 +1734,13 @@ def test_the_local_phase_is_not_made_when_the_collect_share_has_less_than_its_ho
     baseline_run = collect(baseline_client)
     creator_hold = sum(c.hold() for cs in job.plan(TUESDAY)["calls"].values() for c in cs
                        if c.route == "prism/profiles" and not _desk(c))
-    # Row 14i also moves with the cap (it takes only the room left), and below it is never made.
-    reels_charged = sum(c["credits"] for c in baseline_client.charged if c["route"] == job.REELS_ROUTE)
-    spent = baseline_run.credits - creator_hold - reels_charged
+    # Rows 16w and 14i also move with the cap (they take only the room left), and below it they are never made.
+    # Every baseline call is ok, so its calls and charges pair up in order.
+    assert len(baseline_client.calls) == len(baseline_client.charged)
+    room_charged = sum(ch["credits"] for c, ch in zip(baseline_client.calls, baseline_client.charged)
+                       if c["route"] in (job.REELS_ROUTE, "bluesky/search", "pinterest/search")
+                       or c["params"].get("platforms") == "linkedin")
+    spent = baseline_run.credits - creator_hold - room_charged
     hold = ls.total_hold(ls.plan(TUESDAY))
     for cap, made in ((spent + hold - 1, False), (spent + hold, True)):
         caps = copy.deepcopy(job.load_caps())
