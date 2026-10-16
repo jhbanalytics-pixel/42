@@ -169,6 +169,86 @@ def test_platform_groups_follow_the_markets(markets, groups):
     assert ask.platform_groups(markets) == groups
 
 
+@pytest.mark.parametrize("question, expected", [
+    ("What is behind amapiano on Reddit in South Africa this week?",
+     ["reddit_threads", "tiktok", "x", "instagram"]),
+    ("What is behind amapiano on Facebook in South Africa this week?",
+     ["facebook", "tiktok", "x", "instagram"]),
+    ("What is behind amapiano on Instagram in Kenya this week?",
+     ["instagram", "x", "tiktok", "facebook"]),
+    ("What is behind amapiano on Reddit and Threads in South Africa this week?",
+     ["reddit_threads", "tiktok", "x", "instagram"]),
+    ("What is behind amapiano on X in South Africa this week?",
+     ["x", "tiktok", "instagram", "youtube"]),
+])
+def test_t2_entrypoint_prioritizes_requested_platforms_without_more_lanes(question, expected):
+    lanes = Lanes(parties=4)
+    h = t2(lanes)
+    out = h.run(tier="T2", question=question)
+    first = lanes.first_round()
+    assert len(first) == len(expected) == 4
+    for group in expected:
+        matching = [call for call in first if
+                    f"Live routes you may call: {', '.join(ask.group_routes(group))}." in call["prompt"]]
+        assert len(matching) == 1, group
+        call = matching[0]
+        assert call["budget"] == {"credits": 75.0, "calls": 11, "max_turns": 40,
+                                  "max_budget_usd": ask.researcher_usd(), "credit_cap": 56.25}
+        assert call["ran"] == (["tiktok"] if group == "tiktok" else
+                               ["threads"] if group == "reddit_threads" else [])
+    markets = ["KE"] if "Kenya" in question else ["ZA"]
+    assert ask.platform_groups(markets, requested_platforms=ask.question_platforms(question)) == expected
+    assert len(h.clients[0].calls) == (2 if "reddit_threads" in expected else 1)
+    assert validate_answer(out["answer"]) == []
+
+
+def test_more_requested_platforms_than_lanes_keep_the_ones_the_market_needs_first():
+    # Nigeria's order puts X first and Facebook last of the five, so with four lanes Facebook goes, not X.
+    question = "What are Nigerians saying about Afrobeats on TikTok, Instagram, YouTube, Facebook and Twitter?"
+    requested = ask.question_platforms(question)
+    assert ask.platform_groups(["NG"], requested_platforms=requested) == ["x", "tiktok", "instagram", "youtube"]
+    assert ask.platform_groups(["ZA"], requested_platforms=requested) == ["tiktok", "x", "instagram", "youtube"]
+
+
+def test_t2_entrypoint_uses_raw_question_platforms_not_rendered_skill(monkeypatch):
+    render = ask.render_skill
+
+    def with_platform_examples(**kwargs):
+        return render(**kwargs) + "\nSource examples: Reddit, Threads, Facebook and Instagram."
+
+    monkeypatch.setattr(ask, "render_skill", with_platform_examples)
+    lanes = Lanes(parties=4)
+    out = t2(lanes).run(tier="T2")
+    first = lanes.first_round()
+    assert all(sum(f"Live routes you may call: {', '.join(ask.group_routes(group))}." in call["prompt"]
+                   for call in first) == 1 for group in ZA_GROUPS)
+    assert not any("dedicated first-round lane" in gap["what"] for gap in out["answer"]["gaps"])
+
+
+def test_t2_entrypoint_reports_only_requested_groups_omitted_by_lane_limit():
+    lanes = Lanes(parties=4)
+    model = CriticModel()
+    h = t2(lanes, model=model)
+    out = h.run(tier="T2", question="What is behind amapiano on TikTok, Instagram, YouTube, Facebook, "
+                "Reddit, Threads and Twitter in South Africa this week?")
+    first = lanes.first_round()
+    # South Africa's order keeps X second, so the lane limit drops Facebook and Reddit and Threads instead.
+    expected = ["tiktok", "x", "instagram", "youtube"]
+    assert len(first) == 4
+    assert all(sum(f"Live routes you may call: {', '.join(ask.group_routes(group))}." in call["prompt"]
+                   for call in first) == 1 for group in expected)
+    prompt = model.by(WRITER_SCHEMA)[0]["user"]
+    assert "Requested platform groups without a dedicated first-round lane: Facebook, Reddit and Threads" in prompt
+    assert "South Africa" in prompt and "2026-09-22" in prompt and "2026-09-28" in prompt
+    assert "4-researcher limit" in prompt
+    gaps = [gap for gap in out["answer"]["gaps"] if "dedicated first-round lane" in gap["what"]]
+    assert len(gaps) == 1
+    assert gaps[0]["what"] == "Requested platform groups without a dedicated first-round lane: Facebook, Reddit and Threads"
+    assert out["answer"]["status"] == "partial"
+    assert not any(row["platform"] in {"reddit", "threads", "facebook"} for row in out["run"]["source_status"])
+    assert validate_answer(out["answer"]) == []
+
+
 def test_every_group_names_only_allowed_routes():
     for group in ask.PLATFORM_GROUPS:
         routes = ask.group_routes(group)
