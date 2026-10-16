@@ -8,8 +8,8 @@ from types import SimpleNamespace
 import pytest
 
 from core.brief import job
-from core.brief.tests.test_brief_job import (FakeConfirm, FakeModel, add_item, all_cards, brief, held_items,
-                                             payload, world)
+from core.brief.tests.test_brief_job import (D, MARKETS, Client, FakeConfirm, FakeCtx, FakeModel, add_item, all_cards,
+                                             brief, held_items, payload, world)
 from core.detect.tests import duck
 from core.detect.tests.fixtures import at, day, rid
 
@@ -226,3 +226,91 @@ def test_an_item_merged_into_a_card_that_is_then_held_stays_listed_on_the_held_i
     assert held["za1"]["reason"] == "explanation_failed"
     assert held["za1"]["also"] == [{"item_id": "za_dup", "title": "#za_dup"}]
     assert "also" not in held["za2"]
+
+
+# Same story, several items (held-topics lane, 16 Oct 2026). Shapes from the 15 Oct NG publication fixture
+# (core/api/tests/fixtures/ng_four_cards_publication.json): a match topic and its club's hashtag shared 8 of their 12
+# pack posts; the competition's umbrella tag shared 4 with the hashtag; another match's topic shared none.
+
+
+def test_a_card_with_half_or_more_of_its_posts_on_one_higher_card_folds_even_with_posts_of_its_own():
+    kept = merge_candidate("arsenal_topic", .9, {f"a{i}" for i in range(12)})
+    club = merge_candidate("arsenal_tag", .8, {f"a{i}" for i in range(8)} | {"c1", "c2", "c3", "c4"})
+    umbrella = merge_candidate("ucl_tag", .7, {"a8", "a9", "c1", "c2"} | {f"u{i}" for i in range(8)})
+    other = merge_candidate("other_match", .6, {f"o{i}" for i in range(12)})
+    by_market = {"ZA": [], "NG": [kept, club, umbrella, other], "KE": []}
+    merged = job._merge(by_market)
+    assert merged == [{"market": "NG", "into": "arsenal_topic", "item_id": "arsenal_tag"}]
+    assert [c["row"]["item_id"] for c in by_market["NG"]] == ["arsenal_topic", "ucl_tag", "other_match"]
+    assert kept["also"] == [{"item_id": "arsenal_tag", "title": "#arsenal_tag"}]
+
+
+def test_the_umbrella_tag_folds_once_the_club_tag_has_joined_the_card_it_overlaps():
+    # The umbrella shares 4 posts with the club tag and 2 with the match topic: 6 of its 12 on the merged card.
+    kept = merge_candidate("arsenal_topic", .9, {f"a{i}" for i in range(12)})
+    club = merge_candidate("arsenal_tag", .8, {f"a{i}" for i in range(8)} | {"c1", "c2", "c3", "c4"})
+    umbrella = merge_candidate("ucl_tag", .7, {"a8", "a9", "c1", "c2", "c3", "c4"} | {f"u{i}" for i in range(6)})
+    by_market = {"ZA": [], "NG": [kept, club, umbrella], "KE": []}
+    assert [m["item_id"] for m in job._merge(by_market)] == ["arsenal_tag", "ucl_tag"]
+
+
+def test_two_distinct_stories_sharing_under_half_their_posts_both_stay():
+    a = merge_candidate("dance_sound", .9, {f"d{i}" for i in range(10)})
+    b = merge_candidate("dance_tag", .8, {"d0", "d1", "d2", "d3"} | {f"t{i}" for i in range(6)})
+    by_market = {"ZA": [a, b], "NG": [], "KE": []}
+    assert job._merge(by_market) == [] and len(by_market["ZA"]) == 2
+
+
+def test_a_folded_candidate_does_not_take_a_judged_slot_so_the_next_ranked_row_is_prepared():
+    con = world(n=10, markets=("ZA",))
+    add_item(con, "ZA", "za_dup", 0.94, posts=1)            # ranks second; three of its four posts are za1's
+    link(con, "za_dup", ["za1_p1", "za1_p2", "za1_p3"])
+    by_market = job._candidates(Client(con), D, build_ctx=FakeCtx(), campaign_hashtags=[],
+                                political_terms={m: ["election"] for m in MARKETS}, core="core", agent="agent")
+    # Without the fold za10 would be the eleventh row and never prepared.
+    assert [c["row"]["item_id"] for c in by_market["ZA"]] == ["za1", "za_dup"] + [f"za{i}" for i in range(2, 11)]
+    kept, folds = job._fold_plan(by_market["ZA"])
+    assert [(c["row"]["item_id"], into["row"]["item_id"]) for c, into in folds] == [("za_dup", "za1")]
+    assert len(kept) == job.CANDIDATES
+
+
+def test_a_row_prepared_in_a_later_round_never_undoes_an_earlier_fold_so_a_market_judges_at_most_ten():
+    # Rank order is pattern-first, so a later round can bring a row worth more than rows already prepared. Folding in
+    # worth order alone let such a row take C's posts away from A, B stopped folding, and the market kept 11 cards.
+    a = merge_candidate("A", 100, {"a1", "a2", "a3", "a4", "a5", "a6"})
+    c = merge_candidate("C", 80, {"a3", "a4", "c1"})
+    b = merge_candidate("B", 70, {"a1", "a2", "c1", "x1", "x2", "x3"})
+    rest = [merge_candidate(f"D{i}", 10 - i, {f"d{i}_{k}" for k in range(5)}) for i in range(7)]
+    first = [a, c, b] + rest
+    kept, folds = job._fold_plan(first)
+    assert (len(kept), len(folds)) == (job.CANDIDATES - 2, 2)
+    late = [merge_candidate("L", 90, {"a3", "a4", "c1", "l1", "l2", "l3", "l4"}),
+            merge_candidate("E", 1, {"e1", "e2", "e3", "e4"})]
+    for cand in late:
+        cand["_round"] = 2
+    second = first + late
+    kept, folds = job._fold_plan(second)
+    assert [(x["row"]["item_id"], into["row"]["item_id"]) for x, into in folds] == [("C", "A"), ("B", "A")]
+    assert len(kept) == job.CANDIDATES
+    by_market = {"ZA": second, "NG": [], "KE": []}
+    job._merge(by_market)
+    assert len(by_market["ZA"]) == job.CANDIDATES
+
+
+def test_a_regrown_candidate_with_half_its_posts_on_a_kept_card_folds_into_it(monkeypatch):
+    # Regrowth merges late with the same rule as _merge: three posts of its own would keep it under the old rule alone.
+    kept = merge_candidate("match_topic", .9, {"k1", "k2", "k3", "k4"})
+    kept["also"] = []
+    tag = merge_candidate("club_tag", .8, {"k1"})
+    tag.update(floor_held=True, confirm_posts=3, decision=SimpleNamespace(publish=False, where="held"))
+    grown = merge_candidate("club_tag", .8, {"k1", "k2", "k3", "n1", "n2", "n3"})
+    monkeypatch.setattr(job, "_brief_deadline", lambda now, d, chain: (False, None))
+    monkeypatch.setattr(job, "_prepare", lambda *a, **kw: grown)
+    monkeypatch.setattr(job, "_gate", lambda cand, passed: SimpleNamespace(publish=True, where="today"))
+    by_market = {"ZA": [kept, tag], "NG": [], "KE": []}
+    regrown, merged = job._regrow(None, D, by_market, chain=None, clock=lambda: None, build_ctx=None,
+                                  campaign_hashtags=[], political_terms={m: [] for m in MARKETS}, core="core",
+                                  agent="agent", hidden=set())
+    assert [g["item_id"] for g in regrown] == ["club_tag"]
+    assert merged == [{"market": "ZA", "into": "match_topic", "item_id": "club_tag"}]
+    assert by_market["ZA"] == [kept]

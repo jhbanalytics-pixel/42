@@ -655,4 +655,4 @@ def test_the_job_hands_each_explanation_a_retry_guard_that_follows_the_deadline(
 
 def test_the_briefs_rule_version_names_the_504_retry_after_the_event_shadow():
     tokens = job.RULE_VERSION.split("+")
-    assert tokens[-3:-1] == ["e-one-event-shadow", "brief-504-retry"]
+    assert tokens[-4:-2] == ["e-one-event-shadow", "brief-504-retry"]

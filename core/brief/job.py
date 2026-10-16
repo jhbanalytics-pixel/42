@@ -4,8 +4,9 @@ A fixed pipeline, not agent runs. Per market: the top 10 candidates of the curre
 items first, with a candidate held for invalid data days (G1) not taking one of the 10 slots, so the next ranked
 rows of the top 90 are judged in its place (_candidates), an SQL evidence pack each, the publish gate (core/trust/gate.py, plus G4 for items detect marked
 likely coordinated, which gate_card does not read), then one card per set of posts: a Today-bound candidate with
-fewer than 3 posts not already on a higher card merges into the card it shares most posts with, listed there under
-also and recorded in the counts, before any confirm or model spend (and, after the explanations, the published cards
+fewer than 3 posts not already on a higher card, or with half or more of its posts on one higher card, merges into the
+card it shares most posts with, listed there under also and recorded in the counts, and does not take one of the 10
+judged slots either (_fold_plan), before any confirm or model spend (and, after the explanations, the published cards
 of one market that describe the same event are recorded in shadow, core/brief/same_event.py), one confirm search each for the
 Today-bound ones inside the confirm share, then
 for the ones held only by the post floors (fewer than 3 posts it can show or 2 local), with
@@ -98,11 +99,13 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # answered with 504 tried once more when a whole call fits before the cutoff; a failed retry keeps the first 504
 # (core/brief/explain.py check_call), pattern-first-selection the pool orders candidates whose own posts show a sound or
 # enriched format adopted by 3 or more creators on 2 or more days before ones the code sees as one creator, a calendar
-# moment, mostly sponsored or mostly news, ahead of worth_raw (core/brief/sql/brief.sql candidates).
+# moment, mostly sponsored or mostly news, ahead of worth_raw (core/brief/sql/brief.sql candidates), fold-half-shared a
+# Today-bound candidate with half or more of its posts on one higher card folds into it and takes no judged slot
+# (_fold_plan).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
-                "+brief-504-retry+pattern-first-selection")
+                "+brief-504-retry+pattern-first-selection+fold-half-shared")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -656,7 +659,7 @@ def _selection_snapshot(rows, receipt):
 
 
 def _selection_result(snapshot, receipt, ranked, prepared, taken, cutoff, observed):
-    judged = sum(not _held_g1(c) for c in prepared)
+    judged = sum(not _held_g1(c) for c in prepared) - len(_fold_plan(prepared)[1])
     exit_reason = ("judged_limit_reached" if judged >= CANDIDATES else
                    "pool_exhausted" if taken >= len(ranked) else
                    "deadline_reached" if cutoff else "pool_exhausted")
@@ -745,7 +748,8 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
                 clock=None, started=None, calendar=None, selection_audits=None):
     """{market: candidates in rank order}, packs and contexts built PACK_WORKERS at a time across the markets.
 
-    Each market judges up to CANDIDATES candidates that G1 does not hold. A candidate G1 holds stays in the list,
+    Each market judges up to CANDIDATES candidates that G1 does not hold and that do not fold into a higher card
+    (_fold_plan); a folded candidate stays in the list and _merge absorbs it. A candidate G1 holds stays in the list,
     and so in held_back with its G1 reason, but does not take one of those slots: the next ranked rows are prepared
     and gated in rounds until CANDIDATES candidates not held by G1 have been judged or the market's POOL rows run
     out, so at most POOL candidates are prepared per market. G1 reads only the gate context, so it is decided here,
@@ -766,7 +770,7 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
     ranked = {m: _ranked(pools[m]) for m in MARKETS}
     by_market = {m: [] for m in MARKETS}
     taken = dict.fromkeys(MARKETS, 0)
-    cutoff, observed = None, None
+    cutoff, observed, rounds = None, None, 0
     with ThreadPoolExecutor(max_workers=PACK_WORKERS) as pool:
         first = True
         while True:
@@ -778,9 +782,13 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
                     cutoff = "deadline" if past_deadline else "task_timeout"
                     break
             first = False
+            rounds += 1
             rows = []
             for m in MARKETS:
-                need = CANDIDATES - sum(1 for c in by_market[m] if not _held_g1(c))
+                # A candidate that folds into a higher card (_fold_plan) takes no judged slot either, so one story
+                # told by several items leaves room for the next ranked rows.
+                need = (CANDIDATES - sum(1 for c in by_market[m] if not _held_g1(c))
+                        + len(_fold_plan(by_market[m])[1]))
                 batch = ranked[m][taken[m]:taken[m] + max(need, 0)]
                 taken[m] += len(batch)
                 rows += [(m, row) for row in batch]
@@ -793,6 +801,7 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
                                   rows))
             for cand in cands:
                 cand["decision"] = _gate(cand, None)
+                cand["_round"] = rounds
                 by_market[cand["market"]].append(cand)
     if selection_audits is not None:
         for m in MARKETS:
@@ -821,28 +830,46 @@ def _absorb(into, cand):
         per[e.get("handle")] += 1
 
 
+def _fold_plan(cands):
+    """(kept, folds) for one market's candidates, without changing them. Round by round as _candidates prepared them
+    (_round), in worth order within a round, a Today-bound candidate folds into the kept card it shares most posts
+    with (the higher one on a tie) when it has fewer than MIN_EVIDENCE posts not already on a higher kept card, or
+    when half or more of its posts are already on that one card: the same story told by another item, such as a
+    match's topic and its club's hashtag (16 Oct 2026, NG: 8 of 10 judged slots on one round of football). A kept
+    card's posts grow by what folds into it. folds is [(cand, into)]. Rounds first because each fold frees a judged
+    slot for the next round, and rank order is pattern-first, so a later row can be worth more than an earlier one:
+    in worth order alone it could take posts from an earlier fold and undo it, and the market would judge more than
+    CANDIDATES. Rounds first, no decision rests on a later round's rows."""
+    kept, kept_posts, claimed, folds = [], [], set(), []
+    for cand in sorted((c for c in cands if _for_today(c)), key=lambda c: (c.get("_round", 0), _worth(c["row"]))):
+        posts = cand.get("posts") or set()
+        best = max(((len(posts & kp), -i) for i, kp in enumerate(kept_posts)), default=(0, 0))
+        if best[0] > 0 and (len(posts - claimed) < MIN_EVIDENCE or best[0] * 2 >= len(posts)):
+            folds.append((cand, kept[-best[1]]))
+            kept_posts[-best[1]] = kept_posts[-best[1]] | posts
+        else:
+            kept.append(cand)
+            kept_posts.append(set(posts))
+        claimed |= posts
+    return kept, folds
+
+
 def _merge(by_market):
-    """One card per set of posts. Per market, the Today-bound candidates in rank order: one with fewer than
-    MIN_EVIDENCE posts not already on a higher kept card is not a card of its own, and merges into the kept card it
-    shares most posts with (the higher one on a tie). Held candidates keep their hold and claim no posts. Merged
-    candidates leave by_market, so they are neither confirmed, explained, shown nor held. Returns
+    """One card per set of posts. Per market, the Today-bound candidates round by round, in worth order within a
+    round (_fold_plan): one that folds is not a card of its own and merges into its kept card. Held candidates keep
+    their hold and claim no posts.
+    Merged candidates leave by_market, so they are neither confirmed, explained, shown nor held. Returns
     [{market, into, item_id}] in rank order."""
     merged = []
     for m in MARKETS:
-        kept, claimed, gone = [], set(), set()
-        for cand in sorted((c for c in by_market[m] if _for_today(c)), key=lambda c: _worth(c["row"])):
-            posts = cand["posts"]
-            best = max(((len(posts & k["posts"]), -i) for i, k in enumerate(kept)), default=(0, 0))
-            if len(posts - claimed) < MIN_EVIDENCE and best[0] > 0:
-                into = kept[-best[1]]
-                _absorb(into, cand)
-                claimed |= posts
-                merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"]})
-                gone.add(id(cand))
-            else:
-                cand["also"] = []
-                kept.append(cand)
-                claimed |= posts
+        kept, folds = _fold_plan(by_market[m])
+        for cand in kept:
+            cand["also"] = []
+        gone = set()
+        for cand, into in folds:
+            _absorb(into, cand)
+            merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"]})
+            gone.add(id(cand))
         by_market[m] = [c for c in by_market[m] if id(c) not in gone]
     return merged
 
@@ -1659,7 +1686,8 @@ def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags,
     the same floors (MIN_EVIDENCE showable, 2 local), so posts confirm found can lift a hold in the run that found
     them, read through the same suppression list (hidden) as the first packs. Today-bound candidates keep the pack
     they were confirmed with. A rebuilt candidate that is now
-    Today-bound merges into a kept card when it adds fewer than MIN_EVIDENCE new posts, as _merge does; one whose
+    Today-bound merges into a kept card when it adds fewer than MIN_EVIDENCE new posts or half or more of its posts
+    are on that card, as _merge does; one whose
     read fails keeps its hold. Past the deadline or the time limit (_out_of_time from started) nothing is read
     again. Returns [{market, item_id, posts_before, posts_after, held}] for the candidates read again, and the
     merges, in rank order."""
@@ -1689,7 +1717,7 @@ def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags,
                            key=lambda c: _worth(c["row"])):
             posts = cand["posts"]
             best = max(((len(posts & k["posts"]), -j) for j, k in enumerate(kept)), default=(0, 0))
-            if len(posts - claimed) < MIN_EVIDENCE and best[0] > 0:
+            if best[0] > 0 and (len(posts - claimed) < MIN_EVIDENCE or best[0] * 2 >= len(posts)):
                 into = kept[-best[1]]
                 _absorb(into, cand)
                 merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"]})
