@@ -905,14 +905,13 @@ def researcher_usd() -> float:
 
 def platform_groups(markets: list[str], most: int | None = None,
                     requested_platforms: list[str] | None = None) -> list[str]:
-    """The bounded T2 groups: explicit requests first, then each market's GROUP_ORDER in turn."""
+    """The bounded T2 groups: explicit requests first, then the rest, each part in the markets' GROUP_ORDER taken in
+    turn, so a lane limit drops the requested groups the markets need least."""
     orders = [GROUP_ORDER[m] for m in markets] or [GROUP_ORDER[None]]
-    picked = list(dict.fromkeys("reddit_threads" if platform in {"reddit", "threads"} else platform
-                                for platform in requested_platforms or []))
-    for rank in range(len(PLATFORM_GROUPS)):
-        for order in orders:
-            if order[rank] not in picked:
-                picked.append(order[rank])
+    ranked = list(dict.fromkeys(order[rank] for rank in range(len(PLATFORM_GROUPS)) for order in orders))
+    requested = {"reddit_threads" if platform in {"reddit", "threads"} else platform
+                 for platform in requested_platforms or []}
+    picked = [g for g in ranked if g in requested] + [g for g in ranked if g not in requested]
     return picked[:most or min(MAX_RESEARCHERS, MIN_RESEARCHERS + len(markets))]
 
 
