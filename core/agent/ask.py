@@ -92,7 +92,8 @@ FAILED_STEPS = {"sql_query": "A warehouse count", "search_posts": "A search of s
                 "budget_status": "Checking the budget", "resolve_dates": "Working out the dates",
                 "get_comments": "Fetching comments", "get_transcript": "Fetching a transcript",
                 "watch_video": "Watching a video", "log_forecast": "Logging a forecast",
-                "history": "Reading the item's history", "analogues": "Finding past analogues"}
+                "history": "Reading the item's history", "analogues": "Finding past analogues",
+                "read_article": "Reading a news article"}
 # The model-written input each tool's step line repeats verbatim. A figure in it is pinned to nothing, so it never shows.
 MODEL_INPUT = {"search_posts": "query", "recall_findings": "query", "sql_query": "purpose", "resolve_dates": "expression"}
 # The writer, support and field-check calls an ask may make after research, for its hold. Output is each call's
@@ -604,6 +605,8 @@ def _describe(name: str, tool_input: dict, progress: Progress) -> tuple[str, str
         return "plan", f"Working out the dates for '{tool_input.get('expression')}'", None
     if name == "watch_video":  # the question is model-written, so the line never repeats it
         return "read", "Watching a video post", None
+    if name == "read_article":
+        return "read", "Reading a news article in full", None
     return "note", f"Using {name}", None
 
 
