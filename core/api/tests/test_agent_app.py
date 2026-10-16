@@ -3138,6 +3138,9 @@ def test_t2_is_accepted_for_the_brand_lens_and_context_pack_with_the_flag_on(cli
 
 @pytest.mark.parametrize("extra", [{}, {"skill": "creator-read"}, {"spike": SPIKE}])
 def test_t2_stays_refused_for_any_other_ask_with_the_flag_on(client, monkeypatch, extra):
+    from core.agent import depth
+
+    monkeypatch.setattr(depth, "DEEP_FOR_PLAIN_ASKS", False)  # Deep's own tests below cover a plain ask with it on
     monkeypatch.setenv("F42_T2_READY", "1")
     seen = spy_on_requests(monkeypatch)
     r = ask(client, tier="T2", **extra)
