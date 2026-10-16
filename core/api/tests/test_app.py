@@ -1397,7 +1397,7 @@ def test_au07_the_health_check_and_the_events_relay_use_the_same_audience_rule(c
     real = httpx.AsyncClient
     monkeypatch.setattr(httpx, "AsyncClient", lambda *a, **k: real(*a, **{**k, "transport": httpx.MockTransport(handler)}))
     import asyncio
-    assert asyncio.run(api_mod._agent_check()) == ("ok", True)
+    assert asyncio.run(api_mod._agent_check()) == ("ok", True, None)
     ctx.client.get("/api/ask/a_1/events", headers=GOOD)
     assert CANON in seen and TAGGED not in seen
     assert {s for s in seen if s.startswith("https://")} == {CANON}
@@ -1405,7 +1405,7 @@ def test_au07_the_health_check_and_the_events_relay_use_the_same_audience_rule(c
 
     from core.api.auth import ApiError
     agent_config(monkeypatch, TAGGED, None)
-    assert asyncio.run(api_mod._agent_check()) == ("unreachable", False)
+    assert asyncio.run(api_mod._agent_check()) == ("unreachable", False, None)
     with pytest.raises(ApiError):
         build_client()
 

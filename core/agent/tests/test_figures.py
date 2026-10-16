@@ -160,6 +160,43 @@ def test_per_cent_and_a_decimal_comma_are_read_as_written():
     assert [k["value"] for k in kept] == [33.5, 31.0] and cut == {}
 
 
+def test_a_value_is_kept_only_beside_its_own_subject():
+    # Independent review, 16 October: both quotes are verbatim and name the DA, but neither value is the DA's.
+    ctx = make_ctx()
+    record(ctx, "p1", "Poll: the ANC on 33.5% and the DA on 31% in Gauteng; turnout was 58%.")
+    kept, cut = figures.verify([fig("p1", "the ANC on 33.5% and the DA on 31%", "DA", 33.5),
+                                fig("p1", "the DA on 31% in Gauteng; turnout was 58%", "DA", 58),
+                                fig("p1", "the ANC on 33.5% and the DA on 31%", "DA", 31)], ctx)
+    assert [(k["subject"], k["value"]) for k in kept] == [("DA", 31.0)]
+    assert cut == {"value not written next to its subject": 2}
+
+
+def test_a_figure_written_before_its_subject_or_far_from_it_is_cut():
+    ctx = make_ctx()
+    record(ctx, "p1", "33% for the ANC. The DA said in a long statement that turnout was 58%.")
+    kept, cut = figures.verify([fig("p1", "33% for the ANC", "ANC", 33),
+                                fig("p1", "The DA said in a long statement that turnout was 58%", "DA", 58)], ctx)
+    assert kept == [] and cut == {"value not written next to its subject": 2}
+
+
+def test_one_subject_given_two_values_in_one_record_shows_neither():
+    ctx = make_ctx()
+    record(ctx, "p1", "The DA on 31% here and the DA on 28% there.")
+    kept, cut = figures.verify([fig("p1", "DA on 31%", "DA", 31), fig("p1", "DA on 28%", "DA", 28)], ctx)
+    assert kept == [] and cut == {"one subject given two values": 2}
+
+
+def test_the_figures_prompt_never_passes_the_input_the_hold_reserves():
+    # Independent review, 16 October: 60 long records made a prompt three times the reserved input, so the call was
+    # refused at reservation and stopped a finished answer.
+    ctx = make_ctx()
+    for i in range(60):
+        record(ctx, f"p{i}", ("Ipsos poll: the ANC on 33.5% and the DA on 31%. " + "ë" * 200 + " ") * 30)
+    user = figures.figures_user(QUESTION, figures.figure_records(ctx))
+    assert figures.input_bound(user) <= figures.FIGURES_INPUT_TOKENS
+    assert user.count("<untrusted_content>") >= 1
+
+
 # Tables, the lead line and what is never combined
 
 def test_one_table_per_source_newest_first_and_a_repeat_is_folded_in():

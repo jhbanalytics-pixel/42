@@ -208,7 +208,10 @@ def flat_item(item) -> dict:
             text += str(snippet).strip()[-1]
         elif text:
             text += "."
-        return {"id": _first(article, "id", "url"), "platform": "news", "url": _first(article, "url"),
+        url = _first(article, "url")
+        # An article without its own id is named by a hash of its link, as read_article names the page it opens.
+        native = _first(article, "id") or (hashlib.sha256(str(url).encode("utf-8")).hexdigest()[:16] if url else None)
+        return {"id": native, "platform": "news", "url": _first(article, "url"),
                 "handle": _first(article, "domain", "source"), "text": text,
                 "posted_at": news_time(_first(article, "published_at", "date")), "engagement": None,
                 **{k: item[k] for k in ("market", "country") if k in item}}

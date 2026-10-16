@@ -538,3 +538,27 @@ def test_the_digest_masks_a_handle_in_its_words_when_the_suppression_names_only_
             "fired_because": "It rose", "card": {"title": "Posts by @hid_handle", "evidence": []}}]}
     out = privacy.withhold_digest(resp, store)
     assert "hid_handle" not in body_of(out["alerts"][0]["card"])
+
+
+def _figure_table(platform, publisher, also=()):
+    return {"title": "voting intention", "source": "MarkData", "platform": platform, "publisher": publisher,
+            "url": f"https://example.com/{publisher}", "posted_at": "2026-10-13T08:00:00Z", "sample": "not stated",
+            "fieldwork": "not stated", "population": "not stated", "evidence_id": f"e_{publisher}",
+            "rows": [{"subject": "ANC", "value": 33.5, "unit": "%", "quote": "ANC on 33.5%"}], "note": "",
+            "also_reported_by": [{"publisher": p, "platform": pl, "url": "https://example.com/x",
+                                  "posted_at": "2026-10-13"} for pl, p in also]}
+
+
+def test_reported_figures_lose_a_hidden_publishers_table_and_mention():
+    record = ask_record()
+    record["run"]["figures"] = {"status": "ok", "lead": "hid_handle said ANC 33.5%.", "tables": [
+        _figure_table("tiktok", "hid_handle"), _figure_table("news", "enca.com", also=[("tiktok", "hid_handle")])]}
+    held = copy.deepcopy(record)
+    out = project(record, PrivStore(hide={"c_hid"}))
+    figures = out["run"]["figures"]
+    assert [t["publisher"] for t in figures["tables"]] == ["enca.com"]
+    assert figures["tables"][0]["also_reported_by"] == [] and figures["withheld"] == 1
+    assert "hid_handle" not in body_of(figures)
+    assert record == held  # the stored record is never changed
+    gone = project(copy.deepcopy(held), PrivStore(fail="missing"))
+    assert gone["run"]["figures"]["tables"] == [] and gone["run"]["figures"]["withheld"] == 2

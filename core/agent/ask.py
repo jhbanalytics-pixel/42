@@ -1980,7 +1980,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
 
     def held(tier: str, model: str) -> float:
         base = inv["max_model_usd"] if tier == "T3" else hold_usd(tier, model)
-        return base + (figures_usd(model) if quantitative else 0.0)
+        # A confirmed investigation keeps to its quoted price: its figures call runs only if that price has room.
+        return base + (figures_usd(model) if quantitative and tier != "T3" else 0.0)
 
     lane_usd = researcher_usd()
     if tier == "T3":
@@ -2094,9 +2095,11 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     def list_figures() -> dict:
         """The percentages the run's sources state, checked in code (figures.py), for run.figures. One model call,
         inside the question's hold; a failed call shows no figures and says so."""
-        records = len(figures.figure_records(ctx))
+        listed_records = figures.figure_records(ctx)
+        records = len(listed_records)
+        bound = figures.input_bound(figures.figures_user(question, listed_records))
         if records and model_budget is not None and not model_budget.affords(
-                model_name, [(figures.FIGURES_INPUT_TOKENS, figures.FIGURES_MAX_TOKENS)]):
+                model_name, [(bound, figures.FIGURES_MAX_TOKENS)]):
             if FIGURES_NO_ROOM not in notices:
                 notices.append(FIGURES_NO_ROOM)
             return figures.payload(question, [], {}, figure_sweep_out, records, "not_run")
@@ -2104,7 +2107,12 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                       if records else "No source in this answer states a percentage")
         try:
             listed, usage, dispatched = timed("write", figures.extract_figures, stop_model, question, ctx, model_name)
-        except _StopRequested:
+        except _StopRequested as exc:
+            # A figures call refused before it was sent costs nothing and the checked answer stands without it.
+            if getattr(exc, "before_dispatch", False) and not should_stop():
+                if FIGURES_NO_ROOM not in notices:
+                    notices.append(FIGURES_NO_ROOM)
+                return figures.payload(question, [], {}, figure_sweep_out, records, "not_run")
             raise
         except Exception as exc:
             billed = _failed_call_usage(exc, model_name, figures.FIGURES_INPUT_TOKENS, figures.FIGURES_MAX_TOKENS)

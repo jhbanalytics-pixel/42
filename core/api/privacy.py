@@ -452,10 +452,11 @@ def _figures(record, hidden, unavailable):
     tables = [] if unavailable else [
         t for t in payload["tables"] if isinstance(t, dict)
         and creator_key(t.get("platform"), t.get("publisher")) not in keys]
-    for table in tables:
-        table["also_reported_by"] = [r for r in table.get("also_reported_by") or [] if isinstance(r, dict)
-                                     and creator_key(r.get("platform"), r.get("publisher")) not in keys]
+    tables = [{**t, "also_reported_by": [r for r in t.get("also_reported_by") or [] if isinstance(r, dict)
+                                         and creator_key(r.get("platform"), r.get("publisher")) not in keys]}
+              for t in tables]
     if len(tables) == len(payload["tables"]):
+        run["figures"] = {**payload, "tables": tables}
         return
     from core.agent.figures import lead
 

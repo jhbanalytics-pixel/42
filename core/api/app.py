@@ -249,7 +249,8 @@ async def api_health() -> dict:
             run_in_threadpool(_bigquery_check), _agent_check(), run_in_threadpool(_today_check))
         _health_cache["at"], _health_cache["checks"] = now, cached
     bigquery, agent_health, today = cached
-    agent, t2_ready = agent_health
+    agent, t2_ready, *rest = agent_health
+    ask_depth = rest[0] if rest else None
     checks = {
         "auth": auth_state["check"],
         "bigquery": bigquery,
@@ -275,6 +276,8 @@ async def api_health() -> dict:
         "auth_mode": auth_state["auth_mode"],
         "passcode": auth_state["passcode"],
         "t2_ready": checks["agent"] == "ok" and t2_ready,
+        # The depth slider's levels as f42-agent states them (core/agent/depth.py); null when the agent did not say.
+        "ask_depth": ask_depth if checks["agent"] == "ok" else None,
         "checks": checks,
     }
 
@@ -304,20 +307,25 @@ def _today_check() -> str:
         return "data_issue"
 
 
-async def _agent_check() -> tuple[str, bool]:
-    """Agent status and T2 readiness from one fresh response; readiness requires an explicit true."""
+async def _agent_check() -> tuple[str, bool, list | None]:
+    """Agent status, T2 readiness and the depth slider's levels from one fresh response; readiness requires an
+    explicit true, and levels that are not a list of objects are left out."""
     try:
         async with await _agent_client(HEALTH_TIMEOUT) as client:
             resp = await client.get("/health")
     except (ApiError, httpx.HTTPError):
-        return "unreachable", False
+        return "unreachable", False, None
     if resp.status_code != 200:
-        return f"status {resp.status_code}", False
+        return f"status {resp.status_code}", False, None
     try:
-        ready = resp.json().get("t2_ready") is True
+        body = resp.json()
+        ready = body.get("t2_ready") is True
+        levels = body.get("ask_depth")
     except (ValueError, AttributeError):
-        ready = False
-    return "ok", ready
+        ready, levels = False, None
+    if not (isinstance(levels, list) and levels and all(isinstance(level, dict) for level in levels)):
+        levels = None
+    return "ok", ready, levels
 
 
 class AuthVerifyRequest(BaseModel):
