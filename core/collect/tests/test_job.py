@@ -87,7 +87,7 @@ def body_for(route, params, market=None):
             "id": f"li-{params['query']}", "url": "https://www.linkedin.com/posts/someone_activity-1",
             "published_at": "2026-09-28T00:10:00Z", "author": {"username": "someone"},
             "content": {"text": params["query"]}, "engagement": {"likes": 3}}}]}}}}
-    if route in ("bluesky/search", "pinterest/search"):  # row 16w
+    if route in ("bluesky/search", "pinterest/search", "reddit/subreddit/search"):  # row 16w
         platform = route.split("/")[0]
         return {"success": True, "data": {"items": [{"post": {
             "id": f"{platform}-{params['query']}", "platform": platform, "url": f"https://example.org/{platform}/1",
@@ -392,7 +392,7 @@ def test_row_5_plans_a_five_credit_call_for_every_configured_hub():
     for call in calls:
         assert call.row == "5" and call.source_market is None
         assert call.hold() == 5
-    assert planned["total"] == 1893  # 1830 and row 16w's 63, which leave row 14i no room for a reel search
+    assert planned["total"] == 1902  # 1830 and row 16w's 72, which leave row 14i no room for a reel search
     skips = [s for s in planned["skipped"] if s["route"] == "instagram/location/posts"]
     assert skips == []
 
@@ -1364,10 +1364,10 @@ def test_research_terms_rotate_inside_existing_search_holds():
     wednesday = job.plan(date(2026, 9, 30))
     monday = job.plan(MONDAY)
     expected = {
-        # Row 16w's searches fill the room left: all 27 on the Wednesday (none left for row 14i), 19 on the Monday,
-        # whose industry board takes the rest.
-        "2026-09-30": ({"ZA": (56, 7), "NG": (56, 7), "KE": (65, 7)}, 394, 1893, 1927),
-        "2026-10-05": ({"ZA": (60, 7), "NG": (56, 7), "KE": (61, 7)}, 387, 1949, 1983),
+        # Row 16w's searches fill the room left: all 36 on the Wednesday (none left for row 14i), fewer on the
+        # Monday, whose industry board takes the rest.
+        "2026-09-30": ({"ZA": (56, 7), "NG": (56, 7), "KE": (65, 7)}, 403, 1902, 1936),
+        "2026-10-05": ({"ZA": (60, 7), "NG": (56, 7), "KE": (61, 7)}, 393, 1951, 1985),
     }
 
     for day, planned in (("2026-09-30", wednesday), ("2026-10-05", monday)):
@@ -1738,7 +1738,8 @@ def test_the_local_phase_is_not_made_when_the_collect_share_has_less_than_its_ho
     # Every baseline call is ok, so its calls and charges pair up in order.
     assert len(baseline_client.calls) == len(baseline_client.charged)
     room_charged = sum(ch["credits"] for c, ch in zip(baseline_client.calls, baseline_client.charged)
-                       if c["route"] in (job.REELS_ROUTE, "bluesky/search", "pinterest/search")
+                       if c["route"] in (job.REELS_ROUTE, "bluesky/search", "pinterest/search",
+                                         "reddit/subreddit/search")
                        or c["params"].get("platforms") == "linkedin")
     spent = baseline_run.credits - creator_hold - room_charged
     hold = ls.total_hold(ls.plan(TUESDAY))

@@ -153,6 +153,7 @@ ROUTES = {
     "twitter/tweet": ("search", "twitter", "search", False, (), MARKETS),
     # Row 16w, the morning run's wider net (core/collect/job.py WIDE_TOP).
     "bluesky/search": ("search", "bluesky", "search", False, ("sort",), MARKETS),
+    "reddit/subreddit/search": ("search", "reddit", "search", False, ("subreddit", "sort", "timeframe"), MARKETS),
     "pinterest/search": ("search", "pinterest", "search", False, (), MARKETS),
     "prism/post-stats": ("restat", None, "counter_post_views", False, (), MARKETS),
     "web/scrape": ("none", None, None, False, (), MARKETS + (GLOBAL,)),
@@ -304,7 +305,7 @@ def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_f
     elif family in ("panel", "location", "watch") or route in ("tiktok/search/top", "tiktok/search/hashtag",
                                                                "instagram/search/reels", "youtube/search/advanced",
                                                                "tiktok/location/posts", "bluesky/search",
-                                                               "pinterest/search"):
+                                                               "pinterest/search", "reddit/subreddit/search"):
         for item in _rows(data):
             _post(out, ctx, item, platform, fallback=fallback)
     elif route == "search/multi":

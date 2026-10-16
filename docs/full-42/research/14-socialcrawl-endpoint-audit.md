@@ -8,9 +8,9 @@ The 02:00 run (`f42-collect`) already covers more than six platforms. TikTok is 
 
 ## What this change adds
 
-- Row 16w, the wider net: each market's first three row 16 queries are also searched on LinkedIn (`search/multi` with `platforms=linkedin`, 5 credits), Bluesky (`bluesky/search`, 1) and Pinterest (`pinterest/search`, 1). The plan holds 21 credits a market, 63 a run.
+- Row 16w, the wider net: each market's first three row 16 queries are also searched inside the market's own subreddit (`reddit/subreddit/search` on r/southafrica, r/Nigeria or r/Kenya, 1 credit), on LinkedIn (`search/multi` with `platforms=linkedin`, 5), Bluesky (`bluesky/search`, 1) and Pinterest (`pinterest/search`, 1). The plan holds 24 credits a market, 72 a run.
 - Row 16w takes only the room the share has left after every other row and the curated panel, and comes before row 14i. So no earlier lane loses a credit. Row 14i (Instagram reel search with the creator card) gets what is left: one call a run in the 17 Oct plan instead of two. The 16 Oct location audit found those reels mostly foreign (ZA 2 in market against 285 elsewhere).
-- The planned run for 17 Oct holds 1,954 credits, plus 29 for local sources and 15 for Google Trends: 1,998 of the 2,000 collect share. The curated panel still reads its whole list (155 a market).
+- At the 2,000 collect share, the planned run for 17 Oct held 1,954 credits, plus 29 for local sources and 15 for Google Trends: 1,998 of 2,000. The curated panel still reads its whole list (155 a market).
 - Ask may now call `linkedin/search/posts` and `bluesky/search` directly. Both platforms are already in the answer schema.
 - `google_play/app-list` (the Android app chart, one market a day Monday to Wednesday) was planned at 5 credits but never called, because the client had no price for it. It is priced now and runs.
 
@@ -26,6 +26,8 @@ Ranked in the `candidate` section below. The strongest are `tiktok/search/sugges
 
 `python -m core.collect.probe --candidates` is that probe: one call a market to TikTok suggestions, the market's subreddit, Facebook groups and the first group's posts, and Instagram and YouTube Shorts by hashtag, on each market's first research term of the day. 18 calls, 30 credits held, capped at 40 on the build share after the morning schedule; it stops after any call charged above its hold. It prints each route's rows and how many core.detect.geo places in the market, abroad or nowhere. `facebook/events` is left out (the 28 Sept probe returned no Johannesburg events and no Lagos or Nairobi city id is known), and so is `tiktok/effect/videos` (it needs an effect id no stored post carries). A candidate earns a morning lane on its placed-in-market share, against 2 to 15% for X, Facebook, Reddit, YouTube and Threads search in the 16 Oct audit.
 
+Albert ran it on 16 Oct (run probe-candidates-20261016T181157Z, 12 calls, 19 credits). It stopped after NG's Instagram hashtag call returned 404 for #TakeHamPlay and was still charged 5, so KE was not reached. `reddit/subreddit/search` returned 7 posts a search for 1 credit, and every post core.detect.geo could place was in market (2 of 14, none abroad); it is local by construction and joins row 16w. `tiktok/search/suggestions` returned ten phrases a call, market-true for a real term (ZA: "orlando pirates vs sundowns", "orlando pirates jersey") and noise for a term nobody types (NG: "take ham play"); it stays a candidate, to be wired as a term source. `instagram/search/hashtag` placed 3 of 4 in market (ZA) but costs 5 a call and charges for a missing hashtag. `youtube/search/hashtag` (16 Shorts, none placeable; NG empty) and Facebook groups and group posts (none placeable) showed no measurable local share. Those four move to `later` with the measurement as the reason.
+
 ## Ruled out, and why
 
 - `search/forums` fuses Reddit, Hacker News and Naver. Reddit is already read at 1 credit a call, Hacker News is US tech and Naver is Korean, so it adds 10 credits a call and no local reach.
@@ -34,9 +36,9 @@ Ranked in the `candidate` section below. The strongest are `tiktok/search/sugges
 - Followers, likers, audiences, stories and people search are personal data.
 - Commerce, reviews, jobs, finance, SEO and ad libraries are skins work, not detection.
 
-649 catalogue routes: 58 live, 13 candidate, 84 later, 71 lookup, 105 never, 57 off_market, 261 out_of_scope.
+649 catalogue routes: 59 live, 8 candidate, 88 later, 71 lookup, 105 never, 57 off_market, 261 out_of_scope.
 
-## live (58)
+## live (59)
 
 | Route | Method | Credits | Why |
 |---|---|---|---|
@@ -66,6 +68,7 @@ Ranked in the `candidate` section below. The strongest are `tiktok/search/sugges
 | reddit/post/transcript | GET | 10 | video reading and Ask enrichment |
 | reddit/search | GET | 1 | Ask |
 | reddit/subreddit | GET | 1 | morning row 7, hot and rising on market subreddits |
+| reddit/subreddit/search | GET | 1 | morning row 16w, inside r/southafrica, r/Nigeria and r/Kenya. Candidate probe 16 Oct: 7 posts a search at 1 credit, every placed post in market |
 | search/everywhere | GET | 20 | Ask, with the generated-answer lanes always excluded |
 | search/multi | GET | 0 | morning row 16 (Instagram, YouTube, Reddit, X, Threads, Facebook) and 16w (LinkedIn); confirm; Ask; local sources |
 | status | GET | 0 | client: circuit state before a retry |
@@ -99,25 +102,20 @@ Ranked in the `candidate` section below. The strongest are `tiktok/search/sugges
 | youtube/video/transcript | GET | 3 | video reading and Ask enrichment |
 | youtube/videos/trending | GET | 1 | morning row 3, five categories per market |
 
-## candidate (13)
+## candidate (8)
 
 | Route | Method | Credits | Why |
 |---|---|---|---|
 | app_store/app-list | GET | 5 | Apple's app chart per storefront (5): the iPhone half of the app chart that google_play/app-list already reads, for ZA where iPhone share is higher. |
 | facebook/events | GET | 1 | City events with RSVP counts (1): the cultural calendar from below. Probed on 28 Sept, never scheduled. |
-| facebook/group/posts | GET | 1 | Public group posts (1), the read behind facebook/search/groups. |
-| facebook/search/groups | GET | 1 | Facebook groups by topic (1); with facebook/group/posts it reaches community conversation, large in NG and KE. Research LATER verdict: 3-4 posts a page. |
-| instagram/search/hashtag | GET | 5 | Instagram posts by hashtag with max_age_days and min_views (5). Instagram expansion beyond reel search, whose reels the 16 Oct audit found mostly foreign. |
 | prism/creator-card | GET | 5 | One handle across 4-7 platforms (5-8): the originator check in the confirm design (research row 27), never built. verify=true is generated and must not be cited. |
 | reddit/search/comments | GET | 1 | Reddit comment search (1). Priced and unused: conversation-level evidence for Ask where post search finds only titles. |
-| reddit/subreddit/search | GET | 1 | Search inside one subreddit (1): a query run on r/southafrica, r/Nigeria or r/Kenya is located by where it was asked, unlike all-Reddit search. |
 | search/news | GET | 2 | Multi-country news in one call (2 + 1 a leg). Probed, not scheduled; would let Ask read NG and KE editions directly. Morning news already comes from GDELT and Google RSS. |
 | tiktok/effect/videos | GET | 1 | Videos made with one effect (1): a format trend's spread, the way song/videos tracks a sound. Needs effect ids, which TikTok posts carry. |
-| tiktok/search/suggestions | GET | 1 | TikTok autocomplete per region (1). Market-true phrases people are typing; a seed source for row 14 that needs no news trigger. Priced, never wired. |
+| tiktok/search/suggestions | GET | 1 | TikTok autocomplete per region (1). Market-true phrases people are typing; a seed source for row 14 that needs no news trigger. Candidate probe 16 Oct: ten phrases a call, local for a real term (ZA 'orlando pirates vs sundowns'), noise for a term nobody types (NG 'take ham play'). Next: wire as a term source. |
 | tiktok/search/users | GET | 1 | TikTok creators by account country (1, 5 a row with country=, enum has ZA, NG, KE): a weekly build of the creator panels the morning run reads. |
-| youtube/search/hashtag | GET | 1 | YouTube by hashtag with max_age_days (1): Shorts expansion for a hashtag candidate, beside tiktok/search/hashtag. |
 
-## later (84)
+## later (88)
 
 | Route | Method | Credits | Why |
 |---|---|---|---|
@@ -133,8 +131,10 @@ Ranked in the `candidate` section below. The strongest are `tiktok/search/sugges
 | content_analysis/search | GET | 20 | Web citations with sentiment (20). Skins only; sentiment is generated. |
 | facebook/event/details | GET | 1 | One event's details (1), after facebook/events. |
 | facebook/events/search | GET | 1 | Events by keyword (1), after facebook/events. |
+| facebook/group/posts | GET | 1 | Probed 16 Oct: 4 posts a group, none placeable by country. Follows facebook/search/groups. |
 | facebook/profile/events | GET | 1 | A page's events (1), after facebook/events. |
 | facebook/profile/reels | GET | 1 | A page's reels (1). Hub pages are read through profile/posts. |
+| facebook/search/groups | GET | 1 | Probed 16 Oct: 4 to 7 groups a search, none placeable by country from the row. Revisit with a group list chosen by hand. |
 | facebook/search/pages | GET | 1 | Page search (1): finding hub pages, a manual review step. |
 | facebook/search/videos | GET | 1 | Facebook video search (1). Facebook search already runs inside row 16. |
 | google_play/app-search | GET | 5 | App search (5). Charts cover what is rising. |
@@ -143,6 +143,7 @@ Ranked in the `candidate` section below. The strongest are `tiktok/search/sugges
 | instagram/profile/reels | GET | 1 | An account's reels (1). Accounts are read through prism/profiles. |
 | instagram/reels/trending | GET | 5 | Global trending reels with null views: no market and no counts. |
 | instagram/search | GET | 1 | Accounts, hashtags and places by name (1): a lookup for picking hubs, done by hand. |
+| instagram/search/hashtag | GET | 5 | Probed 16 Oct: 3 of 4 placed posts in market (ZA), but 5 credits a call and a missing hashtag is still charged 5 (NG 404). Reel search covers Instagram for less. |
 | instagram/search/location | GET | 5 | Finds place ids (5). Used by hand to pick row 5 hubs; ZA needs new busier ones. |
 | instagram/search/music | GET | 5 | Instagram sound search (5). Sounds arrive from music/trending and audio/reels. |
 | instagram/search/popular | GET | 1 | Popular posts for a query (1). Instagram search runs through reels and multi. |
@@ -203,6 +204,7 @@ Ranked in the `candidate` section below. The strongest are `tiktok/search/sugges
 | youtube/channel/shorts | GET | 1 | A channel's Shorts (1). Channels are read through prism/profiles. |
 | youtube/channel/videos | GET | 1 | A channel's videos (1). Channels are read through prism/profiles. |
 | youtube/search | GET | 1 | Plain YouTube search (1). The morning run and Ask use youtube/search/advanced, which takes region and exact dates. |
+| youtube/search/hashtag | GET | 1 | Probed 16 Oct: 16 Shorts for ZA none placeable by country, NG empty. Not worth a lane until a placed share can be shown. |
 | youtube/search/suggestions | GET | 1 | YouTube autocomplete per region (1); after tiktok/search/suggestions proves the idea. |
 | youtube/transcripts | POST | 3 | Batch transcripts (3 each, up to 100). Same price as the per-video route video reading uses; worth switching only when a run reads many YouTube clips at once. |
 

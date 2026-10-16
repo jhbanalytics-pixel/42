@@ -49,6 +49,8 @@ LIVE = {
                     "confirm; Ask; local sources",
     "bluesky/search": "morning row 16w; Ask",
     "pinterest/search": "morning row 16w",
+    "reddit/subreddit/search": "morning row 16w, inside r/southafrica, r/Nigeria and r/Kenya. Candidate probe 16 Oct: "
+                               "7 posts a search at 1 credit, every placed post in market",
     "instagram/audio/reels": "morning seed template (sounds on both platforms)",
     "tiktok/profile/videos": "morning seed template (creator breakout baseline)",
     "twitter/user/tweets": "morning row 23a, X hub accounts; seed template",
@@ -95,12 +97,9 @@ LIVE = {
 # in-market share before it joins a run, and its credits come from the collect share's room or a cap Albert sets.
 CANDIDATE = {
     "tiktok/search/suggestions": "TikTok autocomplete per region (1). Market-true phrases people are typing; a "
-                                 "seed source for row 14 that needs no news trigger. Priced, never wired.",
-    "instagram/search/hashtag": "Instagram posts by hashtag with max_age_days and min_views (5). Instagram "
-                                "expansion beyond reel search, whose reels the 16 Oct audit found mostly foreign.",
-    "facebook/search/groups": "Facebook groups by topic (1); with facebook/group/posts it reaches community "
-                              "conversation, large in NG and KE. Research LATER verdict: 3-4 posts a page.",
-    "facebook/group/posts": "Public group posts (1), the read behind facebook/search/groups.",
+                                 "seed source for row 14 that needs no news trigger. Candidate probe 16 Oct: ten "
+                                 "phrases a call, local for a real term (ZA 'orlando pirates vs sundowns'), noise "
+                                 "for a term nobody types (NG 'take ham play'). Next: wire as a term source.",
     "facebook/events": "City events with RSVP counts (1): the cultural calendar from below. Probed on 28 Sept, "
                        "never scheduled.",
     "tiktok/effect/videos": "Videos made with one effect (1): a format trend's spread, the way song/videos tracks "
@@ -115,13 +114,18 @@ CANDIDATE = {
                               "for Ask where post search finds only titles.",
     "prism/creator-card": "One handle across 4-7 platforms (5-8): the originator check in the confirm design "
                           "(research row 27), never built. verify=true is generated and must not be cited.",
-    "reddit/subreddit/search": "Search inside one subreddit (1): a query run on r/southafrica, r/Nigeria or "
-                               "r/Kenya is located by where it was asked, unlike all-Reddit search.",
-    "youtube/search/hashtag": "YouTube by hashtag with max_age_days (1): Shorts expansion for a hashtag "
-                              "candidate, beside tiktok/search/hashtag.",
 }
 
 LATER = {
+    # Measured by the 16 Oct candidate probe (probe-candidates-20261016T181157Z, ZA and NG; KE not reached).
+    "instagram/search/hashtag": "Probed 16 Oct: 3 of 4 placed posts in market (ZA), but 5 credits a call and a "
+                                "missing hashtag is still charged 5 (NG 404). Reel search covers Instagram for less.",
+    "youtube/search/hashtag": "Probed 16 Oct: 16 Shorts for ZA none placeable by country, NG empty. Not worth "
+                              "a lane until a placed share can be shown.",
+    "facebook/search/groups": "Probed 16 Oct: 4 to 7 groups a search, none placeable by country from the row. "
+                              "Revisit with a group list chosen by hand.",
+    "facebook/group/posts": "Probed 16 Oct: 4 posts a group, none placeable by country. Follows "
+                            "facebook/search/groups.",
     "telegram/profile/posts": "Curated Telegram channels. Off until Albert says go (TELEGRAM_READY).",
     "monitors": "Hourly replays for the intraday pulse. The pulse is off until Albert says go (PULSE_READY).",
     "monitors/{id}": "As monitors.",

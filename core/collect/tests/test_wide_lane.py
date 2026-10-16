@@ -1,4 +1,5 @@
-"""Row 16w: the morning run's wider net, LinkedIn, Bluesky and Pinterest searches on each market's first queries."""
+"""Row 16w: the morning run's wider net, the market's subreddit, LinkedIn, Bluesky and Pinterest searches on each
+market's first queries."""
 
 from datetime import date
 
@@ -28,6 +29,8 @@ def body(platform, post_id, url):
 def test_the_new_routes_are_priced_at_their_list_prices_and_nothing_else_is_accepted():
     assert quote_for("bluesky/search", "GET", {"query": "x", "sort": "latest", "since": "2026-10-10"}) == 1
     assert quote_for("pinterest/search", "GET", {"query": "x"}) == 1
+    assert quote_for("reddit/subreddit/search", "GET", {"subreddit": "Kenya", "query": "x", "sort": "new",
+                                                        "timeframe": "week"}) == 1
     assert quote_for("search/multi", "GET", {"query": "x", "platforms": "linkedin", "since": "2026-10-10"}) == 5
     with pytest.raises(Refused):
         quote_for("pinterest/search", "GET", {"query": "x", "include": "engagement"})  # 1 a row, not priced
@@ -35,7 +38,7 @@ def test_the_new_routes_are_priced_at_their_list_prices_and_nothing_else_is_acce
 
 # Plan
 
-def test_each_market_searches_its_first_row_16_queries_on_linkedin_bluesky_and_pinterest():
+def test_each_market_searches_its_first_row_16_queries_in_its_subreddit_and_on_linkedin_bluesky_and_pinterest():
     planned = job.plan(TUESDAY)
     for market in job.MARKETS:
         calls = wide(planned)[market]
@@ -49,7 +52,8 @@ def test_each_market_searches_its_first_row_16_queries_on_linkedin_bluesky_and_p
             assert c.seed is None and c.lane_class() == "search_presence" and c.series() == "search"
             assert "planned=" in c.series_protocol()
         assert {c.params.get("platforms") for c in calls if c.route == "search/multi"} == {"linkedin"}
-        assert sum(c.hold() for c in calls) == 21
+        assert {c.params["subreddit"] for c in calls if c.route == "reddit/subreddit/search"} == {job.SUBREDDITS[market]}
+        assert sum(c.hold() for c in calls) == 24
 
 
 @pytest.mark.parametrize("day", [TUESDAY, MONDAY, date(2026, 10, 6), date(2026, 10, 17)])
@@ -74,7 +78,8 @@ def test_no_wide_searches_under_a_cap_override_or_in_a_repair():
     assert not any(wide(job.plan(TUESDAY, share_cap=150)).values())
     client = FakeClient()
     collect(client, share_cap=150)
-    assert not [c for c in client.calls if c["route"] in ("bluesky/search", "pinterest/search")]
+    assert not [c for c in client.calls if c["route"] in ("bluesky/search", "pinterest/search",
+                                                          "reddit/subreddit/search")]
 
 
 # Parse
@@ -82,6 +87,7 @@ def test_no_wide_searches_under_a_cap_override_or_in_a_repair():
 @pytest.mark.parametrize("route, platform, url", [
     ("bluesky/search", "bluesky", "https://bsky.app/profile/someone.bsky.social/post/3k1"),
     ("pinterest/search", "pinterest", "https://www.pinterest.com/pin/1234/"),
+    ("reddit/subreddit/search", "reddit", "https://www.reddit.com/r/southafrica/comments/abc/braai/"),
 ])
 def test_a_search_row_becomes_a_search_presence_post_on_its_platform(route, platform, url):
     out = parse(route, {"query": "braai"}, "ZA", body(platform, "p1", url), FETCHED, "run1",
@@ -118,12 +124,12 @@ def test_an_unreadable_wide_body_fails_only_that_call(monkeypatch):
     real = job.parse_with_creators
 
     def broken(route, *a, **kw):
-        if route in ("bluesky/search", "pinterest/search"):
+        if route in ("bluesky/search", "pinterest/search", "reddit/subreddit/search"):
             raise KeyError("unexpected body")
         return real(route, *a, **kw)
 
     monkeypatch.setattr(job, "parse_with_creators", broken)
     run = collect(FakeClient())
-    records = [r for r in run.records if r["route"] in ("bluesky/search", "pinterest/search")]
+    records = [r for r in run.records if r["route"] in ("bluesky/search", "pinterest/search", "reddit/subreddit/search")]
     assert records and all(r["status"] == "unparsable" and not r["ok"] for r in records)
     assert run.posts and run.stopped is None

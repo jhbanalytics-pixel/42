@@ -150,16 +150,20 @@ SEARCH_PAGES, PAGES_SHARE, MULTI_CREDITS = 2, 2000, 10
 REELS_TOP = {"ZA": 1, "NG": 1, "KE": 1}
 REELS_ROW, REELS_ROUTE = "14i", "instagram/search/reels"
 # Row 16w, the wider net: each market's first row 16 queries (then row 14's) searched again on the platforms rows 14
-# and 16 never reach. LinkedIn goes through search/multi alone (5 a call), Bluesky and Pinterest search at 1 each.
-# The plan holds 21 a market, 63 a run, made route by route across the markets, cheapest first, so a day with little
-# room (the Monday and Thursday industry board) still spreads them over the markets. Like row 14i they carry no seed,
+# and 16 never reach, and inside the market's own subreddit. LinkedIn goes through search/multi alone (5 a call); the
+# subreddit, Bluesky and Pinterest searches are 1 each. The plan holds 24 a market, 72 a run, made route by route
+# across the markets, cheapest first, so a day with little room (the Monday and Thursday industry board) still spreads
+# them over the markets. Like row 14i they carry no seed,
 # take only the room the share has left after the rows before them (so the curated panel and every earlier lane keep
 # their credits), come before row 14i, which gets what is left, and a body they cannot read fails that call, not the
 # run. Their posts are search_presence rows placed only from text, so their worth is judged on the locality and
 # candidate yield of their own series (docs/full-42/research/14-socialcrawl-endpoint-audit.md), not on volume. A count
 # of 0 turns a route off. Pinterest search takes no date, so its pins can be old; the detect windows judge them.
 WIDE_ROW = "16w"
-WIDE_TOP = (("bluesky/search", 3), ("pinterest/search", 3), ("search/multi", 3))
+WIDE_TOP = (("reddit/subreddit/search", 3), ("bluesky/search", 3), ("pinterest/search", 3), ("search/multi", 3))
+# Row 16w's Reddit search runs inside the market's own subreddit, so every post it finds was posted there. The 16 Oct
+# candidate probe (probe-candidates-20261016T181157Z) placed no post from r/southafrica or r/Nigeria abroad.
+SUBREDDITS = {"ZA": "southafrica", "NG": "Nigeria", "KE": "Kenya"}
 # Local feed pulls a day. The task 0.5 probe measured the feed=local in-country share at ZA 83% (20 of 24),
 # NG 65% (17 of 26) and KE 12% (1 of 8), NG to KE overlap 1 video. BUILD.md 0.5 moves a market under 40%
 # to country-filtered search: KE keeps one pull as its measurement series, and the credits of its other
@@ -496,6 +500,8 @@ def wide_params(route, query, market, day):
         return {"query": query, "sort": "latest", "since": since}
     if route == "pinterest/search":
         return {"query": query}
+    if route == "reddit/subreddit/search":
+        return {"subreddit": SUBREDDITS[market], "query": query, "sort": "new", "timeframe": "week"}
     raise ValueError(f"no row {WIDE_ROW} call for route {route!r}")
 
 
