@@ -28,8 +28,8 @@ LEVELS = (
 )
 
 
-# Albert's switch for Deep on a plain ask. Off until he approves it; turning it on is this one line and a deploy.
-DEEP_FOR_PLAIN_ASKS = False
+# Albert's switch for Deep on a plain ask. He approved it on 16 Oct 2026; it still needs F42_T2_READY=1 on f42-agent.
+DEEP_FOR_PLAIN_ASKS = True
 
 
 def deep_open(t2_ready: bool) -> bool:

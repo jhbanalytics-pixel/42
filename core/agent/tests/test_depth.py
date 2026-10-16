@@ -24,7 +24,8 @@ def test_deep_is_closed_with_a_reason_unless_opened():
 
 
 def test_deep_needs_t2_ready_and_the_switch(monkeypatch):
-    assert depth.DEEP_FOR_PLAIN_ASKS is False  # off until Albert approves it
+    assert depth.DEEP_FOR_PLAIN_ASKS is True  # Albert approved Deep for plain asks on 16 Oct 2026
+    monkeypatch.setattr(depth, "DEEP_FOR_PLAIN_ASKS", False)
     assert depth.deep_open(True) is False
     monkeypatch.setattr(depth, "DEEP_FOR_PLAIN_ASKS", True)
     assert depth.deep_open(True) is True
