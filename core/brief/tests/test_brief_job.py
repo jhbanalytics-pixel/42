@@ -2206,6 +2206,16 @@ def test_readable_title_ignores_opaque_labels_and_uses_readable_canonical_key():
         assert job.readable_title(channel_id, HASH) is None
 
 
+def test_readable_title_treats_a_topic_items_cluster_key_as_an_id():
+    # 16 Oct 2026: two topics with no label took judged slots titled by their keys.
+    for key in ("topic:20261007-za-037", "topic:20261013-ng-092", "TOPIC:20261013-KE-1234"):
+        assert job.readable_title(None, key) is None
+        assert job.readable_title("", key) is None
+        assert job.card_title({"label": None, "canonical_key": key, "kind": "topic"}) is None
+    assert job.readable_title("amapiano dance", "topic:20261013-za-001") == "amapiano dance"
+    assert job.readable_title(None, "topic: market day") == "topic: market day"
+
+
 def test_readable_title_ignores_platform_account_and_post_ids():
     # Seen as 2 Oct brief titles: a TikTok numeric id, a TikTok default handle and a Reddit account fullname.
     for opaque in ("7691513826449034006", "user6242947817218", "@user6242947817218", "t2_2hs85v1ovd",
@@ -3067,7 +3077,9 @@ def test_a_named_creator_ranks_with_named_items_and_names_are_read_once_per_run(
     con = with_creator_names(world(n=0, markets=("ZA",)),
                              {"creator_id": YT_ID, "platform": "youtube", "handle": "lasizwe",
                               "display_name": "Lasizwe", "followers": 100})
-    for rank in range(10, 0, -1):
+    # A creator item is one creator by definition, so the pattern bucket (pattern-first-selection) ranks it after the
+    # plain items; with nine of those it still takes the tenth slot ahead of the unnamed one.
+    for rank in range(9, 0, -1):
         add_item(con, "ZA", f"za_named_{rank}", float(rank))
     add_creator_item(con, "za_yt", 100.0)
     add_creator_item(con, "za_yt_unnamed", 99.0, label="", key="youtube:uczzzzzzzzzzzzzzzzzzzzzzzz")
@@ -3075,8 +3087,8 @@ def test_a_named_creator_ranks_with_named_items_and_names_are_read_once_per_run(
     by_market = job._candidates(client, D, build_ctx=FakeCtx(), campaign_hashtags=[],
                                 political_terms={m: ["election"] for m in MARKETS}, core="core", agent="agent")
     ids = [cand["row"]["item_id"] for cand in by_market["ZA"]]
-    assert ids == ["za_yt"] + [f"za_named_{rank}" for rank in range(10, 1, -1)]
-    assert by_market["ZA"][0]["row"]["title"] == "Lasizwe" and by_market["ZA"][0]["row"]["nameless"] is False
+    assert ids == [f"za_named_{rank}" for rank in range(9, 0, -1)] + ["za_yt"]
+    assert by_market["ZA"][-1]["row"]["title"] == "Lasizwe" and by_market["ZA"][-1]["row"]["nameless"] is False
     assert sum("display_name" in sql for sql in client.sql) == 1
 
 

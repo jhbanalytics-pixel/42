@@ -96,11 +96,13 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # (RELEASE-E-PLAN 8h, core/brief/same_event.py, _merge_events): it changes nothing in a brief row and marks the shadow
 # era, so the live merge at E3 takes a token of its own, brief-504-retry a support or critic check the model service
 # answered with 504 tried once more when a whole call fits before the cutoff; a failed retry keeps the first 504
-# (core/brief/explain.py check_call).
+# (core/brief/explain.py check_call), pattern-first-selection the pool orders candidates whose own posts show a sound or
+# enriched format adopted by 3 or more creators on 2 or more days before ones the code sees as one creator, a calendar
+# moment, mostly sponsored or mostly news, ahead of worth_raw (core/brief/sql/brief.sql candidates).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
-                "+brief-504-retry")
+                "+brief-504-retry+pattern-first-selection")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -154,6 +156,9 @@ _CHANNEL_ID = re.compile(r"uc[a-z0-9_-]{22,}", re.IGNORECASE)
 # TikTok default handle (user plus 6 or more digits) and a Reddit fullname (t1_ to t6_ plus its base-36 id).
 # A handle someone chose, such as virtual-mycologist13, is a name.
 _PLATFORM_ID = re.compile(r"[#@]?(?:\d{8,}|user\d{6,}|t[1-6]_[a-z0-9]{4,})", re.IGNORECASE)
+# A topic item's canonical key, "topic:" plus the cluster id it was born from (core/understand/cluster.py plan): an id,
+# not a name. On 16 Oct 2026 "topic:20261007-za-037" and "topic:20261013-ng-092" took judged slots as if named.
+_TOPIC_KEY = re.compile(r"topic:\d{8}-[a-z]{2}-\d{3,}", re.IGNORECASE)
 FAILED_CHECKS = {"breach", "failed_checks", "too_few_claims", "check_incomplete"}
 _NAME = re.compile(r"^--\s*name:\s*(\w+)\s*$", re.MULTILINE)
 QUERIES = {_NAME.search(s).group(1): s for s in sqlrun.split(SQL.read_text(encoding="utf-8"))}
@@ -186,7 +191,7 @@ QUERIES["candidates_without_locality"] = QUERIES["candidates"].replace(_LOCALITY
 # candidates under either authority: the run goes on and the brief shows the data issue.
 _NEWS_COLUMN = "ms.market_news_posts7"
 _NULL_COLUMN = "CAST(NULL AS INT64)"
-assert QUERIES["candidates"].count(_NEWS_COLUMN) == 2
+assert QUERIES["candidates"].count(_NEWS_COLUMN) == 4
 QUERIES["candidates_without_news_column"] = QUERIES["candidates"].replace(_NEWS_COLUMN, _NULL_COLUMN)
 QUERIES["candidates_without_locality_or_news_column"] = QUERIES["candidates_without_locality"].replace(_NEWS_COLUMN, _NULL_COLUMN)
 MISSING_VIEW_COLUMN = "missing_view_column"
@@ -325,7 +330,8 @@ def moments(client, d, market, core=CORE, agent=AGENT):
 
 
 def _id_like(value):
-    return bool(_HASH_ID.fullmatch(value) or _CHANNEL_ID.fullmatch(value) or _PLATFORM_ID.fullmatch(value))
+    return bool(_HASH_ID.fullmatch(value) or _CHANNEL_ID.fullmatch(value) or _PLATFORM_ID.fullmatch(value)
+                or _TOPIC_KEY.fullmatch(value))
 
 
 def readable_title(label, key):
@@ -755,8 +761,7 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
         receipts[m] = {}
         rows = _candidate_rows(client, d, m, core, agent, receipts[m], unread)
         snapshots[m] = _selection_snapshot(rows, receipts[m])
-        pools[m] = [{k: v for k, v in row.items() if k not in (
-            "_selection_sql_rank", "_selection_market_scope", "_selection_snapshot")} for row in rows]
+        pools[m] = [{k: v for k, v in row.items() if not k.startswith("_selection_")} for row in rows]
     creator_names(client, [r for m in MARKETS for r in pools[m]], hidden, core, agent)
     ranked = {m: _ranked(pools[m]) for m in MARKETS}
     by_market = {m: [] for m in MARKETS}
