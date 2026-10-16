@@ -12,7 +12,7 @@ def test_a_forecast_cut_on_a_side_claim_is_named():
              "detail": "direct future assertion held while forecast promotion is off"}]
     reason = failed_reason({"reason": "failed_checks", "checks": rows, "rests_on": ["c1", "c2"]})
     assert reason != NO_REST
-    assert reason.startswith("Forecast check: ")
+    assert reason.startswith("Claim checks: ")  # K9 has no rule name; stored rows keep "Claim checks"
 
 
 def test_writer_overflow_is_not_a_failed_support_check():

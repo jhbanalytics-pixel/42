@@ -227,8 +227,7 @@ REASON_MAX = 300
 HELD_MAX = 160
 REPAIR = "before repair: "
 RULE_NAMES = {"K1": "Quote check", "K2": "Number check", "K3": "Place check", "K4": "Support check",
-              "K5": "Label check", "K6": "Banned term check", "K8": "Translation check", "K9": "Forecast check",
-              "K10": "Status check",
+              "K5": "Label check", "K6": "Banned term check", "K8": "Translation check", "K10": "Status check",
               "specificity": "Specificity check", "title": "Title check"}
 CLAIM_WORDS = {
     "K1": "a quote or evidence id in a claim did not check out",

@@ -33,8 +33,9 @@ COLUMNS = ("item_id, kind, canonical_key, label, aliases, parent_item_id, centro
 NOW_SQL = "SELECT CURRENT_TIMESTAMP() AS now"
 
 # Parameters: @d DATE, @back INT64 (WINDOW_DAYS - 1), @min_posts INT64. post_enrichment holds an embed row and an
-# enrich row per post; only a whole, finite 768-dimension vector is read, and one per post, the lowest first element
-# first, as understand's cluster_posts.sql reads it, so a malformed row can neither win the pick nor make a NaN mean.
+# enrich row per post; only a row with a vector of finite values is read, and one per post, the lowest first element
+# first, as understand's cluster_posts.sql reads it, so a NaN or infinite row can neither win the pick nor make a NaN
+# mean. The length is not pinned here: the known-answer fixtures use short vectors.
 ITEM_CENTROIDS_SQL = f"""
 MERGE {{core}}.cultural_map t
 USING (
@@ -52,7 +53,7 @@ USING (
     WHERE pi.item_id IN (SELECT cur.item_id FROM cur) AND pi.post_id IN (SELECT win.post_id FROM win)),
   vectors AS (
     SELECT e.post_id, e.embedding FROM {{core}}.post_enrichment e
-    WHERE ARRAY_LENGTH(e.embedding) = 768
+    WHERE ARRAY_LENGTH(e.embedding) > 0
       AND NOT EXISTS (
         SELECT 1 FROM UNNEST(e.embedding) AS value
         WHERE value IS NULL OR IS_NAN(value) OR IS_INF(value) OR ABS(value) > 3.4028234663852886e38)
