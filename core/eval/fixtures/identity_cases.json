@@ -1,48 +1,358 @@
 {
-  "note": "Synthetic identity cases for core/eval/identity_eval.py. Shapes chosen by hand to cover continuity, recurrence, unrelated semantic similarity, generic tags, duplicate fragments and the shared-publisher concern. Not real topics and not a sample; rates here are not accuracy figures.",
-  "cases": [
-    {"id": "continuity-keywords", "category": "continuity", "expect": "amapiano-challenge",
-     "cluster": {"keywords": ["amapiano", "dance", "challenge"], "hashtags": ["amapianochallenge"]},
-     "items": [{"item_id": "amapiano-challenge", "cosine": 0.90, "days_since_seen": 1,
-                "keywords": ["amapiano", "dance", "challenge"], "hashtags": ["amapianochallenge"]}]},
-    {"id": "continuity-sound-paraphrase", "category": "continuity", "expect": "kota-sound",
-     "cluster": {"keywords": ["kota", "bunny"], "sounds": ["snd_kota"]},
-     "items": [{"item_id": "kota-sound", "cosine": 0.88, "days_since_seen": 2,
-                "keywords": ["streetfood"], "sounds": ["snd_kota"]}]},
-    {"id": "continuity-low-cosine-shared-tags", "category": "continuity", "expect": "japa-stories",
-     "cluster": {"keywords": ["japa", "abroad", "visa"], "hashtags": ["japa"]},
-     "items": [{"item_id": "japa-stories", "cosine": 0.60, "days_since_seen": 3,
-                "keywords": ["japa", "visa", "canada"], "hashtags": ["japa"]}]},
-    {"id": "recurrence-dormant-creator", "category": "recurrence", "expect": "matric-dance",
-     "cluster": {"keywords": ["matric", "dance", "dress"], "creators": ["cr_m1"]},
-     "items": [{"item_id": "matric-dance", "cosine": 0.90, "days_since_seen": 40,
-                "keywords": ["matric", "dance", "outfit"], "creators": ["cr_m1"]}]},
-    {"id": "unrelated-semantic-recent", "category": "unrelated_similarity", "expect": null,
-     "cluster": {"keywords": ["phone", "mobile", "airtime"]},
-     "items": [{"item_id": "forestry", "cosine": 0.86, "days_since_seen": 1, "keywords": ["forestry", "trees"]}]},
-    {"id": "generic-hashtag-recent", "category": "generic_tag", "expect": null,
-     "cluster": {"keywords": ["heater", "winter"], "hashtags": ["fyp"]},
-     "items": [{"item_id": "hr-advice", "cosine": 0.40, "days_since_seen": 1,
-                "keywords": ["hr", "salary"], "hashtags": ["fyp"]}]},
-    {"id": "unrelated-trending-sound-recent", "category": "generic_tag", "expect": null,
-     "cluster": {"keywords": ["skincare", "routine"], "sounds": ["snd_viral"]},
-     "items": [{"item_id": "car-wash", "cosine": 0.76, "days_since_seen": 2,
-                "keywords": ["car", "wash"], "sounds": ["snd_viral"]}]},
-    {"id": "duplicate-fragment-hashtag-only", "category": "duplicate_fragment", "expect": "durban-july",
-     "cluster": {"keywords": ["fashion", "racecourse"], "hashtags": ["durbanjuly"]},
-     "items": [{"item_id": "durban-july", "cosine": 0.78, "days_since_seen": 0,
-                "keywords": ["outfits", "hats"], "hashtags": ["durbanjuly"]}]},
-    {"id": "duplicate-fragment-hashtag-keywords", "category": "duplicate_fragment", "expect": "durban-july-2",
-     "cluster": {"keywords": ["fashion", "racecourse", "hats"], "hashtags": ["durbanjuly"]},
-     "items": [{"item_id": "durban-july-2", "cosine": 0.78, "days_since_seen": 0,
-                "keywords": ["outfits", "hats", "fashion"], "hashtags": ["durbanjuly"]}]},
-    {"id": "competing-unrelated-nearer", "category": "competing_candidates", "expect": "forestry-jobs",
-     "cluster": {"keywords": ["forestry", "jobs"]},
-     "items": [{"item_id": "phones", "cosine": 0.95, "days_since_seen": 1, "keywords": ["phone"]},
-               {"item_id": "forestry-jobs", "cosine": 0.88, "days_since_seen": 1, "keywords": ["forestry", "jobs"]}]},
-    {"id": "shared-publisher-generic-keywords", "category": "shared_publisher", "expect": null, "known_open": true,
-     "cluster": {"keywords": ["news", "today", "petrol", "price"], "creators": ["cr_newsdesk"]},
-     "items": [{"item_id": "loadshedding-news", "cosine": 0.55, "days_since_seen": 1,
-                "keywords": ["news", "today", "eskom", "loadshedding"], "creators": ["cr_newsdesk"]}]}
-  ]
+ "note": "Synthetic identity cases for core/eval/identity_eval.py. Shapes chosen by hand to cover continuity, recurrence, unrelated semantic similarity, generic tags, duplicate fragments and the shared-publisher concern. Not real topics and not a sample; rates here are not accuracy figures.",
+ "cases": [
+  {
+   "id": "continuity-keywords",
+   "category": "continuity",
+   "expect": "amapiano-challenge",
+   "cluster": {
+    "keywords": [
+     "amapiano",
+     "dance",
+     "challenge"
+    ],
+    "hashtags": [
+     "amapianochallenge"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "amapiano-challenge",
+     "cosine": 0.9,
+     "days_since_seen": 1,
+     "keywords": [
+      "amapiano",
+      "dance",
+      "challenge"
+     ],
+     "hashtags": [
+      "amapianochallenge"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "continuity-sound-paraphrase",
+   "category": "continuity",
+   "expect": "kota-sound",
+   "cluster": {
+    "keywords": [
+     "kota",
+     "bunny"
+    ],
+    "sounds": [
+     "snd_kota"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "kota-sound",
+     "cosine": 0.88,
+     "days_since_seen": 2,
+     "keywords": [
+      "streetfood"
+     ],
+     "sounds": [
+      "snd_kota"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "continuity-low-cosine-shared-tags",
+   "category": "continuity",
+   "expect": "japa-stories",
+   "cluster": {
+    "keywords": [
+     "japa",
+     "abroad",
+     "visa"
+    ],
+    "hashtags": [
+     "japa"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "japa-stories",
+     "cosine": 0.6,
+     "days_since_seen": 3,
+     "keywords": [
+      "japa",
+      "visa",
+      "canada"
+     ],
+     "hashtags": [
+      "japa"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "recurrence-dormant-creator",
+   "category": "recurrence",
+   "expect": "matric-dance",
+   "cluster": {
+    "keywords": [
+     "matric",
+     "dance",
+     "dress"
+    ],
+    "creators": [
+     "cr_m1"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "matric-dance",
+     "cosine": 0.9,
+     "days_since_seen": 40,
+     "keywords": [
+      "matric",
+      "dance",
+      "outfit"
+     ],
+     "creators": [
+      "cr_m1"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "unrelated-semantic-recent",
+   "category": "unrelated_similarity",
+   "expect": null,
+   "cluster": {
+    "keywords": [
+     "phone",
+     "mobile",
+     "airtime"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "forestry",
+     "cosine": 0.86,
+     "days_since_seen": 1,
+     "keywords": [
+      "forestry",
+      "trees"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "generic-hashtag-recent",
+   "category": "generic_tag",
+   "expect": null,
+   "cluster": {
+    "keywords": [
+     "heater",
+     "winter"
+    ],
+    "hashtags": [
+     "fyp"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "hr-advice",
+     "cosine": 0.4,
+     "days_since_seen": 1,
+     "keywords": [
+      "hr",
+      "salary"
+     ],
+     "hashtags": [
+      "fyp"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "unrelated-trending-sound-recent",
+   "category": "generic_tag",
+   "expect": null,
+   "cluster": {
+    "keywords": [
+     "skincare",
+     "routine"
+    ],
+    "sounds": [
+     "snd_viral"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "car-wash",
+     "cosine": 0.76,
+     "days_since_seen": 2,
+     "keywords": [
+      "car",
+      "wash"
+     ],
+     "sounds": [
+      "snd_viral"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "generic-hashtag-shared-creator",
+   "category": "generic_tag",
+   "expect": null,
+   "cluster": {
+    "keywords": [
+     "braai",
+     "weekend"
+    ],
+    "hashtags": [
+     "fyp",
+     "viral"
+    ],
+    "creators": [
+     "cr_lifestyle"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "gym-routine",
+     "cosine": 0.5,
+     "days_since_seen": 3,
+     "keywords": [
+      "gym",
+      "routine"
+     ],
+     "hashtags": [
+      "fyp",
+      "viral"
+     ],
+     "creators": [
+      "cr_lifestyle"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "duplicate-fragment-hashtag-only",
+   "category": "duplicate_fragment",
+   "expect": "durban-july",
+   "cluster": {
+    "keywords": [
+     "fashion",
+     "racecourse"
+    ],
+    "hashtags": [
+     "durbanjuly"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "durban-july",
+     "cosine": 0.78,
+     "days_since_seen": 0,
+     "keywords": [
+      "outfits",
+      "hats"
+     ],
+     "hashtags": [
+      "durbanjuly"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "duplicate-fragment-hashtag-keywords",
+   "category": "duplicate_fragment",
+   "expect": "durban-july-2",
+   "cluster": {
+    "keywords": [
+     "fashion",
+     "racecourse",
+     "hats"
+    ],
+    "hashtags": [
+     "durbanjuly"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "durban-july-2",
+     "cosine": 0.78,
+     "days_since_seen": 0,
+     "keywords": [
+      "outfits",
+      "hats",
+      "fashion"
+     ],
+     "hashtags": [
+      "durbanjuly"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "competing-unrelated-nearer",
+   "category": "competing_candidates",
+   "expect": "forestry-jobs",
+   "cluster": {
+    "keywords": [
+     "forestry",
+     "jobs"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "phones",
+     "cosine": 0.95,
+     "days_since_seen": 1,
+     "keywords": [
+      "phone"
+     ]
+    },
+    {
+     "item_id": "forestry-jobs",
+     "cosine": 0.88,
+     "days_since_seen": 1,
+     "keywords": [
+      "forestry",
+      "jobs"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "shared-publisher-generic-keywords",
+   "category": "shared_publisher",
+   "expect": null,
+   "known_open": true,
+   "cluster": {
+    "keywords": [
+     "news",
+     "today",
+     "petrol",
+     "price"
+    ],
+    "creators": [
+     "cr_newsdesk"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "loadshedding-news",
+     "cosine": 0.55,
+     "days_since_seen": 1,
+     "keywords": [
+      "news",
+      "today",
+      "eskom",
+      "loadshedding"
+     ],
+     "creators": [
+      "cr_newsdesk"
+     ]
+    }
+   ]
+  }
+ ]
 }
