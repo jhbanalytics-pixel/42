@@ -39,8 +39,13 @@ All tools are Python functions declared to Gemini as functions (core/agent/tools
 | log_forecast | (statement, probability, resolve_by, resolution_criteria, evidence_ids) -> forecast_id | Scored later against persistence |
 | budget_status | () -> credits_left, calls_left | |
 | resolve_dates | (expression) -> from, to | The server works out dates, never the model |
+| read_article | (evidence_id) -> evidence_id, status, text | Opens the article behind a news result this run found (web/scrape, 1 credit, robots.txt first, at most 8 a question) and stores its text as citable evidence; no other page can be named |
 
 Evidence fields: evidence_id, platform, url, author, author_followers, published_at, text, engagement, eng_score, relevance, retrieved_at, via (route), media (thumbnail, duration), transcript span.
+
+## Quantitative questions (core/agent/figures.py)
+
+A question that asks for percentages, shares, polls, surveys or breakdowns is quantitative. Research is told to find the sources that state the figures (news first: a T2 question sends the news researcher before the platform groups, and it may open articles with read_article). Before the writer, code reads every stored post in the market and window that matches the question's words and carries a percentage (the figure sweep, a free warehouse read). After the claims are checked, one model call lists the percentages the records state, each with the verbatim quote that holds it, and code keeps a figure only when its quote is verbatim in the cited record, its value is a percentage written in that quote and its subject is named there. Pollster, fieldwork, sample and population are kept only when the record says them. Nothing is computed, summed or merged across sources. The verified figures travel in run.figures (never in the answer, whose schema is closed): one table per source, newest first, with a lead line written by code; the app draws each as a bar chart with its source, date and sample. The call sits inside the question's hold.
 
 ## Guardrails in code (checked before every tool call)
 

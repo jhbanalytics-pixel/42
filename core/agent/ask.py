@@ -25,11 +25,13 @@ from uuid import uuid4
 from core.agent import answer_state, checks, critic, native_review, plain, skills, timings as timing
 from core.agent.answer import validate_answer
 from core.agent.checks import _text_breaches, _unpinned, check_answer, platform_label, source_gaps, window_text
+from core.agent import figures
 from core.agent.context import TIERS, Refused, RunContext
 from core.agent.ranked import ranked_list
 from core.agent.remaining_lists import entity_lists
 from core.agent.tools import sc_adapter
 from core.agent.tools.dates import SAST, resolve_dates
+from core.agent.tools.article import ARTICLE_ROUTE
 from core.agent.tools.enrich_tools import ENRICH_SHARE
 from core.agent.tools.socialcrawl import (ALLOWED_ROUTES, EVERYWHERE_EXCLUDE, PLATFORM_NAMES, SEARCH_EVERYWHERE,
                                           check_route, normalise_route)
@@ -141,6 +143,15 @@ QUESTION_PLATFORMS = (("tiktok", re.compile(r"\btik\s?tok\b", re.I)),
                       ("threads", re.compile(r"\bThreads\b")),
                       ("x", re.compile(r"\btwitter\b|\btweets?\b", re.I)),
                       ("x", re.compile(r"\b(?:[Oo]n|[Ff]rom)\s+X(?![\w-])")))
+# A question that asks for figures (figures.quantitative_question): what research is told, by code.
+QUANT_NOTE = ("This question asks for figures. Find the sources that state them: search news (google_news/search, whose "
+              "search term is keyword) and posts by news outlets, pollsters and journalists, in two or three wordings, "
+              "and open the articles that report figures with read_article. Code lists the percentages the sources "
+              "state, checked word for word, beside the answer; the claims say what the sources are and what they "
+              "cover. A source that names a poll without its figures is not a figure.")
+FIGURES_FAILED = "The figures the sources report could not be listed, so this answer shows none"
+FIGURES_NO_ROOM = ("The question's model budget had no room left to list the figures the sources report, so this answer "
+                   "shows none")
 TRENDING_FALLBACK_NOTICE = "Today's board is empty, so this uses the last 7 days"
 TRENDING_BOARD_READ_FAILED = "Today's published board could not be read; fallback was not used."
 TRENDING_POSTS_READ_FAILED = "Located posts in the last 7 days could not be read; fallback was not used."
@@ -948,6 +959,11 @@ def hold_usd(tier: str, model: str) -> float:
     return TIERS[tier]["max_budget_usd"] + gate_usd(model, CRITIC_CALLS)
 
 
+def figures_usd(model: str) -> float:
+    """The one figure-listing call a quantitative question makes (figures.extract_figures)."""
+    return call_usd(model, figures.FIGURES_INPUT_TOKENS, figures.FIGURES_MAX_TOKENS)
+
+
 def researcher_usd() -> float:
     """One T2 research loop's USD budget: the tier's research budget over the most loops an ask runs, every
     first-round researcher and the gap researcher."""
@@ -967,16 +983,22 @@ def platform_groups(markets: list[str], most: int | None = None,
 
 
 def group_routes(group: str) -> list[str]:
-    return sorted(r for r in ALLOWED_ROUTES if r.split("/", 1)[0] in PLATFORM_GROUPS[group])
+    routes = {r for r in ALLOWED_ROUTES if r.split("/", 1)[0] in PLATFORM_GROUPS[group]}
+    if group == "news":
+        routes.add(ARTICLE_ROUTE)  # read_article only; socialcrawl_call still refuses it (ALLOWED_ROUTES)
+    return sorted(routes)
 
 
 def _lane_prompt(prompt: str, group: str, count: int, search_credits: float) -> str:
+    news = (" Search news with google_news/search (its search term is keyword, as in {\"keyword\": \"Gauteng poll\", "
+            "\"location_name\": \"South Africa\"}), try two or three wordings, and open the articles that report "
+            "figures with read_article." if group == "news" else "")
     return (f"{prompt}\n\nYou are one of {count} researchers working on this question at the same time, each on its own "
             f"platforms. Your platforms: {GROUP_LABELS[group]}. Live routes you may call: "
-            f"{', '.join(group_routes(group))}. Stored posts and the warehouse are free; keep to your platforms there "
-            f"too. Spend at most {search_credits:g} credits on live searches; comments and transcripts come from the "
-            "enrichment share. End with a short note of what the posts show, their evidence ids and any source that "
-            "failed.")
+            f"{', '.join(group_routes(group))}.{news} Stored posts and the warehouse are free; keep to your platforms "
+            f"there too. Spend at most {search_credits:g} credits on live searches; comments and transcripts come from "
+            "the enrichment share. End with a short note of what the posts show, their evidence ids and any source "
+            "that failed.")
 
 
 def _gap_prompt(prompt: str, queries: list[str], followups: list[dict], credits: float) -> str:
@@ -1816,6 +1838,9 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     if skill == "creator-fit":
         skills.check_creator(question, deps.warehouse, MAX_BYTES_BILLED)  # refuses before any spend
     run_id = _run_id(request, question, tier, as_of)
+    quantitative = figures.quantitative_question(question)
+    figure_sweep_out: dict | None = None
+    figures_payload: dict | None = None
 
     notices, model_name = [], MODEL
     discovered = None
@@ -1951,7 +1976,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         raise
 
     def held(tier: str, model: str) -> float:
-        return inv["max_model_usd"] if tier == "T3" else hold_usd(tier, model)
+        base = inv["max_model_usd"] if tier == "T3" else hold_usd(tier, model)
+        return base + (figures_usd(model) if quantitative else 0.0)
 
     lane_usd = researcher_usd()
     if tier == "T3":
@@ -2062,8 +2088,39 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             return answer, [row("cut", reason)]
         return {**answer, "short_answer": text}, [row("pass", HEADLINE_REWRITTEN_REASON)]
 
+    def list_figures() -> dict:
+        """The percentages the run's sources state, checked in code (figures.py), for run.figures. One model call,
+        inside the question's hold; a failed call shows no figures and says so."""
+        records = len(figures.figure_records(ctx))
+        if records and model_budget is not None and not model_budget.affords(
+                model_name, [(figures.FIGURES_INPUT_TOKENS, figures.FIGURES_MAX_TOKENS)]):
+            if FIGURES_NO_ROOM not in notices:
+                notices.append(FIGURES_NO_ROOM)
+            return figures.payload(question, [], {}, figure_sweep_out, records, "not_run")
+        progress.step("write", f"Listing the figures {records} sources state and checking each against its source"
+                      if records else "No source in this answer states a percentage")
+        try:
+            listed, usage, dispatched = timed("write", figures.extract_figures, stop_model, question, ctx, model_name)
+        except _StopRequested:
+            raise
+        except Exception as exc:
+            billed = _failed_call_usage(exc, model_name, figures.FIGURES_INPUT_TOKENS, figures.FIGURES_MAX_TOKENS)
+            spend(billed.get("input_tokens"), billed.get("output_tokens"), billed.get("usd"))
+            log.warning("ask figures call failed: run %s: %s", run_id, type(exc).__name__)
+            if FIGURES_FAILED not in notices:
+                notices.append(FIGURES_FAILED)
+            return figures.payload(question, [], {}, figure_sweep_out, records, "failed")
+        if dispatched:
+            usage = _usage_or_reserve(usage, model_name, figures.FIGURES_INPUT_TOKENS, figures.FIGURES_MAX_TOKENS)
+            spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
+        if should_stop():
+            raise _StopRequested()
+        kept, cut = figures.verify(listed, ctx)
+        built = figures.tables(kept)
+        return figures.payload(question, built, cut, figure_sweep_out, records, "ok" if built else "none_found")
+
     def gate(note: str, source_status: list[dict]) -> tuple:
-        nonlocal numeric_repair_attempted, store_count, summary_ledger
+        nonlocal numeric_repair_attempted, store_count, summary_ledger, figure_sweep_out
         summary_ledger = answer_state.SummaryLedger()  # a gap round writes a new draft; only the last pass is stored
         """The writer, the code checks, the support check, the recheck and the field check, once. First the posts the
         researchers only saw in query rows become evidence, so the writer sees them as posts and K1 can resolve them.
@@ -2085,6 +2142,14 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                 log.warning("ask store breadth failed: run %s: %s", run_id, type(exc).__name__)
                 notices.append(STORE_FAILED)
             progress.hold_back(set(ctx.evidence) - before)  # the sweep's posts: streamed only if a claim cites one
+        if quantitative and figure_sweep_out is None:
+            progress.step("read", "Reading every stored post in the market and window that reports a percentage")
+            before = set(ctx.evidence)
+            with timings.begin("io", "figure_sweep"):
+                figure_sweep_out = figures.figure_sweep(ctx, deps.warehouse, question, question_platforms(question))
+            if figure_sweep_out.get("failed"):
+                log.warning("ask figure sweep failed: run %s: %s", run_id, figure_sweep_out["failed"])
+            progress.hold_back(set(ctx.evidence) - before)
         timings.phase("prepare")
         listed = listed_post_ids(ctx)
         if listed:
@@ -2333,6 +2398,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                                                              skill=skill),
                                   model=model_name, warehouse=deps.warehouse, client=client, tables=deps.tables)
             prompt = _prompt(question, markets, window, request.get("parent"), request.get("from_card"), jump)
+            if quantitative:
+                prompt = f"{prompt}\n\n{QUANT_NOTE}"
             if fallback_active:
                 fallback_parts = [
                     "The empty Today board routes this answer to located posts from the last 7 days. "
@@ -2389,7 +2456,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                                               topic=sweep_topic(question))
                 if tier == "T2":
                     research = timed("research", _first_round, deps, ctx, client, setup, prompt, markets,
-                                     progress, should_stop, question_platforms(question))
+                                     progress, should_stop,
+                                     (["news"] if quantitative else []) + question_platforms(question))
                 elif tier == "T3":
                     research = timed("research", _plan_round, deps, ctx, client, setup, prompt, inv, lane_usd,
                                      progress, should_stop)
@@ -2452,6 +2520,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                 with timings.begin("io", "claim_checks_write"):
                     deps.tables.insert(CLAIM_CHECKS, rows, row_ids=[f"{ask_id}:{r['claim_id']}:{r['rule']}:{i}"
                                                                     for i, r in enumerate(rows)])
+            if quantitative:
+                figures_payload = list_figures()
 
         for gap in ctx.research_gaps:
             if gap not in answer["gaps"]:
@@ -2521,6 +2591,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         run["ranked_list"] = ranked
     if entities:
         run["entity_lists"] = entities
+    if figures_payload is not None and not request.get("skin_id"):  # a skin run shows no side lists (contract 15.1)
+        run["figures"] = figures_payload
     result = {"answer": answer,
               "run": run,
               "query_receipts": query_receipts(ctx, answer)}
