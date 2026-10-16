@@ -14,15 +14,15 @@ def test_the_fixture_has_at_least_40_labelled_pairs_each_with_a_reason():
     assert min(sum(p["label"] == k for p in pairs) for k in ("true", "false")) >= 15
 
 
-def test_the_review_case_is_accepted_by_the_vote_rule_and_refused_by_the_shadow():
+def test_the_vote_rule_no_longer_accepts_a_false_pair_on_a_generic_tag_and_a_recent_sighting():
+    # Until the Beta identity fixes, a shared #fyp-style tag plus a recent sighting made two votes and continued an
+    # identity, and only the shadow refused those pairs. A recent sighting no longer votes and stoplisted tags no
+    # longer count as shared (DATA.md section 4), so the vote rule accepts no false pair here. The cost is recall:
+    # true pairs that rested on recency are now rejected and sit in the reverse set.
     rows = compare.evaluate(compare.build_fixture())
     summary = compare.summarise(rows)
-    refused = summary["today_accepts_shadow_rejects"]
-    assert refused and all(r["today_accept"] and not r["shadow_accept"] for r in refused)
-    generic_recent = [r for r in refused if r["today_votes"] == ["hashtag_or_sound", "recent"] and r["cosine"] < 0.65]
-    assert len(generic_recent) >= 4
-    assert all(r["label"] == "false" and r["shadow_reason"] == "cosine_floor" for r in generic_recent)
-    assert summary["today_accepts_shadow_rejects_vote_sets"]["hashtag_or_sound+recent"] >= 4
+    assert [r for r in rows if r["label"] == "false" and r["today_accept"]] == []
+    assert summary["today_accepts_shadow_rejects"] == []
 
 
 def test_the_reverse_set_holds_a_cosine_only_recurrence():
