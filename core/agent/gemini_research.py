@@ -489,6 +489,13 @@ def gemini_research(ctx: RunContext, prompt: str, options, emit, should_stop: Ca
                     failures[name] = failures.get(name, 0) + 1
                     if failures[name] == MAX_TOOL_FAILURES:
                         emit.step("note", ask.closed_step(name))
+                        # The step line alone left the answer "complete"; a closed read tool is a code-recorded gap.
+                        gap = {"what": ask.closed_step(name),
+                               "searched": "Only the results it returned before it was closed are available",
+                               "why": "Research coverage is incomplete; a failed search is not evidence of absence"}
+                        with ctx.lock:
+                            if gap not in ctx.research_gaps:
+                                ctx.research_gaps.append(gap)
                 if lane is not None:
                     _fold(ctx, lane)
                 refused_route = name == "socialcrawl_call" and ask._route_refused(args)

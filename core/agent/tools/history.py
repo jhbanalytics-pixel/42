@@ -47,7 +47,10 @@ def _open_map(columns: str) -> str:
 
 
 def _market(ctx: RunContext, market) -> str | None:
-    market = market or ctx.market
+    """The question's market; a different one the model names is refused, so a tool never answers about another."""
+    if market and ctx.market and str(market).strip().upper() != ctx.market:
+        raise Refused(f"This question is about {ctx.market}, so {market} cannot be read. Leave market out.")
+    market = str(market).strip().upper() if market else ctx.market
     if market is not None and market not in MARKETS:
         raise Refused(f"market must be one of {', '.join(MARKETS)}; got {market!r}.")
     return market

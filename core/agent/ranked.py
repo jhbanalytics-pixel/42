@@ -39,8 +39,13 @@ def _day(value):
         return None
 
 
+def _platform(value):
+    """X is stored as "twitter"; the ranked list names it "x" on both sides of a comparison."""
+    return "x" if value == "twitter" else value
+
+
 def _platforms(params):
-    return {"x" if value == "twitter" else value for key, value in params.items() if key.startswith("platform_")}
+    return {_platform(value) for key, value in params.items() if key.startswith("platform_")}
 
 
 def _authoritative(query):
@@ -113,7 +118,7 @@ def ranked_list(question: str, answer: dict, ctx: RunContext, *, masked: bool = 
                 or _day(p.get("since")) != ctx.window_start or _day(p.get("until")) != ctx.window_end):
             continue
         platform = next(iter(platforms))
-        rows = [row for row in query["rows"] if row.get("platform") == platform and row.get(field)
+        rows = [row for row in query["rows"] if _platform(row.get("platform")) == platform and row.get(field)
                 and (kind != "hashtags" or isinstance(row[field], str))
                 and type(row.get("creators")) in (int, float) and type(row.get("posts")) in (int, float)]
         if rows:
