@@ -389,6 +389,44 @@
      ]
     }
    ]
+  },
+  {
+   "id": "function-words-shared-creator",
+   "category": "function_words",
+   "expect": null,
+   "cluster": {
+    "keywords": [
+     "they",
+     "them",
+     "walai",
+     "curtains"
+    ],
+    "hashtags": [
+     "homedecor"
+    ],
+    "creators": [
+     "cr_pub"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "brain-health",
+     "cosine": 0.3,
+     "days_since_seen": 2,
+     "keywords": [
+      "they",
+      "them",
+      "psychosis",
+      "brain"
+     ],
+     "hashtags": [
+      "mentalhealth"
+     ],
+     "creators": [
+      "cr_pub"
+     ]
+    }
+   ]
   }
  ]
 }

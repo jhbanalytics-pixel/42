@@ -60,6 +60,7 @@ names.
 """
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import os
@@ -190,7 +191,8 @@ def fit_topics(docs, embeddings):
         return topics, probs, {}
     # BERTopic pads a topic with fewer than ten scored words with ("", 1e-05). Those blanks are not keywords: kept,
     # they gave caption-less clusters the label ", , " and a shared "" keyword that voted unrelated clusters together.
-    keywords = {t: [w for w, score in model.get_topic(t) or [] if str(w).strip() and score > 0][:TOP_KEYWORDS]
+    # A keyword made only of function words ("they", "ni hii") names no topic either; see function_words.txt.
+    keywords = {t: [w for w, score in model.get_topic(t) or [] if is_content_word(w) and score > 0][:TOP_KEYWORDS]
                 for t in set(topics) if t != -1}
     return topics, probs, keywords
 
@@ -218,6 +220,18 @@ def _tag(value):
         return canonical_key("hashtag", str(value))
     except ValueError:
         return ""
+
+
+@functools.cache
+def function_words():
+    """The words of function_words.txt: pronouns, articles, auxiliaries and the like in the markets' languages."""
+    lines = (Path(__file__).resolve().parent / "function_words.txt").read_text(encoding="utf-8").splitlines()
+    return frozenset(w.strip().lower() for w in lines if w.strip() and not w.lstrip().startswith("#"))
+
+
+def is_content_word(keyword):
+    """True when the keyword has a word that is not a function word; blank keywords have none."""
+    return any(w not in function_words() for w in str(keyword).lower().split())
 
 
 def _specific_tags(values):
@@ -469,8 +483,9 @@ def is_dormant(last_seen, run_date):
 
 
 def _words(keywords):
-    """The non-blank keywords as a set. Blanks stored before fit_topics dropped BERTopic's padding share nothing."""
-    return {k for k in keywords or [] if str(k).strip()}
+    """The keywords that name something, as a set. Blanks and function-word keywords stored before fit_topics dropped
+    them share nothing, so two clusters agreeing on "they" or "ni hii" get no keyword vote."""
+    return {k for k in keywords or [] if is_content_word(k)}
 
 
 def _votes(cluster, item, cos, run_date):
