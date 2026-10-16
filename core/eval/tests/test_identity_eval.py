@@ -56,6 +56,7 @@ def test_current_matcher_on_the_synthetic_cases():
         "unrelated-semantic-recent": "correct",
         "generic-hashtag-recent": "correct",
         "unrelated-trending-sound-recent": "variant_link",
+        "generic-hashtag-shared-creator": "correct",
         # A fragment sharing only a hashtag below the match cosine is now a variant child, not a continuation.
         "duplicate-fragment-hashtag-only": "variant_split",
         "duplicate-fragment-hashtag-keywords": "correct",

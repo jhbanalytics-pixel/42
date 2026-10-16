@@ -343,6 +343,25 @@ def test_hashtags_compare_without_case_or_hash():
     assert cluster.assign([c], [item], DAY)[0]["kind"] == "recurrence"
 
 
+@pytest.mark.parametrize("tag", ["fyp", "#FYP", "fyppppp", "viral", "foryoupage", "trending"])
+def test_a_shared_platform_generic_hashtag_is_not_identity_evidence(tag):
+    """stoplist.yaml tags ride on every kind of post, so sharing one says nothing about which topic a cluster is."""
+    c = a_cluster("current", at(1.0), hashtags=[tag], creators=["publisher"])
+    item = an_item("prior", at(0.5), DAY - timedelta(days=1), hashtags=["fyp", "viral", "trending", "foryoupage"],
+                   creators=["publisher"])
+    [decision] = cluster.assign([c], [item], DAY)
+    assert (decision["kind"], decision["item_id"]) == ("new", None)
+    assert decision["votes"] == ["creator", "recent"]
+
+
+def test_a_specific_hashtag_beside_generic_ones_still_votes():
+    c = a_cluster("current", at(1.0), hashtags=["fyp", "amapiano"], creators=["publisher"])
+    item = an_item("prior", at(0.5), DAY - timedelta(days=1), hashtags=["fyp", "Amapiano"], creators=["publisher"])
+    [decision] = cluster.assign([c], [item], DAY)
+    assert (decision["kind"], decision["item_id"]) == ("match", "prior")
+    assert decision["votes"] == ["hashtag_or_sound", "creator", "recent"]
+
+
 def test_hungarian_assignment_is_one_to_one_and_beats_greedy():
     x, y = unit(1, 0, 0, 0), unit(0, 1, 0, 0)
     recent = DAY - timedelta(days=1)

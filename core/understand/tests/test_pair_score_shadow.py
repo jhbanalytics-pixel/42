@@ -60,7 +60,8 @@ def test_recent_vote_plus_one_generic_hashtag_at_low_cosine_is_rejected_by_both_
     target = an_item("target", at(0.4), DAY - timedelta(days=1), hashtags=["fyp"])
     decisions, [row] = shadow_of([c], [target] + background(), "c1", "target")
     [today] = decisions
-    assert (today["kind"], today["item_id"], today["votes"]) == ("new", None, ["hashtag_or_sound", "recent"])
+    # #fyp is platform-generic (core/detect/stoplist.yaml), so it is not a shared-hashtag vote either.
+    assert (today["kind"], today["item_id"], today["votes"]) == ("new", None, ["recent"])
     assert row["today_eligible"] is False and row["today_kind"] == "new"
     assert row["shadow_accept"] is False
     assert row["shadow_reason"] == "cosine_floor"

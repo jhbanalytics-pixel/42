@@ -29,7 +29,8 @@ every label in the run becomes "Topic <short_id>", net_failed goes in the counts
 
 Matching reads the current cultural_map topics (cluster_items.sql) and takes each cluster's three nearest by
 centroid cosine. A pair matches on two or more identity votes: cosine at least 0.82, keyword Jaccard at least
-0.10, a shared hashtag or sound, a shared creator. At least one vote must be cosine, keywords or a shared hashtag
+0.10, a shared hashtag or sound, a shared creator. A platform-generic hashtag (core/detect/stoplist.yaml, such as
+#fyp) is never a shared hashtag here. At least one vote must be cosine, keywords or a shared hashtag
 or sound. Being seen in the last 7 days adds a ranking vote only after identity eligibility. Matches are assigned one to
 one by the Hungarian method, maximising votes plus cosine. A match to an item unseen for 28 days or more is a
 recurrence. An unmatched cluster whose nearest item is at cosine 0.70 to under 0.82 becomes a variant child of it;
@@ -72,7 +73,7 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-from core.detect.items import canonical_key
+from core.detect.items import canonical_key, is_generic
 from core.trust import locality
 from core.trust.locality import MIN_SHARED_MEMBERS
 from core.understand import pair_score
@@ -214,6 +215,12 @@ def _tag(value):
         return canonical_key("hashtag", str(value))
     except ValueError:
         return ""
+
+
+def _specific_tags(values):
+    """Canonical hashtags less the platform-generic ones (core/detect/stoplist.yaml): a shared #fyp or #viral rides on
+    every kind of post, so it is no evidence that two clusters are one topic."""
+    return {t for t in (_tag(h) for h in values) if t and not is_generic("hashtag", t)}
 
 
 def _top(values, k=TOP_FACETS):
@@ -465,7 +472,7 @@ def _votes(cluster, item, cos, run_date):
     a, b = set(cluster["keywords"]), set(item.get("keywords") or [])
     if a and b and len(a & b) / len(a | b) >= KEYWORD_JACCARD:
         got.append("keywords")
-    if ({_tag(h) for h in cluster["hashtags"]} & {_tag(h) for h in item.get("hashtags") or []}
+    if (_specific_tags(cluster["hashtags"]) & _specific_tags(item.get("hashtags") or [])
             or set(cluster["sounds"]) & set(item.get("sounds") or [])):
         got.append("hashtag_or_sound")
     if set(cluster["creators"]) & set(item.get("creators") or []):
