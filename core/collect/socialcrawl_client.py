@@ -425,6 +425,14 @@ PRICED = {
         1, ("hashtag", "region", "trim") + SEARCH_FREE + LABEL_FREE, add=LABELLED_4, pages="max_pages"),
     "tiktok/search/music": rule(1, ("query", "cursor", "sort_by", "filter_by", "region")),
     "tiktok/search/suggestions": rule(1, ("query", "region")),
+    # Endpoint audit candidates, priced for probe.py --candidates (one body each before any lane is built). No
+    # paid add-on is priced: reddit include_body, facebook include=details or relevant_to, instagram max_pages and
+    # seen, youtube include all stay refused.
+    "reddit/subreddit/search": rule(1, ("subreddit", "query", "sort", "timeframe", "cursor")),
+    "instagram/search/hashtag": rule(5, ("hashtag", "type", "max_age_days", "min_views", "cursor")),
+    "youtube/search/hashtag": rule(1, ("hashtag", "type", "max_age_days", "continuationToken")),
+    "facebook/search/groups": rule(1, ("query", "page")),
+    "facebook/group/posts": rule(1, ("url", "group_id", "sort_by", "cursor")),
     "youtube/search/advanced": rule(
         1,
         ("query", "order", "duration", "event_type", "license", "category", "region", "language", "published_after",
@@ -448,6 +456,13 @@ PRICED = {
     "facebook/search/posts": rule(
         1, ("query", "cursor", "start_date", "end_date", "recent_posts", "location_uid", "max_age_days", "seen")
         + RELEVANCE_FREE + LABEL_FREE, add=JUDGED_4, pages="max_pages"),
+    # The local sources' Android chart (core/collect/local_sources.py), one market a day Monday to Wednesday. It was
+    # planned at this list price and refused as not priced until 16 Oct 2026.
+    "google_play/app-list": rule(5, ("app_collection", "country", "language")),
+    # Row 16w, the morning run's wider net (core/collect/job.py WIDE_TOP). pinterest/search's include=engagement
+    # (1 a row) is left unpriced, so it is refused.
+    "bluesky/search": rule(1, ("query", "sort", "since", "until", "lang", "author")),
+    "pinterest/search": rule(1, ("query", "cursor", "trim", "limit")),
     "linkedin/search/posts": rule(
         5, ("page", "sort_by", "date_posted", "content_type", "from_company", "from_member", "query", "cursor")
         + RELEVANCE_FREE + LABEL_FREE, add=JUDGED_8),

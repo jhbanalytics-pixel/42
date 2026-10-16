@@ -1316,3 +1316,142 @@ def test_ig_locations_report_keeps_at_most_five_a_market():
     block = yaml.safe_load(buf.getvalue().split("# markets.za\n")[1])
     assert block["instagram_locations"]["values"] == [str(900 + i) for i in range(5)]
     assert "8 candidates" in buf.getvalue()
+
+
+# probe.py --candidates: one body from each endpoint audit candidate --------------------------------------------
+
+TERMS = {"ZA": "Orlando Pirates", "NG": "Take Ham Play", "KE": "Shabana FC"}
+
+
+def candidate_http(groups=True, credits=None):
+    """Each candidate route answered in the common envelope; one row placed in the market, one abroad, one nowhere."""
+    seen = []
+    city = {"ZA": "Soweto", "NG": "Lagos", "KE": "Nairobi"}
+    abroad = {"ZA": "Lagos", "NG": "Nairobi", "KE": "Soweto"}
+    market_of = {q: m for m, q in TERMS.items()} | {q.replace(" ", ""): m for m, q in TERMS.items()} | {
+        f"https://www.facebook.com/groups/{m}/": m for m in TERMS}
+
+    def http(method, url, *, params=None, json=None, headers=None, timeout=None):
+        route = url.split("/v1/", 1)[1]
+        params = params or {}
+        seen.append((route, dict(params)))
+        if route == "credits/balance":
+            return 200, {"success": True, "data": {"balance": 250000}}, {}
+        if route == "tiktok/search/suggestions":
+            rows = [{"suggestion": "orlando pirates goals"}, {"suggestion": "pirates vs chiefs"}]
+        elif route == "facebook/search/groups":
+            m = market_of[params["query"]]
+            rows = [{"name": "Supporters", "url": f"https://www.facebook.com/groups/{m}/"}] if groups else []
+        else:
+            m = market_of[params.get("query") or params.get("hashtag") or params.get("url")]
+            rows = [{"post": {"id": "a", "content": {"text": f"Match day in {city[m]}"}}},
+                    {"post": {"id": "b", "content": {"text": f"Match day in {abroad[m]}"}}},
+                    {"post": {"id": "c", "content": {"text": "Match day"}}}]
+        charge = (credits or {}).get(route, quote_for(route, method, params))
+        return 200, {"success": True, "cached": False, "credits_used": charge, "data": {"items": rows}}, {}
+    http.seen = seen
+    return http
+
+
+def test_candidate_plan_calls_each_candidate_once_a_market_for_30_credits():
+    calls, dropped = probe.candidate_plan(TODAY, TERMS)
+    assert dropped == []
+    assert [(p["market"], p["route"]) for p in calls] == [
+        (m, r) for m in ("ZA", "NG", "KE") for r in (
+            "tiktok/search/suggestions", "reddit/subreddit/search", "facebook/search/groups", "facebook/group/posts",
+            "youtube/search/hashtag", "instagram/search/hashtag")]
+    assert sum(probe.candidate_hold(p) for p in calls) == 30 <= probe.CANDIDATE_CAP
+    assert all(forbidden(p["route"], p["method"], dict(p["params"])) == "" for p in calls)
+    ig = [p for p in calls if p["route"] == "instagram/search/hashtag"]
+    assert [p["params"]["hashtag"] for p in ig] == ["OrlandoPirates", "TakeHamPlay", "ShabanaFC"]
+    subs = [p["params"]["subreddit"] for p in calls if p["route"] == "reddit/subreddit/search"]
+    assert subs == ["southafrica", "Nigeria", "Kenya"]
+    ids = [p["id"] for p in calls]
+    assert len(ids) == len(set(ids))
+
+
+def test_candidate_plan_reads_a_real_research_term_for_every_market():
+    queries = probe.candidate_queries(TODAY)
+    assert set(queries) == {"ZA", "NG", "KE"}
+    assert not any(q.startswith("<") for q in queries.values())
+
+
+def test_candidate_plan_drops_a_term_rule_1_blocks():
+    calls, dropped = probe.candidate_plan(TODAY, {**TERMS, "NG": NO_AGE + " Lagos"})
+    assert {p["market"] for p in calls if p["route"] != "facebook/group/posts"} == {"ZA", "KE"}
+    assert ("NG", "tiktok/search/suggestions", NO_AGE + " Lagos") in dropped
+
+
+def test_candidate_paid_add_ons_stay_refused():
+    for route, params in (("reddit/subreddit/search", {"subreddit": "Kenya", "include_body": "true"}),
+                          ("facebook/search/groups", {"query": "x", "include": "details"}),
+                          ("instagram/search/hashtag", {"hashtag": "x", "max_pages": 2}),
+                          ("youtube/search/hashtag", {"hashtag": "x", "include": "engagement"})):
+        with pytest.raises(socialcrawl_client.Refused):
+            quote_for(route, "GET", params)
+
+
+def test_candidates_plan_flag_prints_without_network(monkeypatch):
+    monkeypatch.setattr(probe, "live_client", lambda *a, **k: pytest.fail("--plan must not build a client"))
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert probe.main(["--candidates", "--plan"], today=TODAY) == 0
+    assert "18 calls, total hold 30 credits, cap 40" in buf.getvalue()
+
+
+def test_candidates_run_books_every_call_on_the_build_share_and_measures_locality(monkeypatch):
+    monkeypatch.setenv("SOCIALCRAWL_OGILVY_API_KEY", "sc-test-sentinel-9a")
+    monkeypatch.setattr(probe, "candidate_queries", lambda today: TERMS)
+    http = candidate_http()
+    client = body_client(http)
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert probe.main(["--candidates"], client=client, clock=lambda: NOW) == 0
+    paid = [r for r in client.ledger.rows if r["route"] != "credits/balance"]
+    assert len(paid) == 18 and sum(r["credits_charged"] for r in paid) == 30
+    assert all(r["job"] == "build" and r["lane"] is None for r in client.ledger.rows)
+    posts = [p for r, p in http.seen if r == "facebook/group/posts"]
+    assert [p["url"] for p in posts] == [f"https://www.facebook.com/groups/{m}/" for m in ("ZA", "NG", "KE")]
+    text = buf.getvalue()
+    assert "cand-ke-sub reddit/subreddit/search KE ok held=1 charged=1 rows=3 local=1 foreign=1 unknown=1" in text
+    assert "suggestions: orlando pirates goals | pirates vs chiefs" in text
+    assert ("total instagram/search/hashtag: 9 rows, 15 credits, local=3 foreign=3 unknown=3, "
+            "50% of placed rows in market") in text
+    assert "total tiktok/search/suggestions: 6 rows, 3 credits" in text
+    assert "done: 18 calls, 30 credits charged" in text and "sc-test-sentinel-9a" not in text
+
+
+def test_candidates_run_skips_group_posts_without_a_group_and_stops_on_an_overcharge(monkeypatch):
+    monkeypatch.setenv("SOCIALCRAWL_OGILVY_API_KEY", "sc-test-sentinel-9a")
+    monkeypatch.setattr(probe, "candidate_queries", lambda today: TERMS)
+    client = body_client(candidate_http(groups=False, credits={"youtube/search/hashtag": 4}))
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert probe.main(["--candidates"], client=client, clock=lambda: NOW) == 0
+    text = buf.getvalue()
+    assert "cand-za-fbp facebook/group/posts skipped: no group url in cand-za-fbg" in text
+    assert "stopped after cand-za-yth: charged 4 against a hold of 1" in text
+    charged = [r["credits_charged"] for r in client.ledger.rows if r["route"] != "credits/balance"]
+    assert charged == [1, 1, 1, 4]
+
+
+def test_candidates_run_stops_before_a_hold_that_would_cross_the_cap(monkeypatch):
+    monkeypatch.setenv("SOCIALCRAWL_OGILVY_API_KEY", "sc-test-sentinel-9a")
+    monkeypatch.setattr(probe, "candidate_queries", lambda today: TERMS)
+    monkeypatch.setattr(probe, "CANDIDATE_CAP", 12)
+    client = body_client(candidate_http())
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert probe.main(["--candidates"], client=client, clock=lambda: NOW) == 0
+    # ZA's six calls are 10; NG's suggestions and subreddit make 12; the groups search would make 13.
+    assert "stopped before cand-ng-fbg: 12 charged plus 1 held is over the cap of 12" in buf.getvalue()
+    assert sum(r["credits_charged"] for r in client.ledger.rows) == 12
+
+
+def test_candidates_live_client_uses_the_build_share_after_the_schedule(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(probe, "live_client", lambda run_id, **kw: seen.update(run_id=run_id, **kw) or FakeClient())
+    monkeypatch.setattr(probe, "candidate_queries", lambda today: TERMS)
+    with redirect_stdout(io.StringIO()):
+        probe.main(["--candidates"], clock=lambda: NOW)
+    assert seen == {"run_id": "probe-candidates-20260929T040000Z", "schedule_started": True}
