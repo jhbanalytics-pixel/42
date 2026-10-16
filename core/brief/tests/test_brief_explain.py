@@ -2081,3 +2081,30 @@ def test_sound_letters_follow_the_pack_as_built_so_a_folded_pack_never_shares_a_
     # One id string on two platforms is two sounds.
     assert len(explain._sound_letters({"evidence": [{"platform": "tiktok", "sound_id": "7"},
                                                     {"platform": "instagram", "sound_id": "7"}]})) == 2
+
+
+def test_a_claim_that_echoes_a_sound_letter_is_cut_and_the_writer_is_told_not_to():
+    # The letters are code labels over the pack, which readers never see (review of PR #5, 16 Oct 2026).
+    draft = good()
+    draft["claims"][1]["text"] = "The earliest post in the pack, by @thandi_moves on 25 September, uses sound A."
+    model = FakeModel([draft])
+    sounded = make_pack()
+    sounded["evidence"][0]["sound_id"] = "7001"
+    result = run(model, pack=sounded)
+    assert any(r["claim_id"] == "c2" and r["rule"] == "K6" and r["verdict"] == "cut" and r["checker"] == "code"
+               and "sound letter" in r["detail"] for r in result["checks"])
+    assert all("sound A" not in (c.get("text") or "") for c in result.get("claims") or [])
+    assert 'never write a sound label such as "sound A"' in model.writer_calls()[0]["user"]
+    pack = {"evidence": [{"platform": "tiktok", "sound_id": str(n)} for n in range(9)]}  # sounds A to I
+    checked = {"claims": [], "short_answer": "Creators reuse sound B for the shaya step."}
+    assert explain._sound_label_rows(checked, pack)[0]["claim_id"] is None and checked["short_answer"] == ""
+    for text in ("Sound A spreads across Soweto.", "Posts use sounds A and B.", 'Two use sound "C".', "On sound-D."):
+        assert explain._sound_label_rows({"claims": [{"id": "c", "text": text}]}, pack), text
+    two = {"evidence": [{"platform": "tiktok", "sound_id": "1"}, {"platform": "tiktok", "sound_id": "2"}]}
+    for text in ("A sound around the braai", "the sound I love", "a sound DJ Maphorisa made", "sound OK",
+                 "Sound C is not one of this pack's letters"):
+        assert explain._sound_label_rows({"claims": [{"id": "c", "text": text}]}, two) == [], text
+    # A post's own words in quotes are not read for a label, even when the pack has that letter.
+    quoted = 'One post says "this sound I can not stop playing".'
+    assert explain._sound_label_rows({"claims": [{"id": "c", "text": quoted}]}, pack) == []
+    assert explain._sound_label_rows({"claims": [{"id": "c", "text": "sound A"}]}, {"evidence": []}) == []

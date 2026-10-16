@@ -592,7 +592,9 @@ def _writer_user(candidate, pack, market, window_start, window_end):
         "comments. A hashtag or mention alone shows only that tag or mention. text_has_non_tag_words false means "
         "no words remain outside tags, mentions and links; it does not show a reaction or event. A true value is "
         "not a support verdict: cite only the words and fields that show each clause. earliest_in_pack identifies "
-        "a unique earliest posting time, never an event date or the trend's origin.",
+        "a unique earliest posting time, never an event date or the trend's origin. formats are the format names "
+        "42 recorded for a post; sound is a label 42 gives the posts in this pack that share one sound. Describe "
+        "a shared format or sound in plain words; never write a sound label such as \"sound A\".",
         f"Evidence pack, {len(posts)} posts:",
         scope,
         *posts,
@@ -1020,6 +1022,46 @@ def _k9_rows(checked, rests_on, records):
     return rows
 
 
+# A sound letter (_sound_letters) is a code label for which pack posts share a sound; a reader never sees the pack, so
+# the letter must not reach reader text. K6 by code: a claim naming one is cut and a sentence naming one is emptied.
+# Only the letters issued for this pack count, so prose such as "the sound I love" is left alone unless the pack has
+# a sound I, and a quoted span of four characters or more (a post's own words) is not read for a label.
+_QUOTED_SPAN = re.compile(r'["\u201c][^"\u201d]{4,}["\u201d]')
+
+
+def _sound_label(pack):
+    """A pattern for the pack's own sound letters ("sound A", "Sound A", "sounds A and B", 'sound "A"', "sound-A"),
+    or None when no post carries a sound."""
+    letters = sorted({v.split(" ", 1)[1] for v in _sound_letters(pack).values()}, key=lambda x: (len(x), x))
+    if not letters:
+        return None
+    alt = "|".join(sorted(letters, key=len, reverse=True))
+    return re.compile(r"\b[Ss]ounds?[\s\-]*[\"'\u201c\u2018]?(?:" + alt + r")\b")
+
+
+def _sound_label_rows(checked, pack):
+    label = _sound_label(pack)
+    if label is None:
+        return []
+
+    def names(text):
+        return label.search(_QUOTED_SPAN.sub(" ", text or "")) is not None
+
+    rows, kept = [], []
+    for claim in checked.get("claims") or []:
+        if names(claim.get("text")):
+            rows.append({"claim_id": claim.get("id"), "rule": "K6", "verdict": "cut", "checker": "code",
+                         "detail": "code label in reader text: a pack sound letter"})
+        else:
+            kept.append(claim)
+    if names(checked.get("short_answer")):
+        rows.append({"claim_id": None, "rule": "K6", "verdict": "cut", "checker": "code",
+                     "detail": "short_answer: code label in reader text: a pack sound letter"})
+        checked["short_answer"] = ""
+    checked["claims"] = kept
+    return rows
+
+
 def _crowd_rows(checked, rests_on, records, pack):
     """K4 by code: a claim or sentence whose crowd word exceeds the card count or its own cited creator count
     is not supported, so the claim is cut and the sentence emptied, as check_answer does with its own cuts. Rows only
@@ -1222,6 +1264,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         _exact_quotes(checked, records)
         rows.extend(_k9_rows(checked, rests_on, records))
         rows.extend(_crowd_rows(checked, rests_on, records, pack))
+        rows.extend(_sound_label_rows(checked, pack))
         rows = [_stamped(r, sentence_text if r["claim_id"] is None else claim_texts.get(r["claim_id"]))
                 for r in rows]
         return checked, rows
