@@ -182,7 +182,8 @@ async def _forward(method: str, path: str, json_body=None, params=None) -> httpx
 async def _again(resp: httpx.Response, kind: str) -> Response:
     """The agent's JSON answer read through the list of hidden people a second time (C5 v2 rule R7), so an agent that
     predates the check cannot leak through the hop. kind says what the body is: a record, an investigation, a list
-    of investigations, a dossier view or a list of dossiers. Anything but a 200 or a 201 (a write that made a dossier
+    of investigations, a dossier view, a list of dossiers, or masked (a watch or schedule list, whose user-typed
+    labels, targets and questions can name a hidden person). Anything but a 200 or a 201 (a write that made a dossier
     or a draft) goes through as it is, and the status the agent sent is kept."""
     from core.api import privacy, store, summary_state
 
@@ -206,7 +207,7 @@ async def _again(resp: httpx.Response, kind: str) -> Response:
                     record = summary_state.with_wire(record, from_agent=True)
                     body["record"] = privacy.project_record(record, lazy, hidden, record.get("privacy"))
                 return privacy.mask(body, hidden)
-            if kind == "investigations":
+            if kind in ("investigations", "masked"):
                 return privacy.mask(body, hidden)
             if kind == "dossier" and isinstance(body, dict):
                 return privacy.project_dossier(body, lazy, hidden, body.get("privacy"),
@@ -690,7 +691,7 @@ def _check_watch_id(watch_id: str) -> None:
 
 @gated.get("/api/watches")
 async def api_watches() -> Response:
-    return _passthrough(await _forward("GET", "/api/watches"))
+    return await _again(await _forward("GET", "/api/watches"), "masked")
 
 
 @gated.post("/api/watches")
@@ -720,7 +721,7 @@ def _check_schedule_id(schedule_id: str) -> None:
 
 @gated.get("/api/schedules")
 async def api_schedules() -> Response:
-    return _passthrough(await _forward("GET", "/api/schedules"))
+    return await _again(await _forward("GET", "/api/schedules"), "masked")
 
 
 @gated.post("/api/schedules")
@@ -822,6 +823,10 @@ async def api_skin_today(skin_id: str, date: str | None = None) -> dict:
                 alerts = discover.build_alerts(held, watches, date=day)
             except discover.NotReady:
                 alerts = {"alerts": [], "waiting": [], "note": "No detection run has finished yet."}
+        from core.api import privacy
+
+        with privacy.one_read():
+            alerts = privacy.mask(alerts, privacy.read_hidden(privacy.LazyStore(store.get_store)))
         return skins.narrow_today(resp, skin, alerts)
 
     return await run_in_threadpool(build)
@@ -864,7 +869,15 @@ async def api_alerts(date: str | None = None) -> dict:
         raise ApiError(502, "agent_unavailable", "The watch list cannot be read right now.")
     watches = resp.json().get("watches") or []
     started = await held
-    return await run_in_threadpool(lambda: _stage2(lambda: discover.build_alerts(started, watches, date=day)))
+    def build():
+        from core.api import privacy
+
+        # Watches match on what the user typed; only the page they come back as is masked.
+        alerts = _stage2(lambda: discover.build_alerts(started, watches, date=day))
+        with privacy.one_read():
+            return privacy.mask(alerts, privacy.read_hidden(privacy.LazyStore(store.get_store)))
+
+    return await run_in_threadpool(build)
 
 
 @gated.post("/api/ask")
