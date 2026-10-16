@@ -227,7 +227,8 @@ REASON_MAX = 300
 HELD_MAX = 160
 REPAIR = "before repair: "
 RULE_NAMES = {"K1": "Quote check", "K2": "Number check", "K3": "Place check", "K4": "Support check",
-              "K5": "Label check", "K6": "Banned term check", "K8": "Translation check", "K10": "Status check",
+              "K5": "Label check", "K6": "Banned term check", "K8": "Translation check", "K9": "Forecast check",
+              "K10": "Status check",
               "specificity": "Specificity check", "title": "Title check"}
 CLAIM_WORDS = {
     "K1": "a quote or evidence id in a claim did not check out",
@@ -236,12 +237,14 @@ CLAIM_WORDS = {
     "K4": "a claim was not supported by its posts",
     "K6": "a claim used a banned term or generated evidence",
     "K8": "a claim had an unmarked translation",
+    "K9": "a claim stated what will happen, and forecasts are off",
 }
 SENTENCE_WORDS = {
     "K2": "the explanation had a number not pinned to its query",
     "K3": "the explanation named a place no cited post is located in",
     "K4": "the explanation sentence was not supported by its posts",
     "K6": "the explanation used a banned term",
+    "K9": "the explanation stated what will happen, and forecasts are off",
     # core/brief/specificity.py: the sentence rests on 2 local posts and a quote copied exactly from one of them.
     "specificity": "the explanation did not rest on 2 local posts and a quote copied exactly from one of them",
 }
@@ -263,6 +266,8 @@ OTHER_WORDS = {"K5": "the label was lowered to what the evidence allows",
                # The writer's title (core/brief/explain.py): a cut only drops it, so the card keeps its label.
                "title": "the written title did not pass, so the card keeps its label"}
 NOT_PASSED = "did not pass"
+# explain.py's reject_overflow row: no support check ran, so the card does not say one failed.
+OVERFLOW_WORDS = "the writer returned too many claims, so support was not checked"
 TOO_FEW = "Claim checks: fewer than 2 claims passed"
 NO_REST = "Claim checks: the explanation did not rest on claims that passed"
 CHECK_INCOMPLETE_WORDS = "Check did not complete"
@@ -982,6 +987,11 @@ def _critic_parts(chk):
     return (m.group(1) if m else None), detail.endswith("local why-now checked")
 
 
+def _overflow(chk):
+    detail = str(chk.get("detail") or "")
+    return detail.startswith("writer returned") and detail.endswith("support checks were withheld")
+
+
 def _wording(chk, rested=False):
     """The fixed wording for one check row. rested: the row cuts a claim the explanation sentence rests on."""
     rule, verdict = chk["rule"], chk["verdict"]
@@ -1007,6 +1017,8 @@ def _wording(chk, rested=False):
         return f"{name}: passed"
     if rule in OTHER_WORDS:
         return f"{name}: {OTHER_WORDS[rule]}"
+    if _overflow(chk):
+        return f"{name}: {OVERFLOW_WORDS}"
     words = (SENTENCE_WORDS.get(rule) if chk.get("claim_id") is None else None) or CLAIM_WORDS.get(rule, NOT_PASSED)
     if rule == "K3":
         part = next((w for rx, w in K3_PARTS if rx.search(str(chk.get("detail") or "").strip())), None)
@@ -1098,7 +1110,9 @@ def failed_reason(result):
                  lambda c: c["claim_id"] is None and c["rule"] == "K4",
                  lambda c: c["claim_id"] is None and c["rule"] == "K3",
                  lambda c: c["rule"] == "critic",
-                 lambda c: c["claim_id"] is None):
+                 lambda c: c["claim_id"] is None,
+                 # judge() fails the whole explanation on any K9 cut, rested on or not.
+                 lambda c: c["rule"] == "K9"):
         row = next((c for c in failed if held(c)), None)
         if row is not None:
             return _wording(row, rested=row["claim_id"] in rests_on)[:HELD_MAX]

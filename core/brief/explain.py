@@ -367,7 +367,13 @@ def _source_text(record):
     quote_text = record.get("quote_text")
     text = quote_text if isinstance(quote_text, str) and quote_text.strip() else record.get("text")
     text = text if isinstance(text, str) else str(text or "")
-    return text[:SOURCE_CONTEXT_MAX_CHARS]
+    if len(text) <= SOURCE_CONTEXT_MAX_CHARS:
+        return text
+    # Cut on a word boundary: a word cut in half ("amaz" of "amazingly") would let a quote ending on the cut pass
+    # the word-for-word check although the post never says it.
+    cut = text[:SOURCE_CONTEXT_MAX_CHARS + 1]
+    space = max(cut.rfind(c) for c in (" ", "\n", "\t"))
+    return cut[:space].rstrip() if space > 0 else text[:SOURCE_CONTEXT_MAX_CHARS]
 
 
 def _source_record(record):
