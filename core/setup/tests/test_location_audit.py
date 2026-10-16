@@ -150,3 +150,35 @@ def test_label_sheet_and_score_round_trip(tmp_path):
     assert "| KE | 1 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 1 |" in score
     assert "| ZA | ext_region | 1 | 1 | 100.0% |" in score
     assert "https://" not in score and "Durban July" not in score
+
+
+def test_builder_client_impersonates_f42_builder_from_a_personal_login(monkeypatch):
+    import google.auth
+    from google.auth import impersonated_credentials
+    from google.cloud import bigquery
+
+    made = {}
+
+    class FakeImpersonated:
+        def __init__(self, **kw):
+            made.update(kw)
+
+    monkeypatch.setattr(google.auth, "default", lambda scopes=None: ("personal-login", "ogilvy-trends-v2"))
+    monkeypatch.setattr(impersonated_credentials, "Credentials", FakeImpersonated)
+    monkeypatch.setattr(bigquery, "Client", lambda **kw: kw)
+    client = la.builder_client()
+    assert made["source_credentials"] == "personal-login" and made["target_principal"] == la.BUILDER
+    assert isinstance(client["credentials"], FakeImpersonated) and client["project"] == la.PROJECT
+
+
+def test_builder_client_refuses_an_other_impersonated_account(monkeypatch):
+    import google.auth
+    from google.auth import impersonated_credentials
+
+    class FakeImpersonated:
+        _target_principal = "someone-else@ogilvy-trends-v2.iam.gserviceaccount.com"
+
+    monkeypatch.setattr(impersonated_credentials, "Credentials", FakeImpersonated)
+    monkeypatch.setattr(google.auth, "default", lambda scopes=None: (FakeImpersonated(), "ogilvy-trends-v2"))
+    with pytest.raises(la.Refused):
+        la.builder_client()

@@ -10,8 +10,9 @@
     py -3.13 -m core.setup.location_audit --score C:\\path\\location-labels.csv --out location-score.md
         reads the labelled sheet back and writes counts only; safe to paste
 
-Run from the root of a checkout of the 42 repo, on Albert's PC, with the default BigQuery client whose application
-default credentials impersonate f42-builder (RULES.md rule 13). Never the bq CLI (RULES.md rule 12). Modelled on
+Run from the root of a checkout of the 42 repo, on Albert's PC, as f42-builder (RULES.md rule 13): the script
+takes the application default credentials and, when they are a personal login, impersonates f42-builder for this
+process only. ADC files, gcloud settings and IAM are not touched; it refuses to run as anyone else. Never the bq CLI (RULES.md rule 12). Modelled on
 core/setup/inventory.py and reusing its project, location and refusal helpers: every statement is one read-only
 SELECT or WITH, dry-run first and refused when the estimate is over MAX_BYTES, run with maximum_bytes_billed at
 MAX_BYTES, and the run stops before a query that would take it past TOTAL_BYTES.
@@ -53,6 +54,8 @@ POST_LOOKBACK_DAYS = 730             # posts.post_date can be far older than the
 TEXT_LOOKBACK_DAYS = 60              # queries that read text keep to recent posts, to stay under MAX_BYTES
 ROW_LIMIT = 4000
 CORE = f"`{PROJECT}`.intelligence_42_core"
+BUILDER = "f42-builder@ogilvy-trends-v2.iam.gserviceaccount.com"
+SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 MARKETS = geo.MARKETS
 SALT = "location-labels-v1"
 QUOTAS = {"ZA": 300, "NG": 150, "KE": 150}
@@ -171,6 +174,23 @@ def execute(client, q, log, budget, *, sheet=False):
     entry["billed"] = job.total_bytes_billed
     budget["spent"] += entry["billed"] or entry["processed"] or 0
     return entry, rows
+
+
+def builder_client():
+    """A BigQuery client acting as f42-builder: the ADC as they are when they already impersonate it, otherwise
+    the ADC login impersonating it for this process only. Anything else refuses."""
+    import google.auth
+    from google.auth import impersonated_credentials
+    from google.cloud import bigquery
+
+    credentials, _ = google.auth.default(scopes=SCOPES)
+    if isinstance(credentials, impersonated_credentials.Credentials):
+        if getattr(credentials, "_target_principal", None) != BUILDER:
+            raise Refused("application default credentials impersonate someone other than f42-builder")
+    else:
+        credentials = impersonated_credentials.Credentials(
+            source_credentials=credentials, target_principal=BUILDER, target_scopes=SCOPES, lifetime=3600)
+    return bigquery.Client(project=PROJECT, location=LOCATION, credentials=credentials)
 
 
 def run_count(client, q, log, budget):
@@ -443,8 +463,8 @@ def main(argv=None, client=None):
     if args.label_sheet and inside_repo(args.label_sheet):
         parser.error("--label-sheet holds post text and links: write it outside the repo, never commit or upload it")
     if client is None:
-        from google.cloud import bigquery
-        client = bigquery.Client(project=PROJECT, location=LOCATION)
+        client = builder_client()
+        print(f"running as {BUILDER}")
     log, budget = [], {"spent": 0}
     if args.out:
         for q in queries(since, until):
