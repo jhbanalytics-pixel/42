@@ -28,9 +28,9 @@ and its spend is booked on the job's day (book_spend). When it cannot be sent, f
 every label in the run becomes "Topic <short_id>", net_failed goes in the counts, and the write goes on.
 
 Matching reads the current cultural_map topics (cluster_items.sql) and takes each cluster's three nearest by
-centroid cosine. A pair matches on two or more votes out of five: cosine at least 0.82, keyword Jaccard at least
-0.10, a shared hashtag or sound, a shared creator, the item seen in the last 7 days. At least one vote must be
-cosine, keywords or a shared hashtag or sound. Matches are assigned one to
+centroid cosine. A pair matches on two or more identity votes: cosine at least 0.82, keyword Jaccard at least
+0.10, a shared hashtag or sound, a shared creator. At least one vote must be cosine, keywords or a shared hashtag
+or sound. Being seen in the last 7 days adds a ranking vote only after identity eligibility. Matches are assigned one to
 one by the Hungarian method, maximising votes plus cosine. A match to an item unseen for 28 days or more is a
 recurrence. An unmatched cluster whose nearest item is at cosine 0.70 to under 0.82 becomes a variant child of it;
 any other unmatched cluster becomes a new item. A matched item's centroid moves by EMA (0.8 old, 0.2 new).
@@ -489,7 +489,8 @@ def assign(clusters, items, run_date, shadow=None):
             nearest = sorted(range(len(items)), key=lambda j: (-cos[r, j], items[j]["item_id"]))[:CANDIDATES]
             judged[r] = [(j, float(cos[r, j]), _votes(c, items[j], float(cos[r, j]), run_date)) for j in nearest]
     eligible = {(r, j) for r, per in enumerate(judged) for j, _, got in per
-                if len(got) >= MIN_VOTES and {"cosine", "keywords", "hashtag_or_sound"}.intersection(got)}
+                if len(set(got) - {"recent"}) >= MIN_VOTES
+                and {"cosine", "keywords", "hashtag_or_sound"}.intersection(got)}
     columns = sorted({j for _, j in eligible})
     won = {}
     if columns:
