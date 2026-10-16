@@ -3,7 +3,7 @@
 Every item in cultural_map, post_items, item_daily and item_counter_daily is named by
 item_id = hex sha256 of "{kind}|{canonical_key}" (DATA.md section 1). This module is the
 only place that key is built, so the collect job, the backfill and detection all agree.
-It uses the standard library only, except is_generic, which reads stoplist.yaml with PyYAML on first use.
+It uses the standard library only, except is_generic and generic_hashtag_keys, which read stoplist.yaml with PyYAML on first use.
 
 Kinds: topic, hashtag, sound, format, meme, creator, brand, event.
 
@@ -40,6 +40,10 @@ is_generic(kind, canonical_key)
     listed; any other kind is never generic. cultural_map carries such items
     with status 'generic', so they keep their states but are never eligible (item_state.eligible
     false); the brief skips ineligible items.
+
+generic_hashtag_keys()
+    The stoplisted hashtag keys exactly as listed, for a reader that filters in SQL (Ask's
+    whole-store hashtag counts). Stretched or padded spellings are not folded there.
 """
 
 from __future__ import annotations
@@ -145,6 +149,12 @@ def _stoplist() -> frozenset[str]:
 
     raw = yaml.safe_load(STOPLIST_PATH.read_text(encoding="utf-8")) or {}
     return frozenset(canonical_key("hashtag", t) for t in raw.get("hashtag") or [])
+
+
+def generic_hashtag_keys() -> frozenset[str]:
+    """The stoplisted hashtag keys as listed in stoplist.yaml, for a reader that filters in SQL (Ask's whole-store
+    hashtag counts). is_generic also folds stretched and padded spellings, which a SQL list cannot."""
+    return _stoplist()
 
 
 def _variants(key: str) -> tuple[str, ...]:

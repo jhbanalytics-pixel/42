@@ -212,8 +212,8 @@ BASE = [f"w{i}" for i in range(10)]
     ("variant band, no votes", 0.76, {}, {}, 60, "variant"),
     ("variant band lower edge", 0.70, {}, {}, 60, "variant"),
     ("just under the variant band", 0.69, {}, {}, 60, "new"),
-    ("variant band with recent and sound votes", 0.76, {"sounds": ["snd_1"]}, {"sounds": ["snd_1"]}, 2, "match"),
-    ("cosine and seen 7 days ago", 0.9, {}, {}, 7, "match"),
+    ("variant band with recent and sound votes", 0.76, {"sounds": ["snd_1"]}, {"sounds": ["snd_1"]}, 2, "variant"),
+    ("cosine and seen 7 days ago", 0.9, {}, {}, 7, "new"),
     ("cosine and seen 8 days ago", 0.9, {}, {}, 8, "new"),
     ("dormant 28 days, cosine and creator", 0.9, {"creators": ["cr_1"]}, {"creators": ["cr_1"]}, 28, "recurrence"),
     ("27 days, cosine and creator", 0.9, {"creators": ["cr_1"]}, {"creators": ["cr_1"]}, 27, "match"),
@@ -228,6 +228,66 @@ def test_match_rule(case, cos, item_kwargs, cluster_kwargs, last_seen_days, kind
         assert decision["item_id"] is None
     else:
         assert decision["item_id"] == "m1"
+
+
+@pytest.mark.parametrize("days", [0, 1, 7, 8, 28])
+@pytest.mark.parametrize("signal, cos, shared", [
+    ("cosine", 0.95, {}),
+    ("keywords", 0.5, {"keywords": ["forestry"]}),
+    ("hashtag_or_sound", 0.5, {"hashtags": ["forestry"]}),
+    ("hashtag_or_sound", 0.5, {"sounds": ["sound"]}),
+    ("creator", 0.5, {"creators": ["publisher"]}),
+])
+def test_recency_cannot_supply_a_second_identity_signal(days, signal, cos, shared):
+    c = a_cluster("current", at(1.0), **shared)
+    item = an_item("prior", at(cos), DAY - timedelta(days=days), **shared)
+    [decision] = cluster.assign([c], [item], DAY)
+    assert (decision["kind"], decision["item_id"]) == ("new", None)
+    assert decision["votes"] == [signal] + (["recent"] if days <= 7 else [])
+
+
+@pytest.mark.parametrize("days, kind", [(0, "match"), (1, "match"), (7, "match"), (8, "match"), (28, "recurrence")])
+@pytest.mark.parametrize("shared", [{"keywords": ["forestry"]}, {"hashtags": ["forestry"]},
+                                   {"sounds": ["sound"]}, {"creators": ["publisher"]}])
+def test_independent_identity_support_preserves_continuity_and_recurrence(days, kind, shared):
+    c = a_cluster("current", at(1.0), **shared)
+    item = an_item("prior", at(0.95), DAY - timedelta(days=days), **shared)
+    [decision] = cluster.assign([c], [item], DAY)
+    assert (decision["kind"], decision["item_id"]) == (kind, "prior")
+
+
+def test_cosine_and_recency_with_disjoint_keywords_insert_a_separate_identity():
+    c = a_cluster("20260928-ng-000", at(1.0), keywords=["phone", "mobile"])
+    c.update(label="Phone", members=[("phone-post", 1.0)], market="ng", platform="tiktok", local_terms=[])
+    item = an_item("forestry", at(0.96), DAY - timedelta(days=1), keywords=["forestry", "trees"])
+    item["aliases"] = ["Forest"]
+    decisions = cluster.assign([c], [item], DAY)
+    [decision] = decisions
+    assert (decision["kind"], decision["item_id"], decision["votes"]) == ("new", None, ["cosine", "recent"])
+    planned = cluster.plan([c], decisions, [item], DAY, "ng")
+    [row] = planned["map_rows"]
+    assert row["change"] == "insert" and row["item_id"] != "forestry"
+    assert row["label"] == "Phone" and row["aliases"] == []
+    assert planned["label_changes"] == [] and planned["label_drift_candidates"] == []
+    assert item["label"] == "forestry" and item["aliases"] == ["Forest"]
+
+
+def test_cosine_and_recency_cannot_take_an_item_from_a_supported_identity_match():
+    item = an_item("forestry", at(1.0), DAY - timedelta(days=1), keywords=["forestry"])
+    unrelated = a_cluster("unrelated", at(0.99), keywords=["phone"])
+    related = a_cluster("related", at(0.90), keywords=["forestry"])
+    decisions = {d["cluster_id"]: d for d in cluster.assign([unrelated, related], [item], DAY)}
+    assert (decisions["related"]["kind"], decisions["related"]["item_id"]) == ("match", "forestry")
+    assert (decisions["unrelated"]["kind"], decisions["unrelated"]["item_id"]) == ("new", None)
+
+
+def test_recency_still_ranks_candidates_after_independent_identity_support():
+    c = a_cluster("current", at(1.0), keywords=["forestry"])
+    stale = an_item("a-stale", at(0.95), DAY - timedelta(days=8), keywords=["forestry"])
+    recent = an_item("z-recent", at(0.95), DAY - timedelta(days=7), keywords=["forestry"])
+    [decision] = cluster.assign([c], [stale, recent], DAY)
+    assert (decision["kind"], decision["item_id"]) == ("match", "z-recent")
+    assert decision["votes"] == ["cosine", "keywords", "recent"]
 
 
 @pytest.mark.parametrize("cos", [-1.0, 0.0, 0.69])
@@ -252,11 +312,12 @@ def test_shared_creator_and_recent_without_content_keep_the_variant_fallback(cos
 
 def test_unrelated_shared_creator_cannot_take_an_item_from_a_content_match():
     item = an_item("boxing", at(1.0), DAY - timedelta(days=1), hashtags=["bout"], creators=["publisher"])
-    related = a_cluster("related", at(0.5), hashtags=["bout"])
+    related = a_cluster("related", at(0.5), hashtags=["bout"], keywords=["boxing"])
+    item["keywords"] = ["boxing"]
     unrelated = a_cluster("unrelated", at(0.69), creators=["publisher"])
     decisions = {d["cluster_id"]: d for d in cluster.assign([related, unrelated], [item], DAY)}
     assert (decisions["related"]["kind"], decisions["related"]["item_id"]) == ("match", "boxing")
-    assert decisions["related"]["votes"] == ["hashtag_or_sound", "recent"]
+    assert decisions["related"]["votes"] == ["keywords", "hashtag_or_sound", "recent"]
     assert (decisions["unrelated"]["kind"], decisions["unrelated"]["item_id"]) == ("new", None)
 
 
@@ -282,14 +343,34 @@ def test_hashtags_compare_without_case_or_hash():
     assert cluster.assign([c], [item], DAY)[0]["kind"] == "recurrence"
 
 
+@pytest.mark.parametrize("tag", ["fyp", "#FYP", "fyppppp", "viral", "foryoupage", "trending"])
+def test_a_shared_platform_generic_hashtag_is_not_identity_evidence(tag):
+    """stoplist.yaml tags ride on every kind of post, so sharing one says nothing about which topic a cluster is."""
+    c = a_cluster("current", at(1.0), hashtags=[tag], creators=["publisher"])
+    item = an_item("prior", at(0.5), DAY - timedelta(days=1), hashtags=["fyp", "viral", "trending", "foryoupage"],
+                   creators=["publisher"])
+    [decision] = cluster.assign([c], [item], DAY)
+    assert (decision["kind"], decision["item_id"]) == ("new", None)
+    assert decision["votes"] == ["creator", "recent"]
+
+
+def test_a_specific_hashtag_beside_generic_ones_still_votes():
+    c = a_cluster("current", at(1.0), hashtags=["fyp", "amapiano"], creators=["publisher"])
+    item = an_item("prior", at(0.5), DAY - timedelta(days=1), hashtags=["fyp", "Amapiano"], creators=["publisher"])
+    [decision] = cluster.assign([c], [item], DAY)
+    assert (decision["kind"], decision["item_id"]) == ("match", "prior")
+    assert decision["votes"] == ["hashtag_or_sound", "creator", "recent"]
+
+
 def test_hungarian_assignment_is_one_to_one_and_beats_greedy():
     x, y = unit(1, 0, 0, 0), unit(0, 1, 0, 0)
     recent = DAY - timedelta(days=1)
-    items = [an_item("X", x, recent, hashtags=["h"], creators=["cr_x"]), an_item("Y", y, recent, hashtags=["h"])]
-    # c1 prefers X (hashtag, creator, recent) over Y (hashtag, recent); c2 can only match X (cosine, recent).
+    items = [an_item("X", x, recent, hashtags=["h"], creators=["cr_x"], keywords=["kota"]),
+             an_item("Y", y, recent, hashtags=["h"], keywords=["kota"])]
+    # c1 prefers X (keyword, hashtag, creator, recent) over Y (keyword, hashtag, recent); c2 only matches X.
     # Greedy gives c1 to X and leaves c2 unmatched; the optimal one-to-one assignment is c1 to Y and c2 to X.
-    c1 = a_cluster("c1", unit(1, 1, 0, 0), hashtags=["h"], creators=["cr_x"])
-    c2 = a_cluster("c2", unit(1, 0, 0, 0.1))
+    c1 = a_cluster("c1", unit(1, 1, 0, 0), hashtags=["h"], creators=["cr_x"], keywords=["kota"])
+    c2 = a_cluster("c2", unit(1, 0, 0, 0.1), creators=["cr_x"])
     decisions = {d["cluster_id"]: d for d in cluster.assign([c1, c2], items, DAY)}
     assert (decisions["c1"]["kind"], decisions["c1"]["item_id"]) == ("match", "Y")
     assert (decisions["c2"]["kind"], decisions["c2"]["item_id"]) == ("match", "X")
@@ -306,11 +387,10 @@ def test_two_clusters_never_match_one_item():
 
 def test_only_the_top_three_items_by_centroid_are_candidates():
     recent = DAY - timedelta(days=1)
-    # Four items all share the hashtag and were seen recently (two votes each); the one furthest away is
-    # fourth by cosine, so it is never a candidate even though its votes would match.
-    items = [an_item(f"m{i}", at(0.95 - i * 0.05), recent, hashtags=["h"]) for i in range(3)]
-    items.append(an_item("far", at(0.2), recent, hashtags=["h"]))
-    clusters = [a_cluster(f"c{i}", at(1.0), hashtags=["h"]) for i in range(4)]
+    # Four items share a hashtag and keywords; the furthest is fourth by cosine, so it is never a candidate.
+    items = [an_item(f"m{i}", at(0.95 - i * 0.05), recent, hashtags=["h"], keywords=["kota"]) for i in range(3)]
+    items.append(an_item("far", at(0.2), recent, hashtags=["h"], keywords=["kota"]))
+    clusters = [a_cluster(f"c{i}", at(1.0), hashtags=["h"], keywords=["kota"]) for i in range(4)]
     decisions = cluster.assign(clusters, items, DAY)
     assert "far" not in {d["item_id"] for d in decisions}
     assert sorted(d["kind"] for d in decisions).count("match") == 3

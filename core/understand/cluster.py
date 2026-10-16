@@ -28,9 +28,10 @@ and its spend is booked on the job's day (book_spend). When it cannot be sent, f
 every label in the run becomes "Topic <short_id>", net_failed goes in the counts, and the write goes on.
 
 Matching reads the current cultural_map topics (cluster_items.sql) and takes each cluster's three nearest by
-centroid cosine. A pair matches on two or more votes out of five: cosine at least 0.82, keyword Jaccard at least
-0.10, a shared hashtag or sound, a shared creator, the item seen in the last 7 days. At least one vote must be
-cosine, keywords or a shared hashtag or sound. Matches are assigned one to
+centroid cosine. A pair matches on two or more identity votes: cosine at least 0.82, keyword Jaccard at least
+0.10, a shared hashtag or sound, a shared creator. A platform-generic hashtag (core/detect/stoplist.yaml, such as
+#fyp) is never a shared hashtag here. At least one vote must be cosine, keywords or a shared hashtag
+or sound. Being seen in the last 7 days adds a ranking vote only after identity eligibility. Matches are assigned one to
 one by the Hungarian method, maximising votes plus cosine. A match to an item unseen for 28 days or more is a
 recurrence. An unmatched cluster whose nearest item is at cosine 0.70 to under 0.82 becomes a variant child of it;
 any other unmatched cluster becomes a new item. A matched item's centroid moves by EMA (0.8 old, 0.2 new).
@@ -59,6 +60,7 @@ names.
 """
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import os
@@ -72,7 +74,7 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-from core.detect.items import canonical_key
+from core.detect.items import canonical_key, is_generic
 from core.trust import locality
 from core.trust.locality import MIN_SHARED_MEMBERS
 from core.understand import pair_score
@@ -187,7 +189,11 @@ def fit_topics(docs, embeddings):
     probs = [float(p) for p in (probs if probs is not None else [0.0] * n)]
     if all(t == -1 for t in topics):
         return topics, probs, {}
-    keywords = {t: [w for w, _ in model.get_topic(t) or []][:TOP_KEYWORDS] for t in set(topics) if t != -1}
+    # BERTopic pads a topic with fewer than ten scored words with ("", 1e-05). Those blanks are not keywords: kept,
+    # they gave caption-less clusters the label ", , " and a shared "" keyword that voted unrelated clusters together.
+    # A keyword made only of function words ("they", "ni hii") names no topic either; see function_words.txt.
+    keywords = {t: [w for w, score in model.get_topic(t) or [] if is_content_word(w) and score > 0][:TOP_KEYWORDS]
+                for t in set(topics) if t != -1}
     return topics, probs, keywords
 
 
@@ -200,7 +206,7 @@ def clean_keywords(words):
     fragments = {part for w in lowered if GEN_PAIR.search(w) for part in re.split(r"[\W_]+", w)}
     fragments |= {w for i, w in enumerate(lowered)
                   if w in GEN_SECONDS and GEN_WORDS & set(lowered[max(i - 1, 0):i + 2])}
-    kept = [w for w in words if passes_age_scan(w) and str(w).lower() not in fragments]
+    kept = [w for w in words if str(w).strip() and passes_age_scan(w) and str(w).lower() not in fragments]
     while True:
         bad = {i + k for i, (a, b) in enumerate(zip(kept, kept[1:])) if not passes_age_scan(f"{a} {b}")
                for k in (0, 1)}
@@ -216,6 +222,24 @@ def _tag(value):
         return ""
 
 
+@functools.cache
+def function_words():
+    """The words of function_words.txt: pronouns, articles, auxiliaries and the like in the markets' languages."""
+    lines = (Path(__file__).resolve().parent / "function_words.txt").read_text(encoding="utf-8").splitlines()
+    return frozenset(w.strip().lower() for w in lines if w.strip() and not w.lstrip().startswith("#"))
+
+
+def is_content_word(keyword):
+    """True when the keyword has a word that is not a function word; blank keywords have none."""
+    return any(w not in function_words() for w in str(keyword).lower().split())
+
+
+def _specific_tags(values):
+    """Canonical hashtags less the platform-generic ones (core/detect/stoplist.yaml): a shared #fyp or #viral rides on
+    every kind of post, so it is no evidence that two clusters are one topic."""
+    return {t for t in (_tag(h) for h in values) if t and not is_generic("hashtag", t)}
+
+
 def _top(values, k=TOP_FACETS):
     return [v for v, _ in sorted(Counter(values).items(), key=lambda kv: (-kv[1], kv[0]))[:k]]
 
@@ -224,7 +248,7 @@ def label_candidates(keywords, hashtags, sounds):
     """The label candidates that pass the age scan, in order: the top three keywords, the top hashtag, the top sound.
     The keywords are scanned one by one, joined with single spaces and in adjacent pairs, because the comma between
     them hides "gen, alpha" from the scan."""
-    top = [str(k) for k in keywords[:LABEL_KEYWORDS]]
+    top = [str(k) for k in keywords if str(k).strip()][:LABEL_KEYWORDS]
     scanned = top + [" ".join(top)] + [f"{a} {b}" for a, b in zip(top, top[1:])]
     candidates = [", ".join(top)] if top and all(passes_age_scan(t) for t in scanned) else []
     candidates += [f"#{_tag(h)}" for h in hashtags[:1]] + [f"sound {s}" for s in sounds[:1]]
@@ -458,14 +482,20 @@ def is_dormant(last_seen, run_date):
     return last_seen is not None and (run_date - last_seen).days >= DORMANT_DAYS
 
 
+def _words(keywords):
+    """The keywords that name something, as a set. Blanks and function-word keywords stored before fit_topics dropped
+    them share nothing, so two clusters agreeing on "they" or "ni hii" get no keyword vote."""
+    return {k for k in keywords or [] if is_content_word(k)}
+
+
 def _votes(cluster, item, cos, run_date):
     got = []
     if cos >= MATCH_COSINE:
         got.append("cosine")
-    a, b = set(cluster["keywords"]), set(item.get("keywords") or [])
+    a, b = _words(cluster["keywords"]), _words(item.get("keywords"))
     if a and b and len(a & b) / len(a | b) >= KEYWORD_JACCARD:
         got.append("keywords")
-    if ({_tag(h) for h in cluster["hashtags"]} & {_tag(h) for h in item.get("hashtags") or []}
+    if (_specific_tags(cluster["hashtags"]) & _specific_tags(item.get("hashtags") or [])
             or set(cluster["sounds"]) & set(item.get("sounds") or [])):
         got.append("hashtag_or_sound")
     if set(cluster["creators"]) & set(item.get("creators") or []):
@@ -489,7 +519,8 @@ def assign(clusters, items, run_date, shadow=None):
             nearest = sorted(range(len(items)), key=lambda j: (-cos[r, j], items[j]["item_id"]))[:CANDIDATES]
             judged[r] = [(j, float(cos[r, j]), _votes(c, items[j], float(cos[r, j]), run_date)) for j in nearest]
     eligible = {(r, j) for r, per in enumerate(judged) for j, _, got in per
-                if len(got) >= MIN_VOTES and {"cosine", "keywords", "hashtag_or_sound"}.intersection(got)}
+                if len(set(got) - {"recent"}) >= MIN_VOTES
+                and {"cosine", "keywords", "hashtag_or_sound"}.intersection(got)}
     columns = sorted({j for _, j in eligible})
     won = {}
     if columns:
@@ -559,7 +590,7 @@ def label_drift(cluster, decision, item):
         return None
     if decision["cosine"] is None or decision["cosine"] < MATCH_COSINE or not _is_name(cluster["label"]):
         return None
-    a, b = set(cluster["keywords"]), set(item.get("keywords") or [])
+    a, b = _words(cluster["keywords"]), _words(item.get("keywords"))
     if not a or not b or len(a & b) / len(a | b) >= KEYWORD_JACCARD or cluster["label"] == item["label"]:
         return None
     shared = len({p for p, _ in cluster["members"]} & set(item.get("recent_members") or ()))
