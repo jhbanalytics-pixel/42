@@ -1284,7 +1284,7 @@ def rising_topics(ctx: RunContext, warehouse: Warehouse, date=None, window_days=
     if market and ctx.market and str(market).strip().upper() != ctx.market:
         raise Refused(f"rising_topics reads the question's market, {ctx.market}, and cannot read {market}. "
                       "Leave market out of the call.")
-    market = str(market).strip().upper() if market else ctx.market
+    market = ctx.market or market
     if market:
         params["market"] = market
         where.append("t.market = @market")
