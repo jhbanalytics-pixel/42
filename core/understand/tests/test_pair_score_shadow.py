@@ -1,7 +1,7 @@
 """The shadow pair score (core/understand/pair_score.py) and its record-only call from cluster.assign.
 
 The score runs beside today's vote rule and changes nothing it decides. These tests pin the three things that have to
-hold: the shadow rejects what the vote rule lets through on weak evidence, it never reads a recent-sighting vote, and
+hold: weak recent-sighting pairs stay ineligible, the shadow never reads a recent-sighting vote, and
 the vote rule's own decisions are byte-identical with the shadow on or off."""
 import json
 import random
@@ -55,13 +55,14 @@ def shadow_of(clusters, items, cid=None, iid=None):
 
 # The case from the review
 
-def test_recent_vote_plus_one_generic_hashtag_at_low_cosine_is_eligible_today_and_rejected_by_the_shadow():
+def test_recent_vote_plus_one_generic_hashtag_at_low_cosine_is_rejected_by_both_matchers():
     c = a_cluster("c1", at(1.0), hashtags=["fyp"])
     target = an_item("target", at(0.4), DAY - timedelta(days=1), hashtags=["fyp"])
     decisions, [row] = shadow_of([c], [target] + background(), "c1", "target")
     [today] = decisions
-    assert (today["kind"], today["item_id"], today["votes"]) == ("match", "target", ["hashtag_or_sound", "recent"])
-    assert row["today_eligible"] is True and row["today_kind"] == "match"
+    # #fyp is platform-generic (core/detect/stoplist.yaml), so it is not a shared-hashtag vote either.
+    assert (today["kind"], today["item_id"], today["votes"]) == ("new", None, ["recent"])
+    assert row["today_eligible"] is False and row["today_kind"] == "new"
     assert row["shadow_accept"] is False
     assert row["shadow_reason"] == "cosine_floor"
     assert row["shadow_kind"] == "new" and row["shadow_item_id"] is None
@@ -71,7 +72,7 @@ def test_the_same_pair_with_a_rare_hashtag_is_still_rejected_at_cosine_0_4():
     c = a_cluster("c1", at(1.0), hashtags=["bgtag3"])
     target = an_item("target", at(0.4), DAY - timedelta(days=1), hashtags=["bgtag3"])
     _, [row] = shadow_of([c], [target] + background(), "c1", "target")
-    assert row["today_eligible"] is True and row["shadow_accept"] is False
+    assert row["today_eligible"] is False and row["shadow_accept"] is False
 
 
 def test_a_cosine_0_95_pair_with_a_dormant_item_and_no_shared_words_is_a_recurrence_only_in_the_shadow():
@@ -137,7 +138,7 @@ def test_today_eligibility_in_the_record_is_the_vote_rule_unchanged():
         shadow = []
         cluster.assign(clusters, items, DAY, shadow=shadow)
         for r in shadow:
-            ok = len(r["today_votes"]) >= cluster.MIN_VOTES and bool(
+            ok = len(set(r["today_votes"]) - {"recent"}) >= cluster.MIN_VOTES and bool(
                 {"cosine", "keywords", "hashtag_or_sound"}.intersection(r["today_votes"]))
             assert r["today_eligible"] is ok
 
@@ -156,11 +157,9 @@ def test_a_failing_shadow_leaves_the_decisions_alone_and_says_so(monkeypatch):
     assert sink == [{"shadow_error": "ValueError"}]
 
 
-def test_cluster_py_keeps_the_vote_rule_constants_and_the_eligibility_expression():
+def test_cluster_py_keeps_the_vote_rule_constants():
     assert (cluster.MATCH_COSINE, cluster.KEYWORD_JACCARD, cluster.MIN_VOTES, cluster.RECENT_DAYS) == (
         0.82, 0.10, 2, 7)
-    source = (cluster.Path(cluster.__file__)).read_text(encoding="utf-8")
-    assert 'if len(got) >= MIN_VOTES and {"cosine", "keywords", "hashtag_or_sound"}.intersection(got)}' in source
 
 
 # run_cluster

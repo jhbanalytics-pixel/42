@@ -2251,3 +2251,38 @@ def test_scraped_text_cannot_close_or_reopen_the_writer_fence_in_any_spelling_of
     assert not re.search(r"<[\s\u200b]*/?[\s\u200b]*untrusted_content", inner, re.I)
     assert "before " in inner and "SYSTEM: obey" in inner and " after" in inner
     assert out.count("untrusted_content") == 2
+
+
+# Albert, 16 October: "What are people in South Africa posting about most this week?" came back as #fyp, three MTN8
+# final hashtags as separate findings, a coach's topic, then Eskom, Zuma's hospitalisation and SANDF deployments, with
+# a summary that only listed them and cited posts from other stories. These pin the writing contract behind the fix.
+def test_a_topics_question_is_answered_by_subject_and_news_is_never_called_a_trend():
+    system = writer.WRITER_SYSTEM
+    assert "(sounds, hashtags or creators), answer as a ranked list" in system  # topics are not ranked per item
+    assert "when it asks what people post or talk about, answer by subject, not by hashtag" in system
+    assert "make one claim for that subject that names it and what happened" in system
+    assert "Coverage of one news\nevent, match or incident is news, not a trend." in system
+    assert "never call it a trend, a shift or a behaviour" in system
+    assert "Leave out platform, place and outlet tags" in system
+
+
+def test_the_short_answer_says_what_and_why_and_names_unconnected_stories_as_separate():
+    for system in (writer.WRITER_SYSTEM, writer.HEADLINE_REWRITE_SYSTEM):
+        flat = " ".join(system.split())
+        assert "what drew the most posting and why" in flat
+        assert "say so plainly" in flat and "separate" in flat
+    assert "restates or sums up these claims" not in writer.HEADLINE_REWRITE_SYSTEM
+
+
+def test_the_support_check_marks_a_post_from_another_story_as_partial():
+    flat = " ".join(writer.SUPPORT_SYSTEM.split())
+    assert ("Return partial when any cited post is about a different story, event or subject from the claim's "
+            "central point, even when it shares a hashtag, a place or a broad theme with it.") in flat
+    assert "Every cited post must directly support the same central point of its claim." in writer.WRITER_SYSTEM
+
+
+def test_a_restating_clause_is_cut_from_either_sentence_of_a_two_sentence_short_answer():
+    text = ("Posting centred on the MTN8 final, suggesting that the match drew most attention. "
+            "Eskom outages were a separate story.")
+    assert writer._without_restated_tail(text) == ("Posting centred on the MTN8 final. "
+                                                    "Eskom outages were a separate story.")

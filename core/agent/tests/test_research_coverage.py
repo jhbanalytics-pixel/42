@@ -19,6 +19,36 @@ class PartialLanes(Lanes):
         return result
 
 
+def test_requested_lane_without_a_source_call_is_not_reported_as_searched():
+    def research(ctx, prompt, options, emit, should_stop):
+        return {"note": "No source calls were made.", "tokens": {"input": 0, "output": 0}, "usd": 0.0}
+
+    h = t2(research)
+    out = h.run(tier="T2", question="What is behind amapiano on Reddit in South Africa this week?")
+    assert out["run"]["source_status"] == []
+    assert h.clients[0].calls == []
+    assert not any("dedicated first-round lane" in gap["what"] for gap in out["answer"]["gaps"])
+    assert validate_answer(out["answer"]) == []
+
+
+def test_requested_lane_failure_retains_other_evidence_and_partial_answer():
+    class FailedRequested(Lanes):
+        def __call__(self, ctx, prompt, *args):
+            result = super().__call__(ctx, prompt, *args)
+            if "Your platforms: Reddit and Threads." in prompt:
+                raise RuntimeError("requested lane failed")
+            return result
+
+    h = t2(FailedRequested(parties=4))
+    out = h.run(tier="T2", question="What is behind amapiano on Reddit in South Africa this week?")
+    assert out["answer"]["claims"]
+    assert out["answer"]["status"] == "partial"
+    assert any("Reddit" in gap["what"] and "researcher" in gap["what"].lower()
+               for gap in out["answer"]["gaps"])
+    assert "requested lane failed" not in str(out)
+    assert validate_answer(out["answer"]) == []
+
+
 def test_one_failed_researcher_keeps_checked_answer_and_explicit_partial_coverage():
     h = t2(PartialLanes(parties=4))
     out = h.run(tier="T2")

@@ -903,15 +903,15 @@ def researcher_usd() -> float:
     return TIERS["T2"]["max_budget_usd"] / (MAX_RESEARCHERS + 1)
 
 
-def platform_groups(markets: list[str], most: int | None = None) -> list[str]:
-    """The T2 researchers' platform groups: MIN_RESEARCHERS plus one per market named, at most MAX_RESEARCHERS, taken
-    in turn from each market's GROUP_ORDER."""
+def platform_groups(markets: list[str], most: int | None = None,
+                    requested_platforms: list[str] | None = None) -> list[str]:
+    """The bounded T2 groups: explicit requests first, then the rest, each part in the markets' GROUP_ORDER taken in
+    turn, so a lane limit drops the requested groups the markets need least."""
     orders = [GROUP_ORDER[m] for m in markets] or [GROUP_ORDER[None]]
-    picked = []
-    for rank in range(len(PLATFORM_GROUPS)):
-        for order in orders:
-            if order[rank] not in picked:
-                picked.append(order[rank])
+    ranked = list(dict.fromkeys(order[rank] for rank in range(len(PLATFORM_GROUPS)) for order in orders))
+    requested = {"reddit_threads" if platform in {"reddit", "threads"} else platform
+                 for platform in requested_platforms or []}
+    picked = [g for g in ranked if g in requested] + [g for g in ranked if g not in requested]
     return picked[:most or min(MAX_RESEARCHERS, MIN_RESEARCHERS + len(markets))]
 
 
@@ -974,12 +974,24 @@ def _research_lanes(deps: Deps, jobs: list[tuple], setup: ResearchSetup, progres
 
 
 def _first_round(deps: Deps, ctx: RunContext, client: _Counted, setup: ResearchSetup, prompt: str,
-                 markets: list[str], progress: Progress, should_stop: Callable[[], bool]) -> dict:
+                 markets: list[str], progress: Progress, should_stop: Callable[[], bool],
+                 requested_platforms: list[str] | None = None) -> dict:
     """T2's first round: one researcher per platform group, all at once. Each lane gets a fair slice of the tier's
     credits, capped at the slice less the gap reserve (the 55% first round plus the 20% enrichment share, which
     enrich_tools holds at 20% of the slice), a fair share of the calls less the same reserve, the tier's turns and
     researcher_usd. The 55% for live searches is in each researcher's instruction; the cap and the reserve are code."""
-    groups = platform_groups(markets)
+    requested_groups = list(dict.fromkeys("reddit_threads" if platform in {"reddit", "threads"} else platform
+                                          for platform in requested_platforms or []))
+    groups = platform_groups(markets, requested_platforms=requested_groups)
+    omitted = [group for group in requested_groups if group not in groups]
+    if omitted:
+        ctx.research_gaps.append({
+            "what": "Requested platform groups without a dedicated first-round lane: "
+                    + ", ".join(GROUP_LABELS[group] for group in omitted),
+            "searched": f"Dedicated first-round allocation for {markets_label(markets)}; "
+                        f"{ctx.window_start} to {ctx.window_end}",
+            "why": f"The bounded {len(groups)}-researcher limit omitted these requested groups; "
+                   "only recorded queries and source calls establish what was searched"})
     tier = TIERS[ctx.tier]
     share = tier["credits"] / len(groups)
     round_share = FIRST_ROUND_SHARE + ENRICH_SHARE
@@ -2320,7 +2332,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                                               topic=sweep_topic(question))
                 if tier == "T2":
                     research = timed("research", _first_round, deps, ctx, client, setup, prompt, markets,
-                                     progress, should_stop)
+                                     progress, should_stop, question_platforms(question))
                 elif tier == "T3":
                     research = timed("research", _plan_round, deps, ctx, client, setup, prompt, inv, lane_usd,
                                      progress, should_stop)

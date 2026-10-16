@@ -25,6 +25,7 @@ from core.agent.spread import spread_order
 from core.agent.tools.dates import SAST, resolve_dates
 from core.agent.tools.socialcrawl import PLATFORM_NAMES, _fence
 from core.agent.tools.sql_query import PROJECT, QUERY_TIMEOUT_S, Warehouse, internal_read, sql_query
+from core.detect.items import generic_hashtag_keys
 
 log = logging.getLogger(__name__)
 
@@ -785,6 +786,14 @@ TIKTOK_MUSIC_URL = "https://www.tiktok.com/music/_-"  # TikTok reads the id afte
 _CITABLE = "(IFNULL(TRIM(p.text), '') != '' AND IFNULL(p.url, '') != '')"
 
 
+def _generic_tags() -> str:
+    """The platform-generic hashtags detect never treats as items (core/detect/stoplist.yaml: #fyp, #viral, #tiktok),
+    as one '|'-delimited string for STRPOS. They ride on posts about anything, so ranked among a market's hashtags they
+    read as a finding about nothing and pull unrelated posts in as its samples (Albert, 16 October: #fyp led a South
+    Africa answer and cited MTN8 final posts). Keys holding '|' are left out, so none can match across a boundary."""
+    return "|" + "|".join(sorted(k for k in generic_hashtag_keys() if "|" not in k)) + "|"
+
+
 def _store_window(ctx: RunContext) -> tuple[dt.date, dt.date]:
     return ((ctx.window_start, ctx.window_end) if ctx.window_start and ctx.window_end
             else resolve_dates("last 7 days", ctx.as_of))
@@ -878,7 +887,8 @@ def store_breadth(ctx: RunContext, warehouse: Warehouse, platforms=None) -> dict
         f"{located} AS located, {_CITABLE} AS citable, "
         f"ROW_NUMBER() OVER (PARTITION BY p.platform, LOWER(TRIM(tag)), {_CITABLE} "
         "ORDER BY IFNULL(p.engagement, 0) DESC, p.post_id) AS top_rank "
-        f"{joins}CROSS JOIN UNNEST(p.hashtags) AS tag WHERE {where} AND IFNULL(TRIM(tag), '') != '') "
+        f"{joins}CROSS JOIN UNNEST(p.hashtags) AS tag WHERE {where} AND IFNULL(TRIM(tag), '') != '' "
+        "AND STRPOS(@generic_tags, CONCAT('|', LTRIM(LOWER(TRIM(tag)), '#'), '|')) = 0) "
         f"SELECT t.platform, t.hashtag, {_scoped_counts('t')}, "
         "ARRAY_AGG(DISTINCT IF(t.citable AND t.top_rank = 1, t.post_id, NULL) IGNORE NULLS) AS sample_post_ids "
         "FROM t GROUP BY t.platform, t.hashtag "
@@ -888,7 +898,8 @@ def store_breadth(ctx: RunContext, warehouse: Warehouse, platforms=None) -> dict
         "ORDER BY creators DESC, posts DESC, t.platform, t.hashtag"
     )
     out["hashtags"] = sql_query(
-        ctx, warehouse, tags, params={**params, "per_platform": STORE_TAGS_PER_PLATFORM},
+        ctx, warehouse, tags, params={**params, "per_platform": STORE_TAGS_PER_PLATFORM,
+                                      "generic_tags": _generic_tags()},
         purpose=f"Whole-store hashtags per platform, most creators first: every stored post in {shown}"
     )["query_id"]
     before = _store_before(ctx, warehouse, platforms, shown, out)
