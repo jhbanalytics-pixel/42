@@ -48,7 +48,7 @@ LEGACY = f"`{PROJECT}`.trends_v2_dev"
 CATEGORIES = {
     "dataset", "table_name", "stage", "status", "market", "lane_class", "lane", "series", "platform", "route",
     "route_platform", "invalid_class", "protocol_hash", "rule_version", "unit", "source", "kind", "match_kind",
-    "baseline_state", "test", "state", "geo_status", "novelty", "target", "rule", "via", "tier", "term_type",
+    "baseline_state", "test", "state", "novelty", "target", "rule", "via", "tier", "term_type",
     "source_regime", "http_class", "date_column", "month_kind", "bucket",
 }
 SAFE_STRING = re.compile(r"^[A-Za-z0-9_:./=?&+, -]{0,96}$")
@@ -451,17 +451,14 @@ def queries(since=DEFAULT_SINCE):
                    "COUNTIF(t.significant) AS significant FROM {core}.v_series_test_current t "
                    "WHERE t.metric_date >= @since GROUP BY t.metric_date, t.market, t.lane_class, t.baseline_state, t.test "
                    "ORDER BY t.metric_date, t.market, t.lane_class, t.baseline_state, t.test"), s),
-        Query("item_states", "Current item_state per day and market: states, untested, locality and novelty counts",
+        Query("item_states", "Current item_state per day and market: states, untested, eligible and novelty counts",
               fill("SELECT s.metric_date, s.market, COUNT(*) AS items, COUNTIF(s.untested) AS untested, "
                    "COUNTIF(s.state = 'new_to_42') AS new_to_42, COUNTIF(s.state = 'spike') AS spike, "
                    "COUNTIF(s.state = 'emerging') AS emerging, COUNTIF(s.state = 'rising') AS rising, "
                    "COUNTIF(s.state = 'peaking') AS peaking, COUNTIF(s.state = 'fading') AS fading, "
                    "COUNTIF(s.state = 'mainstream') AS mainstream, COUNTIF(s.state = 'on_the_boards') AS on_the_boards, "
                    "COUNTIF(s.state = 'recurring') AS recurring, COUNTIF(s.state = 'seasonal') AS seasonal, "
-                   "COUNTIF(s.geo_status = 'market_unconfirmed') AS market_unconfirmed, "
-                   "COUNTIF(s.geo_status = 'not_local') AS not_local, COUNTIF(s.geo_status = 'local') AS geo_local, "
-                   "COUNTIF(s.eligible) AS eligible, COUNTIF(s.eligible AND s.geo_status = 'market_unconfirmed') "
-                   "AS eligible_unconfirmed, COUNTIF(s.novelty = 'recurrence') AS novelty_recurrence, "
+                   "COUNTIF(s.eligible) AS eligible, COUNTIF(s.novelty = 'recurrence') AS novelty_recurrence, "
                    "COUNTIF(s.novelty = 'variant') AS novelty_variant, COUNTIF(s.diffusion = 'bottom_up') AS bottom_up, "
                    "COUNTIF(s.diffusion = 'top_down') AS top_down "
                    "FROM {core}.v_item_state_current s WHERE s.metric_date >= @since "
