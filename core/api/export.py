@@ -410,6 +410,87 @@ def _render_commenters(comments, quotes, number_of, by_url):
     return "".join(out)
 
 
+_FIGURES_NONE = {
+    "none_found": "No source this answer read states a percentage for the question, so no figures are shown. A poll or "
+                  "survey the posts mention without its figures is not a figure.",
+    "failed": "The figures the sources report could not be listed this time, so none are shown.",
+    "not_run": "The question’s model budget had no room left to list the figures the sources report.",
+}
+_FIGURES_UNCHECKED = ("42 could not check its hidden-people list just now, so the figures the sources report are not "
+                      "shown.")
+
+
+def _sources(n):
+    return f"{n} source" + ("" if n == 1 else "s")
+
+
+def _figure_value(value):
+    return f"{value:g}%" if isinstance(value, (int, float)) and not isinstance(value, bool) else str(value)
+
+
+def _render_reported_figures(record):
+    """run.figures as the app draws it (app/frontend/src/ReportedFigures.jsx): the lead, then each source's figures
+    with its fields as the source states them, the exact words of each figure and the source's link. The record is
+    the privacy-projected one, so a table that rests on a post 42 no longer shows is already gone and only counted.
+    These are figures third parties report, never counted by 42 nor summed, so they stay apart from The numbers."""
+    run = record.get("run") if isinstance(record.get("run"), dict) else {}
+    payload = run.get("figures")
+    if not isinstance(payload, dict) or record.get("skin_id"):
+        return ""
+    tables = [t for t in payload.get("tables") or [] if isinstance(t, dict) and any(
+        isinstance(r, dict) and isinstance(r.get("value"), (int, float)) and str(r.get("subject") or "").strip()
+        for r in t.get("rows") or [])]
+    withheld = payload.get("withheld")
+    withheld = withheld if isinstance(withheld, int) and not isinstance(withheld, bool) and withheld > 0 else 0
+    unchecked = (record.get("privacy") or {}).get("state") == "unavailable"
+    out = ["<section><h2>Reported figures</h2>"]
+    if not tables:
+        if withheld:
+            out.append(_p(_FIGURES_UNCHECKED if unchecked else f"The figures {_sources(withheld)} report are not "
+                          "shown, because they rest on posts 42 no longer shows.", "note"))
+        else:
+            out.append(_p(_FIGURES_NONE.get(str(payload.get("status")), "No figures can be shown for this answer."),
+                          "note"))
+        out.append("</section>")
+        return "".join(out)
+    if str(payload.get("lead") or "").strip():
+        out.append(_p(payload["lead"]))
+    for table in tables:
+        out.append('<article class="finding">')
+        out.append(f"<h3>{_e(table.get('title') or 'Reported percentages')}</h3>")
+        facts = [str(table.get("source") or "").strip() or "Pollster or source not stated"]
+        if table.get("posted_at"):
+            facts.append("published " + _date_text(table["posted_at"])
+                         + (f" by {table['publisher']}" if str(table.get("publisher") or "").strip() else ""))
+        facts.append(f"sample {table['sample']}" if str(table.get("sample") or "").strip() else "sample not stated")
+        if str(table.get("fieldwork") or "").strip():
+            facts.append(f"fieldwork {table['fieldwork']}")
+        if str(table.get("population") or "").strip():
+            facts.append(f"covers {table['population']}")
+        out.append(_p(" · ".join(facts), "meta"))
+        rows = [r for r in table.get("rows") or [] if isinstance(r, dict) and str(r.get("subject") or "").strip()
+                and isinstance(r.get("value"), (int, float))]
+        out.append('<ul class="figures">' + "".join(
+            f"<li>{_e(r['subject'])} {_e(_figure_value(r['value']))}"
+            + (f" <span class=\"note\">“{_e(r['quote'])}”</span>" if str(r.get("quote") or "").strip() else "")
+            + "</li>" for r in rows) + "</ul>")
+        if str(table.get("note") or "").strip():
+            out.append(_p(table["note"], "note"))
+        link = _web_link(table.get("url"))
+        source = f'<a href="{html.escape(link, quote=True)}">{_e(link)}</a>' if link else "Source link unavailable"
+        also = [str(a.get("publisher")).strip() for a in table.get("also_reported_by") or []
+                if isinstance(a, dict) and str(a.get("publisher") or "").strip()]
+        out.append('<p class="note">' + source + (_e(" · Also reported by " + ", ".join(also)) if also else "") + "</p>")
+        out.append("</article>")
+    if withheld:
+        out.append(_p(f"Figures from {_sources(withheld)} more are not shown, because they rest on posts 42 no longer "
+                      "shows.", "note"))
+    if str(payload.get("basis") or "").strip():
+        out.append(_p(payload["basis"], "note"))
+    out.append("</section>")
+    return "".join(out)
+
+
 def render_answer_html(record: dict) -> str:
     """The export page for one finished Ask record, or ExportRefused. It follows the page's order: the question, what
     is behind it, one confidence tag and what it rests on; the findings with their posts and, apart, what commenters
@@ -508,6 +589,9 @@ def render_answer_html(record: dict) -> str:
         for name, count in failed.items():
             out.append(_p(f"{count} {name} search{'es' if count != 1 else ''} failed", "note"))
         out.append("</section>")
+    reported = _render_reported_figures(record)
+    if reported:
+        out.append(reported)
 
     if answer.get("so_what"):
         out.append("<section><h2>So what</h2>")
