@@ -280,7 +280,7 @@ def _communities(page):
     fast.start(store, "creators_by_id", everyone)
     fast.start(store, "window_posts", everyone, page.market, page.start, page.end)
     fast.start(store, "map_items", top_ids)
-    fast.start(store, "suppressed_creators")
+    fast.start(store, "hidden_people_rows")
     creators = {c["creator_id"]: c for c in store.creators_by_id(everyone) or []}
     posts = _one_per_post(store.window_posts(everyone, page.market, page.start, page.end) or [])
     # Read through the suppression list: a suppressed creator's own item is never named by its label or key.

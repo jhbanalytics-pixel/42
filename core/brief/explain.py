@@ -92,8 +92,11 @@ _TITLE_MARKS = re.compile(r"[\"\u201c\u201d\u201e\u201f\u2018]")
 # The line under Label for an observation K5 labels inferred only for source-only place support (Albert, 3 Oct).
 SOURCE_STEP_NOTE = ("Label note: an observation, labelled inferred only because a named market has source_market "
                     "support alone")
-# Code-written fields of a cited post the support check sees outside the fence; the handle stays inside it.
-SUPPORT_FIELDS = ("platform", "posted_at", "market", "source_market", "creator_tier")
+# Code-written fields of a cited post the support check sees outside the fence; the handle stays inside it. formats
+# (the enrich model's format names) and, from _head, sound (_sound_letters) let the checks see whether posts share a
+# format or a sound, the adoption the critic asks for, rather than judge it from captions alone (held-topics slice 2,
+# 16 Oct 2026).
+SUPPORT_FIELDS = ("platform", "posted_at", "market", "source_market", "creator_tier", "formats")
 # Every pack number (creators3, posts3, main_ratio) is an item_state value for the whole item in the brief's market.
 NUMBER_SCOPE = ("a figure for the whole trend in this market over the window its unit names, "
                 "not for any one post, platform, date or creator")
@@ -367,7 +370,13 @@ def _source_text(record):
     quote_text = record.get("quote_text")
     text = quote_text if isinstance(quote_text, str) and quote_text.strip() else record.get("text")
     text = text if isinstance(text, str) else str(text or "")
-    return text[:SOURCE_CONTEXT_MAX_CHARS]
+    if len(text) <= SOURCE_CONTEXT_MAX_CHARS:
+        return text
+    # Cut on a word boundary: a word cut in half ("amaz" of "amazingly") would let a quote ending on the cut pass
+    # the word-for-word check although the post never says it.
+    cut = text[:SOURCE_CONTEXT_MAX_CHARS + 1]
+    space = max(cut.rfind(c) for c in (" ", "\n", "\t"))
+    return cut[:space].rstrip() if space > 0 else text[:SOURCE_CONTEXT_MAX_CHARS]
 
 
 def _source_record(record):
@@ -507,7 +516,7 @@ def _writer_user(candidate, pack, market, window_start, window_end):
     Per-post engagement is omitted because it is not a pinned pack number or a field read by the support check."""
     code = str(market or "").upper() or None
     evidence = pack.get("evidence") or []
-    earliest = _earliest_id(pack)
+    earliest, letters = _earliest_id(pack), _sound_letters(pack)
     local = {r.get("id") for r in counted_local_posts(evidence, market)}
     # A news public-feed post is feed evidence only (W8-DEC-12): local for wording, not marked local.
     feed_evidence = {r.get("id") for r in local_posts(evidence, market)} - local
@@ -521,6 +530,7 @@ def _writer_user(candidate, pack, market, window_start, window_end):
         if head["market"] is None:
             head["location"] = "unknown"
         head["creator_tier"] = r.get("creator_tier")
+        head["formats"], head["sound"] = r.get("formats"), letters.get((r.get("platform"), r.get("sound_id")))
         head["earliest_in_pack"] = earliest is not None and r.get("id") == earliest
         if not _citable(r, market):
             head["citable"] = False
@@ -627,8 +637,23 @@ def _earliest_id(pack):
     return ids[0] if len(ids) == 1 else None
 
 
-def _head(record, earliest):
+def _sound_letters(pack):
+    """{(platform, sound id): "sound A"} over the pack's posts as the prompt is built, in pack order, so posts on one sound show
+    the same letter and posts on different sounds never do, after any fold (job._absorb) and with hidden posts gone.
+    The vendor's sound id is free text, often a long number a writer could copy into a claim, so it never reaches
+    the model; the checks only need to see which posts share a sound."""
+    letters = {}
+    for r in pack.get("evidence") or []:
+        sound = (r.get("platform"), r.get("sound_id"))
+        if sound[1] is not None and sound not in letters:
+            n = len(letters)
+            letters[sound] = "sound " + (chr(65 + n) if n < 26 else chr(64 + n // 26) + chr(65 + n % 26))
+    return letters
+
+
+def _head(record, earliest, letters):
     head = {k: record.get(k) for k in SUPPORT_FIELDS}
+    head["sound"] = letters.get((record.get("platform"), record.get("sound_id")))
     head["market"] = located_market(record)
     head["source_market"] = source_market(record)
     if head["market"] is None:
@@ -643,8 +668,8 @@ def _support_user(claim, records, pack, market=None, terms=()):
     own_feed_local true here too; a located or unmarked post carries no such field. terms: the trend title's terms,
     used only to list the cited posts that name most of them first; the title itself is not shown."""
     records = _on_topic_first(records, terms)
-    earliest = _earliest_id(pack)
-    heads = [_head(r, earliest) for r in records]
+    earliest, letters = _earliest_id(pack), _sound_letters(pack)
+    heads = [_head(r, earliest, letters) for r in records]
     for r, h in zip(records, heads):
         if _own_feed_local(r, market):
             h["own_feed_local"] = True
@@ -693,7 +718,7 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
     located in the market, and, on a line of its own, which are own-feed local: found in the market's own feeds with
     location unknown, as specificity counts them local, and never merged into located_in_market. Each post carries
     sponsor_checked: true when 42 has a paid-label reading for it, so no sponsored flag then means none was found."""
-    earliest = _earliest_id(pack)
+    earliest, letters = _earliest_id(pack), _sound_letters(pack)
     resting = {c.get("id") for c in claims if c.get("id") in set(rests_on)}
     cited = {e for c in claims if c.get("id") in resting for e in c.get("evidence_ids") or []}
     ledger = [{**{k: c.get(k) for k in ("id", "text", "label", "kind", "evidence_ids")},
@@ -703,7 +728,7 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
     local = str(market or "").upper() or None
     posts, cited_ids, located_ids, own_feed_ids = [], [], [], []
     for r in pack.get("evidence") or []:
-        head = {**_head(r, earliest), "engagement": r.get("engagement")}
+        head = {**_head(r, earliest, letters), "engagement": r.get("engagement")}
         head["sponsor_checked"] = r.get("sponsor_checked") is True
         head["cited_by_resting_claims"] = r.get("id") in cited
         head["located_in_market"] = local is not None and head["market"] == local

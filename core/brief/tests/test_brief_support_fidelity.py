@@ -108,5 +108,6 @@ def test_writer_keeps_the_explanation_inside_the_claims_actual_scope():
 def test_support_contract_remains_pinned():
     assert hashlib.sha256(explain.SUPPORT_SYSTEM.encode("utf-8")).hexdigest() == (
         "0da133fe7fb64a1bf099d653b147370a55d17dc37dee38777b4657d0df69f123")
+    # 16 Oct 2026, pack-formats-sound: each cited post's head also carries its sound letter (_sound_letters).
     assert hashlib.sha256(inspect.getsource(explain._support_user).encode("utf-8")).hexdigest() == (
-        "b28de7b900c0cdecd4521488abd3ef3d8946f5775cead61608fba91ea35c361c")
+        "ba2905d5e56795332e7d305cc832874600465bc237cd6b60a65d1c22ce18c35f")

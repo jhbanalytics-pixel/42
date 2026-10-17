@@ -353,15 +353,23 @@ def _seed_links(posts, seed_key):
 
 def parse_time(raw):
     """A vendor time as an aware UTC datetime, or None: ISO (Z or offset, space or T), Twitter's
-    'Wed Oct 30 05:45:03 +0000 2019', or epoch seconds or milliseconds as a number or digit string."""
+    'Wed Oct 30 05:45:03 +0000 2019', epoch seconds or milliseconds as a number or digit string from September 2001
+    on (0 is unknown), or a compact YYYYMMDD date."""
     if raw is None or isinstance(raw, bool):
         return None
     if isinstance(raw, datetime):
         return raw.replace(tzinfo=UTC) if raw.tzinfo is None else raw.astimezone(UTC)
+    if isinstance(raw, str) and len(raw.strip()) == 8 and raw.strip().isdigit():
+        try:  # a compact YYYYMMDD date, not 1970 epoch seconds
+            return datetime.strptime(raw.strip(), "%Y%m%d").replace(tzinfo=UTC)
+        except ValueError:
+            return None
     if isinstance(raw, (int, float)) or (isinstance(raw, str) and raw.strip().isdigit()):
         number = float(raw)
         if number > 1e12:
             number /= 1000
+        if number < 1e9:  # 0 is a vendor's "unknown", and nothing 42 reads was posted before September 2001
+            return None
         try:
             return datetime.fromtimestamp(number, UTC)
         except (OverflowError, OSError, ValueError):

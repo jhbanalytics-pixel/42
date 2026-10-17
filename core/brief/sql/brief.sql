@@ -13,9 +13,13 @@
 -- local breadth must not lift it over a market-scope row. What counts as local for the gates, the critic and the
 -- support check does not change. Then items with fewer than 2 creators or fewer than 3 posts in 3 days
 -- (item_state's creators3 and posts3, NULL read as 0) rank after the rest: a single-video board tag can never reach
--- MIN_EVIDENCE, so it should not take a judged slot from an item with breadth. This only orders the pool; nothing
--- is dropped and no threshold changes. Then non-NULL worth_raw ranks first, followed by worth_raw descending and
--- item_id.
+-- MIN_EVIDENCE, so it should not take a judged slot from an item with breadth. Then the pattern bucket (pattern_posts
+-- below): 0 when 3 or more different creators used one sound, or posted one enriched adoption format, on 2 or more
+-- days; 2 when the item is a creator, sits on a calendar
+-- moment, has one creator with 60% or more of its 3 day posts, half or more of its posts sponsored (core/brief/rivals.py's
+-- sponsored threshold), or half or more of its market posts or enriched posts are news; 1 otherwise. This only
+-- orders the pool; nothing is dropped and no threshold changes. Then non-NULL
+-- worth_raw ranks first, followed by worth_raw descending and item_id.
 --
 -- Locality (C4 v3 appendix K). A row whose item_state.locality_basis is 'locality_v2.1' was admitted by the retained
 -- locality_v2 row of its detect run, so it orders by that row's checked status (local and market_unconfirmed tied in
@@ -38,6 +42,55 @@ fs AS (
   FROM {core}.v_item_daily_current i
   WHERE i.market = @market AND i.metric_date <= @d
   GROUP BY i.item_id),
+-- Pattern evidence (held-topics root cause, 16 Oct 2026). Posts published and observed in the market in the last 7 days. Since the critic passes only an evidenced adopted format,
+-- practice or behaviour (04bc5cc), the pool orders candidates whose own posts already show adoption before ones the
+-- code can see are an event spike, one creator or news. Per item, over the market's posts of the last 7 days (the
+-- lanes and suppression rule of local_creators below): the most different creators who used one sound (posts.sound_id)
+-- and on how many posting days, the most different creators whose enriched post has one adoption format
+-- (post_enrichment.formats other than other, news_clip and talking_head) and on how many days, and how many enriched
+-- posts are news clips. Rank only: nothing is dropped, no gate, threshold or judged count changes.
+pattern_posts AS (
+  SELECT DISTINCT pi.item_id, po.post_id, IFNULL(ps.creator_id, ps.post_id) creator_id, ps.sound_id,
+    ps.post_date post_day
+  FROM {core}.post_observations po
+  JOIN {core}.post_items pi ON pi.post_id = po.post_id
+  JOIN {core}.posts ps ON ps.post_id = po.post_id
+  WHERE po.market = @market AND po.observed_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
+    AND ps.post_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
+    AND po.lane_class != 'legacy' AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
+    AND NOT EXISTS (SELECT 1 FROM {core}.v_suppressed_creators sc WHERE sc.creator_id = ps.creator_id)),
+-- A sound counts for an item only when at least half of the market's linked posts on that sound are the item's own:
+-- a generic trending sound that rides on unrelated items shows no adoption of this one.
+pattern_sound_posts AS (
+  SELECT sound_id, COUNT(DISTINCT post_id) posts
+  FROM pattern_posts WHERE sound_id IS NOT NULL AND TRIM(sound_id) != ''
+  GROUP BY sound_id),
+pattern_sound AS (
+  SELECT item_id, MAX(creators) sound_creators, MAX_BY(days, creators) sound_days,
+    LOGICAL_OR(creators >= 3 AND days >= 2) sound_adopted FROM (
+    SELECT pp.item_id, pp.sound_id, COUNT(DISTINCT pp.creator_id) creators, COUNT(DISTINCT pp.post_day) days,
+      COUNT(DISTINCT pp.post_id) posts
+    FROM pattern_posts pp WHERE pp.sound_id IS NOT NULL AND TRIM(pp.sound_id) != ''
+    GROUP BY pp.item_id, pp.sound_id) own
+  JOIN pattern_sound_posts tot ON tot.sound_id = own.sound_id
+  WHERE 2 * own.posts >= tot.posts
+  GROUP BY item_id),
+pattern_enriched AS (
+  SELECT DISTINCT pp.item_id, pp.post_id, pp.creator_id, pp.post_day, post_format
+  FROM pattern_posts pp
+  JOIN {core}.post_enrichment pe ON pe.post_id = pp.post_id
+  CROSS JOIN UNNEST(pe.formats) post_format),
+pattern_format AS (
+  SELECT item_id, MAX(creators) format_creators, MAX_BY(days, creators) format_days,
+    LOGICAL_OR(creators >= 3 AND days >= 2) format_adopted FROM (
+    SELECT item_id, post_format, COUNT(DISTINCT creator_id) creators, COUNT(DISTINCT post_day) days
+    FROM pattern_enriched WHERE post_format NOT IN ('other', 'news_clip', 'talking_head')
+    GROUP BY item_id, post_format)
+  GROUP BY item_id),
+pattern_news AS (
+  SELECT item_id, COUNT(DISTINCT post_id) enriched_posts,
+    COUNT(DISTINCT IF(post_format = 'news_clip', post_id, NULL)) news_clip_posts
+  FROM pattern_enriched GROUP BY item_id),
 -- Posts sighted in the market in the last 7 days whose market is @market by a source other than the YouTube
 -- trending board: the market's own feeds and lists (TikTok, Instagram, Facebook, Reddit and the rest) in
 -- v_post_source_markets. A video on the board carries the board's region as its source market whoever made it
@@ -75,6 +128,16 @@ SELECT s.*, cm.kind map_kind, cm.status map_status, cm.label, cm.canonical_key, 
   IF(s.locality_basis = 'locality_v2.1',
     CASE lo.checked_status WHEN 'not_local' THEN 'global' WHEN 'local' THEN 'market'
                            WHEN 'market_unconfirmed' THEN 'market' END, ms.market_scope) _selection_market_scope,
+  psd.sound_creators _selection_sound_creators, psd.sound_days _selection_sound_days,
+  pf.format_creators _selection_format_creators, pf.format_days _selection_format_days,
+  pn.enriched_posts _selection_enriched_posts, pn.news_clip_posts _selection_news_clip_posts,
+  CASE
+    WHEN s.kind = 'creator' OR s.moment IS NOT NULL OR IFNULL(s.top_creator_share3, 0) >= .6
+        OR IFNULL(s.sponsored_share, 0) >= .5
+      OR (IFNULL(ms.market_posts7, 0) > 0 AND 2 * IFNULL(ms.market_news_posts7, 0) >= ms.market_posts7)
+      OR (IFNULL(pn.enriched_posts, 0) >= 3 AND 2 * pn.news_clip_posts >= pn.enriched_posts) THEN 2
+    WHEN IFNULL(psd.sound_adopted, FALSE) OR IFNULL(pf.format_adopted, FALSE) THEN 0
+    ELSE 1 END _selection_pattern,
   lo.metric_version lrow_metric_version, lo.schema_version lrow_schema_version, lo.population_posts lrow_population_posts, lo.known_posts lrow_known_posts, lo.local_posts lrow_local_posts, lo.foreign_posts lrow_foreign_posts, lo.unknown_posts lrow_unknown_posts, lo.feed_only_posts lrow_feed_only_posts, lo.vetoed_feed_posts lrow_vetoed_feed_posts, lo.breadth_creators lrow_breadth_creators, lo.status lrow_status, lo.local_share lrow_local_share, lo.population_digest lrow_population_digest, lo.population_cutoff lrow_population_cutoff, lo.checked_status lrow_checked_status, lo.checked_label lrow_checked_label,
   ROW_NUMBER() OVER (ORDER BY s.eligible IS NOT TRUE,
     IF(s.locality_basis = 'locality_v2.1',
@@ -87,12 +150,22 @@ SELECT s.*, cm.kind map_kind, cm.status map_status, cm.label, cm.canonical_key, 
       IFNULL(IF(lo.checked_status = 'unreadable', NULL, lo.breadth_creators), 0) < 2,
       IFNULL(lf.creators, 0) < 2),
     IFNULL(s.creators3, 0) < 2 OR IFNULL(s.posts3, 0) < 3,
+    CASE
+      WHEN s.kind = 'creator' OR s.moment IS NOT NULL OR IFNULL(s.top_creator_share3, 0) >= .6
+        OR IFNULL(s.sponsored_share, 0) >= .5
+        OR (IFNULL(ms.market_posts7, 0) > 0 AND 2 * IFNULL(ms.market_news_posts7, 0) >= ms.market_posts7)
+        OR (IFNULL(pn.enriched_posts, 0) >= 3 AND 2 * pn.news_clip_posts >= pn.enriched_posts) THEN 2
+      WHEN IFNULL(psd.sound_adopted, FALSE) OR IFNULL(pf.format_adopted, FALSE) THEN 0
+      ELSE 1 END,
     s.worth_raw IS NULL, s.worth_raw DESC, s.item_id) _selection_sql_rank
 FROM {core}.v_item_state_current s
 LEFT JOIN {core}.cultural_map cm ON cm.item_id = s.item_id AND cm.valid_to IS NULL
 LEFT JOIN fs ON fs.item_id = s.item_id
 LEFT JOIN seen ON seen.item_id = s.item_id
 LEFT JOIN local_first lf ON lf.item_id = s.item_id
+LEFT JOIN pattern_sound psd ON psd.item_id = s.item_id
+LEFT JOIN pattern_format pf ON pf.item_id = s.item_id
+LEFT JOIN pattern_news pn ON pn.item_id = s.item_id
 LEFT JOIN {core}.v_item_market_scope ms
   ON ms.metric_date = s.metric_date AND ms.item_id = s.item_id AND ms.market = s.market
 LEFT JOIN {core}.v_item_locality_current lo
