@@ -424,6 +424,16 @@ html .oi-product .ch42 {
   --ch-4: var(--heat-1);
   --ch-5: color-mix(in srgb, var(--ink) 10%, transparent);
 }
+/* Parts of a whole sit side by side and are matched to their key by colour,
+   so neighbours never take heat-3 and heat-2, which are almost one red. The
+   parts alternate signal red, deep red, white heat and the muted ink; ranked
+   bars and timelines keep the ramp above. */
+html .oi-product .ch42.ch42-parts {
+  --ch-1: var(--heat-3);
+  --ch-2: var(--heat-1);
+  --ch-3: var(--heat-4);
+  --ch-4: var(--muted);
+}
 
 /* ---------- Coverage ---------- */
 /* Scorecard meters: one per figure, in its market's mark, on the row's own
