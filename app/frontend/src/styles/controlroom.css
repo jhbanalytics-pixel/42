@@ -117,9 +117,11 @@ html:root .rail42 .rail42-more-button {
 }
 html:root .rail42 .rail42-link:hover,
 html:root .rail42 .rail42-more-button:hover { background: var(--cr-hover); color: var(--ink); }
+/* The rail keeps its own law: the current page is marked in ink and only
+   the focus ring is red (route-focus test). */
 html:root .rail42 .rail42-link[aria-current="page"] {
-  border-inline-start-color: var(--accent);
-  background: var(--cr-select);
+  border-inline-start-color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
   color: var(--ink);
   font-weight: 700;
 }
@@ -186,7 +188,7 @@ html:root .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-ac
   color: var(--accent-ink);
 }
 html:root .oi-product .ask42 .ask42-submit:focus-visible,
-html:root .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-action-primary:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+html:root .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-action-primary:focus-visible { outline: 2px solid var(--accent-text); outline-offset: var(--focus-offset); }
 
 /* Inputs sit on the lowest surface with a strong outline that turns red. */
 html:root .oi-product .ask42 :is(.ask42-input, .ask42-select) {
@@ -196,7 +198,7 @@ html:root .oi-product .ask42 :is(.ask42-input, .ask42-select) {
   transition: border-color var(--motion-control) var(--motion-standard-easing);
 }
 html:root .oi-product .ask42 :is(.ask42-input, .ask42-select):hover { border-color: var(--muted); }
-html:root .oi-product .ask42 :is(.ask42-input, .ask42-select):focus-visible { border-color: var(--accent); outline: 1px solid var(--accent); outline-offset: 0; }
+html:root .oi-product .ask42 :is(.ask42-input, .ask42-select):focus-visible { border-color: var(--accent); outline: 1px solid var(--accent); outline-offset: calc(var(--focus-offset) * -1); }
 
 /* Example questions are rows with a state layer and a red lead rule. */
 html:root .oi-product .ask42 .ask42-starter {
@@ -204,7 +206,7 @@ html:root .oi-product .ask42 .ask42-starter {
   transition: background-color var(--motion-row) var(--motion-standard-easing), border-color var(--motion-row) var(--motion-standard-easing);
 }
 html:root .oi-product .ask42 .ask42-starter:hover { background: var(--cr-hover); border-inline-start-color: var(--accent); }
-html:root .oi-product .ask42 .ask42-starter:focus-visible { border-inline-start-color: var(--accent); outline: 2px solid var(--accent-text); outline-offset: -2px; }
+html:root .oi-product .ask42 .ask42-starter:focus-visible { border-inline-start-color: var(--accent); outline: 2px solid var(--accent-text); outline-offset: calc(var(--focus-offset) * -2); }
 
 html:root .oi-product .ask42 .ask42-claim-text,
 html:root .oi-product .ask42 .ask42-list li,
