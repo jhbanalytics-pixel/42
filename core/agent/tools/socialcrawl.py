@@ -45,6 +45,8 @@ ALLOWED_ROUTES = frozenset({
     "reddit/search", "reddit/post/comments", "reddit/post/transcript",
     "threads/search", "threads/post/comments",
     "facebook/search/posts", "facebook/post/comments", "facebook/post/transcript",
+    # LinkedIn and Bluesky search: both platforms are in the answer schema's platform list.
+    "linkedin/search/posts", "bluesky/search",
     "google_news/search", "search/multi", SEARCH_EVERYWHERE,
     *GOOGLE_TRENDS_ROUTES,
 })

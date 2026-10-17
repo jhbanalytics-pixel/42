@@ -207,7 +207,7 @@ def test_pulse_share_refuses_past_60_and_charges_nothing():
 
 def test_adding_the_pulse_share_changes_no_other_cap():
     assert make("collect").share_caps == {
-        "collect": 2000, "confirm": 300, "reserve": 100, "ask": 600, "eval": 0, "build": 150, "pulse": 60,
+        "collect": 4000, "confirm": 300, "reserve": 100, "ask": 600, "eval": 0, "build": 150, "pulse": 60,
         "video": 600}
 
 
@@ -1290,7 +1290,6 @@ def test_quotes_above_a_route_limit_are_refused(route, method, params):
     "route,method,params",
     [
         ("web/batch-scrape", "POST", {"urls": ["https://x.example"] * 500}),  # reviewer reproduction
-        ("reddit/subreddit/search", "GET", {"query": "x", "include_body": "true"}),  # reviewer reproduction
         ("prism/jobs", "POST", {}),
         ("instagram/search/profiles", "GET", {"query": "x"}),
         ("xiaohongshu/search", "GET", {"query": "x"}),
@@ -1324,6 +1323,8 @@ def test_wrong_method_on_a_priced_route_is_refused():
         ("search/everywhere", {"query": "x", "include_transcripts": "true"}),
         ("prism/creator-card", {"handle": "x", "include": "posts"}),
         ("google_news/search", {"keyword": "x", "depth": 100}),
+        # reviewer reproduction: the route is priced for probe.py --candidates, its paid body add-on is not
+        ("reddit/subreddit/search", {"subreddit": "Kenya", "query": "x", "include_body": "true"}),
     ],
 )
 def test_unpriced_parameter_is_refused(route, params):
