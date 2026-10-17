@@ -356,7 +356,8 @@ def test_a_shared_platform_generic_hashtag_is_not_identity_evidence(tag):
 
 def test_a_specific_hashtag_beside_generic_ones_still_votes():
     c = a_cluster("current", at(1.0), hashtags=["fyp", "amapiano"], creators=["publisher"])
-    item = an_item("prior", at(0.5), DAY - timedelta(days=1), hashtags=["fyp", "Amapiano"], creators=["publisher"])
+    # At cosine 0.75: below VARIANT_COSINE a shared creator and one shared tag are no longer enough on their own.
+    item = an_item("prior", at(0.75), DAY - timedelta(days=1), hashtags=["fyp", "Amapiano"], creators=["publisher"])
     [decision] = cluster.assign([c], [item], DAY)
     assert (decision["kind"], decision["item_id"]) == ("match", "prior")
     assert decision["votes"] == ["hashtag_or_sound", "creator", "recent"]

@@ -506,6 +506,16 @@ def _votes(cluster, item, cos, run_date):
     return got
 
 
+def _eligible(got, cos):
+    """At least MIN_VOTES votes besides recent, one of them cosine, keywords or a shared hashtag or sound. A shared
+    creator with nothing but one shared hashtag or sound also needs VARIANT_COSINE: a prolific account reuses its
+    trending sound or its own branded tag on unrelated subjects, so that pair alone is no identity at any cosine."""
+    votes = set(got) - {"recent"}
+    if len(votes) < MIN_VOTES or not {"cosine", "keywords", "hashtag_or_sound"} & votes:
+        return False
+    return votes != {"creator", "hashtag_or_sound"} or cos >= VARIANT_COSINE
+
+
 def assign(clusters, items, run_date, shadow=None):
     """One decision per cluster, in order: kind match, recurrence, variant or new, the matched or parent item_id
     (None when new), the cosine to it, its votes, and the cluster's candidates as (item_id, cosine). A list given as
@@ -518,9 +528,7 @@ def assign(clusters, items, run_date, shadow=None):
         for r, c in enumerate(clusters):
             nearest = sorted(range(len(items)), key=lambda j: (-cos[r, j], items[j]["item_id"]))[:CANDIDATES]
             judged[r] = [(j, float(cos[r, j]), _votes(c, items[j], float(cos[r, j]), run_date)) for j in nearest]
-    eligible = {(r, j) for r, per in enumerate(judged) for j, _, got in per
-                if len(set(got) - {"recent"}) >= MIN_VOTES
-                and {"cosine", "keywords", "hashtag_or_sound"}.intersection(got)}
+    eligible = {(r, j) for r, per in enumerate(judged) for j, cos_rj, got in per if _eligible(got, cos_rj)}
     columns = sorted({j for _, j in eligible})
     won = {}
     if columns:
