@@ -2104,7 +2104,56 @@ def test_a_claim_that_echoes_a_sound_letter_is_cut_and_the_writer_is_told_not_to
     for text in ("A sound around the braai", "the sound I love", "a sound DJ Maphorisa made", "sound OK",
                  "Sound C is not one of this pack's letters"):
         assert explain._sound_label_rows({"claims": [{"id": "c", "text": text}]}, two) == [], text
-    # A post's own words in quotes are not read for a label, even when the pack has that letter.
-    quoted = 'One post says "this sound I can not stop playing".'
-    assert explain._sound_label_rows({"claims": [{"id": "c", "text": quoted}]}, pack) == []
+    # A post's own words in quotes, checked against the post, are not read for a label, even when the pack has that
+    # letter; the same quote with no post behind it is the writer's own text and is read.
+    quoted = {"id": "c", "text": 'One post says "this sound I can not stop playing".', "evidence_ids": ["tt_1"],
+              "quotes": [{"evidence_id": "tt_1", "text": "this sound I can not stop playing"}]}
+    records = {"tt_1": {"text": "Honestly this sound I can not stop playing"}}
+    assert explain._sound_label_rows({"claims": [quoted]}, pack, records) == []
+    assert explain._sound_label_rows({"claims": [quoted]}, pack)
     assert explain._sound_label_rows({"claims": [{"id": "c", "text": "sound A"}]}, {"evidence": []}) == []
+
+
+def test_a_sound_letter_between_two_short_straight_quotes_is_still_cut():
+    # A straight quote opens and closes a span, so the stretch between two quoted words is prose, not a quote: the
+    # label there must still be read (audit of PR #17, 17 Oct 2026).
+    two = {"evidence": [{"platform": "tiktok", "sound_id": "1"}, {"platform": "tiktok", "sound_id": "2"}]}
+    for text in ('Creators say "Yo" over sound A and "lekker" after it.', 'Posts say "ja" to sound B, then "eish".',
+                 'Creators reply "lol" on sound A and "fire" too'):
+        assert explain._sound_label_rows({"claims": [{"id": "c", "text": text}]}, two), text
+        checked = {"claims": [], "short_answer": text}
+        assert explain._sound_label_rows(checked, two) and checked["short_answer"] == "", text
+
+
+def test_only_a_quote_checked_against_its_post_is_exempt_from_the_sound_label_cut():
+    two = {"evidence": [{"platform": "tiktok", "sound_id": "1"}, {"platform": "tiktok", "sound_id": "2"}]}
+    records = {"tt_1": {"text": "Everyone dancing to A Night in Lagos this week"},
+               "tt_2": {"text": "sound A is fire honestly"}}
+
+    def claim(text, quote, eid="tt_1"):
+        return {"id": "c", "text": text, "evidence_ids": [eid], "quotes": [{"evidence_id": eid, "text": quote}]}
+
+    # A post's own words, verified, in curly single quotes or double quotes, are not read for a label.
+    for text in ("Creators dance to the sound ‘A Night in Lagos’",
+                 'Creators dance to the sound "A Night in Lagos"'):
+        assert explain._sound_label_rows({"claims": [claim(text, "A Night in Lagos")]}, two, records) == [], text
+    # The same words quoted with no post behind them are the writer's, so the label is cut.
+    unverified = 'Fans say "sound A is fire" here.'
+    assert explain._sound_label_rows({"claims": [claim(unverified, "sound A is fire", "tt_9")]}, two, records)
+    assert explain._sound_label_rows({"claims": [{"id": "c", "text": unverified}]}, two, records)
+    # The sentence is exempt only for quotes verified on a claim it rests on.
+    sentence = 'Fans write "sound A is fire" under the clips.'
+    resting = {**claim("One post says “sound A is fire”.", "sound A is fire", "tt_2"), "id": "c1"}
+    checked = {"claims": [resting], "short_answer": sentence}
+    assert explain._sound_label_rows(checked, two, records, ["c1"]) == [] and checked["short_answer"] == sentence
+    checked = {"claims": [resting], "short_answer": sentence}
+    rows = explain._sound_label_rows(checked, two, records, [])
+    assert [r["claim_id"] for r in rows] == [None] and checked["short_answer"] == ""
+
+
+def test_a_hyphenated_name_after_sound_is_not_a_sound_letter():
+    one = {"evidence": [{"platform": "tiktok", "sound_id": "1"}]}
+    assert explain._sound_label_rows(
+        {"claims": [{"id": "c", "text": "Three posts dance to the new sound A-Reece dropped on Friday."}]}, one) == []
+    for text in ("Creators chase a sound A-led trend.", "A sound A–heavy mix.", "On sound-A."):
+        assert explain._sound_label_rows({"claims": [{"id": "c", "text": text}]}, one), text

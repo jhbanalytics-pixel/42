@@ -1025,8 +1025,9 @@ def _k9_rows(checked, rests_on, records):
 # A sound letter (_sound_letters) is a code label for which pack posts share a sound; a reader never sees the pack, so
 # the letter must not reach reader text. K6 by code: a claim naming one is cut and a sentence naming one is emptied.
 # Only the letters issued for this pack count, so prose such as "the sound I love" is left alone unless the pack has
-# a sound I, and a quoted span of four characters or more (a post's own words) is not read for a label.
-_QUOTED_SPAN = re.compile(r'["\u201c][^"\u201d]{4,}["\u201d]')
+# a sound I, and a quote K1 verified against its post (a post's own words, _verified_quotes) is not read for a label,
+# as K9 and the crowd check do: the sentence is exempt only for the quotes of the claims it rests on. Quotes pair left
+# to right (K1's _QUOTED), so the prose between two quoted words is always read.
 
 
 def _sound_label(pack):
@@ -1036,25 +1037,29 @@ def _sound_label(pack):
     if not letters:
         return None
     alt = "|".join(sorted(letters, key=len, reverse=True))
-    return re.compile(r"\b[Ss]ounds?[\s\-]*[\"'\u201c\u2018]?(?:" + alt + r")\b")
+    # A letter joined by a hyphen or dash to a capitalised word is a name such as A-Reece, not a label.
+    return re.compile(r"\b[Ss]ounds?[\s\-]*[\"'\u201c\u2018]?(?:" + alt + r")\b(?![\-\u2010-\u2014][A-Z][a-z])")
 
 
-def _sound_label_rows(checked, pack):
+def _sound_label_rows(checked, pack, records=None, rests_on=()):
     label = _sound_label(pack)
     if label is None:
         return []
+    records = records or {}
 
-    def names(text):
-        return label.search(_QUOTED_SPAN.sub(" ", text or "")) is not None
+    def names(text, verified):
+        return label.search(_strip_quotes(str(text or ""), verified)) is not None
 
+    claims = checked.get("claims") or []
+    resting_quotes = set().union(*(_verified_quotes(c, records) for c in claims if c.get("id") in rests_on))
     rows, kept = [], []
-    for claim in checked.get("claims") or []:
-        if names(claim.get("text")):
+    for claim in claims:
+        if names(claim.get("text"), _verified_quotes(claim, records)):
             rows.append({"claim_id": claim.get("id"), "rule": "K6", "verdict": "cut", "checker": "code",
                          "detail": "code label in reader text: a pack sound letter"})
         else:
             kept.append(claim)
-    if names(checked.get("short_answer")):
+    if names(checked.get("short_answer"), resting_quotes):
         rows.append({"claim_id": None, "rule": "K6", "verdict": "cut", "checker": "code",
                      "detail": "short_answer: code label in reader text: a pack sound letter"})
         checked["short_answer"] = ""
@@ -1264,7 +1269,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         _exact_quotes(checked, records)
         rows.extend(_k9_rows(checked, rests_on, records))
         rows.extend(_crowd_rows(checked, rests_on, records, pack))
-        rows.extend(_sound_label_rows(checked, pack))
+        rows.extend(_sound_label_rows(checked, pack, records, rests_on))
         rows = [_stamped(r, sentence_text if r["claim_id"] is None else claim_texts.get(r["claim_id"]))
                 for r in rows]
         return checked, rows
