@@ -1,0 +1,56 @@
+# Gamma 3.1 frozen labels, features and evaluation settings, version 1 (16 October 2026).
+# Frozen before any tuning: change nothing here after a result has been seen. A change is a new file
+# (labels_v2.yaml) with its own sha256 recorded in docs/gamma/GAMMA-3.1-PLAN.md section 3.
+label_version: gamma-labels-v1
+
+measured_lanes: [unbiased_rank, unbiased_counter, panel]   # DATA.md section 3.2; search_presence, watchlist, placebo, agent_live and legacy never count
+
+lasting_14:
+  unit: item
+  item_kinds_primary: [hashtag, sound, creator]   # lexical ids, stable over time (DATA.md:124)
+  item_kinds_reported_separately: [topic]         # until experiment E4 passes; topic identity drifted on f9
+  t0: first market-local day the item is present in a measured lane of the market
+  eligibility:
+    min_days_after_protocol_start: 7      # t0 at least 7 days after the protocol start of every measured series carrying the item (left censoring)
+    window: [14, 27]                      # days after t0, inclusive
+    min_valid_days_in_window: 10          # valid per collection_health for the series that carry the item; fewer means excluded, never negative
+  positive:
+    present_share_of_valid_days_min: 0.5  # present on at least half of the valid days in the window
+    distinct_creators_min: 3              # distinct creators in measured-lane posts inside the window
+  negative: eligible and not positive
+
+features:
+  as_of: t0 + 6                           # only rows with available_at at or before the end of that day
+  descriptors: [days_present_7, peak_day_share_7, max_day_count_7, log_total_count_7, distinct_creators_7,
+                returning_creators_share_7, tier_breadth_7, tier_unknown_share_7, measured_platforms_7,
+                hill_q1_creators_7_at_equal_coverage]
+  participation_features: [distinct_creators_7, returning_creators_share_7, tier_breadth_7,
+                           hill_q1_creators_7_at_equal_coverage]   # the E3 ablation removes these
+
+baselines:
+  B0: market base rate of lasting_14 among eligible items in the training folds
+  B1: persistence, present on day t0 + 6
+  B2: days_present_7 as the only feature, logistic
+  B3: log_total_count_7 as the only feature, logistic (Szabo and Huberman 2010)
+
+evaluation:
+  split: rolling origin, one fold per calendar week of t0
+  embargo_days: 28                        # label horizon; no training item may have a window overlapping the test fold
+  markets_reported_separately: [ZA, NG, KE]
+  interval: block bootstrap by week, 2000 resamples, 95%
+  min_read_per_market: {eligible_items: 150, positives: 30}   # below this the result is reported as insufficient, not as a pass or fail
+  go:
+    brier_skill_vs_best_baseline_min: 0.05
+    brier_skill_interval_lower_bound_above: 0.0
+    calibration_slope: [0.8, 1.2]
+    precision_gain_at_80pct_coverage_min: 0.10
+    markets_required: 2
+
+abstain:
+  days_since_t0_below: 14
+  invalid_collection_day_in_window: true
+  search_lanes_only: true
+  distinct_creators_below: 5
+  ke_market_unconfirmed_share_above: 0.5
+  topic_drift_cosine_to_birth_centroid_below: 0.70   # the matcher's variant floor (DATA.md section 4)
+  one_creator_share_above: 0.5

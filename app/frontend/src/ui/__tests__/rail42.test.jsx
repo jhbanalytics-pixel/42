@@ -4,7 +4,7 @@
    the vendored shell's five jobs are hidden, so Build and Fieldwork move
    under More. Every link is a hash the app already resolves, the current
    page is marked, at phone width the rail folds into a bottom bar, and the
-   theme offers Light (the default), Dark and Match system. */
+   theme offers Light, Dark (the default) and Match system. */
 import {GlobalRegistrator} from '@happy-dom/global-registrator';
 import {afterAll, afterEach, beforeEach, expect, test} from 'bun:test';
 import React from 'react';
@@ -332,15 +332,17 @@ test('the theme offers Light, Dark and Match system, and reports the choice', ()
   expect(themeCalls).toEqual(['system']);
 });
 
-test('Light is the default theme, a stored choice holds, and Match system follows the system', () => {
+/* Control room, 17 October 2026: Dark became the default with the Control
+   room look Albert chose; Light stays one choice away. */
+test('Dark is the default theme, a stored choice holds, and Match system follows the system', () => {
   localStorage.removeItem('oi-theme');
-  expect(storedThemePreference()).toBe('daylight');
+  expect(storedThemePreference()).toBe('midnight');
   localStorage.setItem('oi-theme', 'midnight');
   expect(storedThemePreference()).toBe('midnight');
   localStorage.setItem('oi-theme', 'system');
   expect(storedThemePreference()).toBe('system');
   localStorage.setItem('oi-theme', 'sepia');
-  expect(storedThemePreference()).toBe('daylight');
+  expect(storedThemePreference()).toBe('midnight');
   expect(resolveTheme('system', true)).toBe('midnight');
   expect(resolveTheme('system', false)).toBe('daylight');
   expect(resolveTheme('midnight', false)).toBe('midnight');

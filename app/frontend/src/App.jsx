@@ -496,7 +496,8 @@ function useReducedMotionBridge(){
    value. The mirror runs once at module evaluation, before App renders and so
    before the first paint, and again on every change.
 
-   EXPERIENCE.md, Navigation: Light (the default), Dark and Match system. The
+   EXPERIENCE.md, Navigation: Light, Dark (the default since the Control room
+   look, 17 October 2026) and Match system. The
    shell's control switches between Light and Dark; the rail offers all
    three. Match system is stored as system and read through the system's
    colour scheme, which App follows while the page is open. */
@@ -508,9 +509,9 @@ const DARK_QUERY = '(prefers-color-scheme: dark)';
 export function storedThemePreference(){
   try {
     const stored = window.localStorage.getItem(THEME_KEY);
-    return THEME_PREFERENCES.includes(stored) ? stored : 'daylight';
+    return THEME_PREFERENCES.includes(stored) ? stored : 'midnight';
   } catch (e){
-    return 'daylight';
+    return 'midnight';
   }
 }
 
