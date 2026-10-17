@@ -215,11 +215,14 @@ def build_functions(ctx: RunContext, warehouse, client, writer) -> dict:
     robots = []
 
     def _robots():
-        """The robots.txt reader, made on first use and kept for this research loop (one read per site)."""
+        """The robots.txt reader, made on first use and kept for this research loop (one read per site). Its getter
+        reaches public hosts only, within a byte cap and a deadline (article.RobotsGet), never the collect job's
+        http_get."""
         if not robots:
-            from core.collect.local_sources import Robots, http_get
+            from core.agent.tools.article import RobotsGet
+            from core.collect.local_sources import Robots
 
-            robots.append(Robots(http_get))
+            robots.append(Robots(RobotsGet()))
         return robots[0]
 
     functions = {

@@ -60,6 +60,9 @@ _LANE_NAMED = re.compile(r"(?:^|-)(" + "|".join(re.escape(lane) for lane in ANSW
 ITEM_STATUSES = ("ok", "partial")
 MARKETS = {"za": "ZA", "south africa": "ZA", "ng": "NG", "nigeria": "NG", "ke": "KE", "kenya": "KE"}
 MARKET_PARAMS = ("country", "region", "geo", "gl")
+# Every param a call's market is read from: the platforms' own, then google_news/search's location_name (its only
+# market param besides the numeric location_code, which is not read). After the others, so they keep precedence.
+CALL_MARKET_PARAMS = (*MARKET_PARAMS, "location_name")
 # Stored platform names the answer schema names otherwise (core/eval/answer.schema.json): posts and SocialCrawl
 # routes say twitter, the answer says x.
 PLATFORM_NAMES = {"twitter": "x"}
@@ -258,7 +261,8 @@ def _market(value) -> str | None:
 
 
 def _evidence_market(item: dict, params: dict, ctx_market: str | None) -> tuple[str | None, bool, str | None]:
-    """ZA, NG or KE from the item's market or country, else the call's country, region, geo or gl, else ctx.market.
+    """ZA, NG or KE from the item's market or country, else the call's country, region, geo, gl or location_name, else
+    ctx.market.
 
     Returns (market, assumed, source_market). Only the item's own market locates the post. A market from the call's
     params says which market's feeds the platform searched, so the post is seen in those feeds (source_market) and
@@ -266,7 +270,7 @@ def _evidence_market(item: dict, params: dict, ctx_market: str | None) -> tuple[
     for value in (item.get("market"), item.get("country")):
         if market := _market(value):
             return market, False, None
-    for value in (params.get(k) for k in MARKET_PARAMS):
+    for value in (params.get(k) for k in CALL_MARKET_PARAMS):
         if market := _market(value):
             return market, True, market
     market = _market(ctx_market)

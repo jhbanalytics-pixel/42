@@ -7,14 +7,27 @@ evidence record, article_<hash>, that keeps the news result's publisher, link, d
 then checked word for word against that text like any post.
 
 Bounds, in code: only the URL of a news record already in this run's evidence (the model cannot name a page), at most
-MAX_ARTICLES per question, the site's robots.txt read first (a page it forbids or a robots read that fails is not
-fetched), and the question's credit budget and the ask share's daily cap through the same client as every live call.
+MAX_ARTICLES paid page reads per question, whether or not the page gave text, and a page already tried is not paid
+for again; the site's robots.txt read first (a page it forbids or a robots read that fails is not fetched), and the
+question's credit budget and the ask share's daily cap through the same client as every live call.
+
+The robots.txt read goes from 42's own service, so it has its own getter (RobotsGet), not the collect job's http_get:
+it reaches only hosts that resolve to public addresses, re-checks every redirect, reads at most ROBOTS_MAX_BYTES and
+gives up after ROBOTS_DEADLINE_S across its attempts. Any of those failing reads as rules unknown: the page is not
+fetched.
+
+The text shown to the research model is fenced as untrusted content with any fence tag in the page neutralised
+(socialcrawl._fence); the stored evidence keeps the page's words, since every later prompt fences it again.
 """
 
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import re
+import socket
+import time
+from urllib.parse import urljoin, urlsplit
 
 from core.agent.context import Refused, RunContext
 
@@ -23,6 +36,12 @@ MAX_ARTICLES = 8
 ARTICLE_CHARS = 20_000
 _IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 _LINK = re.compile(r"\[([^\]]*)\]\(([^)\s]*)[^)]*\)")
+ROBOTS_MAX_BYTES = 512_000
+ROBOTS_DEADLINE_S = 15.0  # across the read and its retry (local_sources.Robots tries twice)
+ROBOTS_TIMEOUT = (5, 5)  # (connect, read between bytes) seconds
+ROBOTS_REDIRECTS = 3
+_REDIRECTS = (301, 302, 303, 307, 308)
+_resolve = socket.getaddrinfo
 
 
 def article_id(url: str) -> str:
@@ -37,6 +56,80 @@ def plain_text(markdown: str) -> str:
     return "\n".join(line for line in lines if line)[:ARTICLE_CHARS]
 
 
+class RobotsReadRefused(Exception):
+    """A robots.txt read not made or not finished: a host that is not public, too many redirects, a body past
+    ROBOTS_MAX_BYTES or a read past ROBOTS_DEADLINE_S. Robots reads it as rules unknown, so the page is not fetched."""
+
+
+def public_host(host: str, resolve=None) -> bool:
+    """Whether every address host resolves to is a public one (not private, loopback, link-local, reserved,
+    multicast or unspecified, IPv4-mapped included). A host that does not resolve is not public."""
+    try:
+        addresses = {ipaddress.ip_address(host.strip("[]").split("%", 1)[0])}  # a literal address is not looked up
+    except ValueError:
+        try:
+            infos = (resolve or _resolve)(host, None)
+            addresses = {ipaddress.ip_address(str(info[4][0]).split("%", 1)[0]) for info in infos}
+        except (OSError, ValueError, TypeError, IndexError, UnicodeError):
+            return False
+    for address in addresses:
+        mapped = getattr(address, "ipv4_mapped", None)
+        if not address.is_global or address.is_multicast or (mapped is not None and not mapped.is_global):
+            return False
+    return bool(addresses)
+
+
+class RobotsGet:
+    """get(url) -> (status, text) for local_sources.Robots, guarded as the module docstring says. The deadline starts
+    at the first read of a url, so Robots' retry of the same url shares it."""
+
+    def __init__(self, http=None, resolve=None, clock=None):
+        self.http, self.resolve, self.clock = http, resolve, clock or time.monotonic
+        self.started: dict = {}
+
+    def __call__(self, url):
+        http = self.http
+        if http is None:
+            import requests
+
+            http = requests.get
+        from core.collect.local_sources import USER_AGENT
+
+        deadline = self.started.setdefault(url, self.clock() + ROBOTS_DEADLINE_S)
+        for _ in range(ROBOTS_REDIRECTS + 1):
+            if self.clock() > deadline:
+                raise RobotsReadRefused("past its deadline")
+            parts = urlsplit(url)
+            if parts.scheme not in ("http", "https") or not parts.hostname or \
+                    not public_host(parts.hostname, self.resolve):
+                raise RobotsReadRefused("not a public host")
+            response = http(url, headers={"User-Agent": USER_AGENT}, timeout=ROBOTS_TIMEOUT, stream=True,
+                            allow_redirects=False)
+            try:
+                location = (getattr(response, "headers", None) or {}).get("Location")
+                if response.status_code in _REDIRECTS and location:
+                    url = urljoin(url, location)
+                    continue
+                body = bytearray()
+                for chunk in response.iter_content(chunk_size=16_384):
+                    body += chunk or b""
+                    if len(body) > ROBOTS_MAX_BYTES:
+                        raise RobotsReadRefused("past its byte cap")
+                    if self.clock() > deadline:
+                        raise RobotsReadRefused("past its deadline")
+                return response.status_code, bytes(body).decode(response.encoding or "utf-8", errors="replace")
+            finally:
+                close = getattr(response, "close", None)
+                if callable(close):
+                    close()
+        raise RobotsReadRefused("too many redirects")
+
+
+def _paid_reads(ctx: RunContext) -> list[dict]:
+    """This question's web/scrape calls that were made and paid for (a robots refusal is neither)."""
+    return [c for c in ctx.sc_calls if c.get("route") == ARTICLE_ROUTE and c.get("status") != "robots_refused"]
+
+
 def read_article(ctx: RunContext, client, evidence_id: str, robots=None) -> dict:
     record = ctx.evidence.get(evidence_id)
     if not isinstance(record, dict) or record.get("platform") != "news" or str(evidence_id).startswith("article_"):
@@ -48,8 +141,15 @@ def read_article(ctx: RunContext, client, evidence_id: str, robots=None) -> dict
     aid = article_id(url)
     if aid in ctx.evidence:
         return {"evidence_id": aid, "status": "ok", "already_read": True, "credits_spent": 0.0}
+    paid = _paid_reads(ctx)
+    tried = next((c for c in reversed(paid) if (c.get("params") or {}).get("url") == url), None)
+    if tried is not None:  # paid for once already and it gave no text: not paid for again
+        status = tried.get("status")
+        return {"evidence_id": None, "status": "empty" if status == "ok" else status, "already_tried": True,
+                "credits_spent": 0.0,
+                "reason": "this page was already read in this question and gave no text"}
     read = sum(1 for eid in ctx.evidence if str(eid).startswith("article_"))
-    if read >= MAX_ARTICLES:
+    if max(read, len(paid)) >= MAX_ARTICLES:
         raise Refused(f"at most {MAX_ARTICLES} articles are read per question")
     if ctx.calls_left() <= 0:
         raise Refused(f"no SocialCrawl calls left for this question ({ctx.budget['calls']} allowed)")
@@ -63,7 +163,7 @@ def read_article(ctx: RunContext, client, evidence_id: str, robots=None) -> dict
         raise Refused(f"{ARTICLE_ROUTE} costs {quote} credits, over the {ctx.credits_left()} left in this question")
     result = client.call(ARTICLE_ROUTE, params, lane="agent_live", run_id=ctx.run_id,
                          max_credits=min(float(quote), ctx.credits_left()))
-    from core.agent.tools.socialcrawl import read_credits
+    from core.agent.tools.socialcrawl import _fence, read_credits
 
     status = result.get("status")
     charged = read_credits(result.get("credits_charged"))
@@ -82,5 +182,6 @@ def read_article(ctx: RunContext, client, evidence_id: str, robots=None) -> dict
         "posted_at": record.get("posted_at"), "market": record.get("market"), "text": text,
         "engagement": None, "flags": list(record.get("flags") or []), "source_market": record.get("source_market"),
     }
+    # Cut first, then fence: a tag the cut splits cannot form a whole tag, and _fence neutralises every whole one.
     return {"evidence_id": aid, "status": "ok", "credits_spent": charged, "characters": len(text),
-            "text": "<untrusted_content>" + text[:4_000] + "</untrusted_content>"}
+            "text": _fence(text[:4_000])}

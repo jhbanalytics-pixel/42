@@ -153,6 +153,10 @@ QUANT_NOTE = ("This question asks for figures. Find the sources that state them:
 FIGURES_FAILED = "The figures the sources report could not be listed, so this answer shows none"
 FIGURES_NO_ROOM = ("The question's model budget had no room left to list the figures the sources report, so this answer "
                    "shows none")
+FIGURES_STOPPED = ("The run was stopped while the figures the sources report were being listed, so this answer shows "
+                   "none; the checked answer stands")
+FIGURES_SWEEP_FAILED = ("Stored posts that state a percentage could not be read this time, so any figures shown come only "
+                        "from the sources the research read; a failed read is not evidence that none exist")
 TRENDING_FALLBACK_NOTICE = "Today's board is empty, so this uses the last 7 days"
 TRENDING_BOARD_READ_FAILED = "Today's published board could not be read; fallback was not used."
 TRENDING_POSTS_READ_FAILED = "Located posts in the last 7 days could not be read; fallback was not used."
@@ -985,6 +989,16 @@ def platform_groups(markets: list[str], most: int | None = None,
     return picked[:most or min(MAX_RESEARCHERS, MIN_RESEARCHERS + len(markets))]
 
 
+def _route_label(route: str) -> str:
+    """A live route as a reader names it: its platform group's label (google_news, search and web/scrape read as
+    the news lane), else the platform's own label. Never a route id."""
+    if route == ARTICLE_ROUTE:
+        return GROUP_LABELS["news"]
+    prefix = route.split("/", 1)[0]
+    group = next((g for g, prefixes in PLATFORM_GROUPS.items() if prefix in prefixes), None)
+    return GROUP_LABELS[group] if group is not None else platform_label(prefix)
+
+
 def group_routes(group: str) -> list[str]:
     routes = {r for r in ALLOWED_ROUTES if r.split("/", 1)[0] in PLATFORM_GROUPS[group]}
     if group == "news":
@@ -1034,7 +1048,7 @@ def _research_lanes(deps: Deps, jobs: list[tuple], setup: ResearchSetup, progres
             raise fatal or failures[0][1]
         for index, exc in failures:
             lane, _, lane_client = jobs[index]
-            platforms = sorted({platform_label(route.split("/", 1)[0]) for route in lane_client.routes or []})
+            platforms = sorted({_route_label(route) for route in lane_client.routes or []})
             ctx.research_gaps.append({
                 "what": f"A researcher did not finish ({', '.join(platforms) or 'assigned research'})",
                 "searched": "Only its recorded results and the other researchers' completed results are available",
@@ -2108,12 +2122,25 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         try:
             listed, usage, dispatched = timed("write", figures.extract_figures, stop_model, question, ctx, model_name)
         except _StopRequested as exc:
-            # A figures call refused before it was sent costs nothing and the checked answer stands without it.
-            if getattr(exc, "before_dispatch", False) and not should_stop():
-                if FIGURES_NO_ROOM not in notices:
-                    notices.append(FIGURES_NO_ROOM)
-                return figures.payload(question, [], {}, figure_sweep_out, records, "not_run")
-            raise
+            # The figures run after every claim was streamed and its checks written, so no stop here, the user's or
+            # the budget's, before or after the call was sent, may replace that checked answer: it stands without
+            # figures and the notice says why. A billed call is spent; one the budget booked stays in its ledger.
+            billed = getattr(exc, "usage", None)
+            if isinstance(billed, dict):
+                spend(billed.get("input_tokens"), billed.get("output_tokens"), billed.get("usd"))
+            if should_stop():
+                return figures_stopped()
+            reason = getattr(exc, "model_budget_reason", None)
+            if getattr(exc, "before_dispatch", False):
+                notice = FIGURES_NO_ROOM
+            else:
+                reason = (model_budget.stop_reason if model_budget is not None and model_budget.stopped
+                          else None) or reason
+                log.warning("ask figures stopped on its model budget: run %s: %s", run_id, reason)
+                notice = budget_stop_words(reason)[2]
+            if notice not in notices:
+                notices.append(notice)
+            return figures.payload(question, [], {}, figure_sweep_out, records, "not_run")
         except Exception as exc:
             billed = _failed_call_usage(exc, model_name, figures.FIGURES_INPUT_TOKENS, figures.FIGURES_MAX_TOKENS)
             spend(billed.get("input_tokens"), billed.get("output_tokens"), billed.get("usd"))
@@ -2125,10 +2152,17 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             usage = _usage_or_reserve(usage, model_name, figures.FIGURES_INPUT_TOKENS, figures.FIGURES_MAX_TOKENS)
             spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         if should_stop():
-            raise _StopRequested()
+            return figures_stopped()
         kept, cut = figures.verify(listed, ctx)
         built = figures.tables(kept)
-        return figures.payload(question, built, cut, figure_sweep_out, records, "ok" if built else "none_found")
+        sweep_failed = bool(figure_sweep_out and figure_sweep_out.get("failed"))
+        status = "ok" if built else "sweep_failed" if sweep_failed else "none_found"
+        return figures.payload(question, built, cut, figure_sweep_out, records, status)
+
+    def figures_stopped() -> dict:
+        if FIGURES_STOPPED not in notices:
+            notices.append(FIGURES_STOPPED)
+        return figures.payload(question, [], {}, figure_sweep_out, len(figures.figure_records(ctx)), "stopped")
 
     def gate(note: str, source_status: list[dict]) -> tuple:
         nonlocal numeric_repair_attempted, store_count, summary_ledger, figure_sweep_out
@@ -2158,8 +2192,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             before = set(ctx.evidence)
             with timings.begin("io", "figure_sweep"):
                 figure_sweep_out = figures.figure_sweep(ctx, deps.warehouse, question, question_platforms(question))
-            if figure_sweep_out.get("failed"):
-                log.warning("ask figure sweep failed: run %s: %s", run_id, figure_sweep_out["failed"])
+            if figure_sweep_out.get("failed") and FIGURES_SWEEP_FAILED not in notices:
+                notices.append(FIGURES_SWEEP_FAILED)  # figures.figure_sweep logged the warehouse's reason
             progress.hold_back(set(ctx.evidence) - before)
         timings.phase("prepare")
         listed = listed_post_ids(ctx)

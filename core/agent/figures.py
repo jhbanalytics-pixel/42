@@ -22,12 +22,15 @@ The payload travels in run.figures, beside the answer, never in it (core/eval/an
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 
 from core.agent.answer import normalise
 from core.agent.context import RunContext
 from core.agent.tools.sql_query import sql_query
+
+log = logging.getLogger("f42-agent")
 
 QUANT_INTENT = re.compile(
     r"%|\bper\s?cent(?:age)?s?\b|\bpercentages?\b|\bshares?\s+of\b|\b(?:vote|market|voter)\s+shares?\b|"
@@ -48,6 +51,10 @@ MAX_GAP_WORDS = 4  # words a subject may sit before its percentage in a quote ("
 MAX_FIGURES = 60
 MAX_TABLES, MAX_ROWS = 8, 15
 NOT_STATED = ""
+# What run.figures.sweep.failed says when the sweep's read failed: a fixed value, never the warehouse's own error line,
+# which can name a project, dataset or table (that goes to the server log only).
+SWEEP_FAILED = "store_read_failed"
+RULE_1_CUT = "breaches rule 1"  # an age or generation term, a demographic inference or search volume (checks.K6)
 SUM_NOTE = ("These shares add to more than 100%, so the source may report more than one question or group; read "
             "the quotes.")
 _STOP = frozenset("""
@@ -117,7 +124,8 @@ def figure_sweep(ctx: RunContext, warehouse, question: str, platforms=None) -> d
         result = sql_query(ctx, warehouse, sql, params=params,
                            purpose="Figure sweep: stored posts that match the question and carry a percentage")
     except Exception as exc:
-        out["failed"] = wh._reason(exc)
+        log.warning("figure sweep failed: run %s: %s", ctx.run_id, wh._reason(exc))
+        out["failed"] = SWEEP_FAILED
         return out
     finally:
         wh.QUERY_TIMEOUT_S.reset(wait)
@@ -270,7 +278,7 @@ def _measure(phrase, text: str) -> str:
 
 def verify(figures: list, ctx: RunContext) -> tuple[list[dict], dict]:
     """The figures that pass, each with its record's link, platform, handle and date, and the count cut by reason."""
-    from core.agent.checks import _verbatim
+    from core.agent.checks import _text_breaches, _verbatim
 
     kept, cut, seen = [], {}, set()
 
@@ -304,18 +312,30 @@ def verify(figures: list, ctx: RunContext) -> tuple[list[dict], dict]:
             drop("subject not in quote")
             continue
         subject = " ".join(subject.split())
-        if not _paired(subject, float(value), quote):
+        if not _paired(subject, float(value), quote) or _listed(float(value), quote, text):
             drop("value not written next to its subject")
             continue
+        fields = {"measure": _measure(fig.get("measure"), text), "source": _said(fig.get("source"), text),
+                  "fieldwork": _said(fig.get("fieldwork"), text), "sample": _said(fig.get("sample"), text),
+                  "population": _said(fig.get("population"), text)}
+        # RULES.md rule 1: the subject and these fields are shown as labels and in the lead code writes, not as a
+        # quotation. An age split, a generation or search volume in who the figure is for, what it measures, who it
+        # covers or who ran it cuts the whole figure: a blank label would still show the split. A sample or fieldwork
+        # line that names an age ('1,500 adults aged 18 and over') describes the base, not a split, so only that
+        # line reads as not stated.
+        if any(_text_breaches(v) for v in (subject, fields["measure"], fields["population"], fields["source"])):
+            drop(RULE_1_CUT)
+            continue
+        for name in ("sample", "fieldwork"):
+            if _text_breaches(fields[name]):
+                fields[name] = NOT_STATED
         key = (record["id"], subject.casefold(), float(value))
         if key in seen:
             continue
         seen.add(key)
         kept.append({
             "subject": subject, "value": float(value), "unit": "%", "quote": " ".join(quote.split()),
-            "measure": _measure(fig.get("measure"), text), "source": _said(fig.get("source"), text),
-            "fieldwork": _said(fig.get("fieldwork"), text), "sample": _said(fig.get("sample"), text),
-            "population": _said(fig.get("population"), text), "evidence_id": record["id"],
+            **fields, "evidence_id": record["id"],
             "platform": record.get("platform"), "handle": record.get("handle"), "url": record.get("url"),
             "posted_at": record.get("posted_at"), "market": record.get("market"),
             "source_market": record.get("source_market"),
@@ -351,6 +371,34 @@ def _paired(subject: str, value: float, quote: str) -> bool:
 
 
 _WORD_GAP = re.compile(r"[^\W\d_]+")
+# Values written as a list ('40% and 22%', '40%, 22%'): which subject each belongs to is a pairing code cannot settle.
+_JOIN = r"\s*(?:,|;|&|/|\band\b|\bor\b|\bto\b|\bvs\b\.?|\bversus\b)\s*"
+_LIST_AFTER = re.compile(_JOIN + PERCENT.pattern, re.IGNORECASE)
+_LIST_BEFORE = re.compile(r"\d{1,3}(?:[.,]\d{1,2})?\s?(?:%|per\s?cent\b)" + _JOIN + r"$", re.IGNORECASE)
+_SENTENCE_END = re.compile(r"[.!?;](?=\s|$)")
+
+
+def _listed(value: float, quote: str, text: str) -> bool:
+    """Whether the record's sentence that holds the quote writes this value in a list of values or says
+    'respectively' ('Support for the ANC and DA stood at 40% and 22% respectively'). The model chooses where the quote
+    starts and ends, so the check reads the record's own sentence, never the quote alone. Such a figure is cut, never
+    re-paired by position."""
+    body = normalise(" ".join(text.split())).casefold()
+    span = normalise(" ".join(quote.split())).casefold()
+    at = body.find(span)
+    while at >= 0:
+        start = max((m.end() for m in _SENTENCE_END.finditer(body, 0, at)), default=0)
+        end = next((m.end() for m in _SENTENCE_END.finditer(body, at + len(span))), len(body))
+        if "respectively" in body[start:end]:
+            return True
+        for m in PERCENT.finditer(body, at, at + len(span)):
+            n = _number(m.group(1))
+            if n is None or abs(n - value) >= 1e-9:
+                continue
+            if _LIST_AFTER.match(body[:end], m.end()) or _LIST_BEFORE.search(body[start:m.start()]):
+                return True
+        at = body.find(span, at + 1)
+    return False
 
 
 def _day(posted_at) -> str:
@@ -408,6 +456,8 @@ def _figure(value: float) -> str:
 
 def lead(built: list[dict]) -> str:
     """The answer in one line, written by code from the most recent table's own rows and fields only."""
+    from core.agent.checks import _text_breaches
+
     if not built:
         return ""
     table = built[0]
@@ -416,21 +466,32 @@ def lead(built: list[dict]) -> str:
     shares = ", ".join(f"{r['subject']} {_figure(r['value'])}" for r in table["rows"][:6])
     more = f" and {len(table['rows']) - 6} more" if len(table["rows"]) > 6 else ""
     published = f", published {when}" if when else ""
-    return f"{who}{published}: {shares}{more}."
+    line = f"{who}{published}: {shares}{more}."
+    return "" if _text_breaches(line) else line  # RULES.md rule 1, whoever builds the tables (privacy._figures too)
 
 
 def payload(question: str, built: list[dict], cut: dict, sweep: dict | None, records_read: int,
             status: str) -> dict:
     return {
         "question_kind": "quantitative",
-        "status": status,  # ok, none_found, failed, not_run
+        "status": status,  # ok, none_found, sweep_failed, failed, not_run, stopped
         "lead": lead(built),
         "tables": built,
         "checked": {"records_with_percentages": records_read, "figures_cut": cut},
-        "sweep": {k: sweep.get(k) for k in ("posts", "matched", "terms", "failed")} if sweep else None,
+        "sweep": _sweep_view(sweep),
         "basis": ("Figures are copied from the cited posts and articles, each checked word for word against its "
                   "source. 42 did not compute them, and figures from different sources are never combined."),
     }
+
+
+def _sweep_view(sweep: dict | None) -> dict | None:
+    """The sweep as run.figures carries it. After a failed read, matched is null, not 0: nothing was counted."""
+    if not sweep:
+        return None
+    view = {k: sweep.get(k) for k in ("posts", "matched", "terms", "failed")}
+    if view["failed"]:
+        view["failed"], view["matched"] = SWEEP_FAILED, None
+    return view
 
 
 def as_json(value) -> str:

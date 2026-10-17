@@ -12,7 +12,7 @@ import threading
 from datetime import datetime, timezone
 
 from core.agent.context import Refused
-from core.agent.tools.socialcrawl import MARKET_PARAMS, MARKETS
+from core.agent.tools.socialcrawl import CALL_MARKET_PARAMS, MARKETS
 
 LOCK = threading.Lock()
 SHARE = "ask"
@@ -36,7 +36,7 @@ _URL = re.compile(r"\S*://\S*|\bwww\.\S*", re.IGNORECASE)
 
 
 def _market(params: dict) -> str | None:
-    for key in MARKET_PARAMS:
+    for key in CALL_MARKET_PARAMS:
         value = params.get(key)
         if isinstance(value, str) and value.strip().casefold() in MARKETS:
             return MARKETS[value.strip().casefold()]
