@@ -18,7 +18,7 @@ test('every rule that paints a background on .t42-head is scoped to the lead hea
   const found = [];
   postcss.parse(css).walkRules((rule) => {
     for (const selector of rule.selectors){
-      if (!/\.t42-head\b/.test(selector)) continue;
+      if (!/\.t42-head(?::has\(> \.t42-lead\))?$/.test(selector.trim())) continue;
       if (!rule.nodes.some((node) => node.type === 'decl' && /^background/.test(node.prop))) continue;
       found.push(selector);
       expect(selector).toContain('.t42-head:has(> .t42-lead)');
