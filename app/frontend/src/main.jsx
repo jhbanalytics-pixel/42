@@ -3,6 +3,7 @@ import 'ogilvy-intelligence-design-system/style.critical.css';
 import './styles/boot.css';
 import App from './App.jsx';
 import archivoUrl from './assets/fonts/archivo-variable.woff2?url';
+import martianMonoUrl from './assets/fonts/martian-mono-variable.woff2?url';
 import {scheduleDeferredStyles} from './deferredStyles.js';
 
 function StyleLoadError(){
@@ -29,8 +30,11 @@ const CRITICAL_FONT_FACES = [
 function bootstrapNightDeskFace(){
   if (typeof FontFace !== 'function' || !document.fonts || typeof document.fonts.add !== 'function') return Promise.resolve();
   const face = new FontFace('Archivo 42', 'url("' + archivoUrl + '") format("woff2")', {weight: '100 900', stretch: '62% 125%', display: 'swap'});
+  /* Control room's label face (styles/controlroom.css), registered the same way. */
+  const mono = new FontFace('Martian Mono 42', 'url("' + martianMonoUrl + '") format("woff2")', {weight: '300 600', stretch: '75% 112.5%', display: 'swap'});
   document.fonts.add(face);
-  return face.load().catch(() => undefined);
+  document.fonts.add(mono);
+  return Promise.all([face.load(), mono.load()]).catch(() => undefined);
 }
 
 function bootstrapCriticalFonts(){
@@ -54,6 +58,7 @@ bootstrapCriticalFonts().then(() => {
       import('./styles/dossier.css'),
       import('./styles/controls42.css'),
       import('./styles/nightdesk.css'),
+      import('./styles/controlroom.css'),
     ]),
     onReady: () => document.documentElement.setAttribute('data-product-styles', 'ready'),
     onFailure: () => {

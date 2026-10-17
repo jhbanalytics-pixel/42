@@ -56,29 +56,32 @@ function composite(foreground, background, alpha) {
   return "#" + fg.map((value, index) => Math.round(value * alpha + bg[index] * (1 - alpha)).toString(16).padStart(2, "0")).join("");
 }
 
+/* Control room palette, 17 October 2026: Albert chose the Control room
+   direction (Gamma 3.1 v8). Near-black red field, Ogilvy red #E4002B as the
+   one filled action, signal red for accent text. */
 const expected = {
   midnight: {
-    "--canvas": "#151214", "--surface": "#1D191C", "--ink": "#F5F1F3",
-    "--muted": "#B6A8AF", "--accent": "#B52B3F", "--accent-text": "#F08A99",
-    "--accent-ink": "#FFFFFF", "--accent-soft": "#3B2027",
+    "--canvas": "#0B0305", "--surface": "#160609", "--ink": "#F8EDEA",
+    "--muted": "#AD9799", "--accent": "#E4002B", "--accent-text": "#FF4A5E",
+    "--accent-ink": "#FFFFFF", "--accent-soft": "#3A0A14",
     "--down": "#E41424", "--down-text": "#FF8D96", "--neg": "var(--down)",
-    "--up": "#6DCB9C", "--steady": "#B6A8AF",
+    "--up": "#6DCB9C", "--steady": "#AD9799",
   },
   daylight: {
-    "--canvas": "#FAF8F9", "--surface": "#FFFFFF", "--ink": "#261E23",
-    "--muted": "#6E5D66", "--accent": "#9D263B", "--accent-text": "#9D263B",
-    "--accent-ink": "#FFFFFF", "--accent-soft": "#F8E8ED",
+    "--canvas": "#FBF5F3", "--surface": "#FFFFFF", "--ink": "#1C0A0D",
+    "--muted": "#624D50", "--accent": "#E4002B", "--accent-text": "#B00026",
+    "--accent-ink": "#FFFFFF", "--accent-soft": "#FBE3E6",
     "--down": "#E41424", "--down-text": "#A60815", "--neg": "var(--down)",
-    "--up": "#176848", "--steady": "#6E5D66",
+    "--up": "#176848", "--steady": "#624D50",
   },
 };
 
 test("critical CSS gives the first paint neutral surfaces before the full theme loads", () => {
   const firstPaint = declarations(bootCss, ":root");
-  expect(firstPaint["--color-ink-canvas"]).toBe("#151214");
-  expect(firstPaint["--color-ink-panel"]).toBe("#1D191C");
-  expect(firstPaint["--color-daylight-paper"]).toBe("#FAF8F9");
-  expect(firstPaint["--color-daylight-ink"]).toBe("#261E23");
+  expect(firstPaint["--color-ink-canvas"]).toBe("#0B0305");
+  expect(firstPaint["--color-ink-panel"]).toBe("#160609");
+  expect(firstPaint["--color-daylight-paper"]).toBe("#FBF5F3");
+  expect(firstPaint["--color-daylight-ink"]).toBe("#1C0A0D");
   expect(firstPaint["--color-white"]).toBe("#FFFFFF");
   expect(bootCss).not.toContain(':root[data-dir="midnight"]');
   expect(bootCss).not.toContain(':root[data-dir="daylight"]');
