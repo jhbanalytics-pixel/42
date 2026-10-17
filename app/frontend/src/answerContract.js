@@ -6,7 +6,7 @@
 const STATUSES = ['complete', 'partial', 'insufficient_evidence', 'refused'];
 const LABELS = ['observed', 'corroborated', 'single_source', 'inferred'];
 const KINDS = ['observation', 'interpretation', 'recommendation', 'proposal'];
-const PLATFORMS = ['tiktok', 'instagram', 'youtube', 'reddit', 'x', 'threads', 'bluesky', 'facebook', 'linkedin', 'telegram', 'news', 'music_chart', 'wikipedia', 'web'];
+const PLATFORMS = ['tiktok', 'instagram', 'youtube', 'reddit', 'x', 'threads', 'bluesky', 'facebook', 'linkedin', 'pinterest', 'telegram', 'news', 'music_chart', 'wikipedia', 'web'];
 const MARKETS = ['ZA', 'NG', 'KE'];
 
 const str = { type: 'string' };
