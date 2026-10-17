@@ -58,6 +58,9 @@ RESEARCH_TERMS_PER_MARKET = 40
 RESEARCH_CALLS_PER_MARKET = 1
 MULTI = "search/multi"
 EXPANSION_ROWS = ("14", "16")
+# Rows 14i and 16w (job.REELS_ROW, job.WIDE_ROW) carry no seed but search the seeds' own queries again: they are no
+# harvest, panel or feed call, so what they find is never counted as already shown.
+AGAIN_ROWS = ("14i", "16w")
 READ_OK = ("ok", "empty", "cached")
 ROW_FAMILY = {"1": "feed", "2": "board", "3": "chart", "4": "chart", "6": "chart", "7": "forum", "8": "panel",
               "23": "panel", "23a": "panel", "5": "location", "23b": "x_trends"}
@@ -319,7 +322,7 @@ def yield_rows(day, market, done, known=frozenset()):
     """One seed_queue row per cluster and lane used in one market's run. done holds (call, result, parsed)
     in run order; a call carries its Pick as call.seed (None outside rows 14 and 16)."""
     shown = {p.get("creator_id") for call, _, parsed in done if getattr(call, "seed", None) is None
-             for p in (parsed or {}).get("posts", [])}
+             and getattr(call, "row", None) not in AGAIN_ROWS for p in (parsed or {}).get("posts", [])}
     groups = {}
     for call, result, parsed in done:
         pick = getattr(call, "seed", None)
