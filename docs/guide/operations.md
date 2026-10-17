@@ -48,17 +48,17 @@ Flags for both live in `core/api/deploy_flags.env`.
 
 ## Caps
 
-Shared daily and monthly credit and spend caps live in `core/config/caps.yaml`, read by `core/config/caps.py`. Supplier credit guards run in `core/collect/socialcrawl_client.py` before a live call; Ask and the brief also guard their model spend. A test fails if the file drifts from the documented table.
+Shared daily and monthly credit and spend caps live in `core/config/caps.yaml`, read by `core/config/caps.py`. Supplier credit guards run in `core/collect/socialcrawl_client.py` before a live call; Ask and the brief also guard their model spend. The caps are set in the table in `docs/full-42/SETUP.md` ("Cost and credit guards"), and a test fails if the file drifts from that table. The table below is a copy for operators; SETUP.md wins if they differ.
 
 | Cap | Value | What stops |
 |---|---|---|
-| `ENGINE_DAILY` | 2,400 credits: collect 2,000, confirm 300, reserve 100 | Each morning step stops at its share |
+| `ENGINE_DAILY` | 4,400 credits: collect 4,000, confirm 300, reserve 100 | Each morning step stops at its share |
 | `ASK_DAILY` | 600 credits, all questions and investigations | Ask answers from the warehouse only, with a notice |
 | `SCHEDULED_DAILY` | 120 credits, a share of `ASK_DAILY` | The due schedule is skipped and tried next time |
 | `VIDEO_DAILY` | 60 clips and 600 credits | Video reading stops for the day |
 | `PULSE_DAILY` | 60 credits | The intraday pulse stops |
 | `EVAL_DAILY` | 0 live credits (100 for a deliberate refresh) | Evaluations run in replay mode |
-| `MONTHLY` | 80,000 credits | Ask and build work are throttled first; the morning run is protected |
+| `MONTHLY` | 180,000 credits | Ask and build work are throttled first; the morning run is protected |
 | `BALANCE_FLOOR` | 20,000 credits | Paid live supplier calls stop below it; cached responses and free routes remain subject to their other checks |
 | `MODEL_DAILY_USD` | USD 50 a day | Ask may use a quick lookup if it still fits; otherwise the question is not researched. Unexplained trends are held back, reason shown, numbers and posts alongside |
 

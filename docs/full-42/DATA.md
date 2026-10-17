@@ -757,7 +757,7 @@ Audience neutrality: the score uses no demographic input; every component is beh
 
 ## 5. Seed expansion budget
 
-Daily budget B = (monthly cap minus month spend minus reserve) / days left, from credit_ledger, never above collect's share of ENGINE_DAILY (2,000 credits, SETUP.md). Confirmation has its own 300-credit share and is not paid from B. B is spent in this order:
+Daily budget B = (monthly cap minus month spend minus reserve) / days left, from credit_ledger, never above collect's share of ENGINE_DAILY (4,000 credits, SETUP.md). Confirmation has its own 300-credit share and is not paid from B. B is spent in this order:
 
 1. Measured lanes, about 40% of B: feeds, boards, charts, counters and the panels, including the hub panels (SOURCES.md rows 1 to 12, 22, 23, 23a). Their protocols stay fixed and are not retuned by yield; a change is a new protocol and a new series.
 2. Exploration floor: at least 10% of the expansion share (about 27 credits, paid inside row 14 as SOURCES.md says), reserved next. Hub panels and placebo are never paid from it.
