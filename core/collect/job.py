@@ -150,7 +150,8 @@ SEARCH_PAGES, PAGES_SHARE, MULTI_CREDITS = 2, 2000, 10
 REELS_TOP = {"ZA": 1, "NG": 1, "KE": 1}
 REELS_ROW, REELS_ROUTE = "14i", "instagram/search/reels"
 # Row 16w, the wider net: each market's first row 16 queries (then row 14's) searched again on the platforms rows 14
-# and 16 never reach, and inside the market's own subreddit. LinkedIn goes through search/multi alone (5 a call); the
+# and 16 never reach, and inside the market's own subreddit; the market's placebo search picks (up to the same count)
+# are searched the same way, so the found_platforms base rate sees these platforms too (wide_calls). LinkedIn goes through search/multi alone (5 a call); the
 # subreddit, Bluesky and Pinterest searches are 1 each. The plan holds 24 a market, 72 a run, made route by route
 # across the markets, cheapest first, so a day with little room (the Monday and Thursday industry board) still spreads
 # them over the markets. Like row 14i they carry no seed,
@@ -505,19 +506,34 @@ def wide_params(route, query, market, day):
     raise ValueError(f"no row {WIDE_ROW} call for route {route!r}")
 
 
+# The row 14 and 16 calls row 16w searches again: search text only. A template seed's query is a clip or audio id or
+# a creator handle, which a text search on another network cannot find.
+WIDE_SOURCES = (("16", "search/multi"), ("14", "tiktok/search/top"))
+
+
 def wide_calls(market, day, regular, top=None):
     """Row 16w for a market: for each (route, count) in top, that route's search on the market's first count
-    distinct queries of its planned row 16 calls, then of its row 14 calls (placebo searches left out). They carry
-    no seed, as row 14i's do not, and their protocol names the route's planned count."""
-    queries = []
-    for row in ("16", "14"):
+    distinct queries of its planned row 16 search/multi calls, then of its row 14 tiktok/search/top calls, and on
+    its first count placebo search picks (row 23c, the same two routes) besides, placebo first. A placebo item is
+    searched the way the searched real items are, so the found_platforms base rate (tvf_placebo_base) sees row 16w's
+    platforms too (TRUST.md A2); placebo picks are about 5% of a market's expansion calls, so count covers them on
+    most days. They carry no seed, as row 14i's do not; a placebo search keeps the placebo lane. Their protocol
+    names the route's planned count."""
+    placebo, queries = [], []
+    for c in regular:
+        if c.row == seeding.PLACEBO_ROW and c.lane == "placebo" and c.route in dict(WIDE_SOURCES).values() \
+                and c.seed is not None and c.seed.query and c.seed.query not in [q for q, _, _ in placebo]:
+            placebo.append((c.seed.query, c.seed_key, c.lane))
+    for row, route in WIDE_SOURCES:
         for c in regular:
-            if c.row == row and c.seed is not None and c.lane != "placebo" and c.seed.query \
-                    and c.seed.query not in [q for q, _, _ in queries]:
+            if c.row == row and c.route == route and c.seed is not None and c.lane != "placebo" and c.seed.query \
+                    and c.seed.query not in [q for q, _, _ in placebo + queries]:
                 queries.append((c.seed.query, c.seed_key, c.lane))
     calls = []
     for route, count in WIDE_TOP if top is None else top:
-        for query, key, lane in queries[:count]:
+        if count <= 0:
+            continue
+        for query, key, lane in placebo[:count] + queries[:count]:
             params = wide_params(route, query, market, day)
             calls.append(Call(WIDE_ROW, route, params, market, lane, seed_key=key,
                               protocol=search_protocol(route, params, count)))

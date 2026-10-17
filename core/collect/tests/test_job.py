@@ -1538,9 +1538,13 @@ def test_unaffordable_placebo_is_skipped_with_expansion_share_reason():
                              item_id=f"topic|low {i}"), priority=96 - i) for i in range(96)]
     client = FakeClient()
     run = collect(client, seeds=queue)
-    placebo_calls = [c for c in client.calls if c["lane"] == "placebo"]
+    placebo_calls = [c for c in client.calls if c["lane"] == "placebo" and c["route"] == "tiktok/search/top"]
     cut = [r for r in run.records if r["row"] == "23c" and r["status"] == "skipped"]
     assert [c["seed_key"] for c in placebo_calls] == [f"topic|low {i}" for i in range(95)]
+    # Row 16w searches the first placebo picks again, each route at most its count a market.
+    wide = [c for c in client.calls if c["lane"] == "placebo" and c["route"] != "tiktok/search/top"]
+    for route, count in job.WIDE_TOP:
+        assert len([c for c in wide if c["route"] == route]) <= count * len(job.MARKETS)
     assert len(cut) == 1 and "expansion share" in cut[0]["reason"]
 
 

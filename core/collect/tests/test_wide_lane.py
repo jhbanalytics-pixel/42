@@ -1,6 +1,7 @@
 """Row 16w: the morning run's wider net, the market's subreddit, LinkedIn, Bluesky and Pinterest searches on each
 market's first queries."""
 
+import random
 from datetime import date
 
 import pytest
@@ -8,7 +9,7 @@ import pytest
 from core.collect import job
 from core.collect.parse import parse
 from core.collect.socialcrawl_client import Refused, quote_for
-from core.collect.tests.test_job import NOW, FakeClient, FakeGeo, MONDAY, TUESDAY, collect, fake_item_id
+from core.collect.tests.test_job import NOW, FakeClient, FakeGeo, MONDAY, TUESDAY, collect, fake_item_id, queue_seed
 
 FETCHED = "2026-09-28T00:30:00Z"
 
@@ -66,6 +67,69 @@ def test_the_lane_leaves_every_earlier_call_and_the_curated_panel_as_they_were_a
     cap = job.load_caps()["ENGINE_DAILY"]["collect"]
     local = job.local_sources.total_hold(job.local_sources.plan(day))
     assert full["total"] + local + job.google_trends.MAX_SC_CREDITS <= cap
+
+
+def _thin_market(extra=()):
+    """ZA on a thin day: one harvest hashtag, row 16 empty, and the queued seeds in extra."""
+    live = job.seeding.live([queue_seed(f"filler {i}", template="tiktok/search/top") for i in range(6)] + list(extra),
+                            TUESDAY)["ZA"]
+    return job.expansion_calls("ZA", TUESDAY, {"hashtag": ["amapiano"], "sound": []}, random.Random(1), set(), 20,
+                               queue=live, multi_top=2)
+
+
+def test_a_template_seed_key_is_never_searched_on_the_wider_net():
+    # A clip id, an audio id or a handle is the query of a template seed; a text search elsewhere cannot find it.
+    templated = [queue_seed("7301234567890123456", template="tiktok/song/videos", kind="sound"),
+                 queue_seed("kabza_de_small", template="tiktok/profile/videos", kind="creator"),
+                 queue_seed("mzansi_x", template="twitter/user/tweets", kind="creator"),
+                 queue_seed("ig_audio_77", template="instagram/audio/reels", kind="sound")]
+    regular = _thin_market(templated)
+    assert {c.seed.query for c in regular if c.seed} >= {"7301234567890123456", "kabza_de_small", "mzansi_x"}
+    calls = job.wide_calls("ZA", TUESDAY, regular)
+    searched = {c.params["query"] for c in calls}
+    assert searched and not searched & {"7301234567890123456", "kabza_de_small", "mzansi_x", "ig_audio_77"}
+    text = {c.seed.query for c in regular if (c.row, c.route) in (("16", "search/multi"), ("14", "tiktok/search/top"))}
+    assert searched <= text and len(searched) == 3  # the slots go to text searches, none left empty
+
+
+def test_placebo_search_picks_are_searched_on_every_wider_net_route_as_the_real_ones_are():
+    # found_platforms is shown only above the placebo base rate (tvf_placebo_base), so a placebo item must be
+    # searched on the same platforms a searched real item is, or real items pass on row 16w's platforms alone.
+    placebo = [queue_seed("low topic", lane="placebo", template="tiktok/search/top", item_id="topic|low"),
+               queue_seed("low news", lane="placebo", template="search/multi", item_id="topic|lownews"),
+               queue_seed("low sound", lane="placebo", template="tiktok/song/videos", kind="sound")]
+    regular = _thin_market(placebo)
+    assert {c.seed.query for c in regular if c.row == job.seeding.PLACEBO_ROW} >= {"low topic", "low news"}
+    calls = job.wide_calls("ZA", TUESDAY, regular)
+    by_lane = {}
+    for c in calls:
+        by_lane.setdefault(c.lane, set()).add(c.route)
+    routes = {route for route, count in job.WIDE_TOP if count}
+    assert by_lane.get("placebo") == routes == by_lane["expansion"]
+    placed = [c for c in calls if c.lane == "placebo"]
+    assert {(c.route, c.params["query"]) for c in placed} == {(r, q) for r in routes for q in ("low topic", "low news")}
+    assert {c.seed_key for c in placed} == {"topic|low", "topic|lownews"}
+    assert all(c.seed is None and c.lane_class() == "search_presence" for c in placed)
+    # The placebo searches come first in each route, so a day short of room drops a real search, not the base's.
+    for route in routes:
+        assert [c.lane for c in calls if c.route == route][:2] == ["placebo", "placebo"]
+
+
+def test_placebo_wider_searches_are_held_to_the_route_count():
+    placebo = [queue_seed(f"low topic {i}", lane="placebo", template="tiktok/search/top", item_id=f"topic|low {i}")
+               for i in range(6)]
+    regular = _thin_market(placebo)
+    assert len([c for c in regular if c.row == job.seeding.PLACEBO_ROW]) == 6
+    calls = job.wide_calls("ZA", TUESDAY, regular)
+    for route, count in job.WIDE_TOP:
+        assert [c.params["query"] for c in calls if c.route == route and c.lane == "placebo"] == [
+            f"low topic {i}" for i in range(count)]
+
+
+def test_a_route_turned_off_searches_no_placebo_either():
+    placebo = [queue_seed("low topic", lane="placebo", template="tiktok/search/top", item_id="topic|low")]
+    calls = job.wide_calls("ZA", TUESDAY, _thin_market(placebo), top=(("bluesky/search", 0), ("pinterest/search", 1)))
+    assert {c.route for c in calls} == {"pinterest/search"}
 
 
 def test_a_zero_count_turns_a_route_off(monkeypatch):
