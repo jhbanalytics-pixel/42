@@ -2352,6 +2352,28 @@
         ]
       },
       {
+        "file": "core/api/Dockerfile",
+        "final_stage_from": "python:3.13-slim",
+        "user": "f42",
+        "entrypoint": null,
+        "cmd": [
+          "sh",
+          "-c",
+          "exec uvicorn \"$APP_MODULE\" --host 0.0.0.0 --port \"${PORT:-8080}\" --workers 1"
+        ]
+      },
+      {
+        "file": "core/setup/jobs.Dockerfile",
+        "final_stage_from": "python:3.13-slim",
+        "user": "10001",
+        "entrypoint": null,
+        "cmd": [
+          "python",
+          "-c",
+          "raise SystemExit('no job command set: deploy with python -m <module>')"
+        ]
+      },
+      {
         "file": "engine/Dockerfile.staging",
         "final_stage_from": "python:3.13-slim@sha256:16f75ad0fbc6c4883a8afd63b2d700c3cf68ccffc1aaeca5304ca0a3a908451f",
         "user": "appuser",
@@ -2410,6 +2432,24 @@
         ],
         "pushed_images": [
           "us-central1-docker.pkg.dev/ogilvy-trends-v2/intelligence-42/listening-post-question:${COMMIT_SHA}"
+        ]
+      },
+      {
+        "file": "core/api/cloudbuild.yaml",
+        "dockerfiles": [
+          "core/api/Dockerfile"
+        ],
+        "pushed_images": [
+          "${_IMAGE}"
+        ]
+      },
+      {
+        "file": "core/setup/cloudbuild.jobs.yaml",
+        "dockerfiles": [
+          "core/setup/jobs.Dockerfile"
+        ],
+        "pushed_images": [
+          "${_IMAGE}:${_TAG}"
         ]
       },
       {
