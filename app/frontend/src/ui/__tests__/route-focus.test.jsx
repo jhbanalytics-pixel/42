@@ -381,6 +381,8 @@ const RAIL_COLOURS = `(function(){
   probe.style.color = 'var(--accent)';
   document.querySelector('nav[aria-label="Main"]').appendChild(probe);
   var accent = getComputedStyle(probe).color;
+  probe.style.color = 'var(--accent-text)';
+  var accentText = getComputedStyle(probe).color;
   probe.style.color = 'var(--ink)';
   var ink = getComputedStyle(probe).color;
   probe.remove();
@@ -393,7 +395,7 @@ const RAIL_COLOURS = `(function(){
       if (String(style[key]).indexOf(accent) >= 0) found.push(node.tagName.toLowerCase() + ' ' + (node.textContent || '').trim().slice(0, 20) + ' ' + key);
     });
   });
-  return {accent: accent, ink: ink, found: found, marker: {colour: current.borderInlineStartColor, width: current.borderInlineStartWidth}};
+  return {accent: accent, accentText: accentText, ink: ink, found: found, marker: {colour: current.borderInlineStartColor, width: current.borderInlineStartWidth}};
 })()`;
 
 test.skipIf(!CHROME)('the rail sits beside the workspace, Tab walks it, a keyboard move lands on the page heading and marks the page, and only the focus ring is red', async () => {
@@ -437,7 +439,10 @@ test.skipIf(!CHROME)('the rail sits beside the workspace, Tab walks it, a keyboa
   expect(result.tabbed.visible).toBe(true);
   expect(result.tabbed.outline).toBe('solid');
   expect(parseFloat(result.tabbed.width)).toBeGreaterThanOrEqual(2);
-  expect(result.tabbed.colour).toBe(result.colours.accent);
+  /* Control room, 17 October 2026: the ring takes the readable accent text
+     every focus ring in the app uses (app.css .app :focus-visible); the
+     filled accent and the text accent were one colour in Light before. */
+  expect(result.tabbed.colour).toBe(result.colours.accentText);
   expect(result.hash).toBe('#/investigations');
   expect(result.landed && result.landed.text).toBe('Investigations');
   expect(result.marked).toEqual(['Investigations']);

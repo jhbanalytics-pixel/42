@@ -18,6 +18,7 @@ import {FindingCard, FigureTiles, PlatformMarks} from './ui/AskBriefing.jsx';
 import {confidenceTag, figureTiles, gapSplit, platformTotals, scopeWords, withParents} from './askEvidence.js';
 import {RankedAnswer} from './RankedAnswer.jsx';
 import {EntityLists} from './EntityLists.jsx';
+import {ReportedFigures} from './ReportedFigures.jsx';
 import {ResearchLog, inMarket} from './ui/ResearchLog.jsx';
 import {SourcePanel} from './ui/SourcePanel.jsx';
 import {CostConfirm} from './ui/SpikeConfirm.jsx';
@@ -495,6 +496,7 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
           renderSources={(claim) => <ClaimSources claim={claim} records={records} answer={answer} pinnedId={pinnedId} onPin={setPinnedId} />} />
         <EntityLists record={record} windowLabel={windowWords}
           renderSources={(claim, evidence_ids) => <ClaimSources claim={{...claim, evidence_ids}} records={records} answer={answer} pinnedId={pinnedId} onPin={setPinnedId} />} />
+        <ReportedFigures record={record} />
         <p id={shortId} className="ask42-short">{hasSummary ? <ShortAnswer text={answer.short_answer} /> : noShortAnswer(answer, record)}</p>
         {hasSummary && summary.kind === 'shown_rewritten' && <p className="ask42-short-note ask42-muted">{summary.sentence}</p>}
 

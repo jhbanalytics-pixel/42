@@ -117,6 +117,7 @@ def test_a_zero_count_turns_a_markets_lane_off(monkeypatch):
     collect(client)
     assert not reel_calls(client)
     monkeypatch.setattr(job, "REELS_TOP", {"ZA": 0, "NG": 0, "KE": 1})
+    monkeypatch.setattr(job, "WIDE_TOP", ())  # row 16w would take the room a KE reel search needs
     planned = reels(job.plan(TUESDAY))
     assert len(planned["KE"]) == 1 and not planned["NG"] and not planned["ZA"]
 

@@ -450,9 +450,9 @@ def test_daily_profile_batches_fit_residual_planned_holds(monkeypatch):
         caps["ENGINE_DAILY"]["collect"] = share
         monkeypatch.setattr(job, "load_caps", lambda caps=caps: copy.deepcopy(caps))
         for day in (date(2026, 9, 30), date(2026, 10, 5)):
-            # Row 14i takes only the room left after the rotation, so the rotation is read without it.
-            baseline = job.plan(day, include_curated=False, reels={})
-            planned = job.plan(day, reels={})
+            # Rows 16w and 14i take only the room left after the rotation, so the rotation is read without them.
+            baseline = job.plan(day, include_curated=False, reels={}, wide=False)
+            planned = job.plan(day, reels={}, wide=False)
             assert job.plan(day)["total"] + local_sources.total_hold(local_sources.plan(day)) <= share
             local_hold = local_sources.total_hold(local_sources.plan(day))
             residual = share - baseline["total"] - local_hold

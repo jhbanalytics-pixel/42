@@ -40,6 +40,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PROMPT_FILES = (
     "core/agent/ask.py",
     "core/agent/critic.py",
+    "core/agent/figures.py",
     "core/agent/investigate.py",
     "core/agent/tools/sql_query.py",
     "core/agent/toolset.py",

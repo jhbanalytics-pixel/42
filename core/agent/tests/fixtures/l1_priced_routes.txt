@@ -32,6 +32,9 @@ reddit/search/comments GET
 threads/search GET
 facebook/search/posts GET
 linkedin/search/posts GET
+bluesky/search GET
+pinterest/search GET
+google_play/app-list GET
 google_news/search GET
 google_trends/trending GET
 search/multi GET

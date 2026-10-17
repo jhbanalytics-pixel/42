@@ -687,7 +687,7 @@ def test_draft_leaves_the_plan_totals_unchanged():
     before, after = sw.check_draft(hubs, local, new_hubs, new_local, RUN_DATE)
     assert before == after == (1830, 34)
     config = {"markets": job.load_config()["markets"], "hubs": yaml.safe_load(new_hubs)}
-    assert job.plan(RUN_DATE, config=config, reels={})["total"] == 1830
+    assert job.plan(RUN_DATE, config=config, reels={}, wide=False)["total"] == 1830
     doc = yaml.safe_load(new_hubs)
     assert doc["markets"] == yaml.safe_load(hubs)["markets"]
     ng_x = doc["draft"]["markets"]["ng"]["x"]

@@ -119,7 +119,8 @@ def refusals(ctx, name, args):
 def test_tool_names():
     assert toolset.TOOL_NAMES == ["sql_query", "search_posts", "socialcrawl_call", "rising_topics", "recall_findings",
                                   "save_finding", "budget_status", "resolve_dates", "get_comments", "get_transcript",
-                                  "watch_video", "log_forecast", "query_rows", "history", "analogues"]
+                                  "watch_video", "read_article", "log_forecast", "query_rows", "history",
+                                  "analogues"]
 
 
 def test_every_tool_has_a_closed_schema_and_a_description(warehouse_module):

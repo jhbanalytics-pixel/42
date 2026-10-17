@@ -66,6 +66,7 @@ Full reasoning, every platform family's verdict and every route's parameters are
 | 14 | tiktok/search/top country=XX publish_time=this-week seen= (50 candidates a market, KE 60 with its dropped feed pulls; 15% exploration; no cluster above 25%) | 160 | 160 |
 | 15 | tiktok/search/hashtag max_age_days=7; search/suggestions region | 30 | 30 |
 | 16 | search/multi on instagram, youtube, reddit, twitter, threads, facebook, since=D-7, top 7 per market | 21 | ~105 |
+| 16w | Wider net, from 16 Oct 2026: reddit/subreddit/search in the market's own subreddit (sort=new, timeframe=week), bluesky/search (sort=latest, since=D-7), pinterest/search, and search/multi platforms=linkedin, each on a market's first 3 row 16 queries; only in the room the share leaves after every earlier row and the curated panel, before row 14i (core/collect/job.py WIDE_TOP; research/14-socialcrawl-endpoint-audit.md) | 36 | 72 |
 | 17 | youtube/search/advanced region published_after, candidates ranked 8-10 | 9 | 9 |
 | 18 | google_news/search location_name, time_range=week, top 10 per market | 30 | 30 |
 | 19 | tiktok/post/comments sort=top (50); youtube/video/comments (10) | 60 | 60 |
