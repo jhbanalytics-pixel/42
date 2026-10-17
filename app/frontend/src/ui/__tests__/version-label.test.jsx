@@ -842,3 +842,56 @@ describe('compareVersions', () => {
     expect(compareVersions('3.0.0', '2.99.99')).toBeGreaterThan(0);
   });
 });
+
+/* The candidate (17 October 2026) ships a website release that the release
+   lead has not numbered yet: VERSION stays where it is until bind. Its lines
+   sit under the newest version as a "Next release (not numbered yet)" block,
+   so What's new lists what the build carries, and bind moves them under
+   their own version heading with the go-live date. */
+describe('a release not numbered yet', () => {
+  const NEXT = '### Next release (not numbered yet)';
+
+  test('a Next release block parses under its version with its own lines', () => {
+    const text = [
+      '## 2.4.0 (15 October 2026)', '', 'Release Alpha.', '', '- An Alpha line.', '',
+      NEXT, '', '- A new line.', '- Another new line.', '',
+      '## 2.3.0 (12 October 2026)', '', 'Release D0.', '', '- An older line.',
+    ].join('\n');
+    const releases = parseChangelog(text);
+    expect(releases.map((r) => r.version)).toEqual(['2.4.0', '2.3.0']);
+    expect(releases[0].lines).toEqual(['An Alpha line.']);
+    expect(releases[0].updates).toEqual([{title: 'Next release', when: 'Not numbered yet', lines: ['A new line.', 'Another new line.']}]);
+  });
+
+  test('the changelog lists the candidate scope under the newest version, in plain lines', () => {
+    const newest = parseChangelog(CHANGELOG)[0];
+    expect(newest.version).toBe(VERSION_TEXT.trim());
+    const pending = newest.updates.filter((u) => u.title === 'Next release');
+    expect(pending).toHaveLength(1);
+    expect(pending[0].when).toBe('Not numbered yet');
+    for (const line of pending[0].lines){
+      expect(line.trim()).toBe(line);
+      expect(line).not.toBe('');
+      expect(line).not.toMatch(/^-|—|–|-{2}|[*_`#]/);
+    }
+    const said = pending[0].lines.join(' ');
+    for (const scope of [/Control room/, /Dark is now the default/, /LED/, /figures/, /word for word/, /news/, /Deep/, /Bluesky/, /4,000/]){
+      expect(said).toMatch(scope);
+    }
+    /* Alpha's own lines stay as they shipped. */
+    expect(newest.lines.join(' ')).not.toMatch(/Control room|Deep/);
+  });
+
+  test('the panel shows the block under the running version, which is still the only This version', () => {
+    render(<VersionNote release={{version: VERSION_TEXT.trim(), sha: '0123456789ab', changelog: CHANGELOG}} />);
+    click(versionButton());
+    const entries = [...panel().querySelectorAll('.rail42-whatsnew-release')];
+    expect(entries.filter((entry) => entry.querySelector('.rail42-whatsnew-current'))).toHaveLength(1);
+    const blocks = [...entries[0].querySelectorAll(':scope > .rail42-whatsnew-update')];
+    const next = blocks.find((block) => block.querySelector('.rail42-whatsnew-update-title').textContent === 'Next release');
+    expect(next).toBeDefined();
+    expect(next.querySelector('.rail42-whatsnew-when').textContent).toBe('Not numbered yet');
+    expect([...next.querySelectorAll('li')].length).toBeGreaterThan(0);
+    expect(panel().textContent).not.toContain('Next, not live yet');
+  });
+});

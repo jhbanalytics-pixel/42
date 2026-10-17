@@ -12,6 +12,8 @@ At bind for every release, the version entry's lines are re-derived from the mer
 
 The newest release comes first, and VERSION at the root of the repository holds its number. Each version is a heading with the version and the date in brackets, or "next, not live yet" until the date is written in, then one line naming the release and one plain line per change. A jobs update is a "### Jobs update" heading with its date in brackets under its version, followed by its own lines. The panel in the menu marks the version the page runs as This version.
 
+A website release that is merged but not numbered yet keeps its lines under a "### Next release (not numbered yet)" heading under the newest version. At bind the release lead moves them under the release's own version heading, sets VERSION to match and writes in the go-live date.
+
 ## 2.4.0 (15 October 2026)
 
 Release Alpha, data quality, trend identity and research reliability.
@@ -29,6 +31,16 @@ Release Alpha, data quality, trend identity and research reliability.
 - Missing model usage keeps an explicit spending estimate. Missing counts and spending on the website remain unknown.
 - Dossier reloads preserve drafts, saved figures retain their source checks, and hidden evidence stays excluded from lexical searches.
 - Discover retains the context of its displayed results during a failed refresh. Timed out reads offer another attempt and discard late replies.
+
+### Next release (not numbered yet)
+
+- The Control room look: a near black red field with Ogilvy red as the one filled action, new interface faces and Material 3 motion timing. Dark is now the default theme; Light and Match system stay in the menu.
+- Today's lead draws its posts a day as a field of red LED cells behind its header. Screen readers skip it, because the panel states the same series.
+- Ask answers a question about figures, such as poll percentages, with the figures its sources report: one bar chart per source, with who ran it, when, the sample and the quoted words. A figure is kept only when its quote is found word for word in the record, and a hidden publisher's table is left out.
+- Ask searches live news it can cite and opens the article behind a news result to read it. A question about figures searches news first.
+- Ask's Deep level, several researchers in parallel and then a critic, is open to plain questions where the service has it switched on. The app does not offer a depth control yet.
+- The morning collection also searches Bluesky, Pinterest, LinkedIn and each market's subreddit, only in the room the day's collection share leaves after the earlier sources, and reads the Google Play app chart.
+- The collection share rises to 4,000 credits a day and the monthly cap to 180,000.
 
 ## 2.3.0 (12 October 2026)
 

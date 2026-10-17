@@ -23,7 +23,7 @@ export const CHECK_GAP_MS = 5 * 60 * 1000;
 export const CHECK_EVERY_MS = 15 * 60 * 1000;
 const SHA = /^[0-9a-f]{7,40}$/;
 const HEADING = /^## (\d+\.\d+\.\d+) \((.+)\)$/;
-const UPDATE = /^### (Jobs update) \((.+)\)$/;
+const UPDATE = /^### (Jobs update|Next release) \((.+)\)$/;
 const SERVED_KEY = 'f42-served-version';
 
 function rememberedServed(){
@@ -48,8 +48,10 @@ export function builtRelease(){
 
 /* A heading "## 2.2.0 (11 October 2026)", one line naming the release, then
    one "- " line per change. A "### Jobs update (date)" heading under a
-   version opens a dated jobs entry with its own lines. Anything before the
-   first heading is the numbering rule and is not shown. */
+   version opens a dated jobs entry with its own lines, and a "### Next
+   release (not numbered yet)" heading holds the lines of a website release
+   the lead has not numbered yet, until bind gives them their own version.
+   Anything before the first heading is the numbering rule and is not shown. */
 export function parseChangelog(text){
   const releases = [];
   let into = null;
@@ -66,7 +68,7 @@ export function parseChangelog(text){
     if (!current || !line) continue;
     const update = line.match(UPDATE);
     if (update){
-      into = {title: update[1], when: update[2], lines: []};
+      into = {title: update[1], when: update[2].charAt(0).toUpperCase() + update[2].slice(1), lines: []};
       current.updates.push(into);
       continue;
     }
