@@ -1528,6 +1528,17 @@ def test_a_flagged_keyword_is_dropped_and_a_label_built_on_it_gives_way():
     assert counts["net_keywords_dropped"] == 1 and counts["net_relabelled"] == 1
 
 
+def test_a_flagged_word_inside_a_deduped_bigram_label_still_takes_the_label():
+    # The label drops "school" because "school trip" holds it; a flag on "school" must still reach the label.
+    words = ["school trip", "school", "bus"]
+    label = cluster.label_for(words, [], [])
+    assert label == "school trip, bus"
+    [c], _ = run_net([net_cluster(labels=(label, "#kotaday"), keywords=words)],
+                     NetModel(flag=lambda t: t == "school"))
+    assert c["keywords"] == ["school trip", "bus"]
+    assert c["label"] == "#kotaday"
+
+
 def test_one_model_call_per_market_run_with_every_new_label_and_keyword_fenced():
     model = NetModel()
     clusters = [net_cluster(f"{DAY:%Y%m%d}-za-{t:03d}") for t in range(3)]

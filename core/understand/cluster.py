@@ -244,14 +244,36 @@ def _top(values, k=TOP_FACETS):
     return [v for v, _ in sorted(Counter(values).items(), key=lambda kv: (-kv[1], kv[0]))[:k]]
 
 
+def _label_keywords(keywords):
+    """The first LABEL_KEYWORDS non-blank keywords, less any whose words the ones kept already hold: ngram_range (1, 2)
+    ranks "load shedding" beside "load" and "shedding", which would label it "load shedding, load, shedding". A
+    keyword that holds all the words of kept ones takes the first one's place, so the bigram wins whichever ranks
+    first ("drum", "log", "log drum" gives "log drum")."""
+    kept = []
+    for k in (str(k) for k in keywords if str(k).strip()):
+        words = set(k.casefold().split())
+        inside = [n for n, c in enumerate(kept) if set(c.casefold().split()) < words]
+        if inside:
+            kept[inside[0]] = k
+            kept = [c for n, c in enumerate(kept) if n not in inside[1:]]
+        elif words <= {w for c in kept for w in c.casefold().split()}:
+            continue
+        elif len(kept) < LABEL_KEYWORDS:
+            kept.append(k)
+        else:
+            break
+    return kept
+
+
 def label_candidates(keywords, hashtags, sounds):
-    """The label candidates that pass the age scan, in order: the top three keywords, the top hashtag, the top sound.
-    The keywords are scanned one by one, joined with single spaces and in adjacent pairs, because the comma between
-    them hides "gen, alpha" from the scan."""
-    top = [str(k) for k in keywords if str(k).strip()][:LABEL_KEYWORDS]
+    """The label candidates that pass the age scan, in order: the top three keywords (_label_keywords), the top
+    hashtag that is not platform-generic or empty, the top sound. The keywords are scanned one by one, joined with
+    single spaces and in adjacent pairs, because the comma between them hides "gen, alpha" from the scan."""
+    top = _label_keywords(keywords)
     scanned = top + [" ".join(top)] + [f"{a} {b}" for a, b in zip(top, top[1:])]
     candidates = [", ".join(top)] if top and all(passes_age_scan(t) for t in scanned) else []
-    candidates += [f"#{_tag(h)}" for h in hashtags[:1]] + [f"sound {s}" for s in sounds[:1]]
+    tag = next((t for t in map(_tag, hashtags) if t and not is_generic("hashtag", t)), None)
+    candidates += ([f"#{tag}"] if tag else []) + [f"sound {s}" for s in sounds[:1]]
     return [c for c in candidates if passes_age_scan(c)]
 
 
@@ -306,7 +328,10 @@ def build_clusters(posts, topics, probs, keywords, run_date, market, embeddings=
             vectors = np.array([p["embedding"] for p in rows], dtype=float)
         else:
             vectors = embeddings[[r for _, _, r in groups[topic]]]
-        hashtags = _top(_tag(h) for p in rows for h in p.get("hashtags") or [])
+        # Stoplisted tags never vote (_specific_tags), so they are dropped before the top TOP_FACETS cut: ten stacked
+        # #fyp-style tags would otherwise fill the list and push out the one tag that names the topic.
+        hashtags = _top(t for p in rows for t in (_tag(h) for h in p.get("hashtags") or [])
+                        if t and not is_generic("hashtag", t))
         sounds = _top(p["sound_id"] for p in rows if p.get("sound_id"))
         words = keywords.get(topic, [])
         cluster_id = f"{run_date:%Y%m%d}-{market}-{topic:03d}"
@@ -447,12 +472,15 @@ def label_net(execute, clusters, *, model=None, run_id, day, clock=None):
     netted = []
     for c, item in zip(clusters, sent):
         label_flags, keyword_flags = verdicts[item["index"]]
-        dropped = {item["keywords"][n].casefold() for n in keyword_flags}
+        # A label part built on a flagged keyword holds all its words: "school trip" is built on "school", which
+        # _label_keywords left out of the label because the bigram already holds it.
+        dropped = [set(item["keywords"][n].casefold().split()) for n in keyword_flags]
         # Dropping a keyword makes its neighbours a pair no scan has seen ("born", "free"), so the rest are cleaned
         # again.
         keywords = clean_keywords([k for n, k in enumerate(c["keywords"]) if n not in keyword_flags])
         label = next((label for n, label in enumerate(item["labels"]) if n not in label_flags
-                      and not dropped & {part.strip().casefold() for part in label.split(",")}), _neutral(c))
+                      and not any(d and d <= set(part.casefold().split()) for d in dropped
+                                  for part in label.split(","))), _neutral(c))
         counts["net_relabelled"] += label != c["label"]
         counts["net_keywords_dropped"] += len(c["keywords"]) - len(keywords)
         netted.append({**c, "label": label, "keywords": keywords})

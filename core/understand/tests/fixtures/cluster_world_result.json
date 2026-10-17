@@ -22,7 +22,7 @@
    "cluster_id": "20260928-za-000",
    "item_id": "item_a",
    "match_kind": "match",
-   "label": "drum, log, log drum",
+   "label": "log drum, dancefloor, dance",
    "keywords": [
     "drum",
     "log",
@@ -87,7 +87,7 @@
    "cluster_id": "20260928-za-002",
    "item_id": "f6ec464a7c672ac3f257c5311182598c9cf47b8b66a17abb9fd4dad839145a9d",
    "match_kind": "variant",
-   "label": "schedule, loadshedding, cut",
+   "label": "schedule, loadshedding, power cut",
    "keywords": [
     "schedule",
     "loadshedding",
@@ -355,7 +355,7 @@
   },
   {
    "item_id": "f6ec464a7c672ac3f257c5311182598c9cf47b8b66a17abb9fd4dad839145a9d",
-   "label": "schedule, loadshedding, cut",
+   "label": "schedule, loadshedding, power cut",
    "parent_item_id": "item_b",
    "last_seen": "2026-09-28",
    "recurrences": 0,
