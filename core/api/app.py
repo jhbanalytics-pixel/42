@@ -974,10 +974,11 @@ async def _skin_masked(record: dict) -> dict:
     """A skin run's record, projected for privacy already, masked for its skin (contract 15.1) the way f42-agent masks
     the records it still holds. The mask comes last: it strips the handle of every author the skin may not name, and a
     suppression row that names only a handle could no longer match them."""
-    from core.api import skins, store
+    from core.api import privacy, skins, store
 
     if not record or not record.get("skin_id"):
         return record
+    record = privacy.without_skin_side_lists(record)  # dropped, never masked: masking leaves their words
     skin_key = None
     if isinstance(record["skin_id"], str) and ASK_ID_RE.match(record["skin_id"]):
         resp = await _forward("GET", f"/api/skins/{record['skin_id']}")

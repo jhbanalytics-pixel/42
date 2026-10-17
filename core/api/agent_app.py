@@ -1150,9 +1150,7 @@ def shown_record(record):
     """An Ask record as a reader sees it: a skin run's record is masked (contract 15.1), any other is unchanged."""
     if not record or not record.get("skin_id"):
         return record
-    side = ("ranked_list", "entity_lists", "figures")
-    if isinstance(record.get("run"), dict) and any(key in record["run"] for key in side):
-        record = {**record, "run": {k: v for k, v in record["run"].items() if k not in side}}
+    record = privacy.without_skin_side_lists(record)
     people = skin_people(record["skin_id"], record)
     return skins.mask_people(record, people["approved"], people["allowed"])
 
@@ -2209,6 +2207,9 @@ def start_investigation(investigation_id: str):
                "question": current["question"], "market": market, "parent_id": None, "tier": "T3", "mode": "live",
                "wait": False, "from_card": None, "investigation_id": investigation_id, "plan": run_plan,
                **granted}
+        if plan_skin_id(current["plan"]):
+            # On the request too, beside the plan: run_ask then keeps a skin run's side lists out at the source.
+            req["skin_id"] = plan_skin_id(current["plan"])
         ask = Ask(req)
         ask.record["investigation_id"] = investigation_id
         if plan_skin_id(current["plan"]):

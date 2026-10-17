@@ -3449,6 +3449,27 @@ def test_skin_report_draft_carries_the_skin_to_the_planner_and_keeps_it_in_the_p
     assert forged.json()["plan"]["skin_id"] == skin["skin_id"]
 
 
+def test_a_skin_report_run_is_asked_with_its_skin_so_side_lists_stay_out_at_source(client, inv, skin_env,
+                                                                                    monkeypatch):
+    from core.api import skins
+
+    seen = []
+
+    def run_ask(request, emit, should_stop):
+        seen.append(copy.deepcopy(request))
+        return {"answer": copy.deepcopy(skin_answer()),
+                "run": {"run_id": "r_" + request["ask_id"][2:], "tier": "T3", "credits": 10, "model_usd": 0.1}}
+
+    monkeypatch.setattr(agent_app, "resolve_investigator",
+                        lambda: (inv.fixture_planner, inv.fixture_estimate, run_ask))
+    skin = new_skin(client).json()
+    inv_id = client.post("/api/investigations", json=skins.report_plan(skin)).json()["investigation_id"]
+    assert client.post(f"/api/investigations/{inv_id}/start").status_code == 202
+    wait_finished(inv_id)
+    assert seen and seen[0]["skin_id"] == skin["skin_id"]
+    assert "skin_id" not in seen[0]["plan"]
+
+
 @pytest.mark.parametrize("skin_id, status", [("sk_000000000000", 404), (5, 400), ("bad id!", 400)])
 def test_a_report_on_an_unknown_skin_is_refused(client, inv, skin_env, skin_id, status):
     r = client.post("/api/investigations", json={"question": "Weekly report", "market": "ZA", "skin_id": skin_id})
