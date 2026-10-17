@@ -18,7 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
-from core.agent import answer_view
+from core.agent import answer_view, depth
 from core.api import comment_links, dossiers, finding_save, fixture_states, investigations, privacy, skins, summary_state
 from core.api.store import SUPPRESSIONS, viewer_record
 # The watch list read and its table live in core/api/watchlist.py so the f42-digest job can read watches
@@ -505,9 +505,11 @@ def validate(body):
         return "market must be ZA, NG, KE or null."
     if body.get("tier") == "T3" or (body.get("tier") == "T2" and not t2_ready()):
         return f"Tier {body['tier']} is not available until Stage 1B; use T0, T1 or leave it out."
-    if body.get("tier") == "T2" and body.get("skill") not in T2_SKILLS:
+    # Deep on the depth slider (core/agent/depth.py) opens T2 to a plain ask only while DEEP_FOR_PLAIN_ASKS is on too.
+    plain = body.get("skill") is None and body.get("spike") is None
+    if body.get("tier") == "T2" and body.get("skill") not in T2_SKILLS and not (plain and depth.deep_open(t2_ready())):
         return ("Tier T2 is open only for the brand lens and the context pack (skill brand-implication or "
-                "context-pack); use T0, T1 or leave it out.")
+                "context-pack) while Deep is switched off; use T0, T1 or leave it out.")
     if body.get("tier") not in ("T0", "T1", "T2", None):
         return "tier must be T0, T1 or null."
     if body.get("mode", "live") not in ("live", "replay"):
@@ -1148,8 +1150,9 @@ def shown_record(record):
     """An Ask record as a reader sees it: a skin run's record is masked (contract 15.1), any other is unchanged."""
     if not record or not record.get("skin_id"):
         return record
-    if isinstance(record.get("run"), dict) and any(key in record["run"] for key in ("ranked_list", "entity_lists")):
-        record = {**record, "run": {k: v for k, v in record["run"].items() if k not in ("ranked_list", "entity_lists")}}
+    side = ("ranked_list", "entity_lists", "figures")
+    if isinstance(record.get("run"), dict) and any(key in record["run"] for key in side):
+        record = {**record, "run": {k: v for k, v in record["run"].items() if k not in side}}
     people = skin_people(record["skin_id"], record)
     return skins.mask_people(record, people["approved"], people["allowed"])
 
@@ -2609,4 +2612,13 @@ def health():
     with _lock:
         running = sum(1 for a in ASKS.values() if a.ended is None)
     return {"ok": True, "service": "f42-agent", "time": now().isoformat(), "agent": agent, "running": running,
-            "t2_ready": t2_ready()}
+            "t2_ready": t2_ready(), "ask_depth": ask_depth()}
+
+
+def ask_depth():
+    """The depth slider's levels (core/agent/depth.py), or None when they cannot be read, so health still answers."""
+    try:
+        return depth.levels(depth.deep_open(t2_ready()), daily=investigations.caps()["credits"])
+    except Exception as exc:  # noqa: BLE001 - health must answer whatever the agent's import state
+        log.warning("health: ask depth unavailable: %s", type(exc).__name__)
+        return None

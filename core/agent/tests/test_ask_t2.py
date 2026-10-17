@@ -252,7 +252,9 @@ def test_t2_entrypoint_reports_only_requested_groups_omitted_by_lane_limit():
 def test_every_group_names_only_allowed_routes():
     for group in ask.PLATFORM_GROUPS:
         routes = ask.group_routes(group)
-        assert routes and set(routes) <= ALLOWED_ROUTES
+        # The news lane also opens articles, through read_article only (socialcrawl_call refuses web/scrape).
+        assert routes and set(routes) - ({"web/scrape"} if group == "news" else set()) <= ALLOWED_ROUTES
+    assert "web/scrape" not in ALLOWED_ROUTES and "web/scrape" in ask.group_routes("news")
     assert "search/multi" in ask.group_routes("news") and "threads/search" in ask.group_routes("reddit_threads")
 
 

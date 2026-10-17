@@ -18,6 +18,7 @@ SKILLS = ("brand-lens", "context-pack", "creator-fit", "culture-read", "investig
 EXPECTED = (
     "core/agent/ask.py",
     "core/agent/critic.py",
+    "core/agent/figures.py",
     "core/agent/investigate.py",
     "core/agent/tools/sql_query.py",
     "core/agent/toolset.py",
@@ -57,7 +58,7 @@ def test_the_stamp_names_the_code_and_says_which_fields_it_computed_and_which_de
 
 def test_the_prompt_files_are_exactly_the_ones_that_carry_prompt_text():
     assert stamp.prompt_files(REPO) == EXPECTED
-    assert len(stamp.prompt_files(REPO)) == 17
+    assert len(stamp.prompt_files(REPO)) == 18
 
 
 def carriers_in_core():

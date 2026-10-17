@@ -959,6 +959,12 @@ SWEEP_DEADLINE_S = 60  # the sweep starts no search after this many seconds
 SWEEP_QUERY_TIMEOUT_S = 30  # most a sweep read waits for its BigQuery job
 SWEEP_KEEP = 300  # posts a sweep stores, as many as the writer's pack holds (writer.MAX_PACK_POSTS)
 MAX_SWEEP_TOPIC = 3
+
+
+def mark_sweep(ctx: RunContext, result: dict) -> None:
+    """Marks a sweep's query (the topic sweep's, or the figure sweep's in core/agent/figures.py): its rows are stored as
+    evidence, so the writer's pack leaves the query block out."""
+    ctx.queries[result['query_id']]['tool'] = SWEEP_TOOL
 _HASHTAG = re.compile(r"(?<![\w#])#(\w{2,50})")
 _QUOTED = re.compile(r'"([^"]{3,60})"')
 
@@ -1030,7 +1036,7 @@ def _topic_sweep(ctx: RunContext, warehouse: Warehouse, topic: list[str], platfo
             log.warning("ask topic sweep %s failed: run %s: %s", label, ctx.run_id, out["failed"][label])
             continue
         _emit_retrieval_trace(ctx, mode, query_id=result["query_id"], rows=result["rows"])
-        ctx.queries[result["query_id"]]["tool"] = SWEEP_TOOL
+        mark_sweep(ctx, result)
         lists.append(result["rows"])
         query_ids.append(result["query_id"])
     out["searches"] = len(lists)
