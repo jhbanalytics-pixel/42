@@ -151,17 +151,19 @@ REELS_TOP = {"ZA": 1, "NG": 1, "KE": 1}
 REELS_ROW, REELS_ROUTE = "14i", "instagram/search/reels"
 # Row 16w, the wider net: each market's first row 16 queries (then row 14's) searched again on the platforms rows 14
 # and 16 never reach, and inside the market's own subreddit; the market's placebo search picks (up to the same count)
-# are searched the same way, so the found_platforms base rate sees these platforms too (wide_calls). LinkedIn goes through search/multi alone (5 a call); the
-# subreddit, Bluesky and Pinterest searches are 1 each. The plan holds 24 a market, 72 a run, made route by route
-# across the markets, cheapest first, so a day with little room (the Monday and Thursday industry board) still spreads
-# them over the markets. Like row 14i they carry no seed,
+# are searched the same way, so the found_platforms base rate sees these platforms too (wide_calls). LinkedIn goes
+# through search/multi alone (5 a call); the subreddit and Bluesky searches are 1 each. The plan holds 21 a market, 63
+# a run, made route by route across the markets, cheapest first, so a day with little room (the Monday and Thursday
+# industry board) still spreads them over the markets. Like row 14i they carry no seed,
 # take only the room the share has left after the rows before them (so the curated panel and every earlier lane keep
 # their credits), come before row 14i, which gets what is left, and a body they cannot read fails that call, not the
 # run. Their posts are search_presence rows placed only from text, so their worth is judged on the locality and
 # candidate yield of their own series (docs/full-42/research/14-socialcrawl-endpoint-audit.md), not on volume. A count
-# of 0 turns a route off. Pinterest search takes no date, so its pins can be old; the detect windows judge them.
+# of 0 turns a route off. Pinterest is off: its posts are stored as platform pinterest, which the answer contract
+# (core/eval/answer.schema.json, pinned to Release A) does not take, so an Ask citing one would fail. Turn it on only
+# with a schema release that adds it. Pinterest search takes no date, so its pins can be old.
 WIDE_ROW = "16w"
-WIDE_TOP = (("reddit/subreddit/search", 3), ("bluesky/search", 3), ("pinterest/search", 3), ("search/multi", 3))
+WIDE_TOP = (("reddit/subreddit/search", 3), ("bluesky/search", 3), ("pinterest/search", 0), ("search/multi", 3))
 # Row 16w's Reddit search runs inside the market's own subreddit, so every post it finds was posted there. The 16 Oct
 # candidate probe (probe-candidates-20261016T181157Z) placed no post from r/southafrica or r/Nigeria abroad.
 SUBREDDITS = {"ZA": "southafrica", "NG": "Nigeria", "KE": "Kenya"}

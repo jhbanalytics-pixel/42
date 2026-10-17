@@ -254,13 +254,14 @@ def planned_calls(planned):
 @pytest.mark.usefixtures("collect_share_2000")
 def test_no_watches_leaves_the_plan_as_it_was():
     base = job.plan(WEDNESDAY)
-    # Row 16w's 36 searches included; they leave row 14i too little room for a reel search on this day.
-    assert base["total"] == 1902 and len(planned_calls(base)) == 403
+    # Row 16w's 27 searches included (pinterest/search is off); they leave row 14i too little room for a reel
+    # search on this day.
+    assert base["total"] == 1893 and len(planned_calls(base)) == 394
     assert local_sources.total_hold(local_sources.plan(WEDNESDAY)) == 34
     monday = date(2026, 10, 5)
     monday_plan = job.plan(monday)
     monday_local = local_sources.total_hold(local_sources.plan(monday))
-    assert monday_plan["total"] + monday_local == 1985
+    assert monday_plan["total"] + monday_local == 1983
     assert monday_plan["total"] + monday_local <= job.load_caps()["ENGINE_DAILY"]["collect"] == 2000
     paused = [watch("w1", {"kind": "hashtag", "value": "braai"}, status="paused")]
     for watches in ([], paused):
@@ -395,7 +396,7 @@ def test_plan_mode_reads_no_watches_and_says_so(capsys):
     assert job.main(["--plan", "--run-date", "2026-09-30"], env={}) == 0
     out = capsys.readouterr().out
     assert "watches: none read in plan mode" in out
-    assert re.search(r"total hold 1902 credits over 403 calls", out)
+    assert re.search(r"total hold 1893 credits over 394 calls", out)
 
 
 @pytest.mark.parametrize("value", ["", "   ", None])

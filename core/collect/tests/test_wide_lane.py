@@ -39,7 +39,7 @@ def test_the_new_routes_are_priced_at_their_list_prices_and_nothing_else_is_acce
 
 # Plan
 
-def test_each_market_searches_its_first_row_16_queries_in_its_subreddit_and_on_linkedin_bluesky_and_pinterest():
+def test_each_market_searches_its_first_row_16_queries_in_its_subreddit_and_on_linkedin_and_bluesky():
     planned = job.plan(TUESDAY)
     for market in job.MARKETS:
         calls = wide(planned)[market]
@@ -54,7 +54,7 @@ def test_each_market_searches_its_first_row_16_queries_in_its_subreddit_and_on_l
             assert "planned=" in c.series_protocol()
         assert {c.params.get("platforms") for c in calls if c.route == "search/multi"} == {"linkedin"}
         assert {c.params["subreddit"] for c in calls if c.route == "reddit/subreddit/search"} == {job.SUBREDDITS[market]}
-        assert sum(c.hold() for c in calls) == 24
+        assert sum(c.hold() for c in calls) == 21  # pinterest/search is off (count 0)
 
 
 @pytest.mark.parametrize("day", [TUESDAY, MONDAY, date(2026, 10, 6), date(2026, 10, 17)])

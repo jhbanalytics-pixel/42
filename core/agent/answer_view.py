@@ -13,7 +13,6 @@ import re
 LABEL_RANK = {"inferred": 0, "single_source": 1, "observed": 2, "corroborated": 3}  # as core.agent.checks.LABEL_RANK
 PLATFORM_WORDS = {"tiktok": "TikTok", "instagram": "Instagram", "youtube": "YouTube", "reddit": "Reddit", "x": "X",
                   "threads": "Threads", "bluesky": "Bluesky", "facebook": "Facebook", "linkedin": "LinkedIn",
-                  "pinterest": "Pinterest",
                   "telegram": "Telegram", "news": "News", "music_chart": "Music chart", "wikipedia": "Wikipedia",
                   "web": "Web"}
 _ROUTE = re.compile(r"^(" + "|".join(PLATFORM_WORDS) + r")/([a-z0-9_/]+)", re.I)

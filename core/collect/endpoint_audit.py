@@ -48,7 +48,7 @@ LIVE = {
     "search/multi": "morning row 16 (Instagram, YouTube, Reddit, X, Threads, Facebook) and 16w (LinkedIn); "
                     "confirm; Ask; local sources",
     "bluesky/search": "morning row 16w; Ask",
-    "pinterest/search": "morning row 16w",
+    "pinterest/search": "morning row 16w, off (count 0) until the answer schema takes pinterest",
     "reddit/subreddit/search": "morning row 16w, inside r/southafrica, r/Nigeria and r/Kenya. Candidate probe 16 Oct: "
                                "7 posts a search at 1 credit, every placed post in market",
     "instagram/audio/reels": "morning seed template (sounds on both platforms)",

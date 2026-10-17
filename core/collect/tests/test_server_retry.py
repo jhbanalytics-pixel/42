@@ -421,10 +421,12 @@ def test_the_local_phase_passes_a_room_to_its_boards_and_its_panel_only_inside_t
 
     client = FakeClient()
     run(client)
-    fetches = [f for f in ls.plan(MONDAY) if f.paid and f.priced()]
+    planned = [f for f in ls.plan(MONDAY) if f.paid and f.priced()]
+    # google_play/app-list is off (GOOGLE_PLAY_LIVE): never called, its hold still kept for it in the plan.
+    fetches = [f for f in planned if f.route != "google_play/app-list"]
     assert [c["route"] for c in client.calls] == [f.route for f in fetches]
     for i, (c, f) in enumerate(zip(client.calls, fetches)):
-        later = sum(g.hold() for g in fetches[i + 1:])
+        later = sum(g.hold() for g in planned[planned.index(f) + 1:])
         before = sum(g.hold() for g in fetches[:i])
         assert c["room"] == ls.LOCAL_DAILY_CAP - before - later, (i, f.source)
 

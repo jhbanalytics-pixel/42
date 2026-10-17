@@ -102,7 +102,7 @@
       "properties": {
         "id": {"type": "string", "minLength": 1},
         "platform": {
-          "enum": ["tiktok", "instagram", "youtube", "reddit", "x", "threads", "bluesky", "facebook", "linkedin", "pinterest", "telegram", "news", "music_chart", "wikipedia", "web"]
+          "enum": ["tiktok", "instagram", "youtube", "reddit", "x", "threads", "bluesky", "facebook", "linkedin", "telegram", "news", "music_chart", "wikipedia", "web"]
         },
         "handle": {"type": "string", "minLength": 1},
         "url": {"type": "string", "minLength": 1},

@@ -392,7 +392,7 @@ def test_row_5_plans_a_five_credit_call_for_every_configured_hub():
     for call in calls:
         assert call.row == "5" and call.source_market is None
         assert call.hold() == 5
-    assert planned["total"] == 1902  # 1830 and row 16w's 72, which leave row 14i no room for a reel search
+    assert planned["total"] == 1893  # 1830 and row 16w's 63, which leave row 14i no room for a reel search
     skips = [s for s in planned["skipped"] if s["route"] == "instagram/location/posts"]
     assert skips == []
 
@@ -1364,10 +1364,10 @@ def test_research_terms_rotate_inside_existing_search_holds():
     wednesday = job.plan(date(2026, 9, 30))
     monday = job.plan(MONDAY)
     expected = {
-        # Row 16w's searches fill the room left: all 36 on the Wednesday (none left for row 14i), fewer on the
+        # Row 16w's searches fill the room left: all 27 on the Wednesday (none left for row 14i), fewer on the
         # Monday, whose industry board takes the rest.
-        "2026-09-30": ({"ZA": (56, 7), "NG": (56, 7), "KE": (65, 7)}, 403, 1902, 1936),
-        "2026-10-05": ({"ZA": (60, 7), "NG": (56, 7), "KE": (61, 7)}, 393, 1951, 1985),
+        "2026-09-30": ({"ZA": (56, 7), "NG": (56, 7), "KE": (65, 7)}, 394, 1893, 1927),
+        "2026-10-05": ({"ZA": (60, 7), "NG": (56, 7), "KE": (61, 7)}, 387, 1949, 1983),
     }
 
     for day, planned in (("2026-09-30", wednesday), ("2026-10-05", monday)):
