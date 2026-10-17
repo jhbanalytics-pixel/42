@@ -102,11 +102,12 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # moment, mostly sponsored or mostly news, ahead of worth_raw (core/brief/sql/brief.sql candidates), fold-half-shared a
 # Today-bound candidate with half or more of its posts on one higher card folds into it and takes no judged slot
 # (_fold_plan), pack-formats-sound the support check, critic and writer see each post's sound id and enriched formats
-# (core/brief/explain.py SUPPORT_FIELDS).
+# (core/brief/explain.py SUPPORT_FIELDS), k6-sound-label a claim or sentence naming one of the pack's sound letters is
+# cut by code (core/brief/explain.py _sound_label_rows).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
-                "+brief-504-retry+pattern-first-selection+fold-half-shared+pack-formats-sound")
+                "+brief-504-retry+pattern-first-selection+fold-half-shared+pack-formats-sound+k6-sound-label")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
