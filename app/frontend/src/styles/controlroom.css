@@ -264,3 +264,6 @@ html:root .oi-product .t42 .t42-head > .t42-lead > .t42-lead-panel { background:
   html:root .oi-product .t42 .t42-led-field { animation: crLedIgnite var(--motion-handoff) var(--motion-handoff-easing) both; }
 }
 @keyframes crLedIgnite { from { opacity: 0; } to { opacity: 1; } }
+/* The chart is a data surface, so its plot box keeps an opaque ground and
+   the field never shows through as a mark. */
+html:root .oi-product .t42 .t42-lead-panel .t42-spark { background: var(--surface); }
