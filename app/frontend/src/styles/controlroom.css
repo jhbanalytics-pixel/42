@@ -243,3 +243,25 @@ html:root .oi-product :is(.d42-chip[aria-pressed="true"], .d42-chip[aria-selecte
   background: var(--cr-select);
   border-color: var(--accent);
 }
+
+/* The LED field (ui/LedField.jsx) fills the lead header behind the words.
+   The header holds it, the canvas stays under every other child, and it
+   fades in once, only for a reader who has not asked for less motion. */
+html:root .oi-product .t42 .t42-head:has(> .t42-lead) { position: relative; isolation: isolate; }
+html:root .oi-product .t42 .t42-led-field {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  inline-size: 100%;
+  block-size: 100%;
+  pointer-events: none;
+  /* The field has no hard edge: it fades in from the left and the top. */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 35%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 35%);
+  mask-composite: intersect;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:root .oi-product .t42 .t42-led-field { animation: crLedIgnite var(--motion-handoff) var(--motion-handoff-easing) both; }
+}
+@keyframes crLedIgnite { from { opacity: 0; } to { opacity: 1; } }
