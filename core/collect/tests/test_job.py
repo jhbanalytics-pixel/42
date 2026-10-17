@@ -1711,7 +1711,7 @@ def test_the_real_client_ledgers_local_calls_in_lane_local_against_the_collect_s
                                raw=MemoryRawStore(), http=both_http, clock=lambda: NOW)
     run = local_collect(client)
     local = [r for r in ledger.rows if r["lane"] == "local"]
-    assert {r["route"] for r in local} == {"web/scrape", "prism/profiles", "google_play/app-list"}
+    assert {r["route"] for r in local} == {"web/scrape", "prism/profiles"}  # google_play/app-list is off
     assert not [r for r in ledger.rows if r["route"] == "web/scrape" and r["lane"] != "local"]
     assert {r["job"] for r in ledger.rows} == {"collect"}
     assert sum(r["credits_charged"] for r in local) == run.local_credits > 0
@@ -1720,7 +1720,8 @@ def test_the_real_client_ledgers_local_calls_in_lane_local_against_the_collect_s
     local = local_records(run)
     assert not [r for r in local if r["market"] == "KE" and r["series"] == "board_kworb_spotify"]
     assert not [r for r in local if "ewn.co.za" in r["protocol"]]
-    assert {r["status"] for r in local} <= {"ok", "not_priced", "http_500"}
+    assert {r["status"] for r in local if r["route"] != "google_play/app-list"} <= {"ok", "not_priced", "http_500"}
+    assert {r["status"] for r in local if r["route"] == "google_play/app-list"} == {"not_made"}
 
 
 def test_the_local_phase_is_not_made_when_the_collect_share_has_less_than_its_hold_left(monkeypatch):

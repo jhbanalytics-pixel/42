@@ -8,6 +8,7 @@ chart. The socket is shut for the --plan test.
 import json
 import logging
 import socket
+import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -311,7 +312,7 @@ def test_run_lands_rows_for_every_source_and_a_coverage_record_for_every_fetch()
         quote_for(call["route"], PRICED[call["route"]].method, call["params"])
         for call in client.calls
     )
-    assert {c["route"] for c in client.calls} == {"web/scrape", "prism/profiles", "google_play/app-list"}
+    assert {c["route"] for c in client.calls} == {"web/scrape", "prism/profiles"}  # google_play is off
 
 
 def test_retired_local_sources_are_left_out_of_the_plan_and_write_no_health_row(monkeypatch, capsys):
@@ -446,8 +447,10 @@ def test_a_scraped_board_with_no_readable_entries_is_a_failed_fetch_not_a_valid_
     assert [c for c in out["counters"] if c["series"] == "board_boomplay"]
 
 
-def test_run_reads_the_google_play_chart_at_5_now_it_is_priced():
+def test_run_reads_the_google_play_chart_at_5_once_it_is_turned_on(monkeypatch):
     # Before 16 Oct 2026 the route was planned but not priced, so every run recorded it not_priced and never read it.
+    # It is priced now but off (GOOGLE_PLAY_LIVE) until a real body is probed; turned on, it reads the chart.
+    monkeypatch.setattr(ls, "GOOGLE_PLAY_LIVE", True)
     client = FakeClient()
     out = run(client)
     record = next(r for r in out["records"] if r["series"] == "board_google_play")
@@ -455,6 +458,39 @@ def test_run_reads_the_google_play_chart_at_5_now_it_is_priced():
     calls = [c for c in client.calls if c["route"] == "google_play/app-list"]
     assert [(c["market"], c["params"]) for c in calls] == [("ZA", {"app_collection": "topselling_free", "country": "za"})]
     assert [c for c in out["counters"] if c["series"] == "board_google_play"]
+
+
+def test_google_play_is_off_until_a_real_body_is_probed_and_is_never_called(monkeypatch):
+    # The route is priced, but its body shape is only guessed (fixtures/local_google_play.json is invented), so a live
+    # read would pay 5 credits for a chart the parser may not read. The fetch is planned and recorded, never made.
+    from core.collect import writers
+
+    client = FakeClient()
+    out = run(client)
+    record = next(r for r in out["records"] if r["series"] == "board_google_play")
+    assert record["status"] == "not_made" and record["calls"] == 0 and not record["ok"]
+    assert "unprobed" in record["reason"]
+    assert not [c for c in client.calls if c["route"] == "google_play/app-list"]
+    assert not [c for c in out["counters"] if c["series"] == "board_google_play"]
+    health = [h for h in writers.health_rows(out["records"], out["posts"], {}, "run-1")
+              if h["series"] == "board_google_play"]
+    assert health and all(not h["valid"] for h in health)
+
+
+def test_a_google_play_body_the_parser_reads_nothing_from_is_no_entries_not_a_valid_empty_chart(monkeypatch):
+    from core.collect import writers
+
+    monkeypatch.setattr(ls, "GOOGLE_PLAY_LIVE", True, raising=False)
+    monkeypatch.setattr(sys.modules[__name__], "GOOGLE_PLAY",
+                        {"success": True, "credits_used": 5, "data": {"apps": [{"appName": "Kasi Bank App"}]}})
+    out = run(FakeClient())
+    record = next(r for r in out["records"] if r["series"] == "board_google_play")
+    assert record["status"] == "no_entries" and record["calls"] == 1
+    assert not record["ok"] and record["units_ok"] == 0 and record["items"] == 0
+    assert not [c for c in out["counters"] if c["series"] == "board_google_play"]
+    health = [h for h in writers.health_rows(out["records"], out["posts"], {}, "run-1")
+              if h["series"] == "board_google_play"]
+    assert health and all(not h["valid"] and h["invalid_reason"] == "calls: empty" for h in health)
 
 
 def test_robots_disallow_stops_a_scrape_before_any_credit():

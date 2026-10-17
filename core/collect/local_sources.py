@@ -9,8 +9,8 @@ One extra phase of the 02:00 collect job, about 40 credits a day from the collec
 - prism/profiles include=posts since yesterday: an Instagram gossip and blog panel per market, public
   pages chosen by interest (celebrity news, entertainment and music gossip), 2 credits a page;
 - google_play/app-list, the top free apps, one market a day on Monday (ZA), Tuesday (NG) and Wednesday
-  (KE), 5 credits (priced in core/collect/socialcrawl_client.py since 16 Oct 2026; before that it was planned,
-  recorded as not_priced and never called);
+  (KE), 5 credits (priced in core/collect/socialcrawl_client.py since 16 Oct 2026). Its body shape is unprobed,
+  so GOOGLE_PLAY_LIVE keeps it off: planned, recorded not_made and never called;
 - free, fetched with requests under a User-Agent naming 42 and Ogilvy, with no email address: the App
   Store top free chart per market (labelled iPhone only until Google Play lands) and the news RSS feeds.
   The App Store chart is a baseline rank list, so a timeout, connection error, 429 or 5xx on it is fetched
@@ -143,6 +143,10 @@ IG_GOSSIP = {
     "KE": ("nairobi_gossip_club", "edaily_kenya", "mpashogram"),
 }
 GOOGLE_PLAY_DAYS = {"ZA": 0, "NG": 1, "KE": 2}
+# google_play/app-list is priced, but no real body has been recorded: app_board reads a guessed envelope
+# (tests/fixtures/local_google_play.json is invented). Until probe.py records one real body and the fixture is
+# replaced by it, the fetch stays planned and is recorded not_made, never paid for.
+GOOGLE_PLAY_LIVE = False
 APP_STORE = "https://rss.marketingtools.apple.com/api/v2/{cc}/apps/top-free/50/apps.json"
 
 
@@ -655,6 +659,10 @@ def run(day, run_id, *, client, get, clock, item_id_fn, geo_fn, last_pulls=None,
             if stopped:
                 record(f, "not_made", reason=f"stopped: {stopped}")
                 continue
+            if f.route == "google_play/app-list" and not GOOGLE_PLAY_LIVE:
+                record(f, "not_made", reason="google_play/app-list is off: its body shape is unprobed, so a read "
+                                             "could be paid for and give no chart rows")
+                continue
             if not f.priced():
                 record(f, "not_priced", reason=f"{f.route} is not in socialcrawl_client.PRICED")
                 continue
@@ -707,6 +715,10 @@ def run(day, run_id, *, client, get, clock, item_id_fn, geo_fn, last_pulls=None,
                 continue
             if f.route == "google_play/app-list":
                 names = app_board(result.body)
+                if not names:  # as a scraped board: a body the parser reads nothing from is a failed call
+                    record(f, "no_entries", calls=1,
+                           reason="google_play/app-list body gave no app rows the parser reads")
+                    continue
                 rows = _counters(f, [(r, _item(item_id_fn, "brand", n)) for r, n in enumerate(names, 1)], pull,
                                  fetched, run_id)
                 out["counters"] += rows
