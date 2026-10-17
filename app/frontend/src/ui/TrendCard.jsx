@@ -631,8 +631,8 @@ export function Sparkline({sparkline, minDays = MIN_CHART_DAYS, wide = false, fi
         {areaPath && <path className="t42-area" d={areaPath} />}
         {bridge && <path className="t42-gap" d={bridge} fill="none" />}
         {line && <path className="t42-line" d={line} fill="none" strokeLinecap="round" strokeLinejoin="round" pathLength="1" />}
-        {measured.map((i, k) => <circle key={i} className={k === measured.length - 1 ? 't42-dot t42-dot-now' : 't42-dot'} cx={fix(x(i))} cy={fix(y(points[i].value))} r={k === measured.length - 1 ? '3.5' : '2'} />)}
         {wide && measured.length > 0 && <text className="t42-now-label" x={fix(Math.min(W - 2, x(measured[measured.length - 1])))} y={fix(Math.max(pad + 10, y(points[measured[measured.length - 1]].value) - 10))} textAnchor="end">{seriesFigure(points[measured[measured.length - 1]].value)}</text>}
+        {measured.map((i, k) => <circle key={i} className={k === measured.length - 1 ? 't42-dot t42-dot-now' : 't42-dot'} cx={fix(x(i))} cy={fix(y(points[i].value))} r={k === measured.length - 1 ? '3.5' : '2'} />)}
         {probe !== null && (
           <g className="t42-probe">
             <line className="t42-probe-rule" x1={fix(x(probe))} x2={fix(x(probe))} y1={pad} y2={H - pad} />

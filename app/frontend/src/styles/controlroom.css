@@ -246,18 +246,18 @@ html:root .oi-product :is(.d42-chip[aria-pressed="true"], .d42-chip[aria-selecte
 
 /* The LED field (ui/LedField.jsx). Its box lives in today-story.css, which
    lands with the route, so a cold load never lays the canvas out at its
-   intrinsic size. Here it fades out at the left, the top and the panel
+   intrinsic size. Here it fades out at the left, the top, the foot and the panel
    side, runs on under a panel that lets it through faintly, and fades in
    once, only for a reader who has not asked for less motion. */
 html:root .oi-product .t42 .t42-led-field {
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 35%);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 35%, #000 88%, transparent);
   -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 35%);
+  mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 35%, #000 88%, transparent);
   mask-composite: intersect;
 }
 html:root[data-dir="daylight"] .oi-product .t42 .t42-led-field {
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 60%);
-  mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 60%);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 60%, #000 88%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 60%, #000 88%, transparent);
 }
 html:root .oi-product .t42 .t42-head > .t42-lead > .t42-lead-panel { background: color-mix(in srgb, var(--surface) 92%, transparent); }
 @media (prefers-reduced-motion: no-preference) {
@@ -266,4 +266,4 @@ html:root .oi-product .t42 .t42-head > .t42-lead > .t42-lead-panel { background:
 @keyframes crLedIgnite { from { opacity: 0; } to { opacity: 1; } }
 /* The chart is a data surface, so its plot box keeps an opaque ground and
    the field never shows through as a mark. */
-html:root .oi-product .t42 .t42-lead-panel .t42-spark { background: var(--surface); }
+html:root .oi-product .t42 .t42-lead-panel .t42-spark[data-wide] { background: var(--surface); }
