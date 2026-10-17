@@ -197,7 +197,12 @@ test('Today held details use stored fields and source links without another read
   await expect(main.locator('[data-today-loaded]')).toBeVisible();
 
   const za = main.locator('.t42-market[data-market="ZA"]');
-  const heldBack = za.locator('section[data-section="held-back"]');
+  /* What 42 left out sits behind one closed line that counts it (today42.jsx,
+     LeftOut); the held list is inside it. */
+  const leftOut = za.locator('details[data-section="left-out"]');
+  await expect(leftOut).not.toHaveAttribute('open', '');
+  await leftOut.locator('summary').click();
+  const heldBack = leftOut.locator('section[data-section="held-back"]');
   const heldButton = heldBack.getByRole('button', {name: populated.title, exact: true});
   await expect(heldButton).toHaveAttribute('aria-expanded', 'false');
   await heldButton.click();
@@ -239,7 +244,15 @@ test('Today held details use stored fields and source links without another read
   const emptyMarketDetail = heldForEvidence.locator('[data-held-item-id="' + withoutNumbers.item_id + '"]');
   await expect(emptyMarketDetail).toBeVisible();
   await expect(emptyMarketDetail).toContainText(withoutNumbers.title);
-  await expect(emptyMarketDetail).toContainText(withoutNumbers.reason_text);
+  /* Held topics are grouped by reason (today42.jsx, HeldForEvidence): the
+     group's heading says the reason once, and a topic repeats it only when
+     its own words differ. Its posts and figures sit behind one closed line. */
+  const emptyMarketGroup = heldForEvidence.locator('section[data-held-group]').filter({has: page.locator('[data-held-item-id="' + withoutNumbers.item_id + '"]')});
+  await expect(emptyMarketGroup.locator('[data-held-group-reason]')).toContainText(withoutNumbers.reason_text);
+  const emptyMarketMore = emptyMarketDetail.locator('details.t42-held-more');
+  await expect(emptyMarketMore).not.toHaveAttribute('open', '');
+  await emptyMarketMore.locator('summary').click();
+  await expect(emptyMarketMore).toHaveAttribute('open', '');
   await expect(emptyMarketDetail).toContainText(withoutNumbers.failed_reason);
   await expect(emptyMarketDetail).not.toContainText('Trend numbers were not stored');
   await expect(emptyMarketDetail.locator('[data-held-number]')).toHaveCount(0);
