@@ -79,23 +79,58 @@ const NONE = {
   not_run: 'The question’s model budget had no room left to list the figures the sources report.',
 };
 
+/* The privacy pass (core/api/privacy.py _figures) removes a table that rests
+   on a post 42 no longer shows, and every table when who is hidden could not
+   be checked; it counts them in figures.withheld and leaves status as it was.
+   Withheld figures are said to be withheld, never that no source had any,
+   and nothing about the removed tables is shown but their count. */
+const sources = (n) => n + (n === 1 ? ' source' : ' sources');
+const WITHHELD_UNCHECKED = '42 could not check its hidden-people list just now, so the figures the sources report are not shown.';
+const withheldAll = (n) => 'The figures ' + sources(n) + ' report are not shown, because they rest on posts 42 no longer shows.';
+const withheldSome = (n) => 'Figures from ' + sources(n) + ' more are not shown, because they rest on posts 42 no longer shows.';
+const NONE_SHOWN = 'No figures can be shown for this answer.';
+
+/* The figure sweep (figures.figure_sweep) keeps at most SWEEP_KEEP (300)
+   stored posts, so its count is a floor at that cap; the figures call reads
+   at most checked.records_with_percentages records from all the answer's
+   sources, fewer when its input is cut. A failed sweep read nothing, so it
+   gets no count. */
+const SWEEP_KEEP = 300;
+const SWEEP_FAILED = 'The search of stored posts that state a percentage could not finish this time, so these figures come only from the posts and articles this answer read.';
+
+function sweepWords(figures){
+  const sweep = figures.sweep && typeof figures.sweep === 'object' ? figures.sweep : null;
+  if (!sweep) return '';
+  if (sweep.failed) return SWEEP_FAILED;
+  const matched = finite(sweep.matched) && sweep.matched > 0 ? sweep.matched : 0;
+  if (!matched) return '';
+  const found = (matched >= SWEEP_KEEP ? 'At least ' + SWEEP_KEEP : String(matched))
+    + (matched === 1 ? ' stored post' : ' stored posts') + ' in the window match the question and state a percentage';
+  const read = figures.checked && finite(figures.checked.records_with_percentages) && figures.checked.records_with_percentages > 0
+    ? figures.checked.records_with_percentages : 0;
+  return found + (read ? '; up to ' + read + ' records with a percentage, from these and the other sources this answer read, were read for the figures.' : '.');
+}
+
 export function ReportedFigures({record}){
   const figures = figuresOf(record);
   if (!figures) return null;
+  const withheld = finite(figures.withheld) && figures.withheld > 0 ? figures.withheld : 0;
+  const unchecked = record?.privacy?.state === 'unavailable';
   if (!figures.tables.length){
-    const words = NONE[figures.status] || NONE.none_found;
-    return <section className="ask42-figures" aria-label="Reported figures"><p className="ask42-status">{words}</p></section>;
+    const words = withheld ? (unchecked ? WITHHELD_UNCHECKED : withheldAll(withheld)) : (Object.hasOwn(NONE, String(figures.status)) ? NONE[figures.status] : NONE_SHOWN);
+    return <section className="ask42-figures" aria-label="Reported figures"><p className="ask42-status" {...(withheld ? {'data-figures-withheld': ''} : {})}>{words}</p></section>;
   }
-  const swept = figures.sweep && finite(figures.sweep.matched) ? figures.sweep.matched : null;
+  const swept = sweepWords(figures);
   return (
     <section className="ask42-figures" aria-label="Reported figures">
       {text(figures.lead) && <p className="ask42-figures-lead">{figures.lead}</p>}
       <ol className="ask42-figures-list">
         {figures.tables.map((table, i) => <FigureTable key={i} table={table} index={i} />)}
       </ol>
+      {withheld > 0 && <p className="ask42-figures-note" data-figures-withheld="">{withheldSome(withheld)}</p>}
       <p className="ask42-figures-basis ask42-muted">
         {text(figures.basis)}
-        {swept !== null ? ' ' + swept + ' stored posts in the window that match the question and state a percentage were read for these.' : ''}
+        {swept ? ' ' + swept : ''}
       </p>
     </section>
   );

@@ -57,3 +57,37 @@ test('no figures are said in words, and no payload draws nothing', () => {
   expect(renderToStaticMarkup(<ReportedFigures record={{run: {}}} />)).toBe('');
   expect(figuresOf({run: {figures: {tables: [{rows: [{subject: 'A', value: 'x'}]}]}}}).tables).toEqual([]);
 });
+
+/* Audit, 17 October 2026: figures the privacy pass withholds are said to be
+   withheld, never that no source stated any, and the sweep's count says what
+   it is (a floor at its cap, not what was read) or that the search failed. */
+test('figures withheld for privacy are said to be withheld, never that none were found', () => {
+  const all = draw(<ReportedFigures record={record({status: 'ok', tables: [], lead: '', withheld: 2})} />);
+  const words = all.querySelector('.ask42-status').textContent;
+  expect(words).not.toContain('No source this answer read states a percentage');
+  expect(words).toBe('The figures 2 sources report are not shown, because they rest on posts 42 no longer shows.');
+  const unchecked = draw(<ReportedFigures record={{...record({status: 'ok', tables: [], lead: '', withheld: 1}),
+    privacy: {v: 1, state: 'unavailable', withheld: {posts: 0, claims: 0, summary: false}}}} />);
+  expect(unchecked.querySelector('.ask42-status').textContent).toContain('could not check its hidden-people list');
+  const some = draw(<ReportedFigures record={record({status: 'ok', withheld: 1, tables: [table('MarkData', [['ANC', 33.5]])]})} />);
+  expect(some.querySelectorAll('.ask42-figures-table')).toHaveLength(1);
+  expect(some.querySelector('[data-figures-withheld]').textContent).toBe(
+    'Figures from 1 source more are not shown, because they rest on posts 42 no longer shows.');
+  const odd = draw(<ReportedFigures record={record({status: 'ok', tables: []})} />);
+  expect(odd.querySelector('.ask42-status').textContent).not.toContain('No source this answer read states a percentage');
+});
+
+test('a failed sweep gives no count, a capped one is a floor, and the read count is the records read', () => {
+  const one = [table('MarkData', [['ANC', 33.5]])];
+  const basis = (figures) => draw(<ReportedFigures record={record({status: 'ok', tables: one, basis: 'B.', ...figures})} />)
+    .querySelector('.ask42-figures-basis').textContent;
+  const failed = basis({sweep: {matched: 0, failed: 'search_failed'}, checked: {records_with_percentages: 12}});
+  expect(failed).not.toContain('0 stored posts');
+  expect(failed).not.toContain('search_failed');
+  expect(failed).toContain('could not finish this time');
+  expect(basis({sweep: {matched: 0, failed: null}})).toBe('B.');
+  const capped = basis({sweep: {matched: 300, failed: null}, checked: {records_with_percentages: 60}});
+  expect(capped).toContain('At least 300 stored posts in the window match the question');
+  expect(capped).toContain('up to 60 records with a percentage');
+  expect(capped).not.toContain('were read for these');
+});
