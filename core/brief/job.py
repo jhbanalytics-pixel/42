@@ -270,6 +270,12 @@ K3_PARTS = (
                 r"evidence cannot support place or people claims$"),
      "described a place or people from posts only seen in that market's feeds"),
 )
+# A K6 cut for a pack sound letter (core/brief/explain.py _sound_label_rows) is a code label in reader text, not a
+# banned term: matched on the code's own fixed detail phrase, never on copied text.
+_CODE_LABEL = re.compile(r"^(?:short_answer: )?code label in reader text: ")
+CODE_LABEL_NAME = "Code label check"
+CODE_LABEL_WORDS = {"claim": "a claim named an internal sound label",
+                    "sentence": "the explanation named an internal sound label"}
 OTHER_WORDS = {"K5": "the label was lowered to what the evidence allows",
                "K10": "the status was lowered as claims were cut",
                # The writer's title (core/brief/explain.py): a cut only drops it, so the card keeps its label.
@@ -1025,6 +1031,13 @@ def _overflow(chk):
     return detail.startswith("writer returned") and detail.endswith("support checks were withheld")
 
 
+def _code_label(chk):
+    """True for explain.py's K6 cut of a pack sound letter, before or after the repair round."""
+    detail = str(chk.get("detail") or "")
+    detail = detail[len(REPAIR):] if detail.startswith(REPAIR) else detail
+    return chk.get("rule") == "K6" and _CODE_LABEL.match(detail) is not None
+
+
 def _wording(chk, rested=False):
     """The fixed wording for one check row. rested: the row cuts a claim the explanation sentence rests on."""
     rule, verdict = chk["rule"], chk["verdict"]
@@ -1053,6 +1066,8 @@ def _wording(chk, rested=False):
     if _overflow(chk):
         return f"{name}: {OVERFLOW_WORDS}"
     words = (SENTENCE_WORDS.get(rule) if chk.get("claim_id") is None else None) or CLAIM_WORDS.get(rule, NOT_PASSED)
+    if _code_label(chk):
+        name, words = CODE_LABEL_NAME, CODE_LABEL_WORDS["sentence" if chk.get("claim_id") is None else "claim"]
     if rule == "K3":
         part = next((w for rx, w in K3_PARTS if rx.search(str(chk.get("detail") or "").strip())), None)
         if part is not None:
@@ -1099,6 +1114,9 @@ def _reason_code(chk):
             return "critic_rival_not_ruled_out" if local else "critic_rival_and_why_now"
         if standing is not None and not local:
             return "critic_why_now_not_shown"
+        return "unclassified"
+    if _code_label(chk):
+        # No retained.REASON_CODES member names a code label yet; the catch-all is truer than a banned term.
         return "unclassified"
     if rule == "K3":
         for (rx, _), code in zip(K3_PARTS, K3_CODES):

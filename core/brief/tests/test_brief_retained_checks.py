@@ -235,6 +235,7 @@ CODE_CASES = [
     ("K3", None, "cut", "code", "short_answer: something else", "sentence_place_other"),
     ("K6", None, "cut", "code", "short_answer: banned term", "sentence_banned_term"),
     ("K6", None, "breach", "code", "short_answer: banned term", "sentence_banned_term"),
+    ("K6", None, "cut", "code", "short_answer: code label in reader text: a pack sound letter", "unclassified"),
     ("K8", None, "cut", "code", "short_answer: unmarked translation", "sentence_translation"),
     ("K9", None, "cut", "code", "short_answer: direct future assertion held while forecast promotion is off",
      "sentence_future_assertion"),
