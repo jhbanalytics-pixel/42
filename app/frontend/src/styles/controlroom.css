@@ -61,7 +61,7 @@
   --cr-hover: color-mix(in srgb, var(--ink) 8%, transparent);
   --cr-select: color-mix(in srgb, var(--accent) 16%, transparent);
   --cr-rule: #2A141A;
-  --cr-rule-strong: #4A2D33;
+  --cr-rule-strong: #6C5B5D;
   --cr-field: #8A0012;
 }
 :root[data-dir="daylight"],
@@ -70,8 +70,7 @@
   --cr-hover: color-mix(in srgb, var(--ink) 6%, transparent);
   --cr-select: color-mix(in srgb, var(--accent) 10%, transparent);
   --cr-rule: #E6D7D3;
-  --cr-rule-strong: #CDB7B3;
-  --cr-field: #8A0012;
+  --cr-rule-strong: #958385;
 }
 
 html:root body { font-family: var(--cr-face); }
@@ -127,7 +126,6 @@ html:root .rail42 .rail42-link[aria-current="page"] {
 }
 
 /* ---------- Headlines: posters by width ---------- */
-html:root .oi-product #main-content h1:not(.sr-only) { font-weight: 800; }
 html:root .oi-product .t42 .t42-headline .t42-headline-term,
 html:root .oi-product .t42 .t42-lead-value,
 html:root .oi-product .t42 .tc-big-lead .tc-big-value { color: var(--accent-text); }
@@ -145,13 +143,15 @@ html:root .oi-product .t42 .t42-glance-unit {
   color: var(--muted);
 }
 
-/* Today's lead sits on the field: a low red light rising from the right,
-   painted as a linear wash so nothing reads as a halo or casts a shadow. */
-html:root .oi-product .t42 .t42-head {
+/* Today's lead header sits on the field: a low red light rising from the
+   right, painted as a linear wash so nothing reads as a halo or casts a
+   shadow. Other routes reuse .t42-head, so the wash is scoped to the lead. */
+html:root .oi-product .t42 .t42-head:has(> .t42-lead) {
+  align-content: start;
   background: linear-gradient(100deg, transparent 40%, color-mix(in srgb, var(--cr-field) 26%, transparent));
 }
-html:root[data-dir="daylight"] .oi-product .t42 .t42-head,
-html:root .oi-product[data-dir="daylight"] .t42 .t42-head {
+html:root[data-dir="daylight"] .oi-product .t42 .t42-head:has(> .t42-lead),
+html:root .oi-product[data-dir="daylight"] .t42 .t42-head:has(> .t42-lead) {
   background: linear-gradient(100deg, transparent 40%, color-mix(in srgb, var(--accent) 6%, transparent));
 }
 
@@ -184,7 +184,7 @@ html:root .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-ac
 html:root .oi-product .ask42 .ask42-submit:not(:disabled):hover,
 html:root .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-action-primary:hover {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 88%, var(--accent-ink));
+  background: color-mix(in srgb, var(--accent) 88%, #000000);
   color: var(--accent-ink);
 }
 html:root .oi-product .ask42 .ask42-submit:focus-visible,
@@ -198,7 +198,7 @@ html:root .oi-product .ask42 :is(.ask42-input, .ask42-select) {
   transition: border-color var(--motion-control) var(--motion-standard-easing);
 }
 html:root .oi-product .ask42 :is(.ask42-input, .ask42-select):hover { border-color: var(--muted); }
-html:root .oi-product .ask42 :is(.ask42-input, .ask42-select):focus-visible { border-color: var(--accent); outline: 1px solid var(--accent); outline-offset: calc(var(--focus-offset) * -1); }
+html:root .oi-product .ask42 :is(.ask42-input, .ask42-select):focus-visible { border-color: var(--accent); outline: var(--focus-width, 2px) solid var(--accent); outline-offset: calc(var(--focus-offset) * -1); }
 
 /* Example questions are rows with a state layer and a red lead rule. */
 html:root .oi-product .ask42 .ask42-starter {
@@ -206,7 +206,7 @@ html:root .oi-product .ask42 .ask42-starter {
   transition: background-color var(--motion-row) var(--motion-standard-easing), border-color var(--motion-row) var(--motion-standard-easing);
 }
 html:root .oi-product .ask42 .ask42-starter:hover { background: var(--cr-hover); border-inline-start-color: var(--accent); }
-html:root .oi-product .ask42 .ask42-starter:focus-visible { border-inline-start-color: var(--accent); outline: 2px solid var(--accent-text); outline-offset: calc(var(--focus-offset) * -2); }
+html:root .oi-product .ask42 .ask42-starter:focus-visible { border-inline-start-color: var(--accent); outline: 2px solid var(--accent-text); outline-offset: calc(var(--focus-offset) * -1); }
 
 html:root .oi-product .ask42 .ask42-claim-text,
 html:root .oi-product .ask42 .ask42-list li,
@@ -235,3 +235,11 @@ html:root .oi-product .ask42-scan-field {
 }
 html:root .oi-product :is(.ask42-scan-clock, .ask42-scan-step-label, .ask42-log-times) { font-family: var(--cr-mono); font-size: var(--cr-t-meta); }
 html:root .oi-product .ask42-scan-counts dd { font-family: var(--cr-face); font-weight: 800; font-stretch: 62%; }
+
+/* Discover's chips follow the tab rule: the pressed chip takes the red
+   selection tint and a red base, not an ink fill. */
+html:root .oi-product :is(.d42-chip[aria-pressed="true"], .d42-chip[aria-selected="true"]) {
+  color: var(--ink);
+  background: var(--cr-select);
+  border-color: var(--accent);
+}
