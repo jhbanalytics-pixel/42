@@ -2,8 +2,11 @@
    square cells, lit in the accent red, draws the lead's posts a day as
    columns rising from the base: one band per measured day, as tall as that
    day's share of the busiest day. The cells brighten towards the right, away
-   from the headline, and stay dim enough that every text colour on the lead
-   keeps its contrast (at most 28% red over the canvas in Dark, 16% in Light).
+   from the headline, cool towards each column's top, and stay dim enough that
+   every text colour on the lead keeps its contrast (at most 28% red over the
+   canvas in Dark, 16% in Light). Unlit cells are a faint ink, so the matrix
+   is the ground of the whole lead, and the busiest day throws a few sparks
+   of the ramp's white heat.
 
    It is drawn once, and again only when its box changes size: no frame loop,
    so the motion law's ban on idle loops holds. The sheet fades it in once
@@ -43,7 +46,9 @@ function paint(canvas, levels){
   const style = getComputedStyle(canvas);
   const light = document.documentElement.getAttribute('data-dir') === 'daylight';
   const peak = light ? 0.16 : 0.28;
-  context.fillStyle = style.getPropertyValue('--accent').trim() || '#E4002B';
+  const red = style.getPropertyValue('--accent').trim() || '#E4002B';
+  const ink = style.getPropertyValue('--ink').trim() || '#F8EDEA';
+  const heat = style.getPropertyValue('--heat-4').trim() || '#FFD9CF';
   const columns = Math.floor(width / PITCH);
   const rows = Math.floor(height / PITCH);
   const days = levels.length;
@@ -53,10 +58,25 @@ function paint(canvas, levels){
     const litRows = level === null ? 0 : Math.round(level * rows * 0.6);
     for (let row = 0; row < rows; row += 1){
       const fromBase = rows - 1 - row;
-      const lit = fromBase < litRows;
-      const base = lit ? peak * (0.35 + 0.65 * across) : 0.035 + 0.04 * across;
-      context.globalAlpha = Math.min(peak, base * (0.8 + 0.4 * grain(column, row)));
-      context.fillRect(column * PITCH, row * PITCH, CELL, CELL);
+      const texture = 0.8 + 0.4 * grain(column, row);
+      if (fromBase < litRows){
+        /* A lit column is hottest at its base and cools to 40% at its top. */
+        const height = litRows > 1 ? fromBase / (litRows - 1) : 0;
+        context.fillStyle = red;
+        context.globalAlpha = Math.min(peak, peak * (0.35 + 0.65 * across) * (1 - 0.6 * height) * texture);
+        context.fillRect(column * PITCH, row * PITCH, CELL, CELL);
+        /* The busiest day throws sparks of white heat off its top rows. */
+        if (level === 1 && fromBase >= litRows - 2 && grain(row, column) > 0.92){
+          context.fillStyle = heat;
+          context.globalAlpha = light ? 0.22 : 0.35;
+          context.fillRect(column * PITCH, row * PITCH, CELL, CELL);
+        }
+      } else {
+        /* Unlit cells are the ground the whole lead sits on, in a faint ink. */
+        context.fillStyle = ink;
+        context.globalAlpha = (light ? 0.05 : 0.07) * texture;
+        context.fillRect(column * PITCH, row * PITCH, CELL, CELL);
+      }
     }
   }
   context.globalAlpha = 1;
