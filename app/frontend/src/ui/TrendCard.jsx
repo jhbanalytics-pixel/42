@@ -505,6 +505,10 @@ function spanWords(first, last){
    at WIDE_WIDTH. */
 const WIDE_WIDTH = 480;
 const WIDE_HEIGHT = 112;
+/* The wide now label ends this far left of the now dot's centre: the dot's
+   3.5 radius, half its 1.5px ring and a small gap, so the dot drawn over it
+   never covers the last figure. */
+const NOW_LABEL_CLEAR = 7;
 const WIDE_FOOT = 24;
 function useMeasuredWidth(active){
   const holder = useRef(null);
@@ -631,7 +635,7 @@ export function Sparkline({sparkline, minDays = MIN_CHART_DAYS, wide = false, fi
         {areaPath && <path className="t42-area" d={areaPath} />}
         {bridge && <path className="t42-gap" d={bridge} fill="none" />}
         {line && <path className="t42-line" d={line} fill="none" strokeLinecap="round" strokeLinejoin="round" pathLength="1" />}
-        {wide && measured.length > 0 && <text className="t42-now-label" x={fix(Math.min(W - 2, x(measured[measured.length - 1])))} y={fix(Math.max(pad + 10, y(points[measured[measured.length - 1]].value) - 10))} textAnchor="end">{seriesFigure(points[measured[measured.length - 1]].value)}</text>}
+        {wide && measured.length > 0 && <text className="t42-now-label" x={fix(Math.min(W - 2, x(measured[measured.length - 1])) - NOW_LABEL_CLEAR)} y={fix(Math.max(pad + 10, y(points[measured[measured.length - 1]].value) - 10))} textAnchor="end">{seriesFigure(points[measured[measured.length - 1]].value)}</text>}
         {measured.map((i, k) => <circle key={i} className={k === measured.length - 1 ? 't42-dot t42-dot-now' : 't42-dot'} cx={fix(x(i))} cy={fix(y(points[i].value))} r={k === measured.length - 1 ? '3.5' : '2'} />)}
         {probe !== null && (
           <g className="t42-probe">
