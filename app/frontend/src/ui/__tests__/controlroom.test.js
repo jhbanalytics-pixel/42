@@ -26,3 +26,23 @@ test('every rule that paints a background on .t42-head is scoped to the lead hea
   });
   expect(found.length).toBeGreaterThan(0);
 });
+
+/* Slice 2: the LED field draws the lead's posts a day, each day as its share
+   of the busiest day; a day that was not measured stays dark rather than
+   reading as zero, and a series with nothing measured draws no field. */
+const {ledLevels} = await import('../LedField.jsx');
+
+test('the LED field scales each measured day to the busiest day and keeps gaps dark', () => {
+  expect(ledLevels([{value: 2}, {value: null}, {value: 8}, {value: 4}])).toEqual([0.25, null, 1, 0.5]);
+  expect(ledLevels([{value: 0}, {value: 0}])).toEqual([null, null]);
+  expect(ledLevels(undefined)).toEqual([]);
+});
+
+test('the field fades in once and only for a reader who has not asked for less motion', () => {
+  const found = [];
+  postcss.parse(css).walkDecls('animation', (declaration) => {
+    if (!/crLedIgnite/.test(declaration.value)) return;
+    found.push(declaration.parent.parent.type === 'atrule' && /prefers-reduced-motion:\s*no-preference/.test(declaration.parent.parent.params));
+  });
+  expect(found).toEqual([true]);
+});
