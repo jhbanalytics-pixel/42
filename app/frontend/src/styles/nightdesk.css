@@ -56,18 +56,19 @@
   --nd-rank-gutter-sm: 56px;
 }
 
-/* Heat ramp (magma family, perceptually ordered) and market marks. Momentum
-   reads left to right from cold plum to hot yellow; it is never a fill for
+/* Heat ramp and market marks. Momentum reads from deep red to white heat.
+   Control room (17 October) makes heat-3, the emphasis step every lead uses,
+   the signal red and moves ember to heat-2. The ramp is never a fill for
    decoration. Daylight takes deeper steps so marks hold 3:1 on paper. */
 :root[data-dir="midnight"],
 [data-dir="midnight"],
 .oi-product[data-dir="midnight"] {
-  --heat-0: #4A2246;
-  --heat-1: #8E2A6B;
-  --heat-2: #E5484D;
-  --heat-3: #FF9A3D;
-  --heat-4: #FBDD74;
-  --heat-ink: #151214;
+  --heat-0: #4A0E1C;
+  --heat-1: #A0001F;
+  --heat-2: #FF8C3C;
+  --heat-3: #FF4A5E;
+  --heat-4: #FFD9CF;
+  --heat-ink: #0B0305;
   --mk-za: #FF9A3D;
   --mk-ng: #4FCB8B;
   --mk-ke: #6FA8FF;
@@ -75,11 +76,11 @@
 :root[data-dir="daylight"],
 [data-dir="daylight"],
 .oi-product[data-dir="daylight"] {
-  --heat-0: #D9C4D6;
-  --heat-1: #9C2B74;
-  --heat-2: #C8262F;
-  --heat-3: #A85200;
-  --heat-4: #8A6A00;
+  --heat-0: #E9C9CC;
+  --heat-1: #8A0012;
+  --heat-2: #A33A00;
+  --heat-3: #B00026;
+  --heat-4: #7A4F00;
   --heat-ink: #FFFFFF;
   --mk-za: #A85200;
   --mk-ng: #17794A;
