@@ -240,6 +240,46 @@ def test_same_day_client_cache_ledger_joins_the_saved_raw_response():
     )
 
 
+def test_a_same_day_retry_served_from_the_real_client_cache_keeps_every_market_signal(monkeypatch):
+    # A collect run that failed after this phase is retried the same SAST day: the real client serves each market's
+    # recorded 200 from raw_responses (cache_hit, 0 credits) and the job passes no receipts. The body is the one the
+    # client validated, so it is read like a live answer, not dropped as unknown.
+    from core.collect.socialcrawl_client import KEY_ENV, SocialCrawlClient
+    from core.collect.stores import MemoryLedgerStore, MemoryRawStore
+
+    monkeypatch.setenv(KEY_ENV, "test-key")
+    raw = MemoryRawStore()
+    earlier = datetime(2026, 10, 1, 3, 0, tzinfo=timezone.utc)
+    for market in trends.MARKETS:
+        raw.append(dict(raw_receipt(market, DOC_RESPONSE_NOT_NATIVE, run_id="failed-run", fetched_at=earlier),
+                        body=DOC_RESPONSE_NOT_NATIVE))  # as the client stores it
+    live = []
+
+    def http(method, url, **kwargs):
+        live.append(url)
+        raise AssertionError("a cached market was fetched live")
+
+    ledger = MemoryLedgerStore()
+    client = SocialCrawlClient(share="collect", run_id=RUN_ID, mode="live", ledger=ledger, raw=raw, http=http,
+                               clock=lambda: RUN_AT)
+    batch = collect(client)
+
+    assert live == []
+    assert {m: batch.states[(m, "google_trending")].status for m in trends.MARKETS} == {
+        "ZA": "ok", "NG": "ok", "KE": "ok"}
+    assert sorted(s.market for s in batch.signals) == sorted(trends.MARKETS)
+    assert {s.term for s in batch.signals} == {"judith und mel"}
+    assert sum(r["credits_charged"] for r in ledger.rows) == 0 and all(r["cache_hit"] for r in ledger.rows)
+
+
+def test_a_cached_body_the_client_could_not_validate_stays_unknown():
+    cached = SimpleNamespace(status="error", body={"success": False}, http_status=200, reason="", cache_hit=True)
+    client = FakeClient([cached, cached, cached])
+    batch = collect(client)
+    assert not batch.signals
+    assert {batch.states[(m, "google_trending")].status for m in trends.MARKETS} == {"unknown"}
+
+
 def test_empty_error_and_bodyless_http200_receipts_do_not_retrigger_markets():
     client = FakeClient()
 

@@ -338,7 +338,11 @@ def _client_result(
     status = str(getattr(result, "status", "unavailable")).lower()
     reason = getattr(result, "reason", None) or None
     if getattr(result, "cache_hit", False):
-        return [], SourceState("unknown", "cached_body_missing_raw_receipt")
+        # A same-day 200 the client served from raw_responses (a retry or rerun of the day): _served has already
+        # checked the recorded body and charged 0, so it is read as a live answer is.
+        if status != "cached" or not isinstance(getattr(result, "body", None), Mapping):
+            return [], SourceState("unknown", "cached_body_missing_raw_receipt")
+        return _search_signals(result.body, market, fetched_at)
     if status == "cap_reached":
         return [], SourceState("capped", reason or "collect_share_cap_reached")
     if status in {"empty", "not_found"} or getattr(result, "http_status", None) == 404:
