@@ -249,8 +249,9 @@ def _failed_reason(c, status):
     return None
 
 
-# Evidence fields only the model checks read (explain.SUPPORT_FIELDS); stored cards and held items keep their shape.
-MODEL_ONLY_FIELDS = ("formats", "sound_id")
+# Evidence fields only the model checks read (explain.SUPPORT_FIELDS, _scraped); stored cards and held items keep
+# their shape. screen_text, video_format and video_sound are what the video step read from the clip (18 Oct 2026).
+MODEL_ONLY_FIELDS = ("formats", "sound_id", "screen_text", "video_format", "video_sound")
 
 
 def reader_evidence(evidence):

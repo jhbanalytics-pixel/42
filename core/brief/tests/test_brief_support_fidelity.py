@@ -108,7 +108,7 @@ def test_writer_keeps_the_explanation_inside_the_claims_actual_scope():
 def test_support_contract_remains_pinned():
     # 18 Oct 2026, prompt-formats-sound: SUPPORT_SYSTEM says what formats and sound mean.
     assert hashlib.sha256(explain.SUPPORT_SYSTEM.encode("utf-8")).hexdigest() == (
-        "b94846a59349dbe9b1e330af483b0fce02a8f16e4e662d72f2693853e2e328ef")
+        "d127fd621b82d0b7b8597ece5b31cf0d50c5b59685b0020402ea88145cb9fd1b")
     # 16 Oct 2026, pack-formats-sound: each cited post's head also carries its sound letter (_sound_letters).
     assert hashlib.sha256(inspect.getsource(explain._support_user).encode("utf-8")).hexdigest() == (
-        "ba2905d5e56795332e7d305cc832874600465bc237cd6b60a65d1c22ce18c35f")
+        "f752ad2a78459895f1912fef82ec4e6fd7e39fb10d8f2fcf90cebaa475ba63cf")
