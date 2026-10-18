@@ -320,6 +320,11 @@ def test_retained_14oct_primary_fixture_reaction_is_held_without_a_dated_anchor(
     assert len(kept) == 1 and not job._published(kept[0])
     assert kept[0]["decision"].rule == "G3"
     assert kept[0]["held_reason"] == "not_confirmed"
+    # 18 Oct 2026: its own wording and code, beside the contract's reason.
+    assert kept[0]["decision"].reason == job.FIXTURE_REACTION
+    assert kept[0]["held_reason_code"] == job.FIXTURE_REACTION_CODE == "hold_fixture_reaction"
+    from core.trust import retained
+    assert job.FIXTURE_REACTION_CODE in retained.REASON_CODES
     assert receipt["merges"] == receipt["possible_fragments"] == []
     for key in ("numbers", "evidence", "claims", "explanation", "explanation_claim_ids", "also"):
         assert kept[0][key] == before[key]
@@ -329,8 +334,14 @@ def test_retained_14oct_primary_fixture_reaction_is_held_without_a_dated_anchor(
     assert payload["cards"] == payload["more"] == []
     held = payload["held_back"]["items"][0]
     assert held["reason"] == "not_confirmed"
+    assert held["reason_text"] == job.FIXTURE_REACTION and held["held_reason_code"] == job.FIXTURE_REACTION_CODE
     assert held["numbers"] == before["numbers"] and held["evidence"] == before["evidence"]
     assert not {"claims", "explanation", "explanation_claim_ids", "event_fragment"} & set(held)
+    # Today reads the hold in plain words, the job's own text kept beside them.
+    from core.api.held_words import plain_reason
+    plain = plain_reason(dict(held))
+    assert plain["reason_text"] == "A reaction to a match we could not pin to a fixture or a date"
+    assert plain["reason_raw"] == job.FIXTURE_REACTION
 
 
 @pytest.mark.parametrize("text", [

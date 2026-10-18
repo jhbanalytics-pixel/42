@@ -20,6 +20,9 @@ REASON_CODES = frozenset({
     "sentence_quote", "sentence_specificity",
     "critic_rival_not_ruled_out", "critic_why_now_not_shown", "critic_rival_and_why_now", "critic_answer_inconsistent",
     "check_incomplete", "unclassified",
+    # A hold code, not a check row's: the brief job's primary fixture reaction hold (core/brief/job.py
+    # FIXTURE_REACTION_CODE), carried by the held item as held_reason_code (18 Oct 2026).
+    "hold_fixture_reaction",
 })
 
 _DIGEST = re.compile(r"[0-9a-f]{64}")

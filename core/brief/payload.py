@@ -291,6 +291,10 @@ def _held_item(c):
         held["held_reason_detail"] = c["held_reason_detail"]
     if c.get("event_fragment"):
         held["event_fragment"] = c["event_fragment"]
+    # The brief job's own hold code (core/brief/job.py FIXTURE_REACTION_CODE, a retained.REASON_CODES member), beside
+    # the contract's reason; left out when the hold has none, so every other held item keeps its shape.
+    if c.get("held_reason_code"):
+        held["held_reason_code"] = c["held_reason_code"]
     return held
 
 

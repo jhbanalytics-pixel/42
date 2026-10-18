@@ -137,7 +137,10 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # not below the 3 the writer is asked for, so the one repair round is kept for a cut that holds the draft
 # (core/brief/explain.py CLAIM_FLOOR, _faults), writer-no-earliest when no post is marked earliest_in_pack (a tie,
 # or an unreadable time) a line written by code tells the writer so and to write no earliest-post claim, and the
-# writer's ask names the mark as the condition for one (core/brief/explain.py WRITER_SYSTEM, _writer_user).
+# writer's ask names the mark as the condition for one (core/brief/explain.py WRITER_SYSTEM, _writer_user),
+# fixture-reaction-code a primary fixture reaction held before publication keeps its G3 hold with its own wording
+# and a hold code of its own on the held item instead of the generic Not confirmed (FIXTURE_REACTION,
+# FIXTURE_REACTION_CODE, core/trust/retained.py REASON_CODES, core/api/held_words.py).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
@@ -145,7 +148,7 @@ RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8
                 "+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead"
                 "+critic-inconsistent+pattern-skip-talking-head+writer-critic-agree+pack-video-fields"
                 "+critic-rivals-line+author-step-note+pack-local-pattern-order+creator-letters"
-                "+data-issue-full-judgement+claim-floor-fault+writer-no-earliest")
+                "+data-issue-full-judgement+claim-floor-fault+writer-no-earliest+fixture-reaction-code")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -322,6 +325,13 @@ NOT_PASSED = "did not pass"
 # explain.py's reject_overflow row: no support check ran, so the card does not say one failed.
 OVERFLOW_WORDS = "the writer returned too many claims, so support was not checked"
 TOO_FEW = "Claim checks: fewer than 2 claims passed"
+# A primary fixture reaction (_publish_events): the explanation says creators reacted to a match or fixture, the
+# critic read it as a scheduled event, and no cited post anchors the fixture and its date, so the card is held with
+# its own wording and code instead of the generic "Not confirmed" (18 Oct 2026). The held_back.reason stays
+# not_confirmed, the contract's enum; the code is a retained.REASON_CODES member the held item carries as
+# held_reason_code, and core/api/held_words.py gives the wording its plain form.
+FIXTURE_REACTION = "Not confirmed: a reaction to a match or fixture that no cited post dates or names"
+FIXTURE_REACTION_CODE = "hold_fixture_reaction"
 NO_REST = "Claim checks: the explanation did not rest on claims that passed"
 CHECK_INCOMPLETE_WORDS = "Check did not complete"
 # CRITIC_SYSTEM's menu of non-cultural explanations, in its order, each with the words that name it.
@@ -1494,8 +1504,8 @@ def _publish_events(market, d, items, posts):
             r"(?:\s+on\s+(?:TikTok|Twitter|Reddit|Instagram|YouTube|X))?\s*,?\s*", parts[0], re.I)
         if primary_fixture:
             replacements[item["item_id"]] = {**item,
-                "decision": Decision(False, "held_back", None, "Not confirmed", "G3", False),
-                "held_reason": "not_confirmed"}
+                "decision": Decision(False, "held_back", None, FIXTURE_REACTION, "G3", False),
+                "held_reason": "not_confirmed", "held_reason_code": FIXTURE_REACTION_CODE}
 
     def matches(a, b):
         shared = len(set(posts.get(a["item_id"]) or ()) & set(posts.get(b["item_id"]) or ()))

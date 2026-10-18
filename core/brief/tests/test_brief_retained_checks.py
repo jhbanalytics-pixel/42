@@ -264,7 +264,10 @@ def test_each_failed_check_outcome_has_its_code(rule, claim, verdict, checker, d
 
 
 def test_the_enum_holds_exactly_the_codes_the_cases_reach():
-    assert retained.REASON_CODES == {case[-1] for case in CODE_CASES} | {"unclassified"}
+    # hold_fixture_reaction is a hold code the held item carries (core/brief/job.py FIXTURE_REACTION_CODE), not one a
+    # check row reaches.
+    from core.brief.job import FIXTURE_REACTION_CODE
+    assert retained.REASON_CODES == {case[-1] for case in CODE_CASES} | {"unclassified", FIXTURE_REACTION_CODE}
 
 
 def test_a_row_the_code_cannot_place_gets_the_catch_all():
