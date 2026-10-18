@@ -27,17 +27,14 @@ def statement():
 
 
 def post(con, pid, *, creator, eng, platform="tiktok", handle=None, member=False, cluster="ng", lane_class="unbiased_rank",
-         geo="NG", creator_row=True, series=None, sound_id=None, formats=None):
+         geo="NG", creator_row=True, series=None):
     published = datetime(2026, 10, 6, 9, tzinfo=UTC)
     if creator_row and not con.execute("SELECT 1 FROM core.creators WHERE creator_id = ? AND platform = ?",
                                        [creator, platform]).fetchall():
         duck.load(con, "core.creators", [{"creator_id": creator, "platform": platform, "handle": handle or creator}])
     duck.load(con, "core.posts", [{"post_id": pid, "platform": platform, "creator_id": creator, "published_at": published,
                                     "post_date": published.date(), "engagement": eng, "geo_market": geo,
-                                    "geo_confidence": 0.9 if geo else None, "geo_source": "ext_region" if geo else None,
-                                    "sound_id": sound_id}])
-    if formats is not None:
-        duck.load(con, "core.post_enrichment", [{"post_id": pid, "formats": list(formats)}])
+                                    "geo_confidence": 0.9 if geo else None, "geo_source": "ext_region" if geo else None}])
     duck.load(con, "core.post_items", [{"post_id": pid, "item_id": ITEM, "via": "hashtag"}])
     seen = published + timedelta(hours=1)
     duck.load(con, "core.post_observations", [{"post_id": pid, "observed_at": seen, "observed_date": seen.date(),
@@ -65,15 +62,13 @@ def world(reverse=False):
                                lane_class="panel")) for n in range(4)]  # outlets on X, in the registry
     specs += [(f"m{n}", dict(creator=f"cm{n}", eng=100 + n, member=True)) for n in range(6)]
     specs += [(f"mc{n}", dict(creator="heavy", eng=500 + n, member=True)) for n in range(5)]  # the cap keeps two
-    specs += [(f"pm{n}", dict(creator=f"pm{n}", eng=300 + n, member=True, cluster="pan", geo=None)) for n in range(2)]
-    # The non-member creator posts have no known location: a local creator post ranks before an outlet within its
-    # tier since 18 Oct 2026 (local_first_world below), and these checks are about the caps and the old order.
-    specs += [(f"cx{n}", dict(creator=f"cx{n}", eng=200 + n, geo=None)) for n in range(3)]
-    specs += [("tie_b", dict(creator="tb", eng=5000, geo=None)), ("tie_a", dict(creator="ta", eng=5000, geo=None)),
-              ("mx_c1", dict(creator="mix", eng=900, geo=None)), ("mx_c2", dict(creator="mix", eng=800, geo=None)),
+    specs += [(f"pm{n}", dict(creator=f"pm{n}", eng=300 + n, member=True, cluster="pan")) for n in range(2)]
+    specs += [(f"cx{n}", dict(creator=f"cx{n}", eng=200 + n)) for n in range(3)]
+    specs += [("tie_b", dict(creator="tb", eng=5000)), ("tie_a", dict(creator="ta", eng=5000)),
+              ("mx_c1", dict(creator="mix", eng=900)), ("mx_c2", dict(creator="mix", eng=800)),
               ("mx_m", dict(creator="mix", eng=10, member=True)),  # the cap must keep the member
-              ("stale", dict(creator="st", eng=6000, geo=None)),  # member only of a cluster ten days back
-              ("nohandle", dict(creator="nc", eng=7000, creator_row=False, geo=None))]  # no creators row
+              ("stale", dict(creator="st", eng=6000)),  # member only of a cluster ten days back
+              ("nohandle", dict(creator="nc", eng=7000, creator_row=False))]  # a post whose creator has no creators row
     for pid, kw in (reversed(specs) if reverse else specs):
         post(con, pid, **kw)
     duck.load(con, "core.cluster_members", [{"cluster_id": "old-ng-001", "post_id": "stale", "probability": 0.9},
@@ -89,110 +84,30 @@ def pack(con, cap, keys=KEYS, sql=None):
 MEMBERS = ["mc4", "mc3", "m5", "m4", "m3", "m2", "m1", "m0", "mx_m"]  # tier 0, measured then engagement
 
 
-def local_first_world():
-    """Two unlocated member posts of negligible engagement (the member tier still comes first), then non-members: a
-    low-engagement local creator post, a local news outlet, a local registry outlet on X, a local post sighted on the
-    YouTube trending board alone, one sighted on the board and in a feed, a post located abroad and one with no
-    location; plus, for the creator cap, one creator with a low local post and two high unlocated ones, and one with an
-    unlocated member post and two higher local ones."""
+def board_world():
+    """A high-engagement local post sighted on the YouTube trending board alone, one sighted on the board and in a
+    feed, and a low-engagement local creator post: the mark says which, and the order is the measured and engagement
+    order it always was."""
     con = duck.connect()
     clusters(con)
-    post(con, "mem_far", creator="mf", eng=1, member=True, geo=None)
-    post(con, "m3_mem", creator="mix3", eng=1, member=True, geo=None)
-    post(con, "m3_loc1", creator="mix3", eng=50)
-    post(con, "m3_loc2", creator="mix3", eng=40)
-    post(con, "lc_low", creator="lc", eng=10)
-    post(con, "out_hi", creator="news0", eng=9000, platform="news", lane_class="panel")
-    post(con, "xhub_hi", creator="hub0", eng=8500, platform="twitter", handle="@Hub0")
     post(con, "board_hi", creator="yt1", eng=8000, platform="youtube", series="board_youtube")
     post(con, "mixed_board", creator="yt2", eng=7000, platform="youtube", series="board_youtube")
     seen = datetime(2026, 10, 6, 12, tzinfo=UTC)
     duck.load(con, "core.post_observations", [{"post_id": "mixed_board", "observed_at": seen, "observed_date": seen.date(),
                                                 "market": MARKET, "platform": "youtube", "lane": "sweep",
                                                 "lane_class": "unbiased_rank", "series": "feed_youtube"}])
-    post(con, "far_hi", creator="far", eng=9500, geo="ZA")
-    post(con, "unk_hi", creator="unk", eng=9400, geo=None)
-    post(con, "m2_local", creator="mix2", eng=5)
-    post(con, "m2_far1", creator="mix2", eng=9999, geo=None)
-    post(con, "m2_far2", creator="mix2", eng=9998, geo=None)
+    post(con, "lc_low", creator="lc", eng=10)
     return con
 
 
-def check_local_creator_posts_rank_first_within_a_tier_and_a_board_only_post_is_marked(sql):
-    # 18 Oct 2026: within a tier a local creator post (local, not an outlet, not news, not sighted on the YouTube
-    # trending board alone) ranks before the measured and engagement keys; the rest keep the old order.
-    rows = pack(local_first_world(), 12, sql=sql)
-    ids = [r["post_id"] for r in rows]
-    # Members first whatever their location, then local creators by engagement, then the rest in the old order; the
-    # creator cap drops each creator's third post (m2_far2, m3_loc2) and keeps the member one.
-    assert ids == ["m3_mem", "mem_far", "mixed_board", "m3_loc1", "lc_low", "m2_local",
-                   "m2_far1", "far_hi", "unk_hi", "out_hi", "xhub_hi", "board_hi"]
+def check_a_post_sighted_only_on_the_youtube_board_is_marked_board_only_and_ranks_as_before(sql):
+    # 18 Oct 2026: board_only marks a post whose every sighting in the window was the YouTube trending board, for the
+    # writer and the critic; it changes no rank and the post stays local.
+    rows = pack(board_world(), 12, sql=sql)
+    assert [r["post_id"] for r in rows] == ["board_hi", "mixed_board", "lc_low"]  # measured, then engagement
     by_id = {r["post_id"]: r for r in rows}
-    assert [pid for pid in ids if by_id[pid]["local_creator"]] == ["mixed_board", "m3_loc1", "lc_low", "m2_local"]
-    assert by_id["xhub_hi"]["is_outlet"] is True and by_id["xhub_hi"]["local_flag"] is True
-    assert by_id["xhub_hi"]["local_creator"] is False
-    assert all(r["local_creator"] is not None for r in rows)  # a sort key is never NULL, whatever local_flag is
-    assert by_id["board_hi"]["board_only"] is True and by_id["board_hi"]["local_flag"] is True
-    assert all(by_id[pid]["board_only"] is False for pid in ids if pid != "board_hi")
-    assert by_id["out_hi"]["local_flag"] is True and by_id["out_hi"]["local_creator"] is False
-
-
-def check_the_creator_cap_keeps_a_creators_local_post_over_higher_unlocated_ones(sql):
-    ids = [r["post_id"] for r in pack(local_first_world(), 12, sql=sql)]
-    assert "m2_local" in ids and "m2_far1" in ids and "m2_far2" not in ids
-    assert "m3_mem" in ids and "m3_loc1" in ids and "m3_loc2" not in ids  # the member post before the local ones
-
-
-def pattern_world():
-    """Non-member unlocated posts: three creators share the format skit (the dominant pattern; one of them posts it
-    twice), two share a sound, four share talking_head, one uses dance alone twice, and two show no pattern."""
-    con = duck.connect()
-    clusters(con)
-    for n, creator in enumerate(("a", "b", "c")):
-        post(con, f"dom{n}", creator=creator, eng=10 + n, geo=None, formats=["skit"])
-    post(con, "dom_again", creator="a", eng=2000, geo=None, formats=["skit", "talking_head"])
-    for n, creator in enumerate(("d", "e")):
-        post(con, f"snd{n}", creator=creator, eng=100 + n, geo=None, sound_id="S1")
-    for n, creator in enumerate(("f", "g", "h", "i")):
-        post(con, f"th{n}", creator=creator, eng=500 + n, geo=None, formats=["talking_head"])
-    post(con, "solo0", creator="z", eng=3000, geo=None, formats=["dance"])
-    post(con, "solo1", creator="z", eng=2999, geo=None, formats=["dance"])
-    post(con, "oth", creator="o", eng=900, geo=None, formats=["other", "news_clip"])
-    post(con, "plain", creator="p", eng=1000, geo=None)
-    return con
-
-
-def check_posts_sharing_the_dominant_sound_or_format_rank_after_local_creators_and_before_the_rest(sql):
-    rows = pack(pattern_world(), 12, sql=sql)
-    ids = [r["post_id"] for r in rows]
-    assert ids[:4] == ["dom_again", "dom2", "dom1", "dom0"]  # the dominant format, then by engagement
-    assert ids[4:] == ["solo0", "solo1", "plain", "oth", "th3", "th2", "th1", "th0"]  # the rest in the old order
-    by_id = {r["post_id"]: r for r in rows}
-    assert {pid: by_id[pid]["pattern_creators"] for pid in ("dom0", "dom_again", "solo0", "th0", "oth", "plain")} == {
-        "dom0": 3, "dom_again": 3, "solo0": 1, "th0": 0, "oth": 0, "plain": 0}
-    assert all(by_id[pid]["shares_dominant"] is (pid.startswith("dom")) for pid in ids)
-
-
-def check_a_sound_two_creators_share_is_dominant_when_nothing_is_shared_more_widely(sql):
-    con = duck.connect()
-    clusters(con)
-    for n, creator in enumerate(("d", "e")):
-        post(con, f"snd{n}", creator=creator, eng=100 + n, geo=None, sound_id="S1")
-    post(con, "other_platform", creator="q", eng=5000, geo=None, platform="instagram", sound_id="S1")
-    post(con, "plain", creator="p", eng=4000, geo=None)
-    ids = [r["post_id"] for r in pack(con, 12, sql=sql)]
-    assert ids == ["snd1", "snd0", "other_platform", "plain"]  # the same id on another platform is another sound
-
-
-def check_a_format_one_creator_alone_uses_is_no_dominant_pattern(sql):
-    con = duck.connect()
-    clusters(con)
-    post(con, "plain_hi", creator="p", eng=5000, geo=None)
-    post(con, "solo0", creator="z", eng=3000, geo=None, formats=["dance"])
-    post(con, "solo1", creator="z", eng=2999, geo=None, formats=["dance"])
-    rows = pack(con, 12, sql=sql)
-    assert [r["post_id"] for r in rows] == ["plain_hi", "solo0", "solo1"]
-    assert not any(r["shares_dominant"] for r in rows)
+    assert {pid: r["board_only"] for pid, r in by_id.items()} == {"board_hi": True, "mixed_board": False, "lc_low": False}
+    assert by_id["board_hi"]["local_flag"] is True
 
 
 def check_members_come_first_then_the_rest_in_the_old_order(sql):
@@ -241,7 +156,7 @@ def check_stage_counts_say_which_cap_removed_which_posts(sql):
     r = pack(world(), 0, sql=sql)[0]
     assert (r["available_posts"], r["after_creator_cap"], r["after_outlet_cap"]) == (31, 27, 19)
     assert r["available_members"] == 12  # of 13 the producer assigned
-    assert (r["available_local"], r["after_creator_cap_local"], r["after_outlet_cap_local"]) == (12, 9, 9)
+    assert (r["available_local"], r["after_creator_cap_local"], r["after_outlet_cap_local"]) == (23, 19, 19)
     assert (r["available_showable"], r["after_creator_cap_showable"], r["after_outlet_cap_showable"]) == (31, 27, 19)
     # At 3 the five outlets it removes all rank behind 12 kept posts, so they were never going to be in the pack.
     assert pack(world(), 3, sql=sql)[0]["after_outlet_cap"] == 27
@@ -482,30 +397,15 @@ def test_the_sql_local_and_showable_flags_agree_with_the_rules_the_floors_are_ch
 
 MUTANTS = {
     "tier dropped from the final order":
-        [("ORDER BY f.market_member DESC, f.local_creator DESC", "ORDER BY f.local_creator DESC")],
+        [("ORDER BY f.market_member DESC, f.measured DESC", "ORDER BY f.measured DESC")],
     "tier dropped from the creator cap":
-        [("ORDER BY NOT r.market_member, NOT r.local_creator", "ORDER BY NOT r.local_creator")],
-    "local creator key dropped from the final order":
-        [("f.local_creator DESC, f.shares_dominant DESC, f.measured DESC", "f.shares_dominant DESC, f.measured DESC")],
-    "dominant pattern key dropped from the final order":
-        [("f.local_creator DESC, f.shares_dominant DESC, f.measured DESC", "f.local_creator DESC, f.measured DESC")],
-    "local creator key dropped from the creator cap":
-        [("NOT r.market_member, NOT r.local_creator, NOT r.shares_dominant,", "NOT r.market_member, NOT r.shares_dominant,")],
+        [("ORDER BY mm.post_id IS NULL, s.measured DESC", "ORDER BY s.measured DESC")],
     "board-only read as any board sighting":
         [("LOGICAL_AND(IFNULL(po.series, '') = 'board_youtube') board_only",
           "LOGICAL_OR(IFNULL(po.series, '') = 'board_youtube') board_only")],
-    "a local outlet counted as a local creator":
-        [("IFNULL(r0.local_flag, FALSE) AND NOT r0.is_outlet AND NOT IFNULL(r0.board_only, FALSE)",
-          "IFNULL(r0.local_flag, FALSE) AND NOT IFNULL(r0.board_only, FALSE)")],
-    "a null local flag left in the sort key": [("IFNULL(r0.local_flag, FALSE) AND NOT r0.is_outlet", "r0.local_flag AND NOT r0.is_outlet")],
-    "talking_head counted as a pattern":
-        [("WHERE fmt NOT IN ('talking_head', 'other', 'news_clip')", "WHERE fmt NOT IN ('other', 'news_clip')")],
-    "one creator alone makes a dominant pattern": [("r1.pattern_creators >= 2 AND", "r1.pattern_creators >= 1 AND")],
-    "a sound shared across platforms": [("LEFT JOIN pat_sound ON pat_sound.platform = r0.platform AND pat_sound.sound_id = r0.sound_id",
-                                         "LEFT JOIN pat_sound ON pat_sound.sound_id = r0.sound_id")],
     "outlet cap off by one": [("class_rank <= @outlet_cap", "class_rank < @outlet_cap")],
     "no unique last key": [("f.eng DESC, f.post_id\nLIMIT 12", "f.eng DESC\nLIMIT 12")],
-    "creator cap 3": [("rc.creator_rank <= 2", "rc.creator_rank <= 3")],
+    "creator cap 3": [("r.creator_rank <= 2", "r.creator_rank <= 3")],
     "member window dropped": [("UPPER(k.market) = @market\n    AND k.cluster_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d",
                                "UPPER(k.market) = @market")],
     "pooled run counted as market member": [("UPPER(k.market) = @market\n",
@@ -520,8 +420,8 @@ MUTANTS = {
     "outlet stage counts a removal with 13 kept posts ahead of it": [("kept_ahead, 0) >= 12", "kept_ahead, 0) >= 13")],
     "outlet stage counts a removal by its place among all posts, not the kept ones":
         [("COUNTIF(NOT c.is_outlet OR c.class_rank <= @outlet_cap)", "COUNT(*)")],
-    "member tier dropped from the outlet class rank": [("ORDER BY rc.market_member DESC, rc.local_creator DESC",
-                                                        "ORDER BY rc.local_creator DESC")],
+    "member tier dropped from the outlet class rank": [("ORDER BY r.market_member DESC, r.measured DESC",
+                                                        "ORDER BY r.measured DESC")],
     "pooled run flag read from the market run": [("WHERE k.item_id = @item_id AND LOWER(k.market) = 'pan'",
                                                   "WHERE k.item_id = @item_id AND UPPER(k.market) = @market")],
     "member window upper bound dropped": [("AND k.cluster_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d",
@@ -573,7 +473,7 @@ def test_each_mutant_of_the_statement_is_caught_by_at_least_one_check(name):
 
 def test_no_check_or_mutant_has_been_deleted_to_keep_the_suite_green():
     """Nothing else runs these tests, so the totals are pinned here: lowering either needs this line to change."""
-    assert len(CHECKS) == 22 and len(MUTANTS) == 36
+    assert len(CHECKS) == 18 and len(MUTANTS) == 28
 
 
 def test_the_statement_names_no_dataset_other_than_the_placeholders_and_is_read_only():
@@ -593,5 +493,6 @@ def test_the_briefs_rule_version_names_every_wave_8_rule_change():
             "+e-order-breadth+e-one-event-shadow+brief-504-retry+pattern-first-selection+fold-half-shared"
             "+pack-formats-sound+k6-sound-label+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead+critic-inconsistent"
             "+pattern-skip-talking-head+writer-critic-agree+pack-video-fields+critic-rivals-line"
-            "+author-step-note+pack-local-pattern-order+creator-letters+data-issue-full-judgement+claim-floor-fault+writer-no-earliest+fixture-reaction-code")
+            "+author-step-note+pack-board-only-mark+creator-letters+data-issue-full-judgement+claim-floor-fault"
+            "+writer-no-earliest+fixture-reaction-code")
     assert job.RULE_VERSION in {detect_job.rule_version_for(authority) + tail for authority in ("v1", "v2")}

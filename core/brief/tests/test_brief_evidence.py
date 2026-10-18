@@ -652,9 +652,8 @@ def test_a_confirm_only_post_enters_the_pack_only_when_located_in_or_sighted_in_
 
     pack, *_ = build(con)
 
-    # Since 18 Oct 2026 the two local creator posts rank first within the tier, by engagement; the rest keep the old
-    # order (measured, then engagement, then id).
-    assert ids(pack) == ["p_confirm_located", "p_confirm_sourced", "p_measured_unlocated", "p_swept_and_confirmed"]
+    assert ids(pack) == ["p_measured_unlocated", "p_swept_and_confirmed", "p_confirm_located",
+                         "p_confirm_sourced"]
 
 
 def test_confirm_finds_left_out_free_their_creators_slots_for_local_posts():
@@ -683,7 +682,7 @@ def test_the_evidence_pack_holds_the_posts_the_market_scope_pack_counts():
     pack, *_ = build(con)
     scope = read_market_scope(duck.Client(con), {"item_id": "i1"}, D, "ZA", core="core", agent="agent")
 
-    assert ids(pack) == ["p_local", "p_confirm_sourced", "p_unlocated"]  # local creator posts first (18 Oct 2026)
+    assert ids(pack) == ["p_local", "p_unlocated", "p_confirm_sourced"]
     assert scope["total_posts7"] == len(pack["evidence"])
     assert scope["market_posts7"] == 2
 

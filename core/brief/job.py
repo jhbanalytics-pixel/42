@@ -122,11 +122,10 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # thresholds and the 10-post floor, beside the raw shares it already saw (core/brief/explain.py _rivals_line),
 # author-step-note an observation K5 labels inferred only because none of its cited posts has an independent author
 # reaches the support check with a label note and is judged as an observation, its label unchanged
-# (core/trust/claims.py inferred_only_by_author_step, core/brief/explain.py AUTHOR_STEP_NOTE), pack-local-pattern-order
-# within each tier the pack ranks non-board local creator posts first, then posts sharing the dominant sound or
-# format (the one most distinct creators share, 2 or more), then the rest in the old order, and a post whose every
-# sighting was the YouTube trending board is marked board_only to the writer and the critic, its locality and the
-# board's place in source_market unchanged (core/brief/sql/evidence.sql r1, core/brief/explain.py _board_only_line),
+# (core/trust/claims.py inferred_only_by_author_step, core/brief/explain.py AUTHOR_STEP_NOTE), pack-board-only-mark
+# a pack post whose every sighting in the window was the YouTube trending board is marked board_only to the writer
+# and the critic as a model-only field, with a line naming such posts; the pack order, the post's locality and the
+# board's place in source_market are unchanged (core/brief/sql/evidence.sql s, core/brief/explain.py _board_only_line),
 # creator-letters each pack post carries a code letter for its author, written from the post's creator id and never
 # the id itself, so the writer, the support check and the critic see which posts one author made, and the counted
 # pattern line counts a creator with no handle by that id (core/brief/explain.py _author, _creator_letters),
@@ -147,7 +146,7 @@ RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8
                 "+brief-504-retry+pattern-first-selection+fold-half-shared+pack-formats-sound+k6-sound-label"
                 "+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead"
                 "+critic-inconsistent+pattern-skip-talking-head+writer-critic-agree+pack-video-fields"
-                "+critic-rivals-line+author-step-note+pack-local-pattern-order+creator-letters"
+                "+critic-rivals-line+author-step-note+pack-board-only-mark+creator-letters"
                 "+data-issue-full-judgement+claim-floor-fault+writer-no-earliest+fixture-reaction-code")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1

@@ -20,14 +20,10 @@ LEFT JOIN {core}.creators c ON c.creator_id = s.creator_id;
 -- or of a cluster outside the window is context). Within a tier, measured lanes (unbiased_rank, panel) first, then
 -- engagement, then the post id, which is unique, so no tie is left to the engine. At most 2 per creator, chosen
 -- tier first, and at most @outlet_cap outlet posts (the news platform, or a platform:handle key in @outlet_keys;
--- a post whose creator has no creators row is not an outlet). 12 posts in all. Within each tier, before the measured
--- lanes, a local creator post (local by local_flag, not an outlet, not on the news platform, sighted somewhere other
--- than the YouTube trending board alone) ranks first, then a post sharing the pack's dominant sound or specific
--- format (the sound or format, talking_head, other and news_clip left out, that the most different creators among
--- the candidate posts share, 2 or more), then the rest (18 Oct 2026: packs led with board listings and outlet posts
--- while the creator posts that show an adopted practice fell off the end). board_only marks a post whose every
--- sighting in the window is the board (post_observations.series board_youtube); it stays local by the rules above
--- and is only marked for the writer and the critic. The counts after each stage ride on
+-- a post whose creator has no creators row is not an outlet). 12 posts in all. board_only marks a post whose every
+-- sighting in the window is the YouTube trending board (post_observations.series board_youtube); it changes no
+-- rank and nothing about what counts as local, and is only marked for the writer and the critic (18 Oct 2026). The
+-- counts after each stage ride on
 -- every row, and on one row with no post id when the caps leave nothing, so a hold can name its cause. A post seen
 -- only by the brief's confirm search enters only when local by the market scope rule (market_scope.sql
 -- creator_ranked): located in the market or sighted in its feeds in the window. sponsored is the enrich model's
@@ -66,7 +62,7 @@ pan_members AS (
   WHERE k.item_id = @item_id AND LOWER(k.market) = 'pan'
     AND k.cluster_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
   GROUP BY mb.post_id),
-r0 AS (
+r AS (
   SELECT ps.post_id, ps.platform, ps.url, ps.published_at, ps.creator_tier_at_post creator_tier, ps.creator_id,
     ps.geo_market, ps.geo_confidence, ps.geo_source,
     source_market_by_post.source_market,
@@ -104,7 +100,9 @@ r0 AS (
                      AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)
           AND source_market_by_post.source_market = @market) local_flag,
     NOT IFNULL(NULLIF(ps.geo_market, '') != @market AND ps.geo_confidence >= 0.7
-               AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE) showable_flag
+               AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE) showable_flag,
+    ROW_NUMBER() OVER (PARTITION BY ps.platform, IFNULL(ps.creator_id, ps.post_id)
+                       ORDER BY mm.post_id IS NULL, s.measured DESC, IFNULL(ps.engagement, 0) DESC, ps.post_id) creator_rank
   FROM s
   JOIN {core}.posts ps ON ps.post_id = s.post_id
   LEFT JOIN source_market_by_post ON source_market_by_post.post_id = s.post_id
@@ -140,44 +138,12 @@ r0 AS (
           AND sight.source_market = @market
           AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
       )))),
--- The different creators (a creator is its creator_id, or the post itself when there is none, as the creator cap
--- partitions) sharing each sound on each platform and each specific format among the candidate posts.
-pat_sound AS (
-  SELECT r0.platform, r0.sound_id, COUNT(DISTINCT IFNULL(r0.creator_id, r0.post_id)) n
-  FROM r0 WHERE r0.sound_id IS NOT NULL GROUP BY r0.platform, r0.sound_id),
-pat_format AS (
-  SELECT fmt, COUNT(DISTINCT IFNULL(r0.creator_id, r0.post_id)) n
-  FROM r0 CROSS JOIN UNNEST(r0.formats) fmt
-  WHERE fmt NOT IN ('talking_head', 'other', 'news_clip') GROUP BY fmt),
-r1 AS (
-  SELECT r0.*,
-    -- local_flag is NULL for a post with no location and no sighting from the market; a sort key is never NULL.
-    IFNULL(r0.local_flag, FALSE) AND NOT r0.is_outlet AND NOT IFNULL(r0.board_only, FALSE)
-      AND IFNULL(LOWER(TRIM(r0.platform)), '') != 'news' local_creator,
-    GREATEST(IFNULL(pat_sound.n, 0),
-             IFNULL((SELECT MAX(pf.n) FROM pat_format pf WHERE pf.fmt IN UNNEST(r0.formats)), 0)) pattern_creators
-  FROM r0
-  LEFT JOIN pat_sound ON pat_sound.platform = r0.platform AND pat_sound.sound_id = r0.sound_id),
-r AS (
-  SELECT r1.*,
-    -- The dominant sound or format: the one the most different creators share, 2 or more. A post shares it when its
-    -- own sound or a format of its own is shared by that many creators.
-    r1.pattern_creators >= 2 AND r1.pattern_creators = MAX(r1.pattern_creators) OVER () shares_dominant
-  FROM r1),
-rc AS (
-  SELECT r.*,
-    ROW_NUMBER() OVER (PARTITION BY r.platform, IFNULL(r.creator_id, r.post_id)
-                       ORDER BY NOT r.market_member, NOT r.local_creator, NOT r.shares_dominant, r.measured DESC,
-                         r.eng DESC, r.post_id) creator_rank
-  FROM r),
 c AS (
-  SELECT rc.*,
-    ROW_NUMBER() OVER (PARTITION BY rc.is_outlet
-                       ORDER BY rc.market_member DESC, rc.local_creator DESC, rc.shares_dominant DESC, rc.measured DESC,
-                         rc.eng DESC, rc.post_id) class_rank,
-    ROW_NUMBER() OVER (ORDER BY rc.market_member DESC, rc.local_creator DESC, rc.shares_dominant DESC, rc.measured DESC,
-                         rc.eng DESC, rc.post_id) pack_rank
-  FROM rc WHERE rc.creator_rank <= 2),
+  SELECT r.*,
+    ROW_NUMBER() OVER (PARTITION BY r.is_outlet
+                       ORDER BY r.market_member DESC, r.measured DESC, r.eng DESC, r.post_id) class_rank,
+    ROW_NUMBER() OVER (ORDER BY r.market_member DESC, r.measured DESC, r.eng DESC, r.post_id) pack_rank
+  FROM r WHERE r.creator_rank <= 2),
 f AS (
   SELECT c.* FROM c WHERE NOT c.is_outlet OR c.class_rank <= @outlet_cap),
 -- What the outlet cap left for the stage counts: an outlet it removed still counts when 12 or more posts the cap kept
@@ -205,7 +171,7 @@ SELECT f.* EXCEPT (enrich_sponsored, enrich_read, vendor_paid),
   (SELECT COUNTIF(g.local_flag AND IFNULL(LOWER(TRIM(g.platform)), '') != 'news') FROM g) after_outlet_cap_local
 FROM (SELECT 1 one) base
 LEFT JOIN f ON TRUE
-ORDER BY f.market_member DESC, f.local_creator DESC, f.shares_dominant DESC, f.measured DESC, f.eng DESC, f.post_id
+ORDER BY f.market_member DESC, f.measured DESC, f.eng DESC, f.post_id
 LIMIT 12;
 
 -- name: creators3
