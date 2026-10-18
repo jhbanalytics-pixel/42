@@ -122,14 +122,18 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # thresholds and the 10-post floor, beside the raw shares it already saw (core/brief/explain.py _rivals_line),
 # author-step-note an observation K5 labels inferred only because none of its cited posts has an independent author
 # reaches the support check with a label note and is judged as an observation, its label unchanged
-# (core/trust/claims.py inferred_only_by_author_step, core/brief/explain.py AUTHOR_STEP_NOTE).
+# (core/trust/claims.py inferred_only_by_author_step, core/brief/explain.py AUTHOR_STEP_NOTE), pack-local-pattern-order
+# within each tier the pack ranks non-board local creator posts first, then posts sharing the dominant sound or
+# format (the one most distinct creators share, 2 or more), then the rest in the old order, and a post whose every
+# sighting was the YouTube trending board is marked board_only to the writer and the critic, its locality and the
+# board's place in source_market unchanged (core/brief/sql/evidence.sql r1, core/brief/explain.py _board_only_line).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
                 "+brief-504-retry+pattern-first-selection+fold-half-shared+pack-formats-sound+k6-sound-label"
                 "+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead"
                 "+critic-inconsistent+pattern-skip-talking-head+writer-critic-agree+pack-video-fields"
-                "+critic-rivals-line+author-step-note")
+                "+critic-rivals-line+author-step-note+pack-local-pattern-order")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe

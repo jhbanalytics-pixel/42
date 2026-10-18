@@ -21,7 +21,9 @@ pack is the shape core/brief/explain.py reads:
         sound_id, formats, screen_text, video_format and video_sound are model-only fields (payload.MODEL_ONLY_FIELDS):
         the sound id and the enrich model's formats, and what the video step read from the clip (post_enrichment
         screen_text and video_notes, core/understand/video.py); the support check and the critic see them, the writer
-        and the stored card do not, and a quote is checked against the caption alone (18 Oct 2026).
+        and the stored card do not, and a quote is checked against the caption alone (18 Oct 2026). board_only, model-only
+        too, is true for a post whose every sighting in the window was the YouTube trending board; the writer and the
+        critic are told so, and the post stays local by the same rules (18 Oct 2026).
     numbers: {value, unit, query_id, run_id, result_hash} for creators3, posts3 and, when the item was tested,
         main_ratio. result_hash is "sha256:" plus the hex sha256 of the canonical JSON of the query's rows.
         After those, when detect has them for the item, the rival-explanation numbers of RIVAL_NUMBERS (posts7,
@@ -273,6 +275,10 @@ def _record(row, tz, item=None):
     # stored card do not, and a quote is still checked against the caption alone (text, quote_text).
     video_format, video_sound = _video_notes(row)
     record.update({"screen_text": _screen_text(row), "video_format": video_format, "video_sound": video_sound})
+    # Every sighting of the post in the window was the YouTube trending board (evidence.sql board_only): marked for
+    # the writer and the critic as feed_evidence posts are, and nothing else; the post stays local by the same rules
+    # (18 Oct 2026). A row from a statement without the column gives False, never a guess.
+    record["board_only"] = row.get("board_only") is True
     # The pack statement (C4 v3 appendix G) emits is_outlet. A row without the column gets no class, so the record
     # shape does not change until the pack carries it, and a post of unknown class never counts as a creator's reaction.
     if "is_outlet" in row:

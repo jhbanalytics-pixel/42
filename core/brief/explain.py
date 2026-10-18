@@ -583,7 +583,7 @@ def _writer_user(candidate, pack, market, window_start, window_end):
     feed_evidence = {r.get("id") for r in local_posts(evidence, market)} - local
     terms = _title_terms(candidate.get("title"))
     posts, citable_ids, local_ids, located_ids, own_feed_ids, off_topic_ids = [], [], [], [], [], []
-    feed_evidence_ids = []
+    feed_evidence_ids, board_only_ids = [], []
     for r in _on_topic_first(evidence, terms):
         head = {k: r.get(k) for k in ("id", "platform", "posted_at")}
         head["market"] = located_market(r)
@@ -602,6 +602,9 @@ def _writer_user(candidate, pack, market, window_start, window_end):
         if r.get("id") in feed_evidence:
             head["feed_evidence"] = True
             feed_evidence_ids.append(r.get("id"))
+        if r.get("board_only") is True:
+            head["board_only"] = True
+            board_only_ids.append(r.get("id"))
         head["located_in_market"] = code is not None and head["market"] == code
         head["text_has_non_tag_words"] = _has_non_tag_words(_source_text(r))
         if terms:
@@ -623,12 +626,13 @@ def _writer_user(candidate, pack, market, window_start, window_end):
     feed_news = (f"News posts found in {feeds}'s feeds, marked feed_evidence true: {dump(feed_evidence_ids)}; they "
                  f"show only what the news feed ran, are not local posts, never count among the local posts and "
                  f"support only feed wording. " if feed_evidence_ids else "")
+    board = (_board_only_line(board_only_ids, feeds) + " " if board_only_ids else "")
     scope = (f"Posts you may cite, marked citable true: {dump(citable_ids)}. "
              f"Of those, local to {market} (located in {market} or found in {market}'s feeds), marked local true: "
              f"{dump(local_ids)}. Of those, located in {market}, marked located_in_market true: {dump(located_ids)}. "
              f"Of the local posts, found in {feeds}'s feeds with location unknown: {dump(own_feed_ids)}; a why-now "
              f"resting only on them is worded as seen in {feeds}'s feeds and names no place in {feeds} as the cause. "
-             f"{feed_news}"
+             f"{feed_news}{board}"
              f"Posts marked citable false are located in another market; their text is left out and no claim may "
              f"cite them.")
     if terms:
@@ -661,6 +665,16 @@ def _writer_user(candidate, pack, market, window_start, window_end):
         _writer_pattern_line(citable, letters),
         *posts,
     ])
+
+
+def _board_only_line(ids, feeds):
+    """The line that marks posts whose every sighting in the window was the YouTube trending board (evidence.sql
+    board_only), to the writer and the critic alike, as feed_evidence posts are marked. It changes nothing about
+    what counts as local; it says what such a sighting shows (18 Oct 2026: packs led with board listings)."""
+    return (f"Posts whose every sighting in the window was the YouTube trending board, marked board_only true: "
+            f"{json.dumps(list(ids), ensure_ascii=False, default=str)}; a board place shows the video ranked on "
+            f"YouTube trending in {feeds}, not a creator posting in {feeds}'s feeds. They stay local by the rules "
+            f"above and are cited for what their own text and fields show.")
 
 
 def _writer_pattern_line(citable, letters):
@@ -873,7 +887,8 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
     Code marks the critic's scope: the claims the sentence rests on, the posts they cite, which of those posts are
     located in the market, and, on a line of its own, which are own-feed local: found in the market's own feeds with
     location unknown, as specificity counts them local, and never merged into located_in_market. Each post carries
-    sponsor_checked: true when 42 has a paid-label reading for it, so no sponsored flag then means none was found.
+    sponsor_checked: true when 42 has a paid-label reading for it, so no sponsored flag then means none was found,
+    and board_only: true when its every sighting was the YouTube trending board (_board_only_line).
     A line counted by code lists the sounds and formats different creators share among the posts shown
     (_shared_patterns), and another says which simpler explanations detect's numbers show, with their thresholds and
     floor (_rivals_line)."""
@@ -889,6 +904,7 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
     for r in pack.get("evidence") or []:
         head = {**_head(r, earliest, letters), "engagement": r.get("engagement")}
         head["sponsor_checked"] = r.get("sponsor_checked") is True
+        head["board_only"] = r.get("board_only") is True
         head["cited_by_resting_claims"] = r.get("id") in cited
         head["located_in_market"] = local is not None and head["market"] == local
         head["own_feed_local"] = _own_feed_local(r, market)
@@ -910,6 +926,7 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
                 f"own_feed_local true: {json.dumps(own_feed_ids, ensure_ascii=False, default=str)}. They are not "
                 f"located in {market}; each can show a local why-now only as seen in {feeds}'s feeds, one confidence "
                 f"step lower than a located post.")
+    board_only_ids = [r.get("id") for r in pack.get("evidence") or [] if r.get("board_only") is True]
     return "\n\n".join([
         f"Trend kind: {candidate.get('kind')}. Market: {market}.",
         f"Trend title, as scraped:\n{_fence(candidate.get('title'))}",
@@ -917,6 +934,7 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
         f"Claims that passed the checks:\n{_fence(json.dumps(ledger, ensure_ascii=False, indent=1))}",
         scope,
         own_feed,
+        _board_only_line(board_only_ids, feeds),
         _pattern_line(pack, letters),
         _rivals_line(pack),
         "The trend's numbers, each with the query that produced it and its scope:\n" + ("\n".join(numbers) or "none"),

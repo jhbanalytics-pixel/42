@@ -169,10 +169,10 @@ def test_evidence_record_has_the_contract_fields_and_flags():
         "flags": ["flagged", "sponsored", "near_duplicate"], "thumbnail_url": "https://t.example/p1.jpg",
         "duration_s": 21.0, "creator_tier": "mid", "sponsor_checked": True, "outlet_class": "creator",
         "sound_id": "7301234567890", "formats": ["dance", "duet"],
-        "screen_text": None, "video_format": None, "video_sound": None,
+        "screen_text": None, "video_format": None, "video_sound": None, "board_only": False,
     }
     assert set(first) == CONTRACT_FIELDS | {"quote_text", "sponsor_checked", "sound_id", "formats", "screen_text",
-                                            "video_format", "video_sound"}
+                                            "video_format", "video_sound", "board_only"}
     assert len(first["text"]) == 280 and len(first["quote_text"]) == 450
     assert second["text"] == "caption words" and second["quote_text"] == "caption words"
     assert second["market"] is None and second["flags"] == ["market_assumed"]
@@ -209,6 +209,24 @@ def test_the_video_steps_screen_text_format_and_sound_reach_the_record_as_model_
     assert {"screen_text", "video_format", "video_sound"} <= set(MODEL_ONLY_FIELDS)
     assert not {"screen_text", "video_format", "video_sound", "sound_id", "formats"} & set(
         reader_evidence(pack["evidence"])[0])
+
+
+def test_a_post_sighted_only_on_the_youtube_trending_board_is_marked_board_only():
+    # 18 Oct 2026: marked for the writer and the critic; it stays local by the same rules and the card keeps its shape.
+    con = world()
+    add_post(con, "p_board", "c1", utc(day(1), 9), 900, geo_market="ZA", geo_confidence=0.9)
+    add_post(con, "p_mixed", "c2", utc(day(1), 10), 800, geo_market="ZA", geo_confidence=0.9)
+    add_post(con, "p_feed", "c3", utc(day(1), 11), 700, geo_market="ZA", geo_confidence=0.9)
+    con.execute("UPDATE core.post_observations SET series = 'board_youtube' WHERE post_id IN ('p_board', 'p_mixed')")
+    duck.load(con, "core.post_observations", [{
+        "post_id": "p_mixed", "observed_at": utc(D, 12), "observed_date": D, "market": "ZA", "platform": "tiktok",
+        "lane": "sweep", "lane_class": "unbiased_rank", "series": "feed_tiktok", "run_id": rid("collect", D)}])
+    pack, *_ = build(con)
+    by_id = {e["id"]: e for e in pack["evidence"]}
+    assert {i: e["board_only"] for i, e in by_id.items()} == {"p_board": True, "p_mixed": False, "p_feed": False}
+    assert by_id["p_board"]["market"] == "ZA"  # still located, still local
+    from core.brief.payload import reader_evidence
+    assert not any("board_only" in e for e in reader_evidence(pack["evidence"]))
 
 
 def test_the_packs_video_format_list_is_the_video_steps_own():
@@ -634,8 +652,9 @@ def test_a_confirm_only_post_enters_the_pack_only_when_located_in_or_sighted_in_
 
     pack, *_ = build(con)
 
-    assert ids(pack) == ["p_measured_unlocated", "p_swept_and_confirmed", "p_confirm_located",
-                         "p_confirm_sourced"]
+    # Since 18 Oct 2026 the two local creator posts rank first within the tier, by engagement; the rest keep the old
+    # order (measured, then engagement, then id).
+    assert ids(pack) == ["p_confirm_located", "p_confirm_sourced", "p_measured_unlocated", "p_swept_and_confirmed"]
 
 
 def test_confirm_finds_left_out_free_their_creators_slots_for_local_posts():
@@ -664,7 +683,7 @@ def test_the_evidence_pack_holds_the_posts_the_market_scope_pack_counts():
     pack, *_ = build(con)
     scope = read_market_scope(duck.Client(con), {"item_id": "i1"}, D, "ZA", core="core", agent="agent")
 
-    assert ids(pack) == ["p_local", "p_unlocated", "p_confirm_sourced"]
+    assert ids(pack) == ["p_local", "p_confirm_sourced", "p_unlocated"]  # local creator posts first (18 Oct 2026)
     assert scope["total_posts7"] == len(pack["evidence"])
     assert scope["market_posts7"] == 2
 
