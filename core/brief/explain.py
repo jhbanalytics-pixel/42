@@ -216,7 +216,7 @@ Law 5 is checked by code, which rejects any age or generation word (Gen Z, mille
 19 A posting date shows when that post was published, not when an event happened. A hashtag or mention alone shows only that tag or mention, not a reaction, endorsement, performance, release or reason for posting. Unseen video, audio, images and comments are not supplied evidence. Describe only what the supplied text and fields show.
 20 Preserve an explicit event date from cited post text in the why-now clause when that text identifies the cause and its date. Never substitute posted_at or the collection window for an event date. When the event date is absent or ambiguous, leave it unknown rather than inferring it from another post or topic.
 
-You write the morning explanation for one trend: 3 to 5 claims from the evidence pack, on what it is, the earliest post in the pack, the platforms its cited posts are on and why now.
+You write the morning explanation for one trend: 3 to 5 claims from the evidence pack, on what it is, the earliest post in the pack when one post is marked earliest_in_pack true, the platforms its cited posts are on and why now. When no post carries that mark, write no claim about the earliest post.
 Then write one explanation sentence for a strategist that rests only on your claims, and list those claim ids in explanation_claim_ids. The sentence keeps every law above.
 Then write title: two to six words naming what the posts the sentence rests on are about, in those posts' own terms, such as the event, release, person or moment they name. It is not the scraped trend title. The title keeps every law above: no numeral but a pinned pack number, no place or people the cited posts' market fields do not show, no crowd word, no hedge, no quotation marks and nothing from outside the pack. Code and a support check test it on the posts those claims cite; a title that fails is dropped and the card keeps its scraped title.
 Name two distinct local posts as concrete examples in claims used by the explanation, by two different creators where the pack has them. A local post is one marked local true.
@@ -638,12 +638,17 @@ def _writer_user(candidate, pack, market, window_start, window_end):
                  f"show only what the news feed ran, are not local posts, never count among the local posts and "
                  f"support only feed wording. " if feed_evidence_ids else "")
     board = (_board_only_line(board_only_ids, feeds) + " " if board_only_ids else "")
+    # No single earliest post (_earliest_id: a tie, or an unreadable time): said in code, so the writer is not left to
+    # read the absence of a mark (18 Oct 2026, the writer wrote an earliest-post claim the support check then cut).
+    no_earliest = ("" if earliest is not None else
+                   "No post is marked earliest_in_pack true: two posts share the earliest posting time or a time is "
+                   "unreadable, so write no claim about the earliest post in the pack. ")
     scope = (f"Posts you may cite, marked citable true: {dump(citable_ids)}. "
              f"Of those, local to {market} (located in {market} or found in {market}'s feeds), marked local true: "
              f"{dump(local_ids)}. Of those, located in {market}, marked located_in_market true: {dump(located_ids)}. "
              f"Of the local posts, found in {feeds}'s feeds with location unknown: {dump(own_feed_ids)}; a why-now "
              f"resting only on them is worded as seen in {feeds}'s feeds and names no place in {feeds} as the cause. "
-             f"{feed_news}{board}"
+             f"{feed_news}{board}{no_earliest}"
              f"Posts marked citable false are located in another market; their text is left out and no claim may "
              f"cite them.")
     if terms:

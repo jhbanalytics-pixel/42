@@ -48,8 +48,15 @@ def test_writer_never_picks_an_earliest_post_when_the_support_pack_cannot(times)
     pack = make_pack()
     for post, when in zip(pack["evidence"], times):
         post["posted_at"] = when
-    rows = writer_heads(explain._writer_user(CANDIDATE, pack, "ZA", "s", "e"))
+    prompt = explain._writer_user(CANDIDATE, pack, "ZA", "s", "e")
+    rows = writer_heads(prompt)
     assert all(r["earliest_in_pack"] is False for r in rows)
+    # 18 Oct 2026: the code says so too, so the writer writes no earliest-post claim for the support check to cut.
+    assert ("No post is marked earliest_in_pack true: two posts share the earliest posting time or a time is "
+            "unreadable, so write no claim about the earliest post in the pack.") in outside_fences(prompt)
+    with_one = explain._writer_user(CANDIDATE, make_pack(), "ZA", "s", "e")
+    assert "No post is marked earliest_in_pack" not in with_one
+    assert [r["id"] for r in writer_heads(with_one) if r["earliest_in_pack"]] == ["tt_1"]
 
 
 @pytest.mark.parametrize("text, expected", [

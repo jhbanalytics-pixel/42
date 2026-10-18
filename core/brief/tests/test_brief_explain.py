@@ -1391,7 +1391,9 @@ def test_the_writer_keeps_the_age_law_and_every_earlier_rule_word_for_word():
 def test_the_writer_asks_for_the_earliest_post_in_the_pack_and_never_for_an_origin():
     [ask] = [line for line in writer_lines() if "3 to 5 claims" in line]
     assert ask == ("You write the morning explanation for one trend: 3 to 5 claims from the evidence pack, on what it "
-                   "is, the earliest post in the pack, the platforms its cited posts are on and why now.")
+                   "is, the earliest post in the pack when one post is marked earliest_in_pack true, the platforms its "
+                   "cited posts are on and why now. When no post carries that mark, write no claim about the earliest "
+                   "post.")
     assert ('10 Never say where or when the trend began. Scope earliest wording to the pack: "the earliest post in the '
             'pack". Never write "where it came from", "first appeared", "first seen", "started", "originated" or '
             '"earliest post 42 found".') in writer_lines()
