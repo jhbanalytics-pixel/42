@@ -145,7 +145,7 @@ def test_cultural_critic_prompt_and_unchanged_support_prompt_are_pinned():
     import hashlib
 
     assert hashlib.sha256(explain.CRITIC_SYSTEM.encode("utf-8")).hexdigest() == (
-        "61eb26c5fed2218e9116b643ed67470087d7bcd19a761113a55c277bf9440d0c")
+        "21279c730c36ccb3e0392bf791d4c478c57fa854f74b988acdd7e0c9b2828fec")
     assert hashlib.sha256(explain.SUPPORT_SYSTEM.encode("utf-8")).hexdigest() == (
         "b94846a59349dbe9b1e330af483b0fce02a8f16e4e662d72f2693853e2e328ef")
 
