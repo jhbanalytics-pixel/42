@@ -2474,7 +2474,7 @@ def fixed_words():
         f"Critic: a simpler explanation was not ruled out: {m}" for m in MENU}
     out |= {f"{c}; local why-now not shown" for c in held} | {"Critic: local why-now not shown"}
     out |= {job.NEWS_PASS} | {f"{job.NEWS_PASS}: {m}" for m in MENU}
-    out |= {job.TOO_FEW, job.NO_REST}
+    out |= {job.TOO_FEW, job.NO_REST, job.CRITIC_INCONSISTENT}
     out |= set(REASON_TEXT.values())
     return out | {job.REPAIR + w for w in out}
 
@@ -2493,7 +2493,9 @@ class ScriptedModel(FakeModel):
         out, usage = super().complete_json(system=system, user=user, schema=schema, model=model,
                                            max_tokens=max_tokens)
         if "ruled_out" in schema["properties"] and self.critic:
-            return {"non_cultural_explanation": self.critic[0], "ruled_out": False, "local_why_now": True,
+            # A whole answer, every flag given: one critic_is_valid rejects has a standing of its own (18 Oct 2026).
+            return {"non_cultural_explanation": self.critic[0], "ruled_out": False, "news_driven": False,
+                    "scheduled_event": False, "local_reaction": False, "local_why_now": True,
                     "reason": self.critic[1]}, usage
         if "verdict" in schema["properties"]:
             if "Label: explanation sentence" in user:

@@ -116,6 +116,9 @@ CRITIC_ALSO_WHY_NOW = "; local why-now not shown"
 WHY_NOW_UNSHOWN = "The posts do not show why this is happening in this market now."
 CHECK_REPAIR = "before repair: "
 CRITIC_UNNAMED = "A simpler explanation could not be ruled out from these posts."
+# core/brief/job.py CRITIC_INCONSISTENT: a critic answer that contradicted itself, a cut of its own that names no
+# simpler explanation (18 Oct 2026).
+CRITIC_INCONSISTENT = "Critic: the critic's answer was inconsistent"
 # Rules that only lower a label or status; their rows never hold an item (core/brief/job.py OTHER_WORDS).
 CHECK_DOWNGRADES = {"K5", "K10"}
 # core/brief/explain.py TITLE_RULE: a cut written title only leaves the card its label, so it never names a hold.
@@ -1533,6 +1536,9 @@ def _held_detail(rows):
     critic = [r for r in rows if _is_critic_hold(r)]
     if critic:
         return _critic_sentence(critic)
+    inconsistent = next((r for r in sentence if r.get("rule") == "critic" and r["reason"] == CRITIC_INCONSISTENT), None)
+    if inconsistent is not None:
+        return _check_sentence(inconsistent)
     for group in ([r for r in sentence if r.get("rule") != "critic"],
                   [r for r in rows if r.get("claim_id") is not None]):
         if group:

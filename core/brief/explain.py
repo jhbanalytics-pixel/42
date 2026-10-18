@@ -825,7 +825,12 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
     ])
 
 
-STANDINGS = ("ruled out", "news-driven with local reaction", "event-driven with local reaction", "not ruled out")
+# An answer critic_is_valid rejects (ruled_out true with a news, event or reaction flag, say) has a standing of its own
+# and is always a cut; it was shown as not ruled out, which named a simpler explanation the critic never stood by
+# (18 Oct 2026).
+INCONSISTENT = "critic answer inconsistent"
+STANDINGS = ("ruled out", "news-driven with local reaction", "event-driven with local reaction", "not ruled out",
+             INCONSISTENT)
 
 
 def _critic_row(out, reacting_creators=0):
@@ -836,7 +841,7 @@ def _critic_row(out, reacting_creators=0):
     ruled_out = valid and out.get("ruled_out") is True
     local_why_now = out.get("local_why_now") is True
     passed = cultural_critic_passes(out)
-    standing = "ruled out" if ruled_out else "not ruled out"
+    standing = "ruled out" if ruled_out else "not ruled out" if valid else INCONSISTENT
     # Keep the original count for audit; reaction volume does not qualify a cultural pattern.
     return {"claim_id": None, "rule": "critic", "verdict": "pass" if passed else "cut", "checker": "model",
             "standing": standing, "local_why_now": local_why_now,

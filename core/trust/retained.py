@@ -18,7 +18,7 @@ REASON_CODES = frozenset({
     "sentence_place_unlocated", "sentence_place_feed_wording", "sentence_place_source_only",
     "sentence_place_other", "sentence_banned_term", "sentence_translation", "sentence_future_assertion",
     "sentence_quote", "sentence_specificity",
-    "critic_rival_not_ruled_out", "critic_why_now_not_shown", "critic_rival_and_why_now",
+    "critic_rival_not_ruled_out", "critic_why_now_not_shown", "critic_rival_and_why_now", "critic_answer_inconsistent",
     "check_incomplete", "unclassified",
 })
 

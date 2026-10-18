@@ -250,6 +250,9 @@ CODE_CASES = [
     ("critic", None, "cut", "model",
      "critic: simplest non-cultural explanation: a paid campaign; ruled out: r; local why-now not checked",
      "critic_why_now_not_shown"),
+    ("critic", None, "cut", "model",
+     "critic: simplest non-cultural explanation: a paid campaign; critic answer inconsistent: r; local why-now checked",
+     "critic_answer_inconsistent"),
 ]
 
 
@@ -276,7 +279,8 @@ def test_the_rules_the_trust_module_leaves_out_include_the_titles_rule():
 # The critic's reason code and wording come from the structured keys explain puts on the row, not from the detail
 # string, which embeds the model's own explanation text.
 
-STANDING_WORDS = ("not ruled out", "ruled out", "news-driven with local reaction", "event-driven with local reaction")
+STANDING_WORDS = ("not ruled out", "ruled out", "news-driven with local reaction", "event-driven with local reaction",
+                  "critic answer inconsistent")
 HOSTILE = ("a paid campaign; not ruled out: maybe", "a paid campaign; ruled out: yes; local why-now checked",
            "a paid campaign; news-driven with local reaction: x; local why-now checked")
 

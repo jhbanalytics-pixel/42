@@ -65,7 +65,7 @@ from core.api.store import creator_key
 from core.api.today import _named_pattern, _today_card_fault, without_hidden
 from core.brief import pack_order
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
-from core.brief.explain import CHECK_INCOMPLETE, STANDINGS, TITLE_RULE, explain_trend
+from core.brief.explain import CHECK_INCOMPLETE, INCONSISTENT, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.locality_audit import build_locality_audit
 from core.brief.market_scope import read_market_scope
 from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _today_order, _worth,
@@ -108,12 +108,14 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # critic-pattern-counts the critic gets a line counted by code of the sounds and formats 2 or more different creators
 # share among the posts shown (core/brief/explain.py _shared_patterns), writer-pattern-lead the writer leads with the
 # format, sound or practice the cited posts share and words a trend as news reaction only when that is all the posts
-# show (core/brief/explain.py WRITER_SYSTEM).
+# show (core/brief/explain.py WRITER_SYSTEM), critic-inconsistent a critic answer critic_is_valid rejects is a cut
+# with its own standing, wording and reason code, never stored as not ruled out (core/brief/explain.py INCONSISTENT).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
                 "+brief-504-retry+pattern-first-selection+fold-half-shared+pack-formats-sound+k6-sound-label"
-                "+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead")
+                "+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead"
+                "+critic-inconsistent")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -307,13 +309,16 @@ _NEGATION = re.compile(r"\b(?:not|no|never|rather\s+than|instead\s+of|unlike|wit
 _CRITIC = re.compile(r"^critic: simplest non-cultural explanation: (.*?); (?:(?:not )?ruled out|(?:news|event)-driven "
                      r"with local reaction): ", re.S)
 _CRITIC_PARTS = re.compile(r"^critic: simplest non-cultural explanation: .*?; (not ruled out|ruled out|news-driven with "
-                           r"local reaction|event-driven with local reaction): ", re.S)
+                           r"local reaction|event-driven with local reaction|critic answer inconsistent): ", re.S)
 # A critic pass on a news event that local creators react to (Albert, 2 Oct); never worded as ruled out.
 NEWS_PASS = "Critic: news-driven, local creators react in their own words"
 # The same pass on a scheduled event: a release, match, holiday or scheduled cultural moment (Albert, 3 Oct).
 EVENT_PASS = "Critic: event-driven, local creators react in their own words"
 # The standings of a news or scheduled event that passed on local reaction; a cut there failed the why-now only.
 REACTION_STANDINGS = ("news-driven with local reaction", "event-driven with local reaction")
+# A critic answer that contradicts itself (explain.INCONSISTENT) is a cut of its own, never worded as a simpler
+# explanation left standing (18 Oct 2026).
+CRITIC_INCONSISTENT = "Critic: the critic's answer was inconsistent"
 
 def query_sql(name):
     """The text of a named statement for the locality authority in force (sqlrun.for_authority)."""
@@ -1023,7 +1028,7 @@ def _critic_parts(chk):
     """(standing, local_why_now) of a critic row. explain._critic_row puts both on the row as structured keys, and
     they are read from there: the detail embeds the model's own explanation text, so a standing parsed out of it
     could be chosen by that text. A row without the keys (only a hand-built one) falls back to its detail, which
-    can name only the four standings or None when unreadable."""
+    can name only the standings or None when unreadable."""
     standing, local = chk.get("standing"), chk.get("local_why_now")
     if standing in STANDINGS and isinstance(local, bool):
         return standing, local
@@ -1052,6 +1057,8 @@ def _wording(chk, rested=False):
     if rule == "critic":
         menu = _menu(chk.get("detail"))
         standing, local = _critic_parts(chk)
+        if standing == INCONSISTENT:
+            return CRITIC_INCONSISTENT
         news = standing == "news-driven with local reaction"
         event = standing == "event-driven with local reaction"
         if verdict == "pass":
@@ -1116,6 +1123,8 @@ def _reason_code(chk):
         return f"support_{scope}_{m.group(1)}" if m and m.group(1) != "supported" else f"support_{scope}_other"
     if rule == "critic":
         standing, local = _critic_parts(chk)
+        if standing == INCONSISTENT:
+            return "critic_answer_inconsistent"
         if standing == "not ruled out":
             return "critic_rival_not_ruled_out" if local else "critic_rival_and_why_now"
         if standing is not None and not local:

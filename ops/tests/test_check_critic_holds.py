@@ -115,3 +115,10 @@ def test_a_critic_row_from_before_the_repair_alone_is_not_taken_for_the_final_ve
     line = critic_line(out)
     assert "no final-draft critic row" in line and "verdict" not in line
     assert any(l.startswith("  first-draft critic (before repair): verdict cut") for l in out.splitlines())
+
+
+def test_an_inconsistent_critic_answer_is_read_as_a_cut_of_its_own(monkeypatch, capsys):
+    # 18 Oct 2026: an answer critic_is_valid rejects is stored with its own wording (core/brief/job.py
+    # CRITIC_INCONSISTENT), not as a simpler explanation left standing.
+    line = critic_line(run_report(monkeypatch, capsys, [critic_row("Critic: the critic's answer was inconsistent")]))
+    assert "verdict cut" in line and "ruled_out inconsistent answer" in line
