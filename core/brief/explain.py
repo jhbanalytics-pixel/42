@@ -80,7 +80,11 @@ SUPPORT_MAX_TOKENS = 400
 CRITIC_MAX_TOKENS = 400
 SOURCE_CONTEXT_MAX_CHARS = 8000
 FENCE_OPEN, FENCE_CLOSE = "<untrusted_content>", "</untrusted_content>"
-MIN_CLAIMS, MAX_CLAIMS = 3, 5
+MIN_CLAIMS, MAX_CLAIMS = 3, 5  # what the writer is asked for
+# The floor an explanation publishes on: 2 claims standing after the checks (core/brief/job.py TOO_FEW). The code
+# checks count a fault only below it, so a draft of 3 claims that lost one to a code cut keeps its one repair round
+# for a support cut that holds the draft, instead of spending it on a count the floor accepts (18 Oct 2026).
+CLAIM_FLOOR = 2
 # The label the support check sees for the explanation sentence.
 SENTENCE_LABEL = "explanation sentence"
 # The card title the writer gives: a few words, checked as the sentence is (see the module docstring).
@@ -1199,8 +1203,9 @@ def _faults(rows, checked, rests_on, records):
     if sentence:
         faults.append(sentence)
     n = len(checked.get("claims") or [])
-    if not MIN_CLAIMS <= n <= MAX_CLAIMS:
-        faults.append(f"explanations hold {MIN_CLAIMS} to {MAX_CLAIMS} claims; {n} passed")
+    if not CLAIM_FLOOR <= n <= MAX_CLAIMS:
+        faults.append(f"explanations hold {MIN_CLAIMS} to {MAX_CLAIMS} claims and need at least {CLAIM_FLOOR} that "
+                      f"pass; {n} passed")
     return faults
 
 
@@ -1644,7 +1649,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         if place:
             checks.append(_stamped(_place_row(place), checked["short_answer"]))
             return result("failed_checks"), None
-        if len(checked["claims"]) < 2:
+        if len(checked["claims"]) < CLAIM_FLOOR:
             return result("too_few_claims"), None
 
         supported, failures = [], []
@@ -1666,7 +1671,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         final = {**checked, "claims": supported}
         # A cut claim the draft can stand without is cut as before; a cut that holds the draft gets the repair round
         # when the code checks left it unspent.
-        if _sentence_fault(final, rests_on) or len(supported) < 2:
+        if _sentence_fault(final, rests_on) or len(supported) < CLAIM_FLOOR:
             if support_repair:
                 return repair_support(draft, user, failures, passed, start)
             return result("failed_checks" if _sentence_fault(final, rests_on) else "too_few_claims"), None

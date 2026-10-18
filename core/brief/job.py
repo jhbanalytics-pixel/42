@@ -132,7 +132,10 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # pattern line counts a creator with no handle by that id (core/brief/explain.py _author, _creator_letters),
 # data-issue-full-judgement a market that judged its full CANDIDATES keeps the status its judged cards make when
 # over 30% of the candidates considered were held for data, the banner saying the judged ones were not affected;
-# a market that judged fewer is data_issue as before (_market_payload, core/brief/payload.py build_market_payload).
+# a market that judged fewer is data_issue as before (_market_payload, core/brief/payload.py build_market_payload),
+# claim-floor-fault the code checks count a claim-count fault only below the 2 claims an explanation publishes on,
+# not below the 3 the writer is asked for, so the one repair round is kept for a cut that holds the draft
+# (core/brief/explain.py CLAIM_FLOOR, _faults).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
@@ -140,7 +143,7 @@ RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8
                 "+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead"
                 "+critic-inconsistent+pattern-skip-talking-head+writer-critic-agree+pack-video-fields"
                 "+critic-rivals-line+author-step-note+pack-local-pattern-order+creator-letters"
-                "+data-issue-full-judgement")
+                "+data-issue-full-judgement+claim-floor-fault")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
