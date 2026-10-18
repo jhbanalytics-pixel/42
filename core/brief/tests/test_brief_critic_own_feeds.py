@@ -9,6 +9,8 @@ feeds, one confidence step lower. located_in_market and every other critic rule 
 
 import re
 
+import pytest
+
 from core.brief import explain
 from core.brief.tests.test_brief_explain import heads, outside_fences
 from core.brief.tests.test_brief_explain_local import CANDIDATE, ng_post
@@ -143,6 +145,21 @@ def test_cultural_critic_prompt_and_unchanged_support_prompt_are_pinned():
     import hashlib
 
     assert hashlib.sha256(explain.CRITIC_SYSTEM.encode("utf-8")).hexdigest() == (
-        "ed315786e5b1a2865bc99f8867650f405d90fac21e5f43fc01091620983366ac")
+        "61eb26c5fed2218e9116b643ed67470087d7bcd19a761113a55c277bf9440d0c")
     assert hashlib.sha256(explain.SUPPORT_SYSTEM.encode("utf-8")).hexdigest() == (
-        "0da133fe7fb64a1bf099d653b147370a55d17dc37dee38777b4657d0df69f123")
+        "b94846a59349dbe9b1e330af483b0fce02a8f16e4e662d72f2693853e2e328ef")
+
+
+@pytest.mark.parametrize("system", ["SUPPORT_SYSTEM", "CRITIC_SYSTEM"])
+def test_both_checks_are_told_what_formats_and_sound_mean(system):
+    # 18 Oct 2026: both checks saw formats and sound on every post with no word on what they mean, so an empty list
+    # could read as a post with no format.
+    text = " ".join(getattr(explain, system).split())
+    assert "an empty list means the post was not enriched, not that it has no format" in text
+    assert "posts with the same letter on the same platform use the same audio" in text
+    assert "null means 42 has no sound id for the post" in text
+    assert "talking_head, other or news_clip alone shows no adopted practice" in text
+    assert "news_clip points toward news" in text
+    for name in ("talking_head", "skit", "dance", "duet", "stitch", "tutorial", "slideshow", "meme_image", "news_clip",
+                 "other"):
+        assert name in text

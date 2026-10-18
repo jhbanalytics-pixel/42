@@ -654,5 +654,8 @@ def test_the_job_hands_each_explanation_a_retry_guard_that_follows_the_deadline(
 
 
 def test_the_briefs_rule_version_names_the_504_retry_after_the_event_shadow():
+    # Read by position from the event shadow, not from the end, so a later token does not move the pin
+    # (18 Oct 2026).
     tokens = job.RULE_VERSION.split("+")
-    assert tokens[-6:-4] == ["e-one-event-shadow", "brief-504-retry"]
+    shadow = tokens.index("e-one-event-shadow")
+    assert tokens[shadow:shadow + 2] == ["e-one-event-shadow", "brief-504-retry"]
