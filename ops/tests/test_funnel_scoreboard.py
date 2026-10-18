@@ -92,8 +92,6 @@ class DuckClient:
 class World:
     def __init__(self, detect_days=(D5, D6, D7)):
         self.con = duck.connect()
-        self.con.execute("ALTER TABLE core.post_enrichment ADD COLUMN screen_text VARCHAR")
-        self.con.execute("ALTER TABLE core.post_enrichment ADD COLUMN video_notes VARCHAR")
         self.moments = []
         duck.load(self.con, "agent.runs", [run("detect", d) for d in detect_days]
                   + [run("brief", d) for d in (D5, D6, D7)])
