@@ -343,7 +343,10 @@ def _headline_ok(headline, market, shown):
 
 
 def build_market_payload(market, brief_date, candidates, *, moments, boards, banners, headline=None, issues=(),
-                         not_assessed=None, selection_receipt=None):
+                         not_assessed=None, selection_receipt=None, full_judgement=False):
+    """full_judgement: the market judged its full set of candidates (core/brief/job.py CANDIDATES), so a data_issue
+    banner about candidates held beside them describes the held list, not the brief, and leaves the status to the
+    judged cards (18 Oct 2026). Every other data_issue banner still makes the status data_issue."""
     day = _iso(brief_date)
     by_where = {"today": [], "held_back": [], "moments": []}
     for c in candidates:
@@ -361,7 +364,7 @@ def build_market_payload(market, brief_date, candidates, *, moments, boards, ban
                  "item_ids": [c["item_id"]]} for c in sorted(by_where["moments"], key=_worth)]
 
     refused = headline is not None and not _headline_ok(headline, market, shown)
-    if any(b["kind"] == "data_issue" for b in banners):
+    if any(b["kind"] == "data_issue" for b in banners) and not full_judgement:
         status = "data_issue"
     elif refused or any(not c["explained"] for c in shown) or any(
             i["reason"] == "explanation_failed" for i in held):

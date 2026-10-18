@@ -378,6 +378,17 @@ def test_data_issue_banner_gives_data_issue_status():
     assert p["status"] == "data_issue"
 
 
+def test_a_market_that_judged_its_full_candidates_keeps_the_status_its_cards_make_beside_a_data_issue_banner():
+    # 18 Oct 2026: the brief job's candidates-held banner beside a full judgement describes the held list only.
+    banner = {"kind": "data_issue", "text": "Data issue: 5 of 15 candidates held for invalid collection days or "
+                                            "unreadable evidence; the 10 candidates judged were not affected, so "
+                                            "the brief is complete"}
+    p = build([cand(1)], banners=[banner], full_judgement=True)
+    assert p["status"] == "published" and p["banners"] == [banner]
+    assert build([cand(1, decision=decision(numbers_only=True))], banners=[banner], full_judgement=True)["status"] == "partial"
+    assert build([cand(1)], banners=[banner])["status"] == "data_issue"  # the default is as before
+
+
 def test_empty_market_is_published_with_empty_lists():
     p = build([])
     assert p["status"] == "published" and p["cards"] == [] and p["more"] == [] and p["headline"] is None

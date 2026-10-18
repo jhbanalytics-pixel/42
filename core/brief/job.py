@@ -129,14 +129,18 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # board's place in source_market unchanged (core/brief/sql/evidence.sql r1, core/brief/explain.py _board_only_line),
 # creator-letters each pack post carries a code letter for its author, written from the post's creator id and never
 # the id itself, so the writer, the support check and the critic see which posts one author made, and the counted
-# pattern line counts a creator with no handle by that id (core/brief/explain.py _author, _creator_letters).
+# pattern line counts a creator with no handle by that id (core/brief/explain.py _author, _creator_letters),
+# data-issue-full-judgement a market that judged its full CANDIDATES keeps the status its judged cards make when
+# over 30% of the candidates considered were held for data, the banner saying the judged ones were not affected;
+# a market that judged fewer is data_issue as before (_market_payload, core/brief/payload.py build_market_payload).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
                 "+brief-504-retry+pattern-first-selection+fold-half-shared+pack-formats-sound+k6-sound-label"
                 "+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead"
                 "+critic-inconsistent+pattern-skip-talking-head+writer-critic-agree+pack-video-fields"
-                "+critic-rivals-line+author-step-note+pack-local-pattern-order+creator-letters")
+                "+critic-rivals-line+author-step-note+pack-local-pattern-order+creator-letters"
+                "+data-issue-full-judgement")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -1605,19 +1609,30 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
             decision = Decision(*(decision.get(name) for name in
                                   ("publish", "where", "flag", "reason", "rule", "numbers_only")))
         data.append(decision)
+    audit = selection_audit or {}
+    # The candidates judged: the receipt's own count (non-G1 candidates less the ones that folded, _selection_result),
+    # or, with no receipt, the non-G1 decisions here. When the market judged its full CANDIDATES, the G1 holds took
+    # no judged slot from it, so the banner says so and the market's status stays what its judged cards make it
+    # (18 Oct 2026, KE: 10 cards judged, status data_issue, Today read "incomplete" for a complete brief).
+    judged = ((audit.get("selection_receipt") or {}).get("preparation") or {}).get("judged")
+    if not isinstance(judged, int):
+        judged = sum(1 for x in data if x.rule != "G1")
+    full_judgement = judged >= CANDIDATES
     if market_banner(data):
         n = sum(1 for x in data if x.rule == "G1")
-        banners = banners + [{"kind": "data_issue", "text": f"Data issue: {n} of {len(local_cands)} candidates held for "
-                                                            "invalid collection days or unreadable evidence"}]
-    audit = selection_audit or {}
+        text = f"Data issue: {n} of {len(local_cands)} candidates held for invalid collection days or unreadable evidence"
+        if full_judgement:
+            text += f"; the {judged} candidates judged were not affected, so the brief is complete"
+        banners = banners + [{"kind": "data_issue", "text": text}]
     payload = build_market_payload(market, d, items, moments=moments_, boards=boards_, banners=banners,
-        issues=issues, not_assessed=audit.get("not_assessed"), selection_receipt=audit.get("selection_receipt"))
+        issues=issues, not_assessed=audit.get("not_assessed"), selection_receipt=audit.get("selection_receipt"),
+        full_judgement=full_judgement)
     top = payload["cards"][0] if payload["cards"] else None
     if top and top["explained"]:
         headline = {"text": top["explanation"], "item_id": top["item_id"], "claim_ids": top["explanation_claim_ids"]}
         payload = build_market_payload(market, d, items, moments=moments_, boards=boards_, banners=banners,
             headline=headline, issues=issues, not_assessed=audit.get("not_assessed"),
-            selection_receipt=audit.get("selection_receipt"))
+            selection_receipt=audit.get("selection_receipt"), full_judgement=full_judgement)
     inputs = audit.get("locality_audit_inputs")
     if event_publication["merges"] or event_publication["possible_fragments"]:
         payload["event_publication"] = event_publication

@@ -1311,12 +1311,17 @@ def test_the_data_issue_banner_counts_every_candidate_considered():
     za = payload(r, "ZA")
     assert len(all_cards(za)) == 10 and za["held_back"]["count"] == 5
     assert {"kind": "data_issue", "text": "Data issue: 5 of 15 candidates held for invalid collection days or "
+                                          "unreadable evidence; the 10 candidates judged were not affected, so the "
+                                          "brief is complete"} in za["banners"]
+    # 18 Oct 2026: the market judged its full 10, so the banner describes the held list and the status stays the
+    # judged cards' own.
+    assert za["status"] == "published"
+    # Every candidate in the top 30 held by G1: 30 of 30, nothing judged, so the brief itself is the data issue.
+    r = brief(world(n=30, markets=("ZA",)), ctx=FakeCtx({item("ZA", i): BAD_DAYS for i in range(1, 31)}))
+    za = payload(r, "ZA")
+    assert {"kind": "data_issue", "text": "Data issue: 30 of 30 candidates held for invalid collection days or "
                                           "unreadable evidence"} in za["banners"]
     assert za["status"] == "data_issue"
-    # Every candidate in the top 30 held by G1: 30 of 30.
-    r = brief(world(n=30, markets=("ZA",)), ctx=FakeCtx({item("ZA", i): BAD_DAYS for i in range(1, 31)}))
-    assert {"kind": "data_issue", "text": "Data issue: 30 of 30 candidates held for invalid collection days or "
-                                          "unreadable evidence"} in payload(r, "ZA")["banners"]
 
 
 def test_an_unreadable_evidence_pack_still_takes_a_judged_slot(monkeypatch):
