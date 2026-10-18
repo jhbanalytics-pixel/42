@@ -218,10 +218,29 @@ def test_the_writer_shows_what_the_evidence_holds_against_a_simpler_explanation(
 def test_the_writer_is_told_what_a_news_driven_card_needs():
     text = writer_text()
     assert explain.NEWS_MIN_CREATORS == 2
-    assert ("When the posts respond to a news or scheduled event, say so plainly in the sentence and rest it on "
-            "claims that cite at least two different local creators reacting in their own words, such as opinions, "
-            "jokes or personal stories, and quote one such reaction.") in text
+    assert ("When the posts only respond to a news or scheduled event and share no such format, sound or practice, "
+            "say so plainly in the sentence rather than invent a pattern, and rest it on claims that cite at least "
+            "two different local creators reacting in their own words, such as opinions, jokes or personal stories, "
+            "and quote one such reaction.") in text
     assert "Posts that only repeat, quote or share the news show no local reaction." in text
+
+
+def test_the_writer_leads_with_the_shared_format_sound_or_practice_and_knows_what_they_mean():
+    # 18 Oct 2026: the old line sent every event-adjacent draft into the news framing the critic always holds.
+    text = writer_text()
+    assert "When the posts respond to a news or scheduled event, say so plainly" not in text
+    assert ("Lead the sentence with the adopted format, sound or practice the cited posts share, resting it on claims "
+            "that cite the posts that show it and naming the creators who made them, and do not present the trend "
+            "as mere reaction to an event.") in text
+    assert "an empty list means the post was not enriched, not that it has no format" in text
+    assert "posts with the same letter on the same platform use the same audio" in text
+    assert "talking_head, other or news_clip alone does not" in text
+    lines = explain.WRITER_SYSTEM.splitlines()
+    assert lines.index(next(line for line in lines if line.startswith("Lead the sentence"))) > lines.index(
+        next(line for line in lines if line.startswith("Put the why-now in the explanation sentence")))
+    # The why-now requirement is unchanged.
+    assert ("name a timely local cause: an event, date, release, announcement, match, holiday or moment that a cited "
+            "local post names in its own words.") in text
 
 
 def test_the_writer_states_events_only_as_its_cited_posts_state_them():

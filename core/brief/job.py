@@ -106,12 +106,14 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # cut by code (core/brief/explain.py _sound_label_rows), prompt-formats-sound the support check and the critic are
 # told what each post's formats and sound mean (core/brief/explain.py SUPPORT_SYSTEM, CRITIC_SYSTEM),
 # critic-pattern-counts the critic gets a line counted by code of the sounds and formats 2 or more different creators
-# share among the posts shown (core/brief/explain.py _shared_patterns).
+# share among the posts shown (core/brief/explain.py _shared_patterns), writer-pattern-lead the writer leads with the
+# format, sound or practice the cited posts share and words a trend as news reaction only when that is all the posts
+# show (core/brief/explain.py WRITER_SYSTEM).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
                 "+brief-504-retry+pattern-first-selection+fold-half-shared+pack-formats-sound+k6-sound-label"
-                "+prompt-formats-sound+critic-pattern-counts")
+                "+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
