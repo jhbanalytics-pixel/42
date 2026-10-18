@@ -117,8 +117,8 @@ def test_a_figure_whose_subject_is_an_age_group_is_cut():
 
 def test_a_generation_subject_is_cut_and_the_rest_stand_clean():
     ctx = make_ctx()
-    record(ctx, "p2", "The survey puts Gen Z on 63% and the DA on 31% for this question.")
-    kept, cut = figures.verify([fig("p2", "Gen Z on 63%", "Gen Z", 63), fig("p2", "the DA on 31%", "DA", 31)], ctx)
+    record(ctx, "p2", "The survey puts Gen Z on 63%. The DA is on 31% for this question.")
+    kept, cut = figures.verify([fig("p2", "Gen Z on 63%", "Gen Z", 63), fig("p2", "The DA is on 31%", "DA", 31)], ctx)
     assert [f["subject"] for f in kept] == ["DA"] and cut == {"breaches rule 1": 1}
     built = figures.tables(kept)
     lead = figures.lead(built)
@@ -150,6 +150,65 @@ def test_a_lead_that_would_carry_an_age_term_is_blank():
     table = {"source": "Ipsos", "publisher": "News24", "posted_at": "2026-10-13T08:00:00",
              "rows": [{"subject": "millennials", "value": 40.0}]}
     assert figures.lead([table]) == ""
+
+
+@pytest.mark.parametrize("text", [
+    "Among voters aged 18 to 24, the DA is on 41% and the ANC on 30%.",
+    "Young voters: the DA is on 41% and the ANC on 30%.",
+    "Among Gen Z, the DA is on 41% and the ANC on 30%.",
+    "Among people under 35, the DA is on 41% and the ANC on 30%.",
+    "The DA is on 41% among millennials, the ANC on 30%.",
+])
+def test_a_neutral_subject_from_an_age_split_sentence_is_cut(text):
+    ctx = make_ctx()
+    record(ctx, "p8", text)
+    kept, cut = figures.verify([fig("p8", "DA is on 41%", "DA", 41)], ctx)
+    assert kept == [] and cut == {"breaches rule 1": 1}
+
+
+def test_an_age_split_in_another_sentence_of_the_record_leaves_the_figure_standing():
+    ctx = make_ctx()
+    record(ctx, "p9", "Ipsos found the DA on 41% and the ANC on 30% overall. Young voters were not asked.")
+    kept, cut = figures.verify([fig("p9", "the DA on 41%", "DA", 41)], ctx)
+    assert [f["value"] for f in kept] == [41.0] and cut == {}
+
+
+def test_an_adult_base_does_not_hide_an_age_split_in_the_same_sentence():
+    ctx = make_ctx()
+    record(ctx, "p10", "Of 1,500 adults aged 18 and older, those aged 18 to 24 put the DA on 41%.")
+    kept, cut = figures.verify([fig("p10", "the DA on 41%", "DA", 41)], ctx)
+    assert kept == [] and cut == {"breaches rule 1": 1}
+
+
+@pytest.mark.parametrize("text, quote", [
+    ("Support for the ANC and DA stood at 40%, with 22% for the latter.", "DA stood at 40%"),
+    ("Of the ANC and the DA, the former polled 40%.", "the DA, the former polled 40%"),
+    ("The ANC and DA stood at 40% and 22% resp. in the poll.", "DA stood at 40%"),
+])
+def test_values_paired_by_former_or_latter_are_cut(text, quote):
+    ctx = make_ctx()
+    record(ctx, "p11", text)
+    kept, cut = figures.verify([fig("p11", quote, "DA", 40)], ctx)
+    assert kept == [] and cut == {"value not written next to its subject": 1}
+
+
+@pytest.mark.parametrize("text, cut_expected", [
+    ("An older Ipsos poll had the ANC at 36% and the DA at 26% in Gauteng.", False),
+    ("An older poll had the ANC at 36% and the DA at 26% in Gauteng.", False),
+    ("Among older voters the ANC is at 36% and the DA at 26% in Gauteng.", True),
+])
+def test_an_older_poll_is_not_an_age_split_but_older_voters_are(text, cut_expected):
+    ctx = make_ctx()
+    record(ctx, "p13", text)
+    kept, cut = figures.verify([fig("p13", "the DA at 26%", "DA", 26)], ctx)
+    assert (kept == [] and cut == {"breaches rule 1": 1}) if cut_expected else (len(kept) == 1 and cut == {})
+
+
+def test_a_former_office_is_not_a_pairing_by_position():
+    ctx = make_ctx()
+    record(ctx, "p12", "The party of a former minister polled 12%, while the DA polled 31%.")
+    kept, cut = figures.verify([fig("p12", "the DA polled 31%", "DA", 31)], ctx)
+    assert [f["value"] for f in kept] == [31.0] and cut == {}
 
 
 # A list of subjects sharing one verb and a list of values is a pairing code cannot settle

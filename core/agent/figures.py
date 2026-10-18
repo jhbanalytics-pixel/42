@@ -322,8 +322,10 @@ def verify(figures: list, ctx: RunContext) -> tuple[list[dict], dict]:
         # quotation. An age split, a generation or search volume in who the figure is for, what it measures, who it
         # covers or who ran it cuts the whole figure: a blank label would still show the split. A sample or fieldwork
         # line that names an age ('1,500 adults aged 18 and over') describes the base, not a split, so only that
-        # line reads as not stated.
-        if any(_text_breaches(v) for v in (subject, fields["measure"], fields["population"], fields["source"])):
+        # line reads as not stated. The quote and its record sentence are scanned too, since the model may leave the
+        # population blank and name a neutral subject for an age group's value (_split_in_sentence).
+        if any(_text_breaches(v) for v in (subject, fields["measure"], fields["population"], fields["source"])) or \
+                _split_in_sentence(quote, text):
             drop(RULE_1_CUT)
             continue
         for name in ("sample", "fieldwork"):
@@ -378,18 +380,43 @@ _LIST_BEFORE = re.compile(r"\d{1,3}(?:[.,]\d{1,2})?\s?(?:%|per\s?cent\b)" + _JOI
 _SENTENCE_END = re.compile(r"[.!?;](?=\s|$)")
 
 
-def _listed(value: float, quote: str, text: str) -> bool:
-    """Whether the record's sentence that holds the quote writes this value in a list of values or says
-    'respectively' ('Support for the ANC and DA stood at 40% and 22% respectively'). The model chooses where the quote
-    starts and ends, so the check reads the record's own sentence, never the quote alone. Such a figure is cut, never
-    re-paired by position."""
+# Words that pair values with subjects by position ('40% and 22% respectively', '22% for the latter'). 'former' only
+# where it stands for a subject named before, not as in 'a former minister'.
+_BY_POSITION = re.compile(
+    r"\brespectively\b|\bresp\.|\blatter\b|\bthe\s+former(?:['\u2019]s)?(?=\s*(?:[^\w\s]|$))|"
+    r"\bthe\s+former\s+(?:on|at|with|has|had|was|is|got|stood|polled|received|scored|took)\b")
+# The base of a poll of adults ('1,500 South Africans aged 18 and older', 'voters 18+') says who was asked, not an age
+# split, so it alone is left out of the sentence scan in verify(). Any other age term in the sentence still cuts.
+_ADULT_BASE = re.compile(
+    r"\b(?:aged\s+)?18\s*(?:years?(?:\s+(?:old|of\s+age))?\s*)?(?:\+|(?:and|or)\s+(?:older|over|above)\b)",
+    re.IGNORECASE)
+# An earlier poll, not older people: 'An older Ipsos poll had the ANC at 36%'. Only 'older' straight before a poll
+# word, or before one capitalised name and then a poll word, so 'older voters' and 'an older voters' poll' still cut.
+_OLDER_POLL = re.compile(r"\bolder\s+(?:(?-i:[A-Z][\w/&.-]*)\s+)?(?:polls?|surveys?|stud(?:y|ies)|reports?|"
+                         r"editions?|waves?|rounds?)\b", re.IGNORECASE)
+
+
+def _quote_sentences(quote: str, text: str):
+    """(body, start, end, at, span) for each place the quote sits in the record: body is the record's normalised,
+    casefolded text, body[start:end] the sentence or sentences that hold the quote and body[at:at + len(span)] the
+    quote itself."""
     body = normalise(" ".join(text.split())).casefold()
     span = normalise(" ".join(quote.split())).casefold()
     at = body.find(span)
     while at >= 0:
         start = max((m.end() for m in _SENTENCE_END.finditer(body, 0, at)), default=0)
         end = next((m.end() for m in _SENTENCE_END.finditer(body, at + len(span))), len(body))
-        if "respectively" in body[start:end]:
+        yield body, start, end, at, span
+        at = body.find(span, at + 1)
+
+
+def _listed(value: float, quote: str, text: str) -> bool:
+    """Whether the record's sentence that holds the quote writes this value in a list of values or pairs values by
+    position ('Support for the ANC and DA stood at 40% and 22% respectively', '... with 22% for the latter'). The model
+    chooses where the quote starts and ends, so the check reads the record's own sentence, never the quote alone. Such
+    a figure is cut, never re-paired by position."""
+    for body, start, end, at, span in _quote_sentences(quote, text):
+        if _BY_POSITION.search(body[start:end]):
             return True
         for m in PERCENT.finditer(body, at, at + len(span)):
             n = _number(m.group(1))
@@ -397,7 +424,25 @@ def _listed(value: float, quote: str, text: str) -> bool:
                 continue
             if _LIST_AFTER.match(body[:end], m.end()) or _LIST_BEFORE.search(body[start:m.start()]):
                 return True
-        at = body.find(span, at + 1)
+    return False
+
+
+def _split_in_sentence(quote: str, text: str) -> bool:
+    """Whether the quote, or the record's sentence that holds it, names an age or generation group, a demographic or
+    search volume (RULES.md rule 1). The subject the model names can be neutral ('DA') while the sentence says the
+    value is for one age group ('Among voters aged 18 to 24, the DA is on 41%'): shown as 'DA 41%', the figure would
+    present that age group's number as everyone's. An adult base (_ADULT_BASE) or an older poll (_OLDER_POLL) alone is
+    not a split."""
+    from core.agent.checks import _text_breaches
+
+    if _text_breaches(quote):
+        return True
+    cased = normalise(" ".join(text.split()))
+    for body, start, end, _, _ in _quote_sentences(quote, text):
+        # the original case where casefolding kept every position, so case-aware patterns ('GenZProtests') still hit
+        sentence = cased[start:end] if len(cased) == len(body) else body[start:end]
+        if _text_breaches(_OLDER_POLL.sub(" ", _ADULT_BASE.sub(" ", sentence))):
+            return True
     return False
 
 
