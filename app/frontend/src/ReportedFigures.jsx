@@ -53,7 +53,7 @@ function FigureTable({table, index}){
   const also = Array.isArray(table.also_reported_by) ? table.also_reported_by.filter((a) => a && text(a.publisher)) : [];
   return (
     <li className="ask42-figures-table" data-figure-source={text(table.source) || 'not stated'}>
-      <BarList title={text(table.title) || 'Reported percentages'} caption={caption(table)} rows={rows} suffix="%" />
+      <BarList title={text(table.title) || 'Reported percentages'} caption={caption(table)} rows={rows} suffix="%" scale={100} />
       {text(table.note) && <p className="ask42-figures-note">{table.note}</p>}
       <p className="ask42-figures-source">
         {link
@@ -77,6 +77,8 @@ const NONE = {
   none_found: 'No source this answer read states a percentage for the question, so no figures are shown. A poll or survey the posts mention without its figures is not a figure.',
   failed: 'The figures the sources report could not be listed this time, so none are shown.',
   not_run: 'The question’s model budget had no room left to list the figures the sources report.',
+  sweep_failed: 'Stored posts that state a percentage could not be read this time, and no source the research read states one, so no figures are shown.',
+  stopped: 'The run was stopped while the figures were being listed, so none are shown.',
 };
 
 /* The privacy pass (core/api/privacy.py _figures) removes a table that rests

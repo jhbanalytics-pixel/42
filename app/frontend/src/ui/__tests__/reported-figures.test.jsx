@@ -91,3 +91,15 @@ test('a failed sweep gives no count, a capped one is a floor, and the read count
   expect(capped).toContain('up to 60 records with a percentage');
   expect(capped).not.toContain('were read for these');
 });
+
+test('a failed sweep and a stop while listing say so, never that no source had a figure', () => {
+  const failed = draw(<ReportedFigures record={record({status: 'sweep_failed', tables: [], sweep: {failed: 'sweep_failed'}})} />);
+  expect(failed.querySelector('.ask42-status').textContent).toContain('could not be read this time');
+  const stopped = draw(<ReportedFigures record={record({status: 'stopped', tables: []})} />);
+  expect(stopped.querySelector('.ask42-status').textContent).toBe('The run was stopped while the figures were being listed, so none are shown.');
+});
+
+test('figure bars are drawn as shares of 100, so a 4% figure is not a full bar', () => {
+  const dom = draw(<ReportedFigures record={record({status: 'ok', tables: [table('Ipsos', [['ANC', 4], ['DA', 2]])]})} />);
+  expect(dom.querySelector('.ch42-bar-fill').getAttribute('style')).toContain('--share:0.04');
+});
