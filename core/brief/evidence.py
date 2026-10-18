@@ -279,6 +279,10 @@ def _record(row, tz, item=None):
     # the writer and the critic as feed_evidence posts are, and nothing else; the post stays local by the same rules
     # (18 Oct 2026). A row from a statement without the column gives False, never a guess.
     record["board_only"] = row.get("board_only") is True
+    # The post's creator id (posts.creator_id), model-only: explain.py turns it into a code letter per author
+    # (_creator_letters) so the checks count creators when a handle is missing; the raw id reaches no prompt
+    # and no stored card (18 Oct 2026).
+    record["creator_id"] = str(row["creator_id"]) if row.get("creator_id") else None
     # The pack statement (C4 v3 appendix G) emits is_outlet. A row without the column gets no class, so the record
     # shape does not change until the pack carries it, and a post of unknown class never counts as a creator's reaction.
     if "is_outlet" in row:

@@ -169,10 +169,10 @@ def test_evidence_record_has_the_contract_fields_and_flags():
         "flags": ["flagged", "sponsored", "near_duplicate"], "thumbnail_url": "https://t.example/p1.jpg",
         "duration_s": 21.0, "creator_tier": "mid", "sponsor_checked": True, "outlet_class": "creator",
         "sound_id": "7301234567890", "formats": ["dance", "duet"],
-        "screen_text": None, "video_format": None, "video_sound": None, "board_only": False,
+        "screen_text": None, "video_format": None, "video_sound": None, "board_only": False, "creator_id": "c1",
     }
     assert set(first) == CONTRACT_FIELDS | {"quote_text", "sponsor_checked", "sound_id", "formats", "screen_text",
-                                            "video_format", "video_sound", "board_only"}
+                                            "video_format", "video_sound", "board_only", "creator_id"}
     assert len(first["text"]) == 280 and len(first["quote_text"]) == 450
     assert second["text"] == "caption words" and second["quote_text"] == "caption words"
     assert second["market"] is None and second["flags"] == ["market_assumed"]

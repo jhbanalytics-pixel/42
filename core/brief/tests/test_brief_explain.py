@@ -596,7 +596,8 @@ def test_support_prompt_carries_each_cited_posts_fields_and_whether_it_is_the_ea
     c2_call = next(c for c in model.support_calls() if "earliest post" in c["user"])
     assert heads(c2_call["user"]) == [{"id": "tt_1", "platform": "tiktok", "posted_at": "2026-09-25T08:10:00+02:00",
                                        "market": "ZA", "source_market": None, "creator_tier": "mid",
-                                       "formats": None, "video_format": None, "sound": None, FLAG: True}]
+                                       "formats": None, "video_format": None, "sound": None, "creator": "creator A",
+                                       FLAG: True}]
     assert "@thandi_moves" in c2_call["user"] and "@thandi_moves" not in outside_fences(c2_call["user"])
     c3_call = next(c for c in model.support_calls() if "Heritage Day weekend" in c["user"])
     assert [(h["platform"], h[FLAG]) for h in heads(c3_call["user"])] == [("instagram", False),

@@ -251,8 +251,9 @@ def _failed_reason(c, status):
 
 # Evidence fields only the model checks read (explain.SUPPORT_FIELDS, _scraped); stored cards and held items keep
 # their shape. screen_text, video_format and video_sound are what the video step read from the clip; board_only marks a
-# post sighted only on the YouTube trending board (18 Oct 2026).
-MODEL_ONLY_FIELDS = ("formats", "sound_id", "screen_text", "video_format", "video_sound", "board_only")
+# post sighted only on the YouTube trending board; creator_id is the author id the prompts show only as a code letter
+# (18 Oct 2026).
+MODEL_ONLY_FIELDS = ("formats", "sound_id", "screen_text", "video_format", "video_sound", "board_only", "creator_id")
 
 
 def reader_evidence(evidence):

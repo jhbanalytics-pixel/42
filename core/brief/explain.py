@@ -223,7 +223,7 @@ Rest that clause on a claim that cites those local posts, preferring posts marke
 Name an evidenced adopted format, practice or emerging behaviour beyond ordinary event coverage or reaction.
 Opinions, jokes, personal stories and event timing alone do not establish a cultural pattern.
 A critic then names the simplest non-cultural explanation, such as a paid or sponsored push, a platform feature change, a coordinated push, a news or scheduled event, a collection artefact, or one viral post or one creator, and holds the explanation unless the cited posts demonstrate a distinct adopted format, practice or emerging behaviour that the simpler explanation alone cannot account for. Different creators, posts without sponsored flags, high counts, and posts on different days or platforms alone do not establish a cultural pattern and do not rule it out. The critic weighs only the posts cited by the claims the sentence rests on, so the claim the sentence rests on for the shared pattern cites every pack post that shows it: when the shared-pattern line below names the pattern you lead with, that claim cites every post id the line lists for it.
-Each post's formats are the format names 42's enrichment model gave it, such as skit, dance or tutorial; an empty list means the post was not enriched, not that it has no format. Its sound is a code letter: posts with the same letter on the same platform use the same audio. A shared sound or a shared specific format across different creators on different days shows adoption; talking_head, other or news_clip alone does not. Describe a shared format or sound in plain words and never write a sound label.
+Each post's formats are the format names 42's enrichment model gave it, such as skit, dance or tutorial; an empty list means the post was not enriched, not that it has no format. Its sound is a code letter: posts with the same letter on the same platform use the same audio. Its creator is a code letter too: posts with the same creator letter on the same platform are by the same author, whatever their handles show, and a null means 42 has no author id for the post. A shared sound or a shared specific format across different creators on different days shows adoption; talking_head, other or news_clip alone does not. Describe a shared format or sound in plain words and never write a sound label; name an author by handle, never by a creator letter.
 Lead the sentence with the adopted format, sound or practice the cited posts share, resting it on claims that cite the posts that show it and naming the creators who made them, and do not present the trend as mere reaction to an event. When the posts only respond to a news or scheduled event and share no such format, sound or practice, say so plainly in the sentence rather than invent a pattern, and rest it on claims that cite at least two different local creators reacting in their own words, such as opinions, jokes or personal stories, and quote one such reaction. Posts that only repeat, quote or share the news show no local reaction.
 State an event, person or fact only as a cited post's own text or fields state it; what you know from outside the pack is not evidence.
 Hedge only the why-now clause, for example "likely because". State the rest plainly.
@@ -244,6 +244,9 @@ Each cited post also carries formats and sound. formats lists the format names 4
 from talking_head, skit, dance, duet, stitch, tutorial, slideshow, meme_image, news_clip and other; an empty list
 means the post was not enriched, not that it has no format. sound is a code letter, such as sound A or sound B: posts
 with the same letter on the same platform use the same audio, and null means 42 has no sound id for the post.
+creator is a code letter in the same way, such as creator A: posts with the same creator letter on the same platform
+are by the same author, whatever their handles show, and null means 42 has no author id for the post. Two posts
+with different creator letters are by different creators even when a handle is missing.
 A shared sound or a shared specific format across different creators on different days is evidence of adoption that
 the critic may weigh; a generic format such as talking_head, other or news_clip alone shows no adopted practice, and
 news_clip points toward news.
@@ -303,7 +306,10 @@ located evidence.
 Each post also carries formats and sound. formats lists the format names 42's enrichment model gave the post, from
 talking_head, skit, dance, duet, stitch, tutorial, slideshow, meme_image, news_clip and other; an empty list means the
 post was not enriched, not that it has no format. sound is a code letter, such as sound A or sound B: posts with the
-same letter on the same platform use the same audio, and null means 42 has no sound id for the post.
+same letter on the same platform use the same audio, and null means 42 has no sound id for the post. creator is a
+code letter in the same way, such as creator A: posts with the same creator letter on the same platform are by the
+same author, whatever their handles show, and null means 42 has no author id for the post; two posts with different
+creator letters are by different creators even when a handle is missing, and the counted line below counts them so.
 A shared sound or a shared specific format across different creators on different days is evidence of adoption that
 you may weigh; a generic format such as talking_head, other or news_clip alone shows no adopted practice, and
 news_clip points toward news. A line counted by code lists each sound letter and each format, talking_head, other and
@@ -577,7 +583,7 @@ def _writer_user(candidate, pack, market, window_start, window_end):
     Per-post engagement is omitted because it is not a pinned pack number or a field read by the support check."""
     code = str(market or "").upper() or None
     evidence = pack.get("evidence") or []
-    earliest, letters = _earliest_id(pack), _sound_letters(pack)
+    earliest, letters, authors = _earliest_id(pack), _sound_letters(pack), _creator_letters(pack)
     local = {r.get("id") for r in counted_local_posts(evidence, market)}
     # A news public-feed post is feed evidence only (W8-DEC-12): local for wording, not marked local.
     feed_evidence = {r.get("id") for r in local_posts(evidence, market)} - local
@@ -592,6 +598,7 @@ def _writer_user(candidate, pack, market, window_start, window_end):
             head["location"] = "unknown"
         head["creator_tier"] = r.get("creator_tier")
         head["formats"], head["sound"] = r.get("formats"), letters.get((r.get("platform"), r.get("sound_id")))
+        head["creator"] = authors.get(_author(r))
         head["earliest_in_pack"] = earliest is not None and r.get("id") == earliest
         if not _citable(r, market):
             head["citable"] = False
@@ -658,8 +665,9 @@ def _writer_user(candidate, pack, market, window_start, window_end):
         "no words remain outside tags, mentions and links; it does not show a reaction or event. A true value is "
         "not a support verdict: cite only the words and fields that show each clause. earliest_in_pack identifies "
         "a unique earliest posting time, never an event date or the trend's origin. formats are the format names "
-        "42 recorded for a post; sound is a label 42 gives the posts in this pack that share one sound. Describe "
-        "a shared format or sound in plain words; never write a sound label such as \"sound A\".",
+        "42 recorded for a post; sound is a label 42 gives the posts in this pack that share one sound, and creator a "
+        "label it gives the posts by one author. Describe a shared format or sound in plain words; never write a "
+        "sound label such as \"sound A\", and name an author by handle, never by a creator letter.",
         f"Evidence pack, {len(posts)} posts:",
         scope,
         _writer_pattern_line(citable, letters),
@@ -740,9 +748,34 @@ def _sound_letters(pack):
     return letters
 
 
-def _head(record, earliest, letters):
+def _author(record):
+    """The key the checks count a post's author by: its platform and creator id, the key the pack's creator cap uses
+    (evidence.sql rc), or, for a record with no id, its platform and handle (core/brief/reaction.py creator_key);
+    None when the post has neither. Two posts with the same key are by one author (18 Oct 2026: a post with no
+    handle used to add no creator, so a pattern two unnamed creators shared went uncounted)."""
+    if record.get("creator_id"):
+        return (record.get("platform"), str(record.get("creator_id")))
+    return creator_key(record.get("platform"), record.get("handle"))
+
+
+def _creator_letters(pack):
+    """{author key (_author): "creator A"} over the pack's posts in pack order, as _sound_letters letters sounds, so
+    posts by one author show the same letter and posts by different authors never do. The creator id is a vendor
+    identifier a writer could copy into a claim, so it never reaches the model; the checks only need to see which
+    posts share an author when a handle is missing (18 Oct 2026)."""
+    letters = {}
+    for r in pack.get("evidence") or []:
+        key = _author(r)
+        if key is not None and key not in letters:
+            n = len(letters)
+            letters[key] = "creator " + (chr(65 + n) if n < 26 else chr(64 + n // 26) + chr(65 + n % 26))
+    return letters
+
+
+def _head(record, earliest, letters, authors):
     head = {k: record.get(k) for k in SUPPORT_FIELDS}
     head["sound"] = letters.get((record.get("platform"), record.get("sound_id")))
+    head["creator"] = authors.get(_author(record))
     head["market"] = located_market(record)
     head["source_market"] = source_market(record)
     if head["market"] is None:
@@ -757,8 +790,8 @@ def _support_user(claim, records, pack, market=None, terms=()):
     own_feed_local true here too; a located or unmarked post carries no such field. terms: the trend title's terms,
     used only to list the cited posts that name most of them first; the title itself is not shown."""
     records = _on_topic_first(records, terms)
-    earliest, letters = _earliest_id(pack), _sound_letters(pack)
-    heads = [_head(r, earliest, letters) for r in records]
+    earliest, letters, authors = _earliest_id(pack), _sound_letters(pack), _creator_letters(pack)
+    heads = [_head(r, earliest, letters, authors) for r in records]
     for r, h in zip(records, heads):
         if _own_feed_local(r, market):
             h["own_feed_local"] = True
@@ -812,8 +845,9 @@ PATTERN_MIN_CREATORS = 2
 def _shared_patterns(pack, letters):
     """The sounds and formats 2 or more different creators share among the pack's posts, as code counts them: one
     {pattern, post_ids, creators, days} per sound letter (_sound_letters) and per format other than talking_head,
-    other and news_clip (PATTERN_SKIP_FORMATS), in pack order. A creator is the post's platform and handle (core/brief/reaction.py creator_key); a
-    post without a handle adds no creator. A day is the posted_at date in market local time; an unreadable one adds
+    other and news_clip (PATTERN_SKIP_FORMATS), in pack order. A creator is the post's platform and creator id, or its
+    platform and handle for a record with no id (_author); a post with neither adds no creator. A day is the
+    posted_at date in market local time; an unreadable one adds
     none. Only the posts shown are counted, never the whole trend (18 Oct 2026: the critic judged adoption by reading
     each post's fields one by one)."""
     groups = {}
@@ -825,7 +859,7 @@ def _shared_patterns(pack, letters):
             groups.setdefault(name, []).append(r)
     out = []
     for name, records in groups.items():
-        creators = {creator_key(r.get("platform"), r.get("handle")) for r in records} - {None}
+        creators = {_author(r) for r in records} - {None}
         days = {w.date() for w in (_when(r.get("posted_at")) for r in records) if w is not None}
         if len(creators) >= PATTERN_MIN_CREATORS:
             out.append({"pattern": name, "post_ids": [r.get("id") for r in records], "creators": len(creators),
@@ -892,7 +926,7 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
     A line counted by code lists the sounds and formats different creators share among the posts shown
     (_shared_patterns), and another says which simpler explanations detect's numbers show, with their thresholds and
     floor (_rivals_line)."""
-    earliest, letters = _earliest_id(pack), _sound_letters(pack)
+    earliest, letters, authors = _earliest_id(pack), _sound_letters(pack), _creator_letters(pack)
     resting = {c.get("id") for c in claims if c.get("id") in set(rests_on)}
     cited = {e for c in claims if c.get("id") in resting for e in c.get("evidence_ids") or []}
     ledger = [{**{k: c.get(k) for k in ("id", "text", "label", "kind", "evidence_ids")},
@@ -902,7 +936,7 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
     local = str(market or "").upper() or None
     posts, cited_ids, located_ids, own_feed_ids = [], [], [], []
     for r in pack.get("evidence") or []:
-        head = {**_head(r, earliest, letters), "engagement": r.get("engagement")}
+        head = {**_head(r, earliest, letters, authors), "engagement": r.get("engagement")}
         head["sponsor_checked"] = r.get("sponsor_checked") is True
         head["board_only"] = r.get("board_only") is True
         head["cited_by_resting_claims"] = r.get("id") in cited

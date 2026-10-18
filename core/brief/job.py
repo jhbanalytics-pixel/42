@@ -126,14 +126,17 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # within each tier the pack ranks non-board local creator posts first, then posts sharing the dominant sound or
 # format (the one most distinct creators share, 2 or more), then the rest in the old order, and a post whose every
 # sighting was the YouTube trending board is marked board_only to the writer and the critic, its locality and the
-# board's place in source_market unchanged (core/brief/sql/evidence.sql r1, core/brief/explain.py _board_only_line).
+# board's place in source_market unchanged (core/brief/sql/evidence.sql r1, core/brief/explain.py _board_only_line),
+# creator-letters each pack post carries a code letter for its author, written from the post's creator id and never
+# the id itself, so the writer, the support check and the critic see which posts one author made, and the counted
+# pattern line counts a creator with no handle by that id (core/brief/explain.py _author, _creator_letters).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
                 "+brief-504-retry+pattern-first-selection+fold-half-shared+pack-formats-sound+k6-sound-label"
                 "+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead"
                 "+critic-inconsistent+pattern-skip-talking-head+writer-critic-agree+pack-video-fields"
-                "+critic-rivals-line+author-step-note+pack-local-pattern-order")
+                "+critic-rivals-line+author-step-note+pack-local-pattern-order+creator-letters")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe

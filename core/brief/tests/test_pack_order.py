@@ -593,5 +593,5 @@ def test_the_briefs_rule_version_names_every_wave_8_rule_change():
             "+e-order-breadth+e-one-event-shadow+brief-504-retry+pattern-first-selection+fold-half-shared"
             "+pack-formats-sound+k6-sound-label+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead+critic-inconsistent"
             "+pattern-skip-talking-head+writer-critic-agree+pack-video-fields+critic-rivals-line"
-            "+author-step-note+pack-local-pattern-order")
+            "+author-step-note+pack-local-pattern-order+creator-letters")
     assert job.RULE_VERSION in {detect_job.rule_version_for(authority) + tail for authority in ("v1", "v2")}
