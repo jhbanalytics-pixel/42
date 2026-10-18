@@ -318,6 +318,10 @@ Sport, news and releases can support a pattern when cited posts show the adopted
 mere event reaction. Judge whether the event alone explains that pattern, not whether the event occurred.
 Name the pattern and the cited post evidence in reason. When the evidence is silent, thin or mixed, set ruled_out false.
 A post with sponsor_checked true and no sponsored flag was checked and shows no paid label; sponsor_checked false means whether it carries one is unknown.
+A line written by code says which simpler explanations detect's own numbers show (found), do not show (not found) or
+could not assess, with the thresholds and the floor of 10 posts in 7 days that detect itself applies to burst_share
+and top3_share: a share below its threshold, or with fewer than 10 posts in 7 days, is not a found rival on its own.
+The numbers it reads are the same 7-day shares listed below. It is evidence you may weigh, not a verdict.
 Set news_driven true only when the simplest explanation you named is a news event and none of the others (a paid
 or sponsored push, a platform change, a bot or coordinated push, a collection artefact, one post or one creator)
 applies. Set scheduled_event true only when the simplest explanation you named is a scheduled event, such as a
@@ -813,6 +817,47 @@ def _pattern_line(pack, letters):
             f"different creators share, with its post ids, different creators and different posting days:\n{body}")
 
 
+# The rivals the code can find from detect's numbers, worded for the critic (core/brief/rivals.py RIVALS).
+RIVAL_WORDS = {"sponsored": "a paid or sponsored push (sponsored_share)", "burst": "a burst push (burst_share)",
+               "concentrated": "a few creators carrying the count (top3_share)",
+               "near_duplicates": "near-duplicate posts (near_dup_share)",
+               "calendar_moment": "a calendar moment detect lists",
+               "news_leading": "a news outlet leading (the pack's earliest post is a news post)",
+               "regime_break": "a collection regime break"}
+
+
+def _rivals_line(pack):
+    """A line written by code for the critic from core/brief/rivals.py code_rivals: which simpler explanations
+    detect's own numbers show (found), do not show (not found) or could not assess, with the thresholds and the floor
+    of 10 posts in 7 days that burst and concentrated need, as state.sql share_flags needs it. The critic saw the raw
+    top3_share, burst_share and near_dup_share among the pack's numbers with no threshold and no floor, so a share
+    over a few posts could read as a rival (18 Oct 2026). The shadow record (_shadow_record) is untouched; a fault
+    here reads as not assessed and goes no further."""
+    head = "Simpler explanations checked by code from detect's own numbers over the trend's 7-day posts, not these posts"
+    try:
+        record = rivals.code_rivals(pack)
+    except Exception as exc:
+        return f"{head}: not assessed ({type(exc).__name__})."
+    if record is None:
+        return f"{head}: not assessed; the pack carries no detect rival values."
+    found, not_assessed = list(record["found"]), list(record["not_assessed"])
+    not_found = [r for r in rivals.RIVALS if r not in found and r not in not_assessed]
+    words = lambda names: "; ".join(RIVAL_WORDS[r] for r in names) or "none"  # noqa: E731
+    t = record["thresholds"]
+    inputs = {f: v.get("value") for f, v in (record.get("inputs") or {}).items()}
+    posts7 = inputs.get("posts7")
+    shown = ", ".join(f"{f} {inputs[f]}" for f in rivals.USED if f in inputs) or "none"
+    floor = (f"posts in 7 days: {posts7}" + (f", below the floor of {t['min_posts7']}, so burst and concentrated are "
+                                            f"not found whatever their share" if isinstance(posts7, (int, float))
+             and posts7 < t["min_posts7"] else "")) if posts7 is not None else "posts in 7 days: not read"
+    return (f"{head} (read {record['read']}): found: {words(found)}. Not found: {words(not_found)}. "
+            f"Not assessed: {words(not_assessed)}. Thresholds: sponsored_share {t['sponsored']} or more; "
+            f"burst_share {t['burst']} or more and top3_share {t['concentrated']} or more, each only with "
+            f"{t['min_posts7']} or more posts in 7 days; near_dup_share {t['near_duplicates']} or more. "
+            f"Values used: {shown}; {floor}. A share below its threshold, or under the floor, is not a found rival on "
+            f"its own. This is a record from detect's numbers, not a verdict.")
+
+
 def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
     """The sentence, the claims that passed, the trend's numbers with their queries, and every post on the card.
     Code marks the critic's scope: the claims the sentence rests on, the posts they cite, which of those posts are
@@ -820,7 +865,8 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
     location unknown, as specificity counts them local, and never merged into located_in_market. Each post carries
     sponsor_checked: true when 42 has a paid-label reading for it, so no sponsored flag then means none was found.
     A line counted by code lists the sounds and formats different creators share among the posts shown
-    (_shared_patterns)."""
+    (_shared_patterns), and another says which simpler explanations detect's numbers show, with their thresholds and
+    floor (_rivals_line)."""
     earliest, letters = _earliest_id(pack), _sound_letters(pack)
     resting = {c.get("id") for c in claims if c.get("id") in set(rests_on)}
     cited = {e for c in claims if c.get("id") in resting for e in c.get("evidence_ids") or []}
@@ -862,6 +908,7 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
         scope,
         own_feed,
         _pattern_line(pack, letters),
+        _rivals_line(pack),
         "The trend's numbers, each with the query that produced it and its scope:\n" + ("\n".join(numbers) or "none"),
         "The trend's posts:",
         *posts,
