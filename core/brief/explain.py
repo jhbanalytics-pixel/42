@@ -71,7 +71,8 @@ from core.plain_dates import format_generated_dates
 from core.trust import retained
 from core.trust.claims import (
     _QUOTE_MARKS, _QUOTED, LABELS, MARKET_NAMES, _norm, _quote_fault, _quoted, _strip_quotes, _verified_quotes,
-    check_answer, inferred_only_by_source_step, located_market, named_markets, place_fault, source_market,
+    check_answer, inferred_only_by_author_step, inferred_only_by_source_step, located_market, named_markets,
+    place_fault, source_market,
 )
 
 WRITER_MAX_TOKENS = 4000
@@ -93,6 +94,11 @@ _TITLE_MARKS = re.compile(r"[\"\u201c\u201d\u201e\u201f\u2018]")
 # The line under Label for an observation K5 labels inferred only for source-only place support (Albert, 3 Oct).
 SOURCE_STEP_NOTE = ("Label note: an observation, labelled inferred only because a named market has source_market "
                     "support alone")
+# The same line for an observation K5 labels inferred only because none of its cited posts has an independent author
+# (no handle, or a brand, paid, sponsored, near-duplicate, flagged or generated post): the support check judged such a
+# claim as interpretation and cut it for not reading like one (18 Oct 2026). The label stays inferred.
+AUTHOR_STEP_NOTE = ("Label note: an observation, labelled inferred only because none of its cited posts has an "
+                    "independent author")
 # Code-written fields of a cited post the support check sees outside the fence; the handle stays inside it. formats
 # (the enrich model's format names) and, from _head, sound (_sound_letters) let the checks see whether posts share a
 # format or a sound, the adoption the critic asks for, rather than judge it from captions alone (held-topics slice 2,
@@ -254,7 +260,9 @@ worded as interpretation. Return partial when only part of the claim is supporte
 not support it. A claim whose label line is followed by "an observation, labelled inferred only because a named
 market has source_market support alone" is checked as an observation, not as interpretation: return supported only
 when the cited text, those fields or those numbers state it or directly show it, and do not ask for interpretive
-wording; every other rule here still applies to it. A date, platform, place or earliest post in the claim is supported
+wording; every other rule here still applies to it. A claim whose label line is followed by "an observation, labelled
+inferred only because none of its cited posts has an independent author" is checked the same way, as an observation:
+its label is low because its posts are brand, paid, flagged or unnamed authors, not because it reads anything into them. A date, platform, place or earliest post in the claim is supported
 only when a cited post's own fields show it: the same post, not one post's date joined to another's platform.
 earliest_in_pack supports only wording scoped to the posts shown, such as "the earliest post in the pack"; an unscoped
 "earliest post", "earliest post found" or "earliest post 42 found" is unsupported, and so is any claim that the trend
@@ -747,6 +755,8 @@ def _support_user(claim, records, pack, market=None, terms=()):
         parts[0] += f"\n{TITLE_NOTE}"
     elif inferred_only_by_source_step(claim, {r.get("id"): r for r in records}):
         parts[0] += f"\n{SOURCE_STEP_NOTE}"
+    elif inferred_only_by_author_step(claim, {r.get("id"): r for r in records}):
+        parts[0] += f"\n{AUTHOR_STEP_NOTE}"
     numbers = claim.get("numbers") or []
     if numbers:
         parts.append("Numbers the claim cites, each with the query that produced it and its scope:\n" + "\n".join(

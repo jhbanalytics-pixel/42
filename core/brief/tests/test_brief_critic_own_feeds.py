@@ -147,7 +147,7 @@ def test_cultural_critic_prompt_and_unchanged_support_prompt_are_pinned():
     assert hashlib.sha256(explain.CRITIC_SYSTEM.encode("utf-8")).hexdigest() == (
         "12add9931d7aabb89335e0bd770dc8cdcb0835c39f20be1709262747761644eb")
     assert hashlib.sha256(explain.SUPPORT_SYSTEM.encode("utf-8")).hexdigest() == (
-        "d127fd621b82d0b7b8597ece5b31cf0d50c5b59685b0020402ea88145cb9fd1b")
+        "4d13db83a18d27815205ba5c1a977c7b97809cd48919db03db20f06f4da5d6c2")
 
 
 @pytest.mark.parametrize("system", ["SUPPORT_SYSTEM", "CRITIC_SYSTEM"])

@@ -9,6 +9,8 @@ Public API, the only names other lanes should import:
     source_market(record) -> an explicit known source market, upper case, or None
     place_support(text, records) -> each named market's support: "located", "source" or None
     place_fault(text, records, exempt=None) -> the K3 place fault, or None
+    inferred_only_by_author_step(claim, records) -> True when an observation is labelled inferred only because no
+        cited post has an independent author (18 Oct 2026)
     inferred_only_by_source_step(claim, records) -> True when an observation is labelled inferred and K5 allows it
         no higher only because a named place has source-market support: its authors alone allow single_source
     allowed_label(claim, records) -> the highest label K5 allows the claim on these records
@@ -1115,6 +1117,19 @@ def inferred_only_by_source_step(claim, records):
         return False
     allowed, source_only = _k5_basis(claim, records)
     return source_only and allowed == "single_source"
+
+
+def inferred_only_by_author_step(claim, records):
+    """True when the claim is an observation labelled inferred and K5's author step alone took it there: none of its
+    cited posts has an independent author (no handle, or a flag in NOT_INDEPENDENT on every post with one), so the
+    highest label its authors allow is inferred whatever the writer wrote. The support check then judges it as an
+    observation, not as interpretation, as it judges a source-step claim (18 Oct 2026). The label and every evidence
+    rule stay; a claim citing no record is not marked, since no author lowered it."""
+    if claim.get("kind") != "observation" or claim.get("label") != "inferred":
+        return False
+    if not any(i in records for i in claim.get("evidence_ids") or []):
+        return False
+    return _allowed_label(claim, records) == "inferred"
 
 
 def _k5_ceiling(claim, records):
