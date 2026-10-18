@@ -119,20 +119,18 @@ def local_first_world():
 
 
 def check_local_creator_posts_rank_first_within_a_tier_and_a_board_only_post_is_marked(sql):
-    # 18 Oct 2026: within a tier a local creator post (local, not news, not sighted on the YouTube trending board
-    # alone) ranks before the measured and engagement keys; the rest keep the old order.
+    # 18 Oct 2026: within a tier a local creator post (local, not an outlet, not news, not sighted on the YouTube
+    # trending board alone) ranks before the measured and engagement keys; the rest keep the old order.
     rows = pack(local_first_world(), 12, sql=sql)
     ids = [r["post_id"] for r in rows]
     # Members first whatever their location, then local creators by engagement, then the rest in the old order; the
-    # creator cap drops each creator's third post (m2_far2, m3_loc2) and keeps the member one. A local registry
-    # outlet on X ranks with the local creators: the key does not read the registry, since market_scope.sql and
-    # v_item_market_scope mirror the order without it (and the registry is empty until hubs.yaml is confirmed).
-    assert ids == ["m3_mem", "mem_far", "xhub_hi", "mixed_board", "m3_loc1", "lc_low", "m2_local",
-                   "m2_far1", "far_hi", "unk_hi", "out_hi", "board_hi"]
+    # creator cap drops each creator's third post (m2_far2, m3_loc2) and keeps the member one.
+    assert ids == ["m3_mem", "mem_far", "mixed_board", "m3_loc1", "lc_low", "m2_local",
+                   "m2_far1", "far_hi", "unk_hi", "out_hi", "xhub_hi", "board_hi"]
     by_id = {r["post_id"]: r for r in rows}
-    assert [pid for pid in ids if by_id[pid]["local_creator"]] == ["xhub_hi", "mixed_board", "m3_loc1", "lc_low",
-                                                                   "m2_local"]
+    assert [pid for pid in ids if by_id[pid]["local_creator"]] == ["mixed_board", "m3_loc1", "lc_low", "m2_local"]
     assert by_id["xhub_hi"]["is_outlet"] is True and by_id["xhub_hi"]["local_flag"] is True
+    assert by_id["xhub_hi"]["local_creator"] is False
     assert all(r["local_creator"] is not None for r in rows)  # a sort key is never NULL, whatever local_flag is
     assert by_id["board_hi"]["board_only"] is True and by_id["board_hi"]["local_flag"] is True
     assert all(by_id[pid]["board_only"] is False for pid in ids if pid != "board_hi")
@@ -496,11 +494,10 @@ MUTANTS = {
     "board-only read as any board sighting":
         [("LOGICAL_AND(IFNULL(po.series, '') = 'board_youtube') board_only",
           "LOGICAL_OR(IFNULL(po.series, '') = 'board_youtube') board_only")],
-    "a news post counted as a local creator":
-        [("AND NOT IFNULL(r0.board_only, FALSE)\n      AND IFNULL(LOWER(TRIM(r0.platform)), '') != 'news' local_creator",
-          "AND NOT IFNULL(r0.board_only, FALSE) local_creator")],
-    "a null local flag left in the sort key": [("IFNULL(r0.local_flag, FALSE) AND NOT IFNULL(r0.board_only, FALSE)",
-                                                "r0.local_flag AND NOT IFNULL(r0.board_only, FALSE)")],
+    "a local outlet counted as a local creator":
+        [("IFNULL(r0.local_flag, FALSE) AND NOT r0.is_outlet AND NOT IFNULL(r0.board_only, FALSE)",
+          "IFNULL(r0.local_flag, FALSE) AND NOT IFNULL(r0.board_only, FALSE)")],
+    "a null local flag left in the sort key": [("IFNULL(r0.local_flag, FALSE) AND NOT r0.is_outlet", "r0.local_flag AND NOT r0.is_outlet")],
     "talking_head counted as a pattern":
         [("WHERE fmt NOT IN ('talking_head', 'other', 'news_clip')", "WHERE fmt NOT IN ('other', 'news_clip')")],
     "one creator alone makes a dominant pattern": [("r1.pattern_creators >= 2 AND", "r1.pattern_creators >= 1 AND")],

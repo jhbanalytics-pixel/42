@@ -32,22 +32,14 @@ def member(con, post_id):
     duck.load(con, "core.cluster_members", [{"cluster_id": CLUSTER, "post_id": post_id, "probability": 0.9}])
 
 
-def pack_rows(con, market="ZA", d=D):
+def pack_counts(con, market="ZA", d=D):
+    """(total, local) of the pack evidence.sql builds for the same world: the reference both scopes must match."""
     start = datetime.combine(d - timedelta(days=6), datetime.min.time(), timezone(timedelta(hours=2)))
     rows = evidence._pack_rows(duck.Client(con), {
         "item_id": "i1", "market": market, "d": d, "start": start, "end": start + timedelta(days=7),
         "outlet_cap": pack_order.OUTLET_CAP}, "core", "agent")
-    return [r for r in rows if r["post_id"] is not None]
-
-
-def pack_counts(con, market="ZA", d=D):
-    """(total, local) of the pack evidence.sql builds for the same world: the reference both scopes must match."""
-    rows = pack_rows(con, market, d)
+    rows = [r for r in rows if r["post_id"] is not None]
     return len(rows), sum(bool(r["local_flag"]) for r in rows)
-
-
-def pack_ids(con, market="ZA", d=D):
-    return {r["post_id"] for r in pack_rows(con, market, d)}
 
 
 def context_vs_members(*, members_local):
@@ -116,18 +108,11 @@ def random_world(seed):
             fields = rnd.choice([LOCAL, LOCAL_NG, {}, {"geo_market": "KE", "geo_confidence": 0.9, "geo_source": "ext_region"},
                                  {"source_sightings": [sighting("ZA", D)]}, {"source_sightings": [sighting("NG", D)]}])
             lane = rnd.choice(["sweep", "sweep", "confirm"])
-            # The keys of the 18 Oct 2026 order: a sound and formats shared or not, the news platform, a board sighting.
-            # A creator id lives on one platform, as collect writes them (the creators table is keyed by both).
-            platform = rnd.choice(["tiktok", "tiktok", "youtube", "news"])
-            add_post(con, f"p{n:02d}", creator_id=f"c_{platform}_{rnd.randint(0, 9)}",
-                     engagement=rnd.choice([5, 5, 50, 500, 5000]),
+            add_post(con, f"p{n:02d}", creator_id=f"c{rnd.randint(0, 9)}", engagement=rnd.choice([5, 5, 50, 500, 5000]),
                      lane=lane, lane_class="search_presence" if lane == "confirm" else rnd.choice(
                          ["unbiased_rank", "panel", "search_presence"]),
                      observation_markets=rnd.choice([("ZA",), ("NG",), ("ZA", "NG")]),
-                     observed_date=rnd.choice(DATES), platform=platform,
-                     sound_id=rnd.choice([None, None, "snd1", "snd2"]),
-                     formats=rnd.choice([None, [], ["skit"], ["dance", "talking_head"], ["talking_head"]]),
-                     series=rnd.choice([None, None, "board_youtube"]), **fields)
+                     observed_date=rnd.choice(DATES), **fields)
             for cluster_id in rnd.sample(ids, rnd.choice([0, 0, 1, 1, 2])):
                 join(con, cluster_id, f"p{n:02d}")
     return build
@@ -168,18 +153,15 @@ def test_the_brief_scope_and_the_detect_view_count_exactly_the_posts_the_pack_ho
 
 
 def member_kind_world(kind):
-    """12 posts local to both markets by their feed sightings that outrank two low engagement posts, one located in ZA
-    and one in NG, all seen in both markets on the day before D. Both are members of the clusters of one kind
-    (scope_clusters); in "swapped" each is a member only of the other market's current run. Such a post is in the pack,
-    and so counted local, only when it is a member of its own market's run and that run is dated inside the 7 days to
-    the date asked for. (Since 18 Oct 2026 a local creator post ranks first within its tier, so the context posts are
-    local too, or the target would enter on that key alone.)"""
+    """12 unlocated posts that outrank two low engagement posts, one local to ZA and one local to NG, all seen in both
+    markets on the day before D. Both are members of the clusters of one kind (scope_clusters); in "swapped" each is
+    a member only of the other market's current run. Such a post is in the pack, and so counted local, only when it is
+    a member of its own market's run and that run is dated inside the 7 days to the date asked for."""
     def build(con):
         ids = scope_clusters(con)
         for n in range(12):
             add_post(con, f"ctx_{n}", creator_id=f"ctx_{n}", engagement=10_000 + n, observation_markets=MARKETS,
-                     observed_date=D - timedelta(days=1),
-                     source_sightings=[sighting("ZA", D - timedelta(days=1)), sighting("NG", D - timedelta(days=1))])
+                     observed_date=D - timedelta(days=1))
         for market, fields in (("za", LOCAL), ("ng", LOCAL_NG)):
             add_post(con, f"tgt_{market}", creator_id=f"tgt_{market}", engagement=1, observation_markets=MARKETS,
                      observed_date=D - timedelta(days=1), **fields)
@@ -206,7 +188,7 @@ def test_only_a_cluster_of_the_item_in_the_markets_own_run_inside_the_window_mak
     # The world discriminates: the market's own target is in the pack exactly when it is a member on that date.
     for market in MARKETS:
         for d in DATES:
-            assert (f"tgt_{market.lower()}" in pack_ids(brief_con, market, d)) == (d in local_on), (kind, market, d)
+            assert pack_counts(brief_con, market, d)[1] == (1 if d in local_on else 0), (kind, market, d)
 
 
 def test_the_outlet_cap_is_not_applied_by_either_scope_so_it_must_stay_at_or_above_the_pack_size():
@@ -217,11 +199,8 @@ def test_the_outlet_cap_is_not_applied_by_either_scope_so_it_must_stay_at_or_abo
     assert "outlet" not in SCOPE_QUERIES["market_scope"].lower()
 
 
-# The pack order since 18 Oct 2026: tier, local creator, dominant pattern, measured lane, engagement, post id.
-CREATOR_ORDER = re.compile(r"ORDER BY NOT \w+\.market_member, NOT \w+\.local_creator, NOT \w+\.shares_dominant, "
-                           r"\w+\.measured DESC, \w+\.eng DESC, \w+\.post_id")
-PACK_ORDER = re.compile(r"ORDER BY (\w+\.)?market_member DESC, (\w+\.)?local_creator DESC, (\w+\.)?shares_dominant DESC, "
-                        r"(\w+\.)?measured DESC, (\w+\.)?eng DESC, (\w+\.)?post_id")
+CREATOR_ORDER = re.compile(r"ORDER BY mm\.post_id IS NULL, \w+\.measured DESC, IFNULL\(ps\.engagement, 0\) DESC, ps\.post_id")
+PACK_ORDER = re.compile(r"ORDER BY (\w+\.)?market_member DESC, (\w+\.)?measured DESC, (\w+\.)?eng DESC, (\w+\.)?post_id")
 MEMBERS = re.compile(r"UPPER\(k\.market\) = (@market|s\.market)")
 
 

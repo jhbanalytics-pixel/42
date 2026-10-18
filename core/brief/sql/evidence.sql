@@ -21,9 +21,8 @@ LEFT JOIN {core}.creators c ON c.creator_id = s.creator_id;
 -- engagement, then the post id, which is unique, so no tie is left to the engine. At most 2 per creator, chosen
 -- tier first, and at most @outlet_cap outlet posts (the news platform, or a platform:handle key in @outlet_keys;
 -- a post whose creator has no creators row is not an outlet). 12 posts in all. Within each tier, before the measured
--- lanes, a local creator post (local by local_flag, not on the news platform, sighted somewhere other than the
--- YouTube trending board alone; a registry outlet is not told apart here, since market_scope.sql and
--- v_item_market_scope mirror this order without the registry) ranks first, then a post sharing the pack's dominant sound or specific
+-- lanes, a local creator post (local by local_flag, not an outlet, not on the news platform, sighted somewhere other
+-- than the YouTube trending board alone) ranks first, then a post sharing the pack's dominant sound or specific
 -- format (the sound or format, talking_head, other and news_clip left out, that the most different creators among
 -- the candidate posts share, 2 or more), then the rest (18 Oct 2026: packs led with board listings and outlet posts
 -- while the creator posts that show an adopted practice fell off the end). board_only marks a post whose every
@@ -153,7 +152,7 @@ pat_format AS (
 r1 AS (
   SELECT r0.*,
     -- local_flag is NULL for a post with no location and no sighting from the market; a sort key is never NULL.
-    IFNULL(r0.local_flag, FALSE) AND NOT IFNULL(r0.board_only, FALSE)
+    IFNULL(r0.local_flag, FALSE) AND NOT r0.is_outlet AND NOT IFNULL(r0.board_only, FALSE)
       AND IFNULL(LOWER(TRIM(r0.platform)), '') != 'news' local_creator,
     GREATEST(IFNULL(pat_sound.n, 0),
              IFNULL((SELECT MAX(pf.n) FROM pat_format pf WHERE pf.fmt IN UNNEST(r0.formats)), 0)) pattern_creators

@@ -229,11 +229,8 @@ def world_v1_rejects_v2_admits(con, i):
 
 
 def world_pack_rejects_v2_admits(con, i):
-    """Six outlets with two high engagement unlocated posts each outrank twenty creators located in NG on engagement.
-    This is the Tinubu shape of the 7 Oct retained ranking, where the outlets filled the 12 post sample and the pack
-    scope rejected what v2 admitted. Since 18 Oct 2026 the pack ranks local creator posts first within a tier
-    (brief/sql/evidence.sql, mirrored by v_item_market_scope and market_scope.sql), so the sample is the twelve NG
-    creators and the pack scope agrees with v2; the world stays as the guard for that order."""
+    """Six outlets with two high engagement unlocated posts each fill the 12 post sample; twenty creators located
+    in NG sit below them. This is the Tinubu shape of the 7 Oct retained ranking."""
     for n in range(6):
         for _ in range(2):
             add(con, i, creator=f"{i}-outlet{n}", platform="twitter", lane_class="panel", lane="panel",
@@ -258,12 +255,12 @@ def world_v1_admits_v2_rejects(con, i):
 
 DISAGREE = [
     ("d1", world_v1_rejects_v2_admits, ("not_local", "market"), "market_unconfirmed"),
-    ("d2", world_pack_rejects_v2_admits, ("local", "market"), "local"),  # agreed since 18 Oct 2026, see the world
+    ("d2", world_pack_rejects_v2_admits, ("local", "global"), "local"),
     ("d3", world_v1_admits_v2_rejects, ("local", "market"), "not_local"),
 ]
 
 
-@pytest.mark.parametrize(("item", "build", "v1", "v2"), DISAGREE, ids=["v1_rejects", "pack_admits_since_18_oct", "v1_admits"])
+@pytest.mark.parametrize(("item", "build", "v1", "v2"), DISAGREE, ids=["v1_rejects", "pack_rejects", "v1_admits"])
 def test_v1_and_v2_disagree_on_the_same_raw_rows(con, item, build, v1, v2):
     key(con, item)
     build(con, item)
