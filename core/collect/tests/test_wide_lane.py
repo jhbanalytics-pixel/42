@@ -126,6 +126,26 @@ def test_placebo_wider_searches_are_held_to_the_route_count():
             f"low topic {i}" for i in range(count)]
 
 
+@pytest.mark.parametrize("picks", [0, 1, 2, 3, 6])
+def test_each_wider_net_protocol_makes_exactly_its_planned_count_of_calls(picks):
+    # The protocol names planned=count and the items check reads the day's items against that series' reference,
+    # so placebo picks take slots from the real searches instead of adding to them; job.plan (no placebo picks)
+    # then holds what the run spends.
+    placebo = [queue_seed(f"low topic {i}", lane="placebo", template="tiktok/search/top", item_id=f"topic|low {i}")
+               for i in range(picks)]
+    calls = job.wide_calls("ZA", TUESDAY, _thin_market(placebo))
+    by_protocol = {}
+    for c in calls:
+        by_protocol.setdefault(c.series_protocol(), []).append(c)
+    live = [(route, count) for route, count in job.WIDE_TOP if count > 0]
+    assert len(by_protocol) == len(live)
+    for route, count in live:
+        [(protocol, made)] = [(p, cs) for p, cs in by_protocol.items() if cs[0].route == route]
+        assert f"planned={count}" in protocol
+        assert len(made) == count
+        assert sum(c.lane == "placebo" for c in made) == min(picks, count)
+
+
 def test_a_route_turned_off_searches_no_placebo_either():
     placebo = [queue_seed("low topic", lane="placebo", template="tiktok/search/top", item_id="topic|low")]
     calls = job.wide_calls("ZA", TUESDAY, _thin_market(placebo), top=(("bluesky/search", 0), ("pinterest/search", 1)))

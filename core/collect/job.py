@@ -515,12 +515,14 @@ WIDE_SOURCES = (("16", "search/multi"), ("14", "tiktok/search/top"))
 
 def wide_calls(market, day, regular, top=None):
     """Row 16w for a market: for each (route, count) in top, that route's search on the market's first count
-    distinct queries of its planned row 16 search/multi calls, then of its row 14 tiktok/search/top calls, and on
-    its first count placebo search picks (row 23c, the same two routes) besides, placebo first. A placebo item is
+    search slots: the market's placebo search picks (row 23c, the same two routes) first, then the distinct queries
+    of its planned row 16 search/multi calls, then of its row 14 tiktok/search/top calls. A placebo item is
     searched the way the searched real items are, so the found_platforms base rate (tvf_placebo_base) sees row 16w's
     platforms too (TRUST.md A2); placebo picks are about 5% of a market's expansion calls, so count covers them on
-    most days. They carry no seed, as row 14i's do not; a placebo search keeps the placebo lane. Their protocol
-    names the route's planned count."""
+    most days. Every placebo pick is searched but only the first real queries are, so the base rate is biased high
+    (conservative), not matched. Placebo picks take real slots rather than adding to them, so a route makes at
+    most count calls, the count its protocol names (planned=count) and job.plan holds. They carry no seed, as
+    row 14i's do not; a placebo search keeps the placebo lane."""
     placebo, queries = [], []
     for c in regular:
         if c.row == seeding.PLACEBO_ROW and c.lane == "placebo" and c.route in dict(WIDE_SOURCES).values() \
@@ -535,7 +537,7 @@ def wide_calls(market, day, regular, top=None):
     for route, count in WIDE_TOP if top is None else top:
         if count <= 0:
             continue
-        for query, key, lane in placebo[:count] + queries[:count]:
+        for query, key, lane in (placebo + queries)[:count]:
             params = wide_params(route, query, market, day)
             calls.append(Call(WIDE_ROW, route, params, market, lane, seed_key=key,
                               protocol=search_protocol(route, params, count)))
