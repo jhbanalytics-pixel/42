@@ -9,7 +9,11 @@
 -- Posts linked (post_items) to an item that detect marked eligible come first: eligible in a market the post
 -- was sighted in on @run_date, in that market's newest good detect run (v_item_state_current, the view the
 -- brief's candidates read) dated within the 7 days up to @run_date, so the posts the brief's candidates rest on
--- are enriched before the rest. Within each part, lowest post_id first.
+-- are enriched before the rest. Then come the posts that are members of a cluster dated within the 7 days up to
+-- @run_date (clusters, cluster_members): the day's own clusters are written after this step, so these are the
+-- newest clusters there are, and a post sighted again that one of them holds is a post the brief's topics rest
+-- on (18 Oct 2026). The order is the only change: the same posts are selected, and the budget is the same.
+-- Within each part, lowest post_id first.
 -- A post by a creator on the suppression list (v_suppressed_creators) is never selected for enrichment; embed.sql
 -- and video_clips.sql apply the same rule to their own reads. A post with no creator_id names nobody and stays.
 -- This stops new model calls only: rows already written for a creator hidden later are not removed here.
@@ -28,6 +32,13 @@ eligible_posts AS (
   JOIN latest_state AS ls
     ON ls.item_id = pi.item_id AND ls.market = o.market
   WHERE o.observed_date = @run_date AND ls.eligible IS TRUE
+),
+clustered_posts AS (
+  SELECT DISTINCT cm.post_id
+  FROM `ogilvy-trends-v2.intelligence_42_core.clusters` AS k
+  JOIN `ogilvy-trends-v2.intelligence_42_core.cluster_members` AS cm
+    ON cm.cluster_id = k.cluster_id
+  WHERE k.cluster_date BETWEEN DATE_SUB(@run_date, INTERVAL 7 DAY) AND @run_date
 )
 SELECT
   p.post_id,
@@ -53,6 +64,8 @@ LEFT JOIN (
   ON done.post_id = p.post_id
 LEFT JOIN eligible_posts AS ep
   ON ep.post_id = p.post_id
+LEFT JOIN clustered_posts AS cp
+  ON cp.post_id = p.post_id
 WHERE p.post_date >= DATE_SUB(@run_date, INTERVAL 400 DAY)
   AND EXISTS (
     SELECT 1
@@ -64,4 +77,4 @@ WHERE p.post_date >= DATE_SUB(@run_date, INTERVAL 400 DAY)
     FROM `ogilvy-trends-v2.intelligence_42_core.v_suppressed_creators` AS v
     WHERE v.creator_id = p.creator_id
   )
-ORDER BY ep.post_id IS NULL, p.post_id
+ORDER BY ep.post_id IS NULL, cp.post_id IS NULL, p.post_id

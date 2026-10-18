@@ -317,6 +317,9 @@ def test_select_sql_uses_the_sighting_day_and_the_enrichment_marker():
     # The eligible-first order reads detect's current state only in a bounded window of item_state partitions.
     assert f"{CORE}.v_item_state_current`" in text and f"{CORE}.post_items`" in text
     assert re.search(r"metric_date BETWEEN DATE_SUB\(@run_date, INTERVAL 7 DAY\) AND @run_date", text)
+    # The cluster-first order reads the clusters of a bounded window too (18 Oct 2026).
+    assert f"{CORE}.clusters`" in text and f"{CORE}.cluster_members`" in text
+    assert re.search(r"cluster_date BETWEEN DATE_SUB\(@run_date, INTERVAL 7 DAY\) AND @run_date", text)
     statement = sqlglot.parse_one(text, read="bigquery")
     assert {"post_id", "platform", "market", "handle", "hashtags", "content", "enriched"} <= set(statement.named_selects)
 
@@ -337,10 +340,12 @@ PROJECT_DB = '"ogilvy-trends-v2"'
 DUCK_CORE = f"{PROJECT_DB}.intelligence_42_core"
 
 
-def fixture_warehouse(posts, observations, enrichment=(), creators=(), post_items=(), states=(), suppressed=()):
+def fixture_warehouse(posts, observations, enrichment=(), creators=(), post_items=(), states=(), suppressed=(),
+                      clusters=()):
     """observations are (post_id, observed_date) sighted in ZA or (post_id, observed_date, market); states are
     (metric_date, market, item_id, eligible) rows of v_item_state_current, a table here. suppressed are the
-    creator_ids of v_suppressed_creators, also a table here."""
+    creator_ids of v_suppressed_creators, also a table here. clusters are (cluster_date, cluster_id, member post ids)
+    rows of clusters and cluster_members."""
     import duckdb
 
     con = duckdb.connect()
@@ -355,6 +360,13 @@ def fixture_warehouse(posts, observations, enrichment=(), creators=(), post_item
     con.execute(f"CREATE TABLE {DUCK_CORE}.v_item_state_current (metric_date DATE, market VARCHAR, item_id VARCHAR, "
                 "eligible BOOLEAN)")
     con.execute(f"CREATE TABLE {DUCK_CORE}.v_suppressed_creators (creator_id VARCHAR)")
+    con.execute(f"CREATE TABLE {DUCK_CORE}.clusters (cluster_date DATE, cluster_id VARCHAR, market VARCHAR, "
+                "item_id VARCHAR, match_kind VARCHAR)")
+    con.execute(f"CREATE TABLE {DUCK_CORE}.cluster_members (cluster_id VARCHAR, post_id VARCHAR, probability DOUBLE)")
+    for cluster_date, cluster_id, members in clusters:
+        con.execute(f"INSERT INTO {DUCK_CORE}.clusters VALUES (?, ?, 'za', 'item', 'match')", [cluster_date, cluster_id])
+        con.executemany(f"INSERT INTO {DUCK_CORE}.cluster_members VALUES (?, ?, 0.9)",
+                        [(cluster_id, pid) for pid in members])
     if suppressed:
         con.executemany(f"INSERT INTO {DUCK_CORE}.v_suppressed_creators VALUES (?)", [(c,) for c in suppressed])
     observations = [tuple(o) + ("ZA",) * (3 - len(o)) for o in observations]
@@ -450,6 +462,30 @@ def test_select_sql_sends_posts_of_items_eligible_in_the_markets_newest_state_fi
         "u_ke_eligible", "x_eligible", "z_eligible",
         "a_plain", "b_plain", "t_too_old", "v_other_market", "w_stale", "y_not_eligible"]
     assert len(rows) == len({r["post_id"] for r in rows}), "a post linked to two eligible items comes once"
+
+
+def test_select_sql_sends_the_posts_of_recent_clusters_after_the_eligible_ones_and_before_the_rest():
+    # 18 Oct 2026: a member of a cluster dated within the 7 days up to run_date follows the eligible posts; a cluster
+    # from before the window does not count, a post that is eligible and clustered comes once, first among the
+    # eligible, and the same posts are selected as before, in the same number.
+    con = fixture_warehouse(
+        posts=[(pid, "c1", f"text {pid}", DAY) for pid in
+               ("a_plain", "b_plain", "k_clustered", "m_clustered_today", "n_old_cluster", "x_eligible",
+                "y_eligible_clustered")],
+        observations=[(pid, DAY) for pid in
+                      ("a_plain", "b_plain", "k_clustered", "m_clustered_today", "n_old_cluster", "x_eligible",
+                       "y_eligible_clustered")],
+        post_items=[("x_eligible", "amapiano"), ("y_eligible_clustered", "amapiano")],
+        states=[(DAY - timedelta(days=1), "ZA", "amapiano", True)],
+        clusters=[(DAY - timedelta(days=1), "yesterday-za-001", ["k_clustered", "y_eligible_clustered"]),
+                  (DAY, "today-za-001", ["m_clustered_today"]),
+                  (DAY - timedelta(days=8), "old-za-001", ["n_old_cluster"])])
+    rows = run_sql(con, "enrich_select", {"run_date": DAY})
+    assert [r["post_id"] for r in rows] == [
+        "y_eligible_clustered", "x_eligible",
+        "k_clustered", "m_clustered_today",
+        "a_plain", "b_plain", "n_old_cluster"]
+    assert len(rows) == 7 and all(r["enriched"] is False for r in rows)
 
 
 def test_insert_sql_on_fixtures_appends_once_and_leaves_embeddings_alone():
