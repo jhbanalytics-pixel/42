@@ -2129,7 +2129,7 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             if isinstance(billed, dict):
                 spend(billed.get("input_tokens"), billed.get("output_tokens"), billed.get("usd"))
             if should_stop():
-                return figures_stopped()
+                return figures_stopped(records)
             reason = getattr(exc, "model_budget_reason", None)
             if getattr(exc, "before_dispatch", False):
                 notice = FIGURES_NO_ROOM
@@ -2152,17 +2152,17 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             usage = _usage_or_reserve(usage, model_name, figures.FIGURES_INPUT_TOKENS, figures.FIGURES_MAX_TOKENS)
             spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
         if should_stop():
-            return figures_stopped()
+            return figures_stopped(records)
         kept, cut = figures.verify(listed, ctx)
         built = figures.tables(kept)
         sweep_failed = bool(figure_sweep_out and figure_sweep_out.get("failed"))
         status = "ok" if built else "sweep_failed" if sweep_failed else "none_found"
         return figures.payload(question, built, cut, figure_sweep_out, records, status)
 
-    def figures_stopped() -> dict:
+    def figures_stopped(records: int) -> dict:
         if FIGURES_STOPPED not in notices:
             notices.append(FIGURES_STOPPED)
-        return figures.payload(question, [], {}, figure_sweep_out, len(figures.figure_records(ctx)), "stopped")
+        return figures.payload(question, [], {}, figure_sweep_out, records, "stopped")
 
     def gate(note: str, source_status: list[dict]) -> tuple:
         nonlocal numeric_repair_attempted, store_count, summary_ledger, figure_sweep_out
