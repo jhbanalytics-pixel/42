@@ -15,6 +15,8 @@ import json
 import shlex
 from pathlib import Path
 
+import yaml
+
 from ops.deploy import release, runtime_jobs
 from ops.runners import managed_runtime
 
@@ -279,15 +281,18 @@ def _argument_lists(text):
 
     The block list items (- VALUE) of the whole file form one list, as before.
     A flow list (args: ["build", "-f", PATH]) and a docker build command inside a
-    shell script (docker build --file PATH .) each form a list of their own.
+    shell script (docker build --file PATH .) each form a list of their own. A
+    flow list is read as YAML, so quoted and bare words both count, and lines
+    ending in a backslash are joined first, so a docker build command split over
+    several lines keeps all of its flags.
     """
     items = []
-    for line in text.splitlines():
+    for line in text.replace("\\\n", " ").splitlines():
         stripped = line.strip()
         if stripped.startswith("- "):
             items.append(stripped[2:].strip())
         elif stripped.startswith("args: ["):
-            yield json.loads(stripped[len("args: ") :])
+            yield [str(word) for word in yaml.safe_load(stripped[len("args: ") :])]
         elif stripped.startswith("docker build "):
             yield shlex.split(stripped)
     yield items
@@ -482,3 +487,25 @@ def test_the_engine_modules_the_daily_job_loads_are_inventoried():
     for name in managed_runtime._DAILY_MODULES:
         path = ROOT / "engine" / "src" / "analysis" / "open_intelligence" / f"{name}.py"
         assert path.is_file(), path
+
+
+def test_the_argument_reader_takes_any_yaml_flow_list_and_continued_docker_lines():
+    # A flow list need not be JSON (single quotes, bare words), and a docker
+    # build command may run over several lines joined by backslashes.
+    text = (
+        "steps:\n"
+        "  - name: gcr.io/cloud-builders/docker\n"
+        "    args: ['build', -f, core/setup/jobs.Dockerfile, '.']\n"
+        "  - name: gcr.io/cloud-builders/docker\n"
+        "    entrypoint: bash\n"
+        "    args:\n"
+        "      - -c\n"
+        "      - |\n"
+        "        docker build \\\n"
+        "          --file core/api/Dockerfile \\\n"
+        "          .\n"
+    )
+    assert sorted(set(_dockerfile_arguments(text))) == [
+        "core/api/Dockerfile",
+        "core/setup/jobs.Dockerfile",
+    ]
