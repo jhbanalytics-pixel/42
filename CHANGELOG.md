@@ -39,7 +39,7 @@ Release Alpha, data quality, trend identity and research reliability.
 - Ask answers a question about figures, such as poll percentages, with the figures its sources report: one bar chart per source, with who ran it, when, the sample and the quoted words. A figure is kept only when its quote is found word for word in the record, and a hidden publisher's table is left out.
 - Ask searches live news it can cite and opens the article behind a news result to read it. A question about figures searches news first.
 - Ask's Deep level, several researchers in parallel and then a critic, is open to plain questions where the service has it switched on. The app does not offer a depth control yet.
-- The morning collection also searches Bluesky, Pinterest, LinkedIn and each market's subreddit, only in the room the day's collection share leaves after the earlier sources, and reads the Google Play app chart.
+- The morning collection also searches Bluesky, LinkedIn and each market's subreddit, only in the room the day's collection share leaves after the earlier sources.
 - The collection share rises to 4,000 credits a day and the monthly cap to 180,000.
 
 ## 2.3.0 (12 October 2026)
