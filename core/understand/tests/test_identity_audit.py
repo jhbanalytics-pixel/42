@@ -104,6 +104,8 @@ def test_label_candidates_skip_generic_and_empty_tags():
     (["rugby", "springboks", "kolisi rugby", "bok"], "kolisi rugby, springboks, bok"),
     (["load", "load shedding", "eskom", "stage"], "load shedding, eskom, stage"),
     (["amapiano", "dance", "challenge"], "amapiano, dance, challenge"),
+    # A bigram that holds one kept keyword but shares a word with another would only move the repeat.
+    (["school trip", "bus", "school bus", "teacher"], "school trip, bus, teacher"),
 ])
 def test_keyword_label_drops_repeated_words(keywords, want):
     assert cluster.label_for(keywords, [], []) == want

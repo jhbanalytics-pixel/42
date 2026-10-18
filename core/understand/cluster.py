@@ -248,15 +248,18 @@ def _label_keywords(keywords):
     """The first LABEL_KEYWORDS non-blank keywords, less any whose words the ones kept already hold: ngram_range (1, 2)
     ranks "load shedding" beside "load" and "shedding", which would label it "load shedding, load, shedding". A
     keyword that holds all the words of kept ones takes the first one's place, so the bigram wins whichever ranks
-    first ("drum", "log", "log drum" gives "log drum")."""
+    first ("drum", "log", "log drum" gives "log drum"). One that would still share a word with another kept keyword is
+    skipped, since taking the place would only move the repeat ("school trip", "bus", "school bus" keeps "school trip,
+    bus")."""
     kept = []
     for k in (str(k) for k in keywords if str(k).strip()):
         words = set(k.casefold().split())
         inside = [n for n, c in enumerate(kept) if set(c.casefold().split()) < words]
-        if inside:
+        others = {w for n, c in enumerate(kept) if n not in inside for w in c.casefold().split()}
+        if inside and not words & others:
             kept[inside[0]] = k
             kept = [c for n, c in enumerate(kept) if n not in inside[1:]]
-        elif words <= {w for c in kept for w in c.casefold().split()}:
+        elif inside or words <= others:
             continue
         elif len(kept) < LABEL_KEYWORDS:
             kept.append(k)
