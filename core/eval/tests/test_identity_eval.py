@@ -64,6 +64,9 @@ def test_current_matcher_on_the_synthetic_cases():
         "blank-keywords-shared-creator": "correct",
         # Shared function words ("they", "them") are not keyword evidence, so a shared creator alone is one vote.
         "function-words-shared-creator": "correct",
+        # A shared creator plus one shared sound or publisher tag is not identity below cosine 0.70.
+        "creator-trending-sound-low-cosine": "correct",
+        "creator-branded-tag-dormant": "correct",
         # Open: a shared publisher plus generic keyword overlap still continues an identity across subjects.
         "shared-publisher-generic-keywords": "incorrect_merge",
     }

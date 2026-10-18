@@ -1,6 +1,7 @@
-"""Ask's depth levels: what each step of the depth slider runs, the most it may spend and whether it is open.
+"""Ask's depth levels: what each level runs, the most it may spend and whether it is open.
 
-The slider in the app picks one level and sends its tier. Every number here comes from the tier's own caps in
+This release has no depth slider in the app: health publishes the levels for one to read later, and an API caller
+sends a level's tier. Every number here comes from the tier's own caps in
 context.TIERS and the day's shared ask credits (ASK_DAILY), so the app never shows a cost the agent would not hold to.
 A level is a ceiling, not a price: an ask stops when its answer is ready and usually spends less.
 
@@ -17,7 +18,7 @@ from core.agent.context import TIERS
 
 DEFAULT_ASK_DAILY = 600  # credits, all asks and investigations together (SETUP.md caps table)
 
-# cost: how the app flags the level. "highest" is the level the slider sets alight.
+# cost: how the app flags the level. "highest" is the level a slider would set alight.
 LEVELS = (
     {"key": "quick", "tier": "T0", "label": "Quick", "cost": "low", "max_researchers": 1,
      "reads": "42's stored posts, with a few small live checks"},
@@ -46,7 +47,7 @@ def max_model_usd(tier: str, model: str) -> float:
 
 
 def levels(deep: bool, daily: float = DEFAULT_ASK_DAILY, model: str | None = None) -> list[dict]:
-    """The slider's steps, lowest first, each with its ceilings, its share of the day's ask credits and whether the
+    """The depth levels, lowest first, each with its ceilings, its share of the day's ask credits and whether the
     service takes it now."""
     from core.agent import ask
 

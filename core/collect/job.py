@@ -133,7 +133,7 @@ COUNT_CALLS = len(MARKETS) * (COUNT_SOUNDS + COUNT_TAGS)
 WATCH_ROW = "12w"
 # Row 14 country searches a market. Their posts come back located by TikTok's own region field, which is what
 # the Today locality check reads, so the collect share's headroom goes here: 60 a market (was 50, and 25 before
-# that) under the 2,000 collect share. The planned count is part of their protocol (search_protocol), so a change
+# that) under a collect share of at least PAGES_SHARE (2,000). The planned count is part of their protocol (search_protocol), so a change
 # of it starts a new search series instead of judging the bigger days against the old reference.
 SEARCH_TOP, EXPLORE_SHARE, MULTI_TOP, MAX_SHARE = 60, 0.15, 7, 0.25
 # Under a collect share of PAGES_SHARE or more, row 14 reads SEARCH_PAGES result pages a search (a credit a page),

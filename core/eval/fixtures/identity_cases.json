@@ -427,6 +427,74 @@
      ]
     }
    ]
+  },
+  {
+   "id": "creator-trending-sound-low-cosine",
+   "category": "shared_publisher",
+   "expect": null,
+   "cluster": {
+    "keywords": [
+     "skincare",
+     "routine"
+    ],
+    "sounds": [
+     "snd_viral"
+    ],
+    "creators": [
+     "dailyclips"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "car-wash",
+     "cosine": 0.2,
+     "days_since_seen": 2,
+     "keywords": [
+      "car",
+      "wash"
+     ],
+     "sounds": [
+      "snd_viral"
+     ],
+     "creators": [
+      "dailyclips"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "creator-branded-tag-dormant",
+   "category": "shared_publisher",
+   "expect": null,
+   "cluster": {
+    "keywords": [
+     "petrol",
+     "price"
+    ],
+    "hashtags": [
+     "ewnupdates"
+    ],
+    "creators": [
+     "ewn"
+    ]
+   },
+   "items": [
+    {
+     "item_id": "matric-results",
+     "cosine": 0.05,
+     "days_since_seen": 60,
+     "keywords": [
+      "matric",
+      "results"
+     ],
+     "hashtags": [
+      "ewnupdates"
+     ],
+     "creators": [
+      "ewn"
+     ]
+    }
+   ]
   }
  ]
 }
