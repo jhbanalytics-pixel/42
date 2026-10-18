@@ -415,6 +415,9 @@ _FIGURES_NONE = {
                   "survey the posts mention without its figures is not a figure.",
     "failed": "The figures the sources report could not be listed this time, so none are shown.",
     "not_run": "The question’s model budget had no room left to list the figures the sources report.",
+    "sweep_failed": "Stored posts that state a percentage could not be read this time, and no source the research read "
+                    "states one, so no figures are shown.",
+    "stopped": "The run was stopped while the figures were being listed, so none are shown.",
 }
 _FIGURES_UNCHECKED = ("42 could not check its hidden-people list just now, so the figures the sources report are not "
                       "shown.")

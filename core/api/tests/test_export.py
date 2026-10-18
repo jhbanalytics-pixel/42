@@ -282,3 +282,14 @@ def test_reported_figures_export_says_withheld_and_never_links_a_script(complete
     assert "javascript:" not in page and "Source link unavailable" in page
     record["skin_id"] = "sk_0123456789ab"
     assert "Reported figures" not in render_answer_html(record)
+
+
+@pytest.mark.parametrize("status, words", [
+    ("sweep_failed", "Stored posts that state a percentage could not be read this time"),
+    ("stopped", "The run was stopped while the figures were being listed"),
+])
+def test_reported_figures_export_words_a_failed_sweep_and_a_stop(complete, status, words):
+    record = copy.deepcopy(complete)
+    record["run"] = {**(record.get("run") or {}), "figures": {"status": status, "tables": []}}
+    page = render_answer_html(record)
+    assert words in page and "No figures can be shown" not in page

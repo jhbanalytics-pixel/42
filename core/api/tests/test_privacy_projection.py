@@ -657,3 +657,10 @@ def test_an_also_reported_by_entry_that_cannot_be_placed_goes_while_someone_is_h
     assert [t["publisher"] for t in out["run"]["figures"]["tables"]] == ["enca.com"]
     assert out["run"]["figures"]["tables"][0]["also_reported_by"] == []
     assert out["privacy"]["state"] == "applied"
+
+
+def test_a_second_pass_adds_its_withheld_tables_to_the_first_passes_count():
+    record = _with_figures(ask_record(), _post_table("hid_handle", P_HID1, "fixture hidden words one ANC 40%"))
+    record["run"]["figures"]["withheld"] = 1
+    out = project(record, PrivStore(hide={"c_hid"}))
+    assert out["run"]["figures"]["tables"] == [] and out["run"]["figures"]["withheld"] == 2

@@ -128,7 +128,7 @@ def test_a_figure_whose_subject_is_an_age_group_is_cut():
 
 def test_a_generation_subject_is_cut_and_the_rest_stand_clean():
     ctx = make_ctx()
-    record(ctx, "p2", "The survey puts Gen Z on 63%. The DA is on 31% for this question.")
+    record(ctx, "p2", "The survey puts Gen Z on 63%. Fieldwork ran in October. The DA is on 31% for this question.")
     kept, cut = figures.verify([fig("p2", "Gen Z on 63%", "Gen Z", 63), fig("p2", "The DA is on 31%", "DA", 31)], ctx)
     assert [f["subject"] for f in kept] == ["DA"] and cut == {"breaches rule 1": 1}
     built = figures.tables(kept)
@@ -538,3 +538,23 @@ def test_a_robots_read_whose_host_resolves_slowly_is_given_up_at_its_deadline(mo
     with pytest.raises(article_tool.RobotsReadRefused):
         get("https://pub.example/robots.txt")
     assert time.monotonic() - began < 2.0
+
+
+@pytest.mark.parametrize("text", [
+    "Voters aged 18 to 24 were asked; the DA got 41% of them.",
+    "A new poll of Gen Z voters is out. The DA got 41% of them and the ANC trails.",
+    "Gen Z have spoken! The DA got 41% of them.",
+])
+def test_an_age_group_named_in_the_clause_or_sentence_before_the_quote_is_cut(text):
+    ctx = make_ctx()
+    record(ctx, "p12", text)
+    kept, cut = figures.verify([fig("p12", "DA got 41%", "DA", 41)], ctx)
+    assert kept == [] and cut == {"breaches rule 1": 1}
+
+
+def test_an_age_label_the_model_gives_but_the_record_never_writes_is_cut():
+    ctx = make_ctx()
+    record(ctx, "p13", "Ipsos has the DA on 41% in Gauteng.")
+    labelled = {**fig("p13", "the DA on 41%", "DA", 41), "population": "young voters"}
+    kept, cut = figures.verify([labelled], ctx)
+    assert kept == [] and cut == {"breaches rule 1": 1}

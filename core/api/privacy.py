@@ -518,7 +518,11 @@ def _figures(record, hidden, unavailable, gone=frozenset(), named=frozenset(), j
         return dropped
     from core.agent.figures import lead
 
-    run["figures"] = {**payload, "tables": kept, "lead": lead(kept), "withheld": len(payload["tables"]) - len(kept)}
+    # f42-api's pass runs over what f42-agent's pass left, so tables withheld there still count.
+    before = payload.get("withheld")
+    before = before if isinstance(before, int) and not isinstance(before, bool) and before > 0 else 0
+    run["figures"] = {**payload, "tables": kept, "lead": lead(kept),
+                      "withheld": before + len(payload["tables"]) - len(kept)}
     return dropped
 
 

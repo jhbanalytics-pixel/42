@@ -324,8 +324,11 @@ def verify(figures: list, ctx: RunContext) -> tuple[list[dict], dict]:
         # line that names an age ('1,500 adults aged 18 and over') describes the base, not a split, so only that
         # line reads as not stated. The quote and its record sentence are scanned too, since the model may leave the
         # population blank and name a neutral subject for an age group's value (_split_in_sentence).
-        if any(_text_breaches(v) for v in (subject, fields["measure"], fields["population"], fields["source"])) or \
-                _split_in_sentence(quote, text):
+        # The model's own labels are read as it wrote them as well: one not found in the record is blanked above,
+        # and a blank label must not let an age group's value through.
+        raw = [fig.get(k) for k in ("measure", "population", "source") if isinstance(fig.get(k), str)]
+        if any(_text_breaches(v) for v in (subject, fields["measure"], fields["population"], fields["source"], *raw)) \
+                or _split_in_sentence(quote, text):
             drop(RULE_1_CUT)
             continue
         for name in ("sample", "fieldwork"):
@@ -378,6 +381,9 @@ _JOIN = r"\s*(?:,|;|&|/|\band\b|\bor\b|\bto\b|\bvs\b\.?|\bversus\b)\s*"
 _LIST_AFTER = re.compile(_JOIN + PERCENT.pattern, re.IGNORECASE)
 _LIST_BEFORE = re.compile(r"\d{1,3}(?:[.,]\d{1,2})?\s?(?:%|per\s?cent\b)" + _JOIN + r"$", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"[.!?;](?=\s|$)")
+# The rule 1 scan reads whole sentences (a semicolon does not end one) and the sentence before the quote's, since a
+# record often names who was asked first ('A new poll of Gen Z voters is out. The DA leads on 41%').
+_RULE_1_END = re.compile(r"[.!?](?=\s|$)")
 
 
 # Words that pair values with subjects by position ('40% and 22% respectively', '22% for the latter'). 'former' only
@@ -429,7 +435,7 @@ def _listed(value: float, quote: str, text: str) -> bool:
 
 def _split_in_sentence(quote: str, text: str) -> bool:
     """Whether the quote, or the record's sentence that holds it, names an age or generation group, a demographic or
-    search volume (RULES.md rule 1). The subject the model names can be neutral ('DA') while the sentence says the
+    search volume (RULES.md rule 1), or the sentence before it does. The subject the model names can be neutral ('DA') while the sentence says the
     value is for one age group ('Among voters aged 18 to 24, the DA is on 41%'): shown as 'DA 41%', the figure would
     present that age group's number as everyone's. An adult base (_ADULT_BASE) or an older poll (_OLDER_POLL) alone is
     not a split."""
@@ -438,7 +444,10 @@ def _split_in_sentence(quote: str, text: str) -> bool:
     if _text_breaches(quote):
         return True
     cased = normalise(" ".join(text.split()))
-    for body, start, end, _, _ in _quote_sentences(quote, text):
+    for body, _, _, at, span in _quote_sentences(quote, text):
+        ends = [m.end() for m in _RULE_1_END.finditer(body, 0, at)]
+        start = ends[-2] if len(ends) > 1 else 0
+        end = next((m.end() for m in _RULE_1_END.finditer(body, at + len(span))), len(body))
         # the original case where casefolding kept every position, so case-aware patterns ('GenZProtests') still hit
         sentence = cased[start:end] if len(cased) == len(body) else body[start:end]
         if _text_breaches(_OLDER_POLL.sub(" ", _ADULT_BASE.sub(" ", sentence))):
