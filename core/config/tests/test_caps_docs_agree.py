@@ -24,8 +24,8 @@ MONTH = CAPS["MONTHLY"]["total"]
 
 def test_operations_guide_caps_table_matches_caps_yaml():
     text = _read("docs/guide/operations.md")
-    engine = re.search(r"^\| `ENGINE_DAILY` \| ([^|]+)\|", text, re.M).group(1)
-    month = re.search(r"^\| `MONTHLY` \| ([^|]+)\|", text, re.M).group(1)
+    engine = re.search(r"^\| `ENGINE_DAILY` \| ([^|]+)\|", text, re.MULTILINE).group(1)
+    month = re.search(r"^\| `MONTHLY` \| ([^|]+)\|", text, re.MULTILINE).group(1)
     assert engine.startswith(f"{_fmt(ENGINE)} credits: collect {_fmt(COLLECT)},"), engine
     assert month.startswith(f"{_fmt(MONTH)} credits"), month
 

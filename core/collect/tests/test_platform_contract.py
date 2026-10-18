@@ -61,7 +61,7 @@ def schema_platforms():
 
 
 def contract_platforms(path):
-    line = re.search(r"^const PLATFORMS = \[(.*?)\];$", path.read_text(encoding="utf-8"), re.M)
+    line = re.search(r"^const PLATFORMS = \[(.*?)\];$", path.read_text(encoding="utf-8"), re.MULTILINE)
     assert line, path
     return set(re.findall(r"'([a-z_]+)'", line.group(1)))
 
