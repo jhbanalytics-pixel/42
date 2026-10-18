@@ -192,9 +192,10 @@ def test_the_writer_cites_only_citable_posts():
 def test_the_writer_states_a_timely_local_why_now_in_the_sentence_on_local_posts():
     text = writer_text()
     assert "Put the why-now in the explanation sentence itself as its one hedged clause" in text
-    assert ("name a timely local cause: an event, date, release, announcement, match, holiday or moment that a cited "
-            "local post names in its own words. A posting date alone does not identify a timely cause.") in text
-    assert "A posting date shows when that post was published, not when an event happened." in text
+    assert "and name a timely local cause. " + explain.WHY_NOW_DEFINITION in text
+    assert ("an event, date, release, announcement, match, holiday or moment that a cited local post names in its own "
+            "words, with its timing.") in explain.WHY_NOW_DEFINITION
+    assert "A posting date shows when that post was published, not when an event happened" in text
     assert "or that its posted_at dates" not in text
     assert ("The why-now clause rests on posts its claim cites, never on the facts lines, a search line or a number "
             "alone.") in text
@@ -209,8 +210,18 @@ def test_the_writer_shows_what_the_evidence_holds_against_a_simpler_explanation(
     for menu in ("a paid or sponsored push", "a platform feature change", "a coordinated push",
                  "a news or scheduled event", "a collection artefact", "one viral post or one creator"):
         assert menu in text
+    # 18 Oct 2026: the writer was told to rest the sentence on different creators, no sponsored flags and different
+    # days, the very things the critic says do not establish a pattern. It now hears what the critic hears.
     assert ("different creators posting in their own words, posts without sponsored flags, posts on different days "
-            "or platforms") in text
+            "or platforms") not in text
+    assert ("holds the explanation unless the cited posts demonstrate a distinct adopted format, practice or emerging "
+            "behaviour that the simpler explanation alone cannot account for.") in text
+    assert ("Different creators, posts without sponsored flags, high counts, and posts on different days or platforms "
+            "alone do not establish a cultural pattern and do not rule it out.") in text
+    critic = " ".join(explain.CRITIC_SYSTEM.split())
+    assert ("Set ruled_out true only when the cited posts demonstrate a distinct adopted format, practice or emerging "
+            "behaviour that the simpler explanation alone cannot account for.") in critic
+    assert "Different creators, absent paid labels, high counts or multiple platforms alone do not establish" in critic
     assert "two distinct local posts as concrete examples" in text
     assert "by two different creators where the pack has them" in text
 
@@ -238,9 +249,50 @@ def test_the_writer_leads_with_the_shared_format_sound_or_practice_and_knows_wha
     lines = explain.WRITER_SYSTEM.splitlines()
     assert lines.index(next(line for line in lines if line.startswith("Lead the sentence"))) > lines.index(
         next(line for line in lines if line.startswith("Put the why-now in the explanation sentence")))
-    # The why-now requirement is unchanged.
-    assert ("name a timely local cause: an event, date, release, announcement, match, holiday or moment that a cited "
-            "local post names in its own words.") in text
+    # The why-now requirement is unchanged: the writer still names a timely local cause, by the one definition.
+    assert "and name a timely local cause. " + explain.WHY_NOW_DEFINITION in text
+
+
+def test_one_why_now_definition_is_word_for_word_in_the_writer_the_critic_and_the_second_draft_prompt():
+    # 18 Oct 2026: WRITER_SYSTEM, CRITIC_SYSTEM and _redraft_user each worded the why-now their own way.
+    definition = explain.WHY_NOW_DEFINITION
+    assert definition.startswith("A why-now is a timely local cause: an event, date, release, announcement, match, "
+                                 "holiday or moment that a cited local post names in its own words, with its timing.")
+    assert "posted_at alone identifies neither the cause nor an event date" in definition
+    assert ("Popularity, growth, engagement, a trend being discussed, or a country or community label is not a "
+            "why-now.") in definition
+    assert explain.WRITER_SYSTEM.count(definition) == 1
+    assert explain.CRITIC_SYSTEM.count(definition) == 1
+    lines = explain.CRITIC_SYSTEM.splitlines()
+    assert lines.index(definition) + 1 == lines.index(next(l for l in lines if l.startswith("Set local_why_now true")))
+    redraft = explain._redraft_user("USER", {"claims": []}, {"reason": "no cause"})
+    assert redraft.count(definition) == 1 and "USER" in redraft
+    # Nothing widened: the critic's own local_why_now conditions stand beside the definition.
+    assert ("Set local_why_now true only when those sources support a timely local cause or a cited post states the "
+            "timing.") in " ".join(explain.CRITIC_SYSTEM.split())
+    assert "Generic country labels, popularity alone, a missing time hook" in " ".join(explain.CRITIC_SYSTEM.split())
+
+
+def test_the_writer_is_told_the_claim_for_the_shared_pattern_cites_every_post_that_shows_it():
+    text = writer_text()
+    assert ("The critic weighs only the posts cited by the claims the sentence rests on, so the claim the sentence "
+            "rests on for the shared pattern cites every pack post that shows it: when the shared-pattern line below "
+            "names the pattern you lead with, that claim cites every post id the line lists for it.") in text
+
+
+def test_the_writer_prompt_lists_the_shared_patterns_of_the_citable_posts_with_their_post_ids():
+    pack = located_pack()
+    for r in pack["evidence"]:
+        r["formats"] = ["skit"] if r["id"] in ("ev_gh", "ev_a", "ev_b", "ev_ng") else []
+    user = explain._writer_user(CANDIDATE, pack, "NG", W_START, W_END)
+    [block] = [b for b in outside_fences(user).split("\n\n") if b.startswith("Shared sounds and formats, counted by code")]
+    head, row, tail = block.split("\n")
+    assert "over the 4 posts shown here" in head  # the four citable posts; ev_gh is located elsewhere and left out
+    assert json.loads(row) == {"pattern": "format skit", "post_ids": ["ev_a", "ev_b", "ev_ng"], "creators": 3, "days": 1}
+    assert tail == ("When you lead the sentence with one of these, the claim it rests on for that pattern cites every "
+                    "post id listed for it, and names the pattern in plain words, never by its letter. none means the "
+                    "citable posts share no sound or specific format.")
+    assert block in user.split("post {", 1)[0]  # before the posts, with the scope lines
 
 
 def test_the_writer_states_events_only_as_its_cited_posts_state_them():

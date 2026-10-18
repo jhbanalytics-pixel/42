@@ -77,15 +77,17 @@ def test_the_second_draft_keeps_post_dates_separate_from_event_timing():
     result = run(model)
     first, second = model.writer_calls()
     instructions = outside_fences(second["user"][len(first["user"]):])
-    assert "A posting date shows when that post was published, not when an event happened." in instructions
+    # 18 Oct 2026: the second draft hears the one why-now definition the writer and the critic hear.
+    assert explain.WHY_NOW_DEFINITION in instructions
+    assert "A posting date shows when that post was published, not when an event happened" in instructions
     assert ("Name a timely local cause in the why-now clause only when a cited local post's own text or fields "
             "explicitly identify that cause and its timing.") in instructions
-    assert "posted_at alone does not establish the cause or an event date" in instructions
+    assert "posted_at alone identifies neither the cause nor an event date" in instructions
     assert "or as its posted_at dates it" not in instructions
     assert ("Word the clause as seen in the market's feeds when every post it rests on is marked "
             "located_in_market false.") in instructions
     assert "When no cited local post shows a timely cause, do not invent one." in instructions
-    assert "A posting date shows when that post was published, not when an event happened." in second["system"]
+    assert "A posting date shows when that post was published, not when an event happened" in second["system"]
     assert result["reason"] is None
     assert len(model.writer_calls()) == 2 and len(model.critic_calls()) == 2 and len(model.support_calls()) == 8
 

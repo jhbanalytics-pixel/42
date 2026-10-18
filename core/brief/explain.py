@@ -170,7 +170,16 @@ CRITIC_FIELDS = tuple(CRITIC_SCHEMA["properties"])
 # this many different local creators.
 NEWS_MIN_CREATORS = 2
 
-WRITER_SYSTEM = """LAWS (read first)
+# The one definition of a why-now, word for word in WRITER_SYSTEM, CRITIC_SYSTEM and the second-draft prompt
+# (_redraft_user), so the writer is never asked for one thing and the critic for another (18 Oct 2026: the three
+# prompts each worded it their own way). It is the writer's existing definition and widens nothing.
+WHY_NOW_DEFINITION = (
+    "A why-now is a timely local cause: an event, date, release, announcement, match, holiday or moment that a cited "
+    "local post names in its own words, with its timing. A posting date shows when that post was published, not when "
+    "an event happened, so posted_at alone identifies neither the cause nor an event date. Popularity, growth, "
+    "engagement, a trend being discussed, or a country or community label is not a why-now.")
+
+WRITER_SYSTEM = f"""LAWS (read first)
 1 Every claim cites evidence ids from the pack only. Cite nothing else.
 2 Every number you write is one of the pack's numbers, cited by its id in number_ids and written as the pack gives it. Write no other figure.
 3 Label every claim observed, corroborated, single_source or inferred. Code may lower a label; it never raises one.
@@ -199,11 +208,11 @@ Then write title: two to six words naming what the posts the sentence rests on a
 Name two distinct local posts as concrete examples in claims used by the explanation, by two different creators where the pack has them. A local post is one marked local true.
 Include one short exact quote copied from a cited local post in a supporting claim.
 Give a local why-now hook that the cited local posts support.
-Put the why-now in the explanation sentence itself as its one hedged clause, and name a timely local cause: an event, date, release, announcement, match, holiday or moment that a cited local post names in its own words. A posting date alone does not identify a timely cause. Popularity, growth, engagement, a trend being discussed, or a country or community label is not a why-now.
+Put the why-now in the explanation sentence itself as its one hedged clause, and name a timely local cause. {WHY_NOW_DEFINITION}
 Rest that clause on a claim that cites those local posts, preferring posts marked located_in_market true, and quote the words that name the cause when a post states it. When no cited local post shows a timely cause, do not invent one.
 Name an evidenced adopted format, practice or emerging behaviour beyond ordinary event coverage or reaction.
 Opinions, jokes, personal stories and event timing alone do not establish a cultural pattern.
-A critic then names the simplest non-cultural explanation, such as a paid or sponsored push, a platform feature change, a coordinated push, a news or scheduled event, a collection artefact, or one viral post or one creator, and holds the explanation unless the evidence rules it out. Rest the sentence on claims that show what the cited posts hold against it: different creators posting in their own words, posts without sponsored flags, posts on different days or platforms.
+A critic then names the simplest non-cultural explanation, such as a paid or sponsored push, a platform feature change, a coordinated push, a news or scheduled event, a collection artefact, or one viral post or one creator, and holds the explanation unless the cited posts demonstrate a distinct adopted format, practice or emerging behaviour that the simpler explanation alone cannot account for. Different creators, posts without sponsored flags, high counts, and posts on different days or platforms alone do not establish a cultural pattern and do not rule it out. The critic weighs only the posts cited by the claims the sentence rests on, so the claim the sentence rests on for the shared pattern cites every pack post that shows it: when the shared-pattern line below names the pattern you lead with, that claim cites every post id the line lists for it.
 Each post's formats are the format names 42's enrichment model gave it, such as skit, dance or tutorial; an empty list means the post was not enriched, not that it has no format. Its sound is a code letter: posts with the same letter on the same platform use the same audio. A shared sound or a shared specific format across different creators on different days shows adoption; talking_head, other or news_clip alone does not. Describe a shared format or sound in plain words and never write a sound label.
 Lead the sentence with the adopted format, sound or practice the cited posts share, resting it on claims that cite the posts that show it and naming the creators who made them, and do not present the trend as mere reaction to an event. When the posts only respond to a news or scheduled event and share no such format, sound or practice, say so plainly in the sentence rather than invent a pattern, and rest it on claims that cite at least two different local creators reacting in their own words, such as opinions, jokes or personal stories, and quote one such reaction. Posts that only repeat, quote or share the news show no local reaction.
 State an event, person or fact only as a cited post's own text or fields state it; what you know from outside the pack is not evidence.
@@ -265,7 +274,7 @@ Never infer age. Describe people only by language, place, interest, community an
 Give a one-sentence reason."""
 
 
-CRITIC_SYSTEM = """You are the critic for one trend explanation in the morning brief. You do not write and you add nothing.
+CRITIC_SYSTEM = f"""You are the critic for one trend explanation in the morning brief. You do not write and you add nothing.
 You see the explanation sentence, the claims that passed the checks, the trend's numbers and its posts. Each post
 comes with fields recorded by 42 (platform, posted_at, market, creator_tier, earliest_in_pack, engagement), then its
 scraped handle, flags and text, plus source_market. market is the post's physical location and is null when unknown.
@@ -307,6 +316,7 @@ Forecast promotion is off under K9 until forecasts beat persistence. Do not auth
 this critic only decides whether the cultural reading is held for a simpler explanation.
 Never infer age. Describe people only by language, place, interest, community and creator type.
 Evaluate only the why-now clause and the local posts cited by its supporting claims.
+{WHY_NOW_DEFINITION}
 Set local_why_now true only when those sources support a timely local cause or a cited post states the timing.
 A cited post marked own_feed_local true was found in the market's own feeds and its location is unknown. It can show
 a local why-now when the sentence words it as seen in that market's feeds, such as "seen in Kenya's feeds", never as
@@ -617,8 +627,20 @@ def _writer_user(candidate, pack, market, window_start, window_end):
         "a shared format or sound in plain words; never write a sound label such as \"sound A\".",
         f"Evidence pack, {len(posts)} posts:",
         scope,
+        _writer_pattern_line(citable, letters),
         *posts,
     ])
+
+
+def _writer_pattern_line(citable, letters):
+    """The shared-pattern line (_pattern_line) counted over the citable posts only, since the writer may cite nothing
+    else, and what the writer does with it: the claim its sentence rests on for a pattern cites every post id the
+    line lists for it, because the critic weighs only posts cited by the claims the sentence rests on (18 Oct 2026:
+    the writer was asked for two local posts while the critic's adoption bar reads every post that shows the
+    pattern). letters are the whole pack's sound letters, so a letter here is the one the checks see."""
+    return (_pattern_line({"evidence": list(citable)}, letters) + "\nWhen you lead the sentence with one of these, "
+            "the claim it rests on for that pattern cites every post id listed for it, and names the pattern in "
+            "plain words, never by its letter. none means the citable posts share no sound or specific format.")
 
 
 def _repair_user(user, draft, faults, barred=()):
@@ -865,8 +887,7 @@ def _redraft_user(user, draft, out):
         "The critic held the why-now clause of your previous draft: it found no timely local cause shown by the cited "
         "local posts, though it did not hold the rest. Write the whole JSON again under every law above. "
         "Name a timely local cause in the why-now clause only when a cited local post's own text or fields "
-        "explicitly identify that cause and its timing. A posting date shows when that post was published, not "
-        "when an event happened. posted_at alone does not establish the cause or an event date. "
+        f"explicitly identify that cause and its timing. {WHY_NOW_DEFINITION} "
         "Word the clause as seen in the market's feeds when every post it rests on is marked "
         "located_in_market false. When no cited local post shows a timely cause, do not invent one.",
         f"Previous draft:\n{_fence(json.dumps(draft, ensure_ascii=False))}",
