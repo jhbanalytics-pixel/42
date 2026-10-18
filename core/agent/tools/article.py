@@ -26,6 +26,7 @@ import hashlib
 import ipaddress
 import re
 import socket
+import threading
 import time
 from urllib.parse import urljoin, urlsplit
 
@@ -81,13 +82,36 @@ def public_host(host: str, resolve=None) -> bool:
 
 class RobotsGet:
     """get(url) -> (status, text) for local_sources.Robots, guarded as the module docstring says. The deadline starts
-    at the first read of a url, so Robots' retry of the same url shares it."""
+    at the first read of a url, so Robots' retry of the same url shares it. It is a wall clock: the read runs in a
+    worker thread that is given up on, and its response closed, once the deadline passes, so a host that resolves
+    slowly or a server that drips a byte at a time cannot hold the research thread past it."""
 
     def __init__(self, http=None, resolve=None, clock=None):
         self.http, self.resolve, self.clock = http, resolve, clock or time.monotonic
         self.started: dict = {}
 
     def __call__(self, url):
+        deadline = self.started.setdefault(url, self.clock() + ROBOTS_DEADLINE_S)
+        state: dict = {}
+
+        def work():
+            try:
+                state["result"] = self._read(url, deadline, state)
+            except BaseException as exc:  # handed to the caller below
+                state["error"] = exc
+
+        worker = threading.Thread(target=work, name="robots-read", daemon=True)
+        worker.start()
+        worker.join(max(0.0, deadline - self.clock()))
+        if worker.is_alive():
+            state["abandoned"] = True
+            _close(state.get("response"))
+            raise RobotsReadRefused("past its deadline")
+        if "error" in state:
+            raise state["error"]
+        return state["result"]
+
+    def _read(self, url, deadline, state):
         http = self.http
         if http is None:
             import requests
@@ -95,9 +119,8 @@ class RobotsGet:
             http = requests.get
         from core.collect.local_sources import USER_AGENT
 
-        deadline = self.started.setdefault(url, self.clock() + ROBOTS_DEADLINE_S)
         for _ in range(ROBOTS_REDIRECTS + 1):
-            if self.clock() > deadline:
+            if self.clock() > deadline or state.get("abandoned"):
                 raise RobotsReadRefused("past its deadline")
             parts = urlsplit(url)
             if parts.scheme not in ("http", "https") or not parts.hostname or \
@@ -105,7 +128,10 @@ class RobotsGet:
                 raise RobotsReadRefused("not a public host")
             response = http(url, headers={"User-Agent": USER_AGENT}, timeout=ROBOTS_TIMEOUT, stream=True,
                             allow_redirects=False)
+            state["response"] = response
             try:
+                if state.get("abandoned"):
+                    raise RobotsReadRefused("past its deadline")
                 location = (getattr(response, "headers", None) or {}).get("Location")
                 if response.status_code in _REDIRECTS and location:
                     url = urljoin(url, location)
@@ -115,14 +141,21 @@ class RobotsGet:
                     body += chunk or b""
                     if len(body) > ROBOTS_MAX_BYTES:
                         raise RobotsReadRefused("past its byte cap")
-                    if self.clock() > deadline:
+                    if self.clock() > deadline or state.get("abandoned"):
                         raise RobotsReadRefused("past its deadline")
                 return response.status_code, bytes(body).decode(response.encoding or "utf-8", errors="replace")
             finally:
-                close = getattr(response, "close", None)
-                if callable(close):
-                    close()
+                _close(response)
         raise RobotsReadRefused("too many redirects")
+
+
+def _close(response):
+    close = getattr(response, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:  # closing an abandoned read is best effort
+            pass
 
 
 def _paid_reads(ctx: RunContext) -> list[dict]:

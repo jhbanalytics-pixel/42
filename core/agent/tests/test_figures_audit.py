@@ -2,6 +2,8 @@
 tools/socialcrawl.py, toolset.py and ask.py's figures step). Offline: fakes for the client, robots.txt, the resolver
 and the model."""
 
+import threading
+import time
 from datetime import datetime
 from types import SimpleNamespace
 
@@ -420,3 +422,49 @@ def test_a_failed_news_researcher_is_named_in_words():
     ask._research_lanes(SimpleNamespace(research=research), jobs, setup, progress, lambda: False, ctx,
                         ask._Counted(None))
     assert ctx.research_gaps[0]["what"] == "A researcher did not finish (news and cross-platform search)"
+
+
+class DripResponse(FakeResponse):
+    """A server that drips a byte every hold seconds. requests asks urllib3 for a 16 KB chunk, and that read blocks
+    until the chunk fills, so one chunk here is one long hold; it ends early only when the response is closed."""
+
+    def __init__(self, hold):
+        super().__init__()
+        self.hold = hold
+        self._closed = threading.Event()
+
+    def iter_content(self, chunk_size=1):
+        while not self._closed.wait(self.hold):
+            yield b"#"
+        raise ConnectionError("closed")
+
+    def close(self):
+        self.closed = True
+        self._closed.set()
+
+
+def test_a_robots_read_that_drips_bytes_is_given_up_at_its_deadline(monkeypatch):
+    monkeypatch.setattr(article_tool, "ROBOTS_DEADLINE_S", 0.3)
+    response = DripResponse(hold=5.0)
+    get = article_tool.RobotsGet(http=lambda url, **kwargs: response, resolve=public_resolver)
+    began = time.monotonic()
+    with pytest.raises(article_tool.RobotsReadRefused):
+        get("https://pub.example/robots.txt")
+    assert time.monotonic() - began < 2.0
+    assert response.closed
+
+
+def test_a_robots_read_whose_host_resolves_slowly_is_given_up_at_its_deadline(monkeypatch):
+    monkeypatch.setattr(article_tool, "ROBOTS_DEADLINE_S", 0.3)
+    calls = []
+
+    def slow_resolver(host, *a, **k):
+        time.sleep(3.0)
+        return public_resolver(host)
+
+    get = article_tool.RobotsGet(http=lambda url, **kwargs: calls.append(url) or FakeResponse(),
+                                 resolve=slow_resolver)
+    began = time.monotonic()
+    with pytest.raises(article_tool.RobotsReadRefused):
+        get("https://pub.example/robots.txt")
+    assert time.monotonic() - began < 2.0
