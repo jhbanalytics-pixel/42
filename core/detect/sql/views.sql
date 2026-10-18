@@ -296,7 +296,8 @@ WITH state_keys AS (
 ), seen AS (
   SELECT s.metric_date, s.item_id, s.market, po.post_id,
     LOGICAL_OR(po.lane_class IN ('unbiased_rank', 'panel')) measured,
-    LOGICAL_OR(IFNULL(po.lane, '') != 'confirm') beyond_confirm
+    LOGICAL_OR(IFNULL(po.lane, '') != 'confirm') beyond_confirm,
+    LOGICAL_AND(IFNULL(po.series, '') = 'board_youtube') board_only
   FROM state_keys s
   JOIN {core}.post_observations po ON po.market = s.market
   JOIN {core}.v_post_items_by_state_date pi ON pi.metric_date = s.metric_date
@@ -313,17 +314,39 @@ WITH state_keys AS (
     AND k.cluster_date BETWEEN DATE_SUB(s.metric_date, INTERVAL 6 DAY) AND s.metric_date
   JOIN {core}.cluster_members mb ON mb.cluster_id = k.cluster_id
   GROUP BY s.metric_date, s.item_id, s.market, mb.post_id
-), creator_ranked AS (
-  SELECT seen.metric_date, seen.item_id, seen.market, ps.post_id, ps.platform, ps.geo_market, ps.geo_confidence,
-    ps.geo_source, seen.measured, IFNULL(ps.engagement, 0) eng, mm.post_id IS NOT NULL market_member,
-    ROW_NUMBER() OVER (PARTITION BY seen.metric_date, seen.item_id, seen.market,
-                                    IFNULL(ps.creator_id, ps.post_id)
-                       ORDER BY mm.post_id IS NULL, seen.measured DESC, IFNULL(ps.engagement, 0) DESC,
-                                ps.post_id) creator_rank
+), source_market_by_post AS (
+  -- As brief/sql/evidence.sql: the post's one source market in the window, for the local_creator key.
+  SELECT seen.metric_date, seen.item_id, seen.market, seen.post_id,
+    COALESCE(MAX(IF(sight.source_market = seen.market, sight.source_market, NULL)),
+             IF(COUNT(DISTINCT sight.source_market) = 1, MAX(sight.source_market), NULL)) source_market
+  FROM seen
+  JOIN {core}.v_post_source_markets v ON v.post_id = seen.post_id
+  CROSS JOIN UNNEST(v.source_sightings) sight
+  WHERE sight.obs_date BETWEEN DATE_SUB(seen.metric_date, INTERVAL 6 DAY) AND seen.metric_date
+    AND sight.source_market IN ('ZA', 'NG', 'KE')
+  GROUP BY seen.metric_date, seen.item_id, seen.market, seen.post_id
+), enriched AS (
+  SELECT post_id, ARRAY_CONCAT_AGG(formats) formats FROM {core}.post_enrichment GROUP BY post_id
+), candidates AS (
+  -- The pack's order since 18 Oct 2026 (brief/sql/evidence.sql r1 to rc): within a tier, local creator posts first
+  -- (local, not news, not sighted on the YouTube trending board alone), then posts sharing the dominant sound or
+  -- specific format among the candidate posts, then measured lanes, engagement and post id.
+  SELECT seen.metric_date, seen.item_id, seen.market, ps.post_id, ps.platform, ps.creator_id, ps.geo_market,
+    ps.geo_confidence, ps.geo_source, seen.measured, IFNULL(ps.engagement, 0) eng,
+    mm.post_id IS NOT NULL market_member, ps.sound_id, pe.formats,
+    IFNULL((ps.geo_market = seen.market AND IFNULL(ps.geo_confidence, 0) >= 0.7
+         AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'))
+      OR (NOT IFNULL(NULLIF(ps.geo_market, '') != seen.market AND ps.geo_confidence >= 0.7
+                     AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE)
+          AND smbp.source_market = seen.market), FALSE)
+      AND NOT IFNULL(seen.board_only, FALSE) AND IFNULL(LOWER(TRIM(ps.platform)), '') != 'news' local_creator
   FROM seen
   JOIN {core}.posts ps ON ps.post_id = seen.post_id
   LEFT JOIN members mm ON mm.metric_date = seen.metric_date AND mm.item_id = seen.item_id
     AND mm.market = seen.market AND mm.post_id = seen.post_id
+  LEFT JOIN source_market_by_post smbp ON smbp.metric_date = seen.metric_date AND smbp.item_id = seen.item_id
+    AND smbp.market = seen.market AND smbp.post_id = seen.post_id
+  LEFT JOIN enriched pe ON pe.post_id = seen.post_id
   WHERE DATE(ps.published_at, CASE seen.market
       WHEN 'ZA' THEN 'Africa/Johannesburg'
       WHEN 'NG' THEN 'Africa/Lagos'
@@ -346,10 +369,41 @@ WITH state_keys AS (
           AND sight.source_market = seen.market
           AND sight.obs_date BETWEEN DATE_SUB(seen.metric_date, INTERVAL 6 DAY) AND seen.metric_date
       )))
+), pat_sound AS (
+  SELECT c.metric_date, c.item_id, c.market, c.platform, c.sound_id, COUNT(DISTINCT IFNULL(c.creator_id, c.post_id)) n
+  FROM candidates c WHERE c.sound_id IS NOT NULL
+  GROUP BY c.metric_date, c.item_id, c.market, c.platform, c.sound_id
+), pat_format AS (
+  SELECT c.metric_date, c.item_id, c.market, fmt, COUNT(DISTINCT IFNULL(c.creator_id, c.post_id)) n
+  FROM candidates c CROSS JOIN UNNEST(c.formats) fmt
+  WHERE fmt NOT IN ('talking_head', 'other', 'news_clip')
+  GROUP BY c.metric_date, c.item_id, c.market, fmt
+), patterned AS (
+  SELECT c.*,
+    GREATEST(IFNULL(pat_sound.n, 0),
+             IFNULL((SELECT MAX(pf.n) FROM pat_format pf
+                     WHERE pf.metric_date = c.metric_date AND pf.item_id = c.item_id AND pf.market = c.market
+                       AND pf.fmt IN UNNEST(c.formats)), 0)) pattern_creators
+  FROM candidates c
+  LEFT JOIN pat_sound ON pat_sound.metric_date = c.metric_date AND pat_sound.item_id = c.item_id
+    AND pat_sound.market = c.market AND pat_sound.platform = c.platform AND pat_sound.sound_id = c.sound_id
+), dominant AS (
+  SELECT p.*,
+    p.pattern_creators >= 2
+      AND p.pattern_creators = MAX(p.pattern_creators) OVER (PARTITION BY p.metric_date, p.item_id, p.market)
+      shares_dominant
+  FROM patterned p
+), creator_ranked AS (
+  SELECT d.*,
+    ROW_NUMBER() OVER (PARTITION BY d.metric_date, d.item_id, d.market, IFNULL(d.creator_id, d.post_id)
+                       ORDER BY NOT d.market_member, NOT d.local_creator, NOT d.shares_dominant, d.measured DESC,
+                                d.eng DESC, d.post_id) creator_rank
+  FROM dominant d
 ), ranked_pack AS (
   SELECT creator_ranked.*,
     ROW_NUMBER() OVER (PARTITION BY metric_date, item_id, market
-                       ORDER BY market_member DESC, measured DESC, eng DESC, post_id) pack_rank
+                       ORDER BY market_member DESC, local_creator DESC, shares_dominant DESC, measured DESC, eng DESC,
+                                post_id) pack_rank
   FROM creator_ranked
   WHERE creator_rank <= 2
 ), eligible_posts AS (

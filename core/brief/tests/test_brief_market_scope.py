@@ -22,12 +22,15 @@ def sighting(market, seen):
 def add_post(con, post_id, *, published_at=None, geo_market=None, geo_confidence=None, geo_source=None,
              creator_id=None, engagement=0,
              observation_markets=("ZA",), observed_date=D, lane="sweep", lane_class="unbiased_rank",
-             series=None, source_sightings=None, source_markets=None, item_ids=("i1",)):
+             series=None, source_sightings=None, source_markets=None, item_ids=("i1",), platform=None, sound_id=None,
+             formats=None):
     published_at = published_at or datetime(2026, 9, 29, 12, tzinfo=UTC)
     duck.load(con, "core.posts", [{"post_id": post_id, "creator_id": creator_id, "engagement": engagement,
-                                    "published_at": published_at,
+                                    "published_at": published_at, "platform": platform, "sound_id": sound_id,
                                     "post_date": published_at.date(), "geo_market": geo_market,
                                     "geo_confidence": geo_confidence, "geo_source": geo_source}])
+    if formats is not None:
+        duck.load(con, "core.post_enrichment", [{"post_id": post_id, "formats": list(formats)}])
     duck.load(con, "core.post_items", [{"post_id": post_id, "item_id": item_id, "via": via}
                                         for item_id in item_ids for via in ("hashtag", "cluster")])
     duck.load(con, "core.post_observations", [
