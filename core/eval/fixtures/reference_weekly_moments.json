@@ -1,0 +1,352 @@
+{
+ "note": "Human reference rows for core/eval/reference_eval.py, from a strategist's hand-built Weekly Moments sheet (week of 12 Oct 2026, ZA NG KE), classified on 19 Oct 2026. Allowlisted fields only: our own short wording, the market, dates, the label and match terms. No post links, handles, quotes or curator text. One curator, labels not independently reviewed: a recall spot-check and negative controls, not an accuracy rate. A case matches an item when the item names one of its tags, or every word of one of its term groups.",
+ "cases": [
+  {
+   "id": "WM-20261012-01",
+   "week": "2026-10-12",
+   "market": "ZA",
+   "first_seen": "2026-10-07",
+   "label": "positive",
+   "kind": "format_sound",
+   "what": "Amapiano dance challenge under one hashtag",
+   "evidence": "thin: under 50 accounts, one creator posting repeatedly",
+   "match": {
+    "tags": [
+     "amapianochallenge"
+    ],
+    "terms": [
+     [
+      "amapiano",
+      "challenge"
+     ],
+     [
+      "amapiano",
+      "dance"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-02",
+   "week": "2026-10-12",
+   "market": "ZA",
+   "first_seen": "2026-10-17",
+   "label": "negative",
+   "kind": "sport_result",
+   "what": "Kaizer Chiefs and Orlando Pirates CAF Confederation Cup first-leg results",
+   "evidence": "results and rival-fan reaction",
+   "match": {
+    "tags": [
+     "kaizerchiefs",
+     "orlandopirates",
+     "cafcc"
+    ],
+    "terms": [
+     [
+      "kaizer chiefs"
+     ],
+     [
+      "orlando pirates"
+     ],
+     [
+      "confederation cup"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-03",
+   "week": "2026-10-12",
+   "market": "ZA",
+   "first_seen": "2026-10-15",
+   "label": "negative",
+   "kind": "politics",
+   "what": "Anti-migrant arguments after the asylum directive was withdrawn",
+   "evidence": "one creator post; politics and unrest",
+   "match": {
+    "tags": [
+     "asylum",
+     "illegalimmigrants",
+     "operationdudula"
+    ],
+    "terms": [
+     [
+      "asylum directive"
+     ],
+     [
+      "home affairs"
+     ],
+     [
+      "migrants"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-04",
+   "week": "2026-10-12",
+   "market": "ZA",
+   "first_seen": "2026-10-09",
+   "label": "negative",
+   "kind": "sport_fixture",
+   "what": "Proteas v Australia Test series in Durban",
+   "evidence": "match reports only",
+   "match": {
+    "tags": [
+     "proteas",
+     "savaus"
+    ],
+    "terms": [
+     [
+      "proteas"
+     ],
+     [
+      "kingsmead"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-05",
+   "week": "2026-10-12",
+   "market": "ZA",
+   "first_seen": "2026-10-15",
+   "label": "negative",
+   "kind": "news",
+   "what": "Diarrhoea cases investigated in Bronkhorstspruit",
+   "evidence": "news reports only",
+   "match": {
+    "tags": [
+     "bronkhorstspruit"
+    ],
+    "terms": [
+     [
+      "bronkhorstspruit"
+     ],
+     [
+      "diarrhoea"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-06",
+   "week": "2026-10-12",
+   "market": "ZA",
+   "first_seen": "2026-10-13",
+   "label": "negative",
+   "kind": "news",
+   "what": "National opt-out registry for spam calls launched",
+   "evidence": "news reports only",
+   "match": {
+    "tags": [
+     "optout",
+     "optoutregistry"
+    ],
+    "terms": [
+     [
+      "opt-out registry"
+     ],
+     [
+      "opt out registry"
+     ],
+     [
+      "spam calls"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-07",
+   "week": "2026-10-12",
+   "market": "NG",
+   "first_seen": "2026-10-01",
+   "label": "positive",
+   "kind": "format",
+   "what": "Nollywood scene clips posted in numbered parts with cliffhangers",
+   "evidence": "50 to 500 accounts, mostly pages reposting film scenes",
+   "match": {
+    "tags": [],
+    "terms": [
+     [
+      "nollywood",
+      "part 2"
+     ],
+     [
+      "nollywood",
+      "part two"
+     ],
+     [
+      "movie",
+      "part 2",
+      "cliffhanger"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-08",
+   "week": "2026-10-12",
+   "market": "NG",
+   "first_seen": "2026-10-17",
+   "label": "negative",
+   "kind": "celebrity_event",
+   "what": "Nollywood actress's son's birthday party",
+   "evidence": "all posts from entertainment media pages",
+   "match": {
+    "tags": [
+     "wumitoriola"
+    ],
+    "terms": [
+     [
+      "wumi toriola"
+     ],
+     [
+      "toriola"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-09",
+   "week": "2026-10-12",
+   "market": "NG",
+   "first_seen": "2026-10-12",
+   "label": "negative",
+   "kind": "news",
+   "what": "Lagos e-hailing drivers strike over fuel prices",
+   "evidence": "news reports only",
+   "match": {
+    "tags": [
+     "ehailing",
+     "lagosstrike"
+    ],
+    "terms": [
+     [
+      "e-hailing"
+     ],
+     [
+      "ehailing"
+     ],
+     [
+      "drivers strike"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-10",
+   "week": "2026-10-12",
+   "market": "NG",
+   "first_seen": "2026-10-18",
+   "label": "negative",
+   "kind": "news",
+   "what": "Federal push for one million CNG vehicles",
+   "evidence": "news reports only",
+   "match": {
+    "tags": [
+     "cng"
+    ],
+    "terms": [
+     [
+      "cng vehicles"
+     ],
+     [
+      "compressed natural gas"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-11",
+   "week": "2026-10-12",
+   "market": "KE",
+   "first_seen": "2026-10-07",
+   "label": "positive",
+   "kind": "format_sound",
+   "what": "Nairobi dance challenges under one creator collective's tags",
+   "evidence": "thin: under 50 accounts, two large creators seeding; paid launch not ruled out",
+   "match": {
+    "tags": [
+     "thecluster",
+     "theclusterke"
+    ],
+    "terms": [
+     [
+      "the cluster"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-12",
+   "week": "2026-10-12",
+   "market": "KE",
+   "first_seen": "2026-10-14",
+   "label": "negative",
+   "kind": "news",
+   "what": "Second Ebola case confirmed in Kenya",
+   "evidence": "news reports only",
+   "match": {
+    "tags": [
+     "ebola"
+    ],
+    "terms": [
+     [
+      "ebola"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-13",
+   "week": "2026-10-12",
+   "market": "KE",
+   "first_seen": "2026-10-15",
+   "label": "negative",
+   "kind": "news",
+   "what": "EPRA fuel price rise and matatu fare hikes",
+   "evidence": "news reports only",
+   "match": {
+    "tags": [
+     "epra",
+     "fuelprices"
+    ],
+    "terms": [
+     [
+      "epra"
+     ],
+     [
+      "fuel prices"
+     ],
+     [
+      "matatu fares"
+     ],
+     [
+      "fare hike"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "WM-20261012-14",
+   "week": "2026-10-12",
+   "market": "KE",
+   "first_seen": "2026-10-13",
+   "label": "negative",
+   "kind": "news",
+   "what": "Microsoft to close part of its Nairobi engineering hub",
+   "evidence": "news reports only",
+   "match": {
+    "tags": [
+     "microsoftkenya"
+    ],
+    "terms": [
+     [
+      "microsoft"
+     ]
+    ]
+   }
+  }
+ ]
+}
