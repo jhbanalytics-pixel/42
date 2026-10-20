@@ -52,7 +52,7 @@ Shared daily and monthly credit and spend caps live in `core/config/caps.yaml`, 
 
 | Cap | Value | What stops |
 |---|---|---|
-| `ENGINE_DAILY` | 4,400 credits: collect 4,000, confirm 300, reserve 100 | Each morning step stops at its share |
+| `ENGINE_DAILY` | 2,400 credits: collect 2,000, confirm 300, reserve 100 | Each morning step stops at its share |
 | `ASK_DAILY` | 600 credits, all questions and investigations | Ask answers from the warehouse only, with a notice |
 | `SCHEDULED_DAILY` | 120 credits, a share of `ASK_DAILY` | The due schedule is skipped and tried next time |
 | `VIDEO_DAILY` | 60 clips and 600 credits | Video reading stops for the day |

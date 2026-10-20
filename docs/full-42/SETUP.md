@@ -63,7 +63,7 @@ This table is the only place caps are set; every other document points here. ENG
 
 | Cap | Value | What stops |
 |---|---|---|
-| ENGINE_DAILY | 4,400 credits: collect 4000, confirm 300, reserve 100 (raised 16 Oct 2026 at Albert's request, from 2,400, which he set on 3 Oct from 1,200) | The morning job's step stops at its share |
+| ENGINE_DAILY | 2,400 credits: collect 2000, confirm 300, reserve 100 (collect's share set back to 2,000 on 20 Oct 2026 at Albert's request: at 4,000, set 16 Oct, the 20 Oct collection ran 162 minutes and the chain missed the 06:15 brief deadline; 2,400 was his 3 Oct setting, from 1,200) | The morning job's step stops at its share |
 | PULSE_DAILY | 60 credits for the intraday pulse, a share of its own outside ENGINE_DAILY (Albert, 29 September) | The pulse stops for the day |
 | VIDEO_DAILY | 60 clips and 600 credits a day for video reading (BUILD.md 2.6; raised 3 Oct 2026 at Albert's request, from the clips and credits he set on 2 October), a share of its own outside ENGINE_DAILY; both must be above 0 for any clip to be read, and the model spend counts against MODEL_DAILY_USD. The 20-clip hand check runs on the first days read | The understand job's video step stops at whichever is reached first |
 | ASK_DAILY | 600 credits, all questions and investigations together | Ask answers from the warehouse only, with a notice |

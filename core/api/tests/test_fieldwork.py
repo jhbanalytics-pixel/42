@@ -116,7 +116,7 @@ def test_several_parts_give_a_range_and_a_partial_status():
 
 def test_credits_are_the_collect_share_against_its_cap(out):
     credits = out["credits"]
-    assert credits["cap"] == 4000  # core/config/caps.yaml ENGINE_DAILY.collect
+    assert credits["cap"] == 2000  # core/config/caps.yaml ENGINE_DAILY.collect
     # collect rows only: 70 + 50 + 40 (ZA), 100 (NG), 5 (no market); brief and ask spend is Coverage's.
     assert credits["spent"]["value"] == 265.0 and credits["spent"]["query_id"] == "q_fieldwork_credits"
     assert [m["market"] for m in credits["markets"]] == ["ZA", "NG", "GLOBAL"]
