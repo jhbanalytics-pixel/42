@@ -108,9 +108,10 @@ AUTHOR_STEP_NOTE = ("Label note: an observation, labelled inferred only because 
 # format or a sound, the adoption the critic asks for, rather than judge it from captions alone (held-topics slice 2,
 # 16 Oct 2026). SUPPORT_SYSTEM and CRITIC_SYSTEM say what the two fields mean, an empty formats list included, so
 # neither check reads an unenriched post as one with no format (18 Oct 2026). video_format is the format the video
-# step's model gave the clip it watched (core/brief/evidence.py _video_notes), null when no clip was read; the clip's
-# on-screen text and sound go inside the fence (_scraped with media), to the support check and the critic only, never
-# the writer, so a quote is still checked against the caption alone (18 Oct 2026).
+# step's model gave the clip it watched (core/brief/evidence.py _video_notes), null when no clip was read; the writer
+# sees it too, so it can name a format the pattern line counts (20 Oct 2026). The clip's on-screen text and sound go
+# inside the fence (_scraped with media), to the support check and the critic only, never the writer, so a quote is
+# still checked against the caption alone (18 Oct 2026).
 SUPPORT_FIELDS = ("platform", "posted_at", "market", "source_market", "creator_tier", "formats", "video_format")
 MEDIA_FIELDS = (("screen_text", "on-screen text"), ("video_sound", "video sound"))
 # Every pack number (creators3, posts3, main_ratio) is an item_state value for the whole item in the brief's market.
@@ -227,8 +228,9 @@ Rest that clause on a claim that cites those local posts, preferring posts marke
 Name an evidenced adopted format, practice or emerging behaviour beyond ordinary event coverage or reaction.
 Opinions, jokes, personal stories and event timing alone do not establish a cultural pattern.
 A critic then names the simplest non-cultural explanation, such as a paid or sponsored push, a platform feature change, a coordinated push, a news or scheduled event, a collection artefact, or one viral post or one creator, and holds the explanation unless the cited posts demonstrate a distinct adopted format, practice or emerging behaviour that the simpler explanation alone cannot account for. Different creators, posts without sponsored flags, high counts, and posts on different days or platforms alone do not establish a cultural pattern and do not rule it out. The critic weighs only the posts cited by the claims the sentence rests on, so the claim the sentence rests on for the shared pattern cites every pack post that shows it: when the shared-pattern line below names the pattern you lead with, that claim cites every post id the line lists for it.
-Each post's formats are the format names 42's enrichment model gave it, such as skit, dance or tutorial; an empty list means the post was not enriched, not that it has no format. Its sound is a code letter: posts with the same letter on the same platform use the same audio. Its creator is a code letter too: posts with the same creator letter on the same platform are by the same author, whatever their handles show, and a null means 42 has no author id for the post. A shared sound or a shared specific format across different creators on different days shows adoption; talking_head, other or news_clip alone does not. Describe a shared format or sound in plain words and never write a sound label; name an author by handle, never by a creator letter.
-Lead the sentence with the adopted format, sound or practice the cited posts share, resting it on claims that cite the posts that show it and naming the creators who made them, and do not present the trend as mere reaction to an event. When the posts only respond to a news or scheduled event and share no such format, sound or practice, say so plainly in the sentence rather than invent a pattern, and rest it on claims that cite at least two different local creators reacting in their own words, such as opinions, jokes or personal stories, and quote one such reaction. Posts that only repeat, quote or share the news show no local reaction.
+You get the same line of simpler explanations checked by code that the critic gets; it is context, not support for a claim. When the evidence shows a pattern, name in the sentence the simplest rival it faces, such as the event the posts follow, and show the pattern beyond it in the posts you cite: a shared sound or format, and posts made on days away from the event.
+Each post's formats are the format names 42's enrichment model gave it, such as skit, dance or tutorial; an empty list means the post was not enriched, not that it has no format. Its video_format is the format, from the same names, that a model which watched the clip gave it, or null when no clip was read; the shared-pattern line counts it as it counts formats. Its sound is a code letter: posts with the same letter on the same platform use the same audio. Its creator is a code letter too: posts with the same creator letter on the same platform are by the same author, whatever their handles show, and a null means 42 has no author id for the post. A shared sound or a shared specific format across different creators on different days shows adoption; talking_head, other or news_clip alone does not. Describe a shared format or sound in plain words and never write a sound label; name an author by handle, never by a creator letter.
+Lead the sentence with the adopted format, sound or practice the cited posts share, resting it on claims that cite the posts that show it and naming the creators who made them, and do not present the trend as mere reaction to an event. When the posts only respond to a news or scheduled event and share no such format, sound or practice, write no pattern claim and do not dress a reaction as a pattern: name the event in the sentence's why-now clause as the simpler explanation, the rival the critic will name.
 State an event, person or fact only as a cited post's own text or fields state it; what you know from outside the pack is not evidence.
 Hedge only the why-now clause, for example "likely because". State the rest plainly.
 The why-now clause rests on posts its claim cites, never on the facts lines, a search line or a number alone.
@@ -350,7 +352,7 @@ Set all three false otherwise and whenever ruled_out is true.
 Forecast promotion is off under K9 until forecasts beat persistence. Do not authorize a direct future prediction;
 this critic only decides whether the cultural reading is held for a simpler explanation.
 Never infer age. Describe people only by language, place, interest, community and creator type.
-Evaluate only the why-now clause and the local posts cited by its supporting claims.
+For local_why_now, evaluate only the why-now clause and the local posts cited by its supporting claims.
 {WHY_NOW_DEFINITION}
 Set local_why_now true only when those sources support a timely local cause or a cited post states the timing.
 A cited post marked own_feed_local true was found in the market's own feeds and its location is unknown. It can show
@@ -583,8 +585,10 @@ def _writer_user(candidate, pack, market, window_start, window_end):
     why-now resting only on them takes (BR-1, 4 Oct). Posts naming most of the title's terms come first, each citable
     post carries title_terms_named, and the scope line names the posts that name none. The Counts line gives the
     pack's own post and creator counts and the crowd words the card's creator count allows (6 Oct). The writer sees
-    the support check's post fields and earliest marker, plus whether text has words outside tags and mentions.
-    Per-post engagement is omitted because it is not a pinned pack number or a field read by the support check."""
+    the support check's post fields and earliest marker, plus whether text has words outside tags and mentions, and
+    the critic's own line of simpler explanations checked by code (_rivals_line, 20 Oct 2026), so it can name the
+    rival and show a pattern beyond it. Per-post engagement is omitted because it is not a pinned pack number or a
+    field read by the support check."""
     code = str(market or "").upper() or None
     evidence = pack.get("evidence") or []
     earliest, letters, authors = _earliest_id(pack), _sound_letters(pack), _creator_letters(pack)
@@ -602,6 +606,7 @@ def _writer_user(candidate, pack, market, window_start, window_end):
             head["location"] = "unknown"
         head["creator_tier"] = r.get("creator_tier")
         head["formats"], head["sound"] = r.get("formats"), letters.get((r.get("platform"), r.get("sound_id")))
+        head["video_format"] = r.get("video_format")
         head["creator"] = authors.get(_author(r))
         head["earliest_in_pack"] = earliest is not None and r.get("id") == earliest
         if not _citable(r, market):
@@ -680,6 +685,7 @@ def _writer_user(candidate, pack, market, window_start, window_end):
         f"Evidence pack, {len(posts)} posts:",
         scope,
         _writer_pattern_line(citable, letters),
+        _rivals_line(pack),
         *posts,
     ])
 
@@ -854,16 +860,17 @@ PATTERN_MIN_CREATORS = 2
 def _shared_patterns(pack, letters):
     """The sounds and formats 2 or more different creators share among the pack's posts, as code counts them: one
     {pattern, post_ids, creators, days} per sound letter (_sound_letters) and per format other than talking_head,
-    other and news_clip (PATTERN_SKIP_FORMATS), in pack order. A creator is the post's platform and creator id, or its
-    platform and handle for a record with no id (_author); a post with neither adds no creator. A day is the
-    posted_at date in market local time; an unreadable one adds
-    none. Only the posts shown are counted, never the whole trend (18 Oct 2026: the critic judged adoption by reading
-    each post's fields one by one)."""
+    other and news_clip (PATTERN_SKIP_FORMATS), in pack order. A post's formats are its enriched formats and its
+    video_format, the format the video step's model gave the clip, counted once when both name it (20 Oct 2026: the
+    video model's format was shown to the critic but never counted). A creator is the post's platform and creator
+    id, or its platform and handle for a record with no id (_author); a post with neither adds no creator. A day is
+    the posted_at date in market local time; an unreadable one adds none. Only the posts shown are counted, never the
+    whole trend (18 Oct 2026: the critic judged adoption by reading each post's fields one by one)."""
     groups = {}
     for r in pack.get("evidence") or []:
         letter = letters.get((r.get("platform"), r.get("sound_id")))
-        names = ([letter] if letter else []) + [f"format {f}" for f in r.get("formats") or []
-                                                if f and f not in PATTERN_SKIP_FORMATS]
+        formats = [*(r.get("formats") or []), r.get("video_format")]
+        names = ([letter] if letter else []) + [f"format {f}" for f in formats if f and f not in PATTERN_SKIP_FORMATS]
         for name in dict.fromkeys(names):
             groups.setdefault(name, []).append(r)
     out = []
@@ -880,8 +887,9 @@ def _pattern_line(pack, letters):
     shared = _shared_patterns(pack, letters)
     body = "\n".join(json.dumps(p, ensure_ascii=False, default=str) for p in shared) or "none"
     return (f"Shared sounds and formats, counted by code over the {len(pack.get('evidence') or [])} posts shown here, "
-            f"not the whole trend: each sound letter and each format (talking_head, other and news_clip left out) that 2 or more "
-            f"different creators share, with its post ids, different creators and different posting days:\n{body}")
+            f"not the whole trend: each sound letter and each format in formats or video_format (talking_head, other "
+            f"and news_clip left out) that 2 or more different creators share, with its post ids, different creators "
+            f"and different posting days:\n{body}")
 
 
 # The rivals the code can find from detect's numbers, worded for the critic (core/brief/rivals.py RIVALS).
@@ -898,8 +906,9 @@ def _rivals_line(pack):
     detect's own numbers show (found), do not show (not found) or could not assess, with the thresholds and the floor
     of 10 posts in 7 days that burst and concentrated need, as state.sql share_flags needs it. The critic saw the raw
     top3_share, burst_share and near_dup_share among the pack's numbers with no threshold and no floor, so a share
-    over a few posts could read as a rival (18 Oct 2026). The shadow record (_shadow_record) is untouched; a fault
-    here reads as not assessed and goes no further."""
+    over a few posts could read as a rival (18 Oct 2026). The writer gets the same line, to name the rival and show a
+    pattern beyond it (20 Oct 2026). The shadow record (_shadow_record) is untouched; a fault here reads as not
+    assessed and goes no further."""
     head = "Simpler explanations checked by code from detect's own numbers over the trend's 7-day posts, not these posts"
     try:
         record = rivals.code_rivals(pack)
