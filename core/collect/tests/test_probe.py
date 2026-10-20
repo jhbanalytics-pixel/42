@@ -1516,6 +1516,11 @@ def test_vendor_plan_drops_a_market_whose_term_rule_1_blocks():
     assert {p["market"] for p in calls} == {"ZA", "KE"}
 
 
+def test_the_generic_vendor_term_passes_rule_1():
+    from core.collect.gdelt import blocked
+    assert not blocked(probe.GENERIC_TERM)  # a module constant, so a future edit of it is checked here
+
+
 def test_vendor_plan_flag_prints_without_network(monkeypatch):
     monkeypatch.setattr(probe, "live_client", lambda *a, **k: pytest.fail("--plan must not build a client"))
     monkeypatch.setattr(probe, "candidate_queries", lambda today: TERMS)
