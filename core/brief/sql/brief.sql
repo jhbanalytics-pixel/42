@@ -47,8 +47,9 @@ fs AS (
 -- code can see are an event spike, one creator or news. Per item, over the market's posts of the last 7 days (the
 -- lanes and suppression rule of local_creators below): the most different creators who used one sound (posts.sound_id)
 -- and on how many posting days, the most different creators whose enriched post has one adoption format
--- (post_enrichment.formats other than other, news_clip and talking_head) and on how many days, and how many enriched
--- posts are news clips. Rank only: nothing is dropped, no gate, threshold or judged count changes.
+-- (post_enrichment.formats or the video step's video_notes format, other than other, news_clip and talking_head) and
+-- on how many days, and how many enriched posts are news clips (post_enrichment.formats only). Rank only: nothing is
+-- dropped, no gate, threshold or judged count changes.
 pattern_posts AS (
   SELECT DISTINCT pi.item_id, po.post_id, IFNULL(ps.creator_id, ps.post_id) creator_id, ps.sound_id,
     ps.post_date post_day
@@ -80,11 +81,25 @@ pattern_enriched AS (
   FROM pattern_posts pp
   JOIN {core}.post_enrichment pe ON pe.post_id = pp.post_id
   CROSS JOIN UNNEST(pe.formats) post_format),
+-- The video step's format for the same posts: the format key of its post_enrichment row's video_notes JSON
+-- (core/understand/video.py read_clip, video_insert.sql). Caption-only enrichment reads most posts as other, so a
+-- format the video model saw counts as the post's format too. Only the adoption count reads it: news clips seen on
+-- video do not change pattern_news, the third bucket or any gate.
+pattern_video AS (
+  SELECT DISTINCT pp.item_id, pp.post_id, pp.creator_id, pp.post_day,
+    JSON_VALUE(pe.video_notes, '$.format') post_format
+  FROM pattern_posts pp
+  JOIN {core}.post_enrichment pe ON pe.post_id = pp.post_id
+  WHERE pe.video_notes IS NOT NULL),
 pattern_format AS (
   SELECT item_id, MAX(creators) format_creators, MAX_BY(days, creators) format_days,
     LOGICAL_OR(creators >= 3 AND days >= 2) format_adopted FROM (
     SELECT item_id, post_format, COUNT(DISTINCT creator_id) creators, COUNT(DISTINCT post_day) days
-    FROM pattern_enriched WHERE post_format NOT IN ('other', 'news_clip', 'talking_head')
+    FROM (
+      SELECT item_id, post_id, creator_id, post_day, post_format FROM pattern_enriched
+      UNION DISTINCT
+      SELECT item_id, post_id, creator_id, post_day, post_format FROM pattern_video) format_rows
+    WHERE post_format NOT IN ('other', 'news_clip', 'talking_head')
     GROUP BY item_id, post_format)
   GROUP BY item_id),
 pattern_news AS (

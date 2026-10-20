@@ -4,15 +4,16 @@
 Needs google-cloud-bigquery and gcloud ADC on this PC; reads run as f42-builder through impersonation (RULES 13, the
 pattern the ops reports use). SELECT only, each query capped at 2 GB billed.
 
-Per market it runs the candidate statement twice on the date's detect run, once as this source orders it and once
-with the pattern bucket taken out of the ordering (the f9bd07c9 order), and reads the date's published brief payload.
+Per market it runs the candidate statement on the date's detect run as this source orders it, again with the pattern
+bucket taken out of the ordering (the f9bd07c9 order), and again without its pool LIMIT for whole-market bucket counts,
+and reads the date's published brief payload.
 It prints, for the first 10 of each order and for every held item: rank under both orders, kind, title, worth_raw,
 the pattern bucket and its inputs (most creators on one sound and on how many days, most creators on one enriched
 adoption format and on how many days, enriched and news-clip posts) and, for an item the brief judged, its stored hold
 reason. The ten of the old order is the brief's judged set only when no candidate was held by G1 or a deadline; the
 payload's held items are the authority for what was judged. Then a summary per market: how many of the judged were in
-bucket 2 (one creator, a calendar moment or mostly news), how many bucket 0 rows the pool held, and how many of the
-new ten the brief never judged.
+bucket 2 (one creator, a calendar moment or mostly news), how many rows of each bucket the pool held and the whole
+market held (every ranked row, not only the top 90), and how many of the new ten the brief never judged.
 
 Prints titles, counts and fixed wording only: no handles, post text or model text. --out also writes the same rows as
 JSON there (keep it inside the approved local boundary; it names items and titles)."""
@@ -37,6 +38,8 @@ TOP = job.CANDIDATES
 BUCKETS = {0: "adopted", 1: "plain", 2: "one creator, moment or news"}
 # The pattern bucket inside ROW_NUMBER's ORDER BY: the one CASE there that starts on its own line.
 _ORDER_CASE = re.compile(r"\n    CASE\n      WHEN s\.kind = 'creator'.*?\n      ELSE 1 END,", re.DOTALL)
+# The pool LIMIT that ends the candidate statement (job.POOL rows).
+_POOL_LIMIT = re.compile(rf"\nLIMIT {job.POOL}\s*;?\s*$")
 
 
 def old_order(sql):
@@ -45,6 +48,18 @@ def old_order(sql):
     if n != 1:
         raise SystemExit("the candidate statement's pattern bucket was not found once; is this the pattern source?")
     return out
+
+
+def whole_market(sql):
+    """The candidate statement without its pool LIMIT: every ranked row of the market, in the same order."""
+    out, n = _POOL_LIMIT.subn("", sql)
+    if n != 1:
+        raise SystemExit("the candidate statement's pool LIMIT was not found once; is this the pattern source?")
+    return out
+
+
+def by_bucket(rows):
+    return {b: sum(1 for r in rows if r.get("_selection_pattern") == b) for b in BUCKETS}
 
 
 def query(client, sql, params):
@@ -108,6 +123,7 @@ def main(argv=None):
     d = args.date
     new_sql = job.query_sql("candidates")  # for the locality authority in force, as the brief reads it
     old_sql = old_order(new_sql)
+    all_sql = whole_market(new_sql)
     payloads = {r["market"]: json.loads(r["p"]) for r in query(client, (
         "SELECT market, TO_JSON_STRING(payload) p FROM {agent}.v_briefs_current WHERE brief_date = @d"),
         [bigquery.ScalarQueryParameter("d", "DATE", d)])}
@@ -115,6 +131,7 @@ def main(argv=None):
     for m in MARKETS:
         params = [bigquery.ScalarQueryParameter("d", "DATE", d), bigquery.ScalarQueryParameter("market", "STRING", m)]
         new_rows, old_rows = query(client, new_sql, params), query(client, old_sql, params)
+        all_rows = query(client, all_sql, params)
         new_rank = {r["item_id"]: n for n, r in enumerate(job._ranked(new_rows), 1)}
         old_rank = {r["item_id"]: n for n, r in enumerate(job._ranked(old_rows), 1)}
         by_id = {r["item_id"]: r for r in new_rows + old_rows}
@@ -126,7 +143,9 @@ def main(argv=None):
         judged = [e for e in entries if e["outcome"]]
         summary = {
             "pool_rows": len(new_rows),
-            "pool_by_bucket": {b: sum(1 for r in new_rows if r.get("_selection_pattern") == b) for b in BUCKETS},
+            "pool_by_bucket": by_bucket(new_rows),
+            "market_rows": len(all_rows),
+            "market_by_bucket": by_bucket(all_rows),
             "judged": len(judged),
             "judged_by_bucket": {b: sum(1 for e in judged if e["pattern"] == b) for b in BUCKETS},
             "judged_published": sum(1 for e in judged if e["outcome"] == "published"),
@@ -135,7 +154,8 @@ def main(argv=None):
             "unjudged_payload_items": sorted(i for i in outcomes if i not in by_id),
         }
         report["markets"][m] = {"summary": summary, "items": entries}
-        print(f"== {m} {d}: pool {summary['pool_rows']}, pool by bucket {summary['pool_by_bucket']}, judged "
+        print(f"== {m} {d}: pool {summary['pool_rows']}, pool by bucket {summary['pool_by_bucket']}, market "
+              f"{summary['market_rows']}, market by bucket {summary['market_by_bucket']}, judged "
               f"{summary['judged']} (by bucket {summary['judged_by_bucket']}, published {summary['judged_published']}),"
               f" new ten never judged {summary['new_top_never_judged']}")
         for e in entries:

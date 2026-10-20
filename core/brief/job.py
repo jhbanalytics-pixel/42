@@ -139,7 +139,9 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # writer's ask names the mark as the condition for one (core/brief/explain.py WRITER_SYSTEM, _writer_user),
 # fixture-reaction-code a primary fixture reaction held before publication keeps its G3 hold with its own wording
 # and a hold code of its own on the held item instead of the generic Not confirmed (FIXTURE_REACTION,
-# FIXTURE_REACTION_CODE, core/trust/retained.py REASON_CODES, core/api/held_words.py).
+# FIXTURE_REACTION_CODE, core/trust/retained.py REASON_CODES, core/api/held_words.py), pattern-video-formats the
+# pool's adoption count reads the video step's format (post_enrichment video_notes) beside the enriched formats, with
+# the same exclusions and the same 3 creators on 2 days; rank only (core/brief/sql/brief.sql pattern_video).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
@@ -147,7 +149,8 @@ RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8
                 "+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead"
                 "+critic-inconsistent+pattern-skip-talking-head+writer-critic-agree+pack-video-fields"
                 "+critic-rivals-line+author-step-note+pack-board-only-mark+creator-letters"
-                "+data-issue-full-judgement+claim-floor-fault+writer-no-earliest+fixture-reaction-code")
+                "+data-issue-full-judgement+claim-floor-fault+writer-no-earliest+fixture-reaction-code"
+                "+pattern-video-formats")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
