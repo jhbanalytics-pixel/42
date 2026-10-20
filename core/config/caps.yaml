@@ -3,8 +3,8 @@
 # core/collect/socialcrawl_client.py reads this file.
 
 ENGINE_DAILY:
-  total: 4400
-  collect: 4000
+  total: 2400
+  collect: 2000
   confirm: 300
   reserve: 100
 

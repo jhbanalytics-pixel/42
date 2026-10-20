@@ -40,7 +40,7 @@ Release Alpha, data quality, trend identity and research reliability.
 - Ask searches live news it can cite and opens the article behind a news result to read it. A question about figures searches news first.
 - Ask's Deep level, several researchers in parallel and then a critic, is open to plain questions where the service has it switched on. The app does not offer a depth control yet.
 - The morning collection also searches Bluesky, LinkedIn and each market's subreddit, only in the room the day's collection share leaves after the earlier sources.
-- The collection share rises to 4,000 credits a day and the monthly cap to 180,000.
+- The monthly credit cap rises to 180,000. The morning collection's credit share stays at 2,000 a day: at 4,000 the 20 October collection ran 162 minutes and the brief missed its 06:15 deadline, so no trend was explained.
 
 ## 2.3.0 (12 October 2026)
 

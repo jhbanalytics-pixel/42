@@ -59,18 +59,18 @@ Identity-Aware Proxy directly on Cloud Run (`gcloud run deploy --iap`), with the
 
 ## Cost and credit guards
 
-This table is the only place caps are set; every other document points here. ENGINE_DAILY, VIDEO_DAILY, MONTHLY and MODEL_DAILY_USD were raised 3 Oct 2026 at Albert's request; ENGINE_DAILY's collect share and MONTHLY again on 16 Oct 2026.
+This table is the only place caps are set; every other document points here. ENGINE_DAILY, VIDEO_DAILY, MONTHLY and MODEL_DAILY_USD were raised 3 Oct 2026 at Albert's request; ENGINE_DAILY's collect share and MONTHLY again on 16 Oct 2026; the collect share was set back on 20 Oct 2026.
 
 | Cap | Value | What stops |
 |---|---|---|
-| ENGINE_DAILY | 4,400 credits: collect 4000, confirm 300, reserve 100 (raised 16 Oct 2026 at Albert's request, from 2,400, which he set on 3 Oct from 1,200) | The morning job's step stops at its share |
+| ENGINE_DAILY | 2,400 credits: collect 2000, confirm 300, reserve 100 (collect's share set back to 2,000 on 20 Oct 2026 at Albert's request: at 4,000, set 16 Oct, the 20 Oct collection ran 162 minutes and the chain missed the 06:15 brief deadline; 2,400 was his 3 Oct setting, from 1,200) | The morning job's step stops at its share |
 | PULSE_DAILY | 60 credits for the intraday pulse, a share of its own outside ENGINE_DAILY (Albert, 29 September) | The pulse stops for the day |
 | VIDEO_DAILY | 60 clips and 600 credits a day for video reading (BUILD.md 2.6; raised 3 Oct 2026 at Albert's request, from the clips and credits he set on 2 October), a share of its own outside ENGINE_DAILY; both must be above 0 for any clip to be read, and the model spend counts against MODEL_DAILY_USD. The 20-clip hand check runs on the first days read | The understand job's video step stops at whichever is reached first |
 | ASK_DAILY | 600 credits, all questions and investigations together | Ask answers from the warehouse only, with a notice |
 | SCHEDULED_DAILY | 120 credits, the share of ASK_DAILY that scheduled questions may spend (Albert, 29 September) | The due schedule is skipped with a runs row naming the reason, and its next due day tries again |
 | EVAL_DAILY | 0 live credits; evaluations run in replay mode from cached responses; 100 live for a deliberate refresh | The eval run |
 | BUILD_DAILY | 600 credits for building and probes until the morning schedule starts, then 150; staging test runs of the collect and brief jobs spend the engine's shares, and Ask tests spend ASK_DAILY | The builder's test runs |
-| MONTHLY | 180,000 credits over everything (raised 16 Oct 2026 at Albert's request, from 80,000 set on 3 Oct, to cover the engine at 4,400 a day for 31 days with room for Ask, video, pulse and build; with every share spent in full for 31 days they need 180,110, so Ask is throttled on the last day) | Ask is throttled first, then build, and the morning run is protected until the balance floor |
+| MONTHLY | 180,000 credits over everything (raised 16 Oct 2026 at Albert's request, from 80,000 set on 3 Oct, to cover the engine at 4,400 a day for 31 days with room for Ask, video, pulse and build; at 4,400 a day every share spent in full for 31 days would have needed 180,110, so Ask would have been throttled on the last day; since the collect share went back to 2,000 on 20 Oct 2026 a full month needs 118,110 and nothing is throttled) | Ask is throttled first, then build, and the morning run is protected until the balance floor |
 | BALANCE_FLOOR | 20,000 credits | Every job refuses to start below it; alert at 30 days of spend |
 | MODEL_DAILY_USD | USD 50 a day (raised 3 Oct 2026 at Albert's request). About USD 1,500 a month at that level (Albert, 28 September: cost first) | Ask falls back to T0 and the fast model; unexplained trends are held back, reason shown, numbers and posts alongside |
 | EVAL_MODEL_USD | USD 40 per evaluation run, counted apart from MODEL_DAILY_USD | The eval run stops and reports what it scored |
