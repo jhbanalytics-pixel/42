@@ -143,8 +143,9 @@ class FakeBQ:
     """Records queries and load jobs; plays MERGE into posts on a dict keyed by post_id, the creators MERGE
     on (platform, creator_id), and serves raw_responses rows to the backfill."""
 
-    def __init__(self, previous=(), reference=(), pulls=(), seeds=(), watches=(), raw=(), prior_zero=()):
+    def __init__(self, previous=(), reference=(), pulls=(), seeds=(), watches=(), raw=(), prior_zero=(), adoption=()):
         self.raw = list(raw)
+        self.adoption = list(adoption)
         self.raw_bytes = 1_000_000
         self.dry_runs = []
         self.configs = []
@@ -168,6 +169,8 @@ class FakeBQ:
             return FakeJob(total_bytes_processed=self.raw_bytes)
         self.queries.append((sql, params))
         self.configs.append(job_config)
+        if "p.sound_id IS NOT NULL" in sql:
+            return FakeJob(self.adoption)
         if "post_id IN UNNEST(@ids)" in sql:
             return FakeJob([{"post_id": post_id} for post_id in params["ids"].values if post_id in self.posts])
         if "raw_responses" in sql:
@@ -538,6 +541,87 @@ def test_exploration_takes_10_to_15_percent_of_row_14_from_below_the_cut():
     assert all(c.params["since"] == "2026-09-22" for c in multi)
     assert [c.params["clipId"] for c in calls if c.row == "11"] == ranked["sound"][:6]
     assert len([c for c in calls if c.row == "12"]) == 10
+
+
+def _adopted(sound, creators, posts=None, newest="2026-09-28T10:00:00+00:00", market=None):
+    rows = [{"sound_id": sound, "creator_id": f"{sound}-c{i % creators}", "post_id": f"{sound}-p{i}",
+             "newest": newest} for i in range(posts or creators)]
+    return [dict(r, market=market) for r in rows] if market else rows
+
+
+def test_sounds_rank_by_creators_then_posts_then_the_newest_post_never_by_their_id():
+    adoption = (_adopted("1000", 1) + _adopted("2000", 3, 3) + _adopted("3000", 3, 5)
+                + _adopted("4000", 3, 3, newest="2026-09-28T23:00:00Z") + _adopted("5000", 2, 9))
+    assert job.rank_sounds(["1000", "9000"], adoption) == ["3000", "4000", "2000", "5000", "1000", "9000"]
+    # the harvest's own posts count as adoption too; a sound seen only in storage is still a candidate
+    ranked = job.score_candidates([("sound", "1000", "1", "tiktok")], adoption)
+    assert ranked["sound"][0] == "3000" and "1000" in ranked["sound"]
+
+
+def test_sounds_group_by_the_matched_song_and_read_through_its_most_adopted_clip():
+    adoption = _adopted("7001", 2) + _adopted("7002", 2) + _adopted("7003", 3)
+    songs = {"7001": "song-9", "7002": "song-9"}
+    assert job.rank_sounds([], adoption, songs) == ["7001", "7003"]  # 4 creators on song-9 beat 3; 7001 is its clip
+    assert job.rank_sounds([], adoption) == ["7003", "7001", "7002"]
+
+
+def test_a_rule_one_sound_id_is_never_a_candidate():
+    word = "".join(["te", "en"]) + "_vibes"
+    assert job.rank_sounds([word], _adopted(word, 5) + _adopted("1000", 1)) == ["1000"]
+
+
+def test_adoption_rows_read_the_harvest_posts_and_the_matched_song_on_each_row():
+    body = {"data": {"items": [{"post": {"id": "1", "ext": {"music_id": "7001", "matched_song_id": "song-9"}}},
+                               {"post": {"id": "2", "ext": {"music_id": "7002"}}}]}}
+    parsed = {"posts": [{"post_id": "tiktok:1", "platform": "tiktok", "sound_id": "7001", "creator_id": "a",
+                         "published_at": "2026-09-28T10:00:00+00:00"},
+                        {"post_id": "youtube:3", "platform": "youtube", "sound_id": None, "creator_id": "b"}]}
+    done = [(SimpleNamespace(route="tiktok/trending", row="1"), SimpleNamespace(status="ok", body=body), parsed)]
+    rows, songs = job.adoption_rows(done)
+    assert rows == [{"sound_id": "7001", "creator_id": "a", "post_id": "tiktok:1",
+                     "newest": "2026-09-28T10:00:00+00:00"}]
+    assert songs == {"7001": "song-9"}
+
+
+def test_stored_adoption_picks_the_row_11_and_12_sounds_within_the_planned_reads():
+    """Rows 11 and 12 still read at most SONG_VIDEOS and COUNT_SOUNDS sounds a market, the plan job.plan holds;
+    stored adoption only chooses which, so the credit plan does not move."""
+    stored = {"ZA": [r for i in range(8) for r in _adopted(f"74000000000000000{i:02d}", 10 - i)]}
+    run = collect(FakeClient(), sound_adoption=stored)
+
+    def reads(route):
+        return [c["params"]["clipId"] for c in run.client_calls if c["market"] == "ZA" and c["route"] == route]
+
+    za = run.candidates["ZA"]["sound"]
+    assert za[:8] == [f"74000000000000000{i:02d}" for i in range(8)] and za[8] == "m100"
+    assert reads("tiktok/song/videos") == za[:job.SONG_VIDEOS]
+    assert reads("tiktok/song") == za[:job.count_slots(0)[0]] and job.count_slots(0)[0] == job.COUNT_SOUNDS
+
+
+def test_main_reads_yesterdays_stored_adoption_once_and_ranks_with_it():
+    rows = _adopted("7400000000000000009", 4, market="ZA") + _adopted("7400000000000000007", 2, market="XX")
+    bq = FakeBQ(adoption=rows)
+    client = FakeClient()
+    assert run_main(["--run-date", "2026-09-29"], client=client, bq=bq) == 0
+    [(sql, params)] = [(q, p) for q, p in bq.queries if "p.sound_id IS NOT NULL" in q]
+    assert params["d"].value == date(2026, 9, 28)
+    assert params["markets"].values == list(job.MARKETS)
+    assert params["routes"].values == list(writers.ADOPTION_ROUTES)
+    assert sql.lstrip().upper().startswith("SELECT") and "@d" in sql and "2026" not in sql
+    za = [c["params"]["clipId"] for c in client.calls if c["route"] == "tiktok/song/videos" and c["market"] == "ZA"]
+    assert za[0] == "7400000000000000009"
+    assert "7400000000000000007" not in {c["params"].get("clipId") for c in client.calls}
+
+
+def test_a_failed_adoption_read_ranks_from_the_harvest_alone():
+    class Failing(FakeBQ):
+        def query(self, sql, job_config=None, **kw):
+            if "p.sound_id IS NOT NULL" in sql:
+                raise RuntimeError("read failed")
+            return super().query(sql, job_config, **kw)
+
+    assert writers.read_sound_adoption(Failing(), date(2026, 9, 28), job.MARKETS) == {m: [] for m in job.MARKETS}
+    assert run_main(["--run-date", "2026-09-29"], bq=Failing()) == 0
 
 
 def test_the_live_hashtag_board_envelope_yields_board_tag_sightings():

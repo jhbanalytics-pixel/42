@@ -182,6 +182,44 @@ def test_cultural_map_merge_status_follows_the_stoplist_on_open_active_or_generi
     assert by_id["closed"]["last_seen"] == day(9)
 
 
+def test_cultural_map_merge_names_a_sound_still_labelled_by_its_raw_id(con):
+    """A sound inserted by its id (aggregate's label for a post's sound) takes a readable label from a later MERGE;
+    a readable label is never replaced, and an incoming id never replaces anything."""
+    def sound(iid, raw, label):
+        r = cmap(iid)
+        r.update(kind="sound", canonical_key=f"tiktok:{raw}", label=label, last_seen=day(9))
+        return r
+
+    long_id = "7412345678901234567"
+    duck.load(con, "core.cultural_map", [
+        sound("raw", long_id, long_id), sound("short", "777", "777"), sound("named", "888", "Old Song by Someone"),
+        sound("digits", "abc", "12345678"), sound("keep", "999", "999")])
+    incoming = {"raw": "Water by Tyla", "short": "original sound - dj_za", "named": "New Song by Other",
+                "digits": "Mnike by Tyler ICU", "keep": "999"}
+    keys = {"raw": long_id, "short": "777", "named": "888", "digits": "abc", "keep": "999"}
+    items = [{"item_id": i, "kind": "sound", "canonical_key": f"tiktok:{keys[i]}", "label": label, "first_seen": D,
+              "first_seen_market": "ZA", "first_seen_platform": "tiktok", "last_seen": D, "status": "active"}
+             for i, label in incoming.items()]
+    duck.query(con, aggregate.cultural_map_merge_sql(), {"items": items})
+    labels = {r["item_id"]: r["label"] for r in duck.query(con, "SELECT * FROM {core}.cultural_map c")}
+    assert labels == {"raw": "Water by Tyla", "short": "original sound - dj_za", "named": "Old Song by Someone",
+                      "digits": "Mnike by Tyler ICU", "keep": "999"}
+
+
+def test_cultural_map_merge_never_renames_a_hashtag_or_creator(con):
+    rows = [cmap("tag"), cmap("who")]
+    rows[0].update(kind="hashtag", canonical_key="amapiano", label="amapiano")
+    rows[1].update(kind="creator", canonical_key="tiktok:dj_za", label="dj_za")
+    duck.load(con, "core.cultural_map", rows)
+    items = [{"item_id": "tag", "kind": "hashtag", "canonical_key": "amapiano", "label": "#Amapiano"},
+             {"item_id": "who", "kind": "creator", "canonical_key": "tiktok:dj_za", "label": "DJ ZA"}]
+    for it in items:
+        it.update(first_seen=D, first_seen_market="ZA", first_seen_platform="tiktok", last_seen=D, status="active")
+    duck.query(con, aggregate.cultural_map_merge_sql(), {"items": items})
+    labels = {r["item_id"]: r["label"] for r in duck.query(con, "SELECT * FROM {core}.cultural_map c")}
+    assert labels == {"tag": "amapiano", "who": "dj_za"}
+
+
 def test_merge_sql_never_deletes():
     sql = aggregate.cultural_map_merge_sql().upper()
     assert "MERGE" in sql and "DELETE" not in sql and "REPLACE" not in sql

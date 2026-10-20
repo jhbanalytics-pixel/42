@@ -3,8 +3,10 @@
 Row 4 is platform-wide and runs once first. Then the markets ZA, NG and KE run interleaved, row by row,
 in four phases: the harvest (rows 1 to 8, the cheap unbiased lists first: the TikTok local feed, YouTube
 trending, Reddit, Apple Music, then the ZA hashtag board and the Facebook hub pages; row 5 only when
-Instagram location ids are configured); candidates scored from each market's harvest (frequency across
-rows and platforms) feeding rows 11, 12, 14 and 16, where core/collect/seeds.py shares the slots of rows 14
+Instagram location ids are configured); candidates scored from each market's harvest (hashtags by frequency
+across rows and platforms; sounds by adoption, distinct creators over the harvest and the market's stored
+TikTok search and trending posts of the day before, writers.read_sound_adoption) feeding rows 11, 12, 14 and
+16, where core/collect/seeds.py shares the slots of rows 14
 and 16 between those candidates, live seed_queue seeds and rotated research terms (an anchor slice of at most
 15% of expansion credits, about 15% of row 14 as exploration by Thompson sampling, no cluster above 25% of
 expansion credits
@@ -48,7 +50,8 @@ Every call goes through the SocialCrawl client, which appends raw_responses and 
 response is then parsed by core/collect/parse.py. cap_reached stops the rest of that market;
 insufficient_credits and balance_floor stop everything. core/collect/writers.py then writes posts by
 one MERGE, appends post_observations, item_counter_daily and collection_health, and merges every counter
-item that has a readable name (body_names, chart_names, default_label) into cultural_map with L2's MERGE.
+item that has a readable name (body_names, chart_names, default_label), and every searched post's sound a
+response named, into cultural_map with L2's MERGE.
 
 A live run refuses to start unless SAST, WAT and EAT are all on its run date (RUN_DATE or --run-date,
 else today) at the clock and it is 01:30 to 22:30 SAST; any date works with --plan. A call whose market
@@ -646,11 +649,14 @@ def sightings(done):
     return out
 
 
-def score_candidates(seen):
-    """Ranked keys per kind: most platforms, then most rows, then most sightings, then the key. origin maps
-    each hashtag to the (platform, row) that saw it most, for the seed mix's platform and family caps."""
+def score_candidates(seen, adoption=(), songs=None):
+    """Ranked keys per kind. Hashtags: most platforms, then most rows, then most sightings, then the key; origin
+    maps each hashtag to the (platform, row) that saw it most, for the seed mix's platform and family caps.
+    Sounds: by adoption (rank_sounds) over the harvest's sounds and the adoption rows."""
     stats = {}
     for kind, key, row, platform in seen:
+        if kind != "hashtag":
+            continue
         entry = stats.setdefault((kind, key), [set(), set(), 0, Counter()])
         entry[0].add(platform)
         entry[1].add(row)
@@ -660,9 +666,91 @@ def score_candidates(seen):
     for (kind, key), (platforms, rows, n, where) in sorted(
             stats.items(), key=lambda kv: (-len(kv[1][0]), -len(kv[1][1]), -kv[1][2], kv[0][1])):
         ranked[kind].append(key)
-        if kind == "hashtag":
-            ranked["origin"][key] = min(where, key=lambda pr: (-where[pr], pr))
+        ranked["origin"][key] = min(where, key=lambda pr: (-where[pr], pr))
+    ranked["sound"] = rank_sounds([key for kind, key, _, _ in seen if kind == "sound"], adoption, songs)
     return ranked
+
+
+def _instant(value):
+    """A post time as seconds since the epoch, or None: a datetime (naive read as UTC), a date or an ISO string."""
+    if isinstance(value, str):
+        try:
+            text = value.strip()
+            value = datetime.fromisoformat(text[:-1] + "+00:00" if text.endswith("Z") else text)
+        except ValueError:
+            return None
+    if isinstance(value, datetime):
+        return (value if value.tzinfo else datetime.combine(value.date(), value.time(), timezone.utc)).timestamp()
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day, tzinfo=timezone.utc).timestamp()
+    return None
+
+
+def rank_sounds(keys, adoption=(), songs=None):
+    """Sound ids for rows 11 and 12, most adopted first. keys are the harvest's sound ids; adoption holds one row
+    per post ({sound_id, creator_id, post_id, newest}): the harvest's TikTok posts and yesterday's stored search
+    and trending posts in the market. Sounds group by the vendor's matched song (songs maps a sound id to its
+    ext.matched_song_id) when known, else by their own id. Groups rank by distinct creators, then distinct posts,
+    then the newest post, then the key; each group is read through its most adopted sound id by the same order,
+    as a clip id is what the routes take. A sound id rule 1 (gdelt.blocked) refuses is never a candidate."""
+    from core.collect.gdelt import blocked
+
+    songs, members = songs or {}, {}
+    for key in keys:
+        if key not in (None, ""):
+            members.setdefault(str(key), [set(), set(), None])
+    for row in adoption:
+        sound = row.get("sound_id")
+        if sound in (None, ""):
+            continue
+        entry = members.setdefault(str(sound), [set(), set(), None])
+        if row.get("creator_id") not in (None, ""):
+            entry[0].add(str(row["creator_id"]))
+        if row.get("post_id") not in (None, ""):
+            entry[1].add(str(row["post_id"]))
+        moment = _instant(row.get("newest"))
+        if moment is not None and (entry[2] is None or moment > entry[2]):
+            entry[2] = moment
+
+    def order(creators, posts, newest, key):
+        return -len(creators), -len(posts), -newest if newest is not None else math.inf, key
+
+    groups = {}
+    for sound, (creators, posts, newest) in members.items():
+        if blocked(sound):
+            continue
+        song = songs.get(sound)
+        group = groups.setdefault(("song", str(song)) if song not in (None, "") else ("sound", sound),
+                                  [set(), set(), None, []])
+        group[0] |= creators
+        group[1] |= posts
+        if newest is not None and (group[2] is None or newest > group[2]):
+            group[2] = newest
+        group[3].append(sound)
+    ranked = sorted(groups.items(), key=lambda kv: order(kv[1][0], kv[1][1], kv[1][2], kv[0]))
+    return [min(sounds, key=lambda sound: order(*members[sound], sound)) for _, (_, _, _, sounds) in ranked]
+
+
+def adoption_rows(done):
+    """(adoption rows, songs) from a market's calls so far: one row per TikTok post with a sound
+    ({sound_id, creator_id, post_id, newest}, newest its publish time), and sound id -> ext.matched_song_id for
+    every response row that carries both."""
+    rows, songs = [], {}
+    for _, result, parsed in done:
+        for post in (parsed or {}).get("posts", []):
+            if post.get("platform") == "tiktok" and post.get("sound_id"):
+                rows.append({"sound_id": post["sound_id"], "creator_id": post.get("creator_id"),
+                             "post_id": post.get("post_id"), "newest": post.get("published_at")})
+        data = _dict(getattr(result, "body", None)).get("data")
+        for row in _rows(data):
+            node = _dict(row.get("post")) or row
+            ext = _dict(node.get("ext"))
+            sound = _first(ext, "music_id", "audio_id") or _first(node, "music_id", "audio_id", "sound_id") \
+                or _first(_dict(node.get("music")) or _dict(node.get("sound")), "id")
+            song = _first(ext, "matched_song_id")
+            if sound is not None and song is not None:
+                songs[str(sound)] = str(song)
+    return rows, songs
 
 
 def _rate(url):
@@ -900,6 +988,16 @@ class _CountedIds:
         self.made.setdefault(made, (kind, raw, platform))
         return made
 
+    def note(self, kind, raw, platform):
+        """The id of an item seen on a post with no counter row, kept for naming; None when it makes no id. Not
+        counted as a skip: parse never asked for it."""
+        try:
+            made = self.fn(kind, raw, platform)
+        except ValueError:
+            return None
+        self.made.setdefault(made, (kind, raw, platform))
+        return made
+
 
 def _named(title, artist=None):
     title, artist = (str(v).strip() if v not in (None, "") else "" for v in (title, artist))
@@ -932,11 +1030,27 @@ def _sound_named(platform, title, author):
     return AUTHOR_ONLY + author
 
 
+def post_sound_name(platform, node, ext):
+    """A ranked or searched post's sound label: the music block's title and author, else the post's ext music
+    title and author fields, as _sound_named writes them. When that gives no name, or only the author ("original
+    sound - <author>"), the vendor's matched song (ext.matched_song_title and ext.matched_song_artist, one song
+    across many "original sound" ids) names it "title by artist" when the row carries it. None without either."""
+    music = _dict(node.get("music")) or _dict(node.get("sound"))
+    sound = _sound_named(platform,
+                         _first(music, "title", "name") or _first(ext, "music_title", "music_name"),
+                         _first(music, "author", "author_name", "authorName", "artist")
+                         or _first(ext, "music_author", "music_author_name", "music_artist"))
+    matched = _named(_first(ext, "matched_song_title"), _first(ext, "matched_song_artist"))
+    if matched and (not sound or sound.startswith(AUTHOR_ONLY)):
+        return matched
+    return sound
+
+
 def body_names(route, params, body):
-    """Readable names for counter items whose raw value is an id: (kind, platform, raw) -> label. A chart,
-    music board or sound count row names its sound "title by artist"; a ranked post names its creator by
-    display name (a YouTube channel title) and its sound by the music title when the post carries one.
-    Hashtags and names need no body: default_label reads them from the raw value."""
+    """Readable names for items whose raw value is an id: (kind, platform, raw) -> label. A chart, music board
+    or sound count row names its sound "title by artist"; a ranked post names its creator by display name (a
+    YouTube channel title); a ranked or searched post names its sound as post_sound_name reads it. Hashtags and
+    names need no body: default_label reads them from the raw value."""
     family, platform = ROUTES[route][0], ROUTES[route][1]
     data = _dict(body).get("data")
     out = {}
@@ -954,15 +1068,15 @@ def body_names(route, params, body):
             raws += [_first(node, k) for k in ("id", "song_id", "apple_id", "audio_id", "music_id")]
             raws += [params.get("clipId")] if route == "tiktok/song" else []
             add_names(out, {("sound", platform, str(raw)): label for raw in raws if raw is not None and label})
-        elif family == "rank":
-            creator = _named(_first(author, "display_name", "name") or _first(author, "username"))
-            for raw in (_first(author, "username"), _first(author, "id"), _first(author, "channel_id"),
-                        _first(ext, "channel_id")):
-                if raw is not None and creator:
-                    out[("creator", platform, str(raw))] = creator
+        elif family in ("rank", "search") and platform:
+            if family == "rank":
+                creator = _named(_first(author, "display_name", "name") or _first(author, "username"))
+                for raw in (_first(author, "username"), _first(author, "id"), _first(author, "channel_id"),
+                            _first(ext, "channel_id")):
+                    if raw is not None and creator:
+                        out[("creator", platform, str(raw))] = creator
             music = _dict(node.get("music")) or _dict(node.get("sound"))
-            sound = _sound_named(platform, _first(music, "title", "name"),
-                                 _first(music, "author", "author_name", "authorName", "artist"))
+            sound = post_sound_name(platform, node, ext)
             for raw in (_first(ext, "music_id", "audio_id"), _first(node, "music_id", "audio_id", "sound_id"),
                         _first(music, "id")):
                 if raw is not None and sound:
@@ -1035,6 +1149,7 @@ class Collected:
     news_seeds: list = field(default_factory=list)
     names: dict = field(default_factory=dict)
     items: dict = field(default_factory=dict)
+    post_sounds: list = field(default_factory=list)
     watches: int = 0
     watch_calls: int = 0
     watches_not_planned: list = field(default_factory=list)
@@ -1263,11 +1378,28 @@ class _Runner:
         self.run.counters += parsed["counters"]
         if call.family in ("rank", "board", "count"):
             add_names(self.run.names, body_names(call.route, call.params, result.body))
+        elif call.family == "search":
+            add_names(self.run.names, body_names(call.route, call.params, result.body))
+            self._post_sounds(parsed)
         posts = {p["post_id"]: p for p in parsed["posts"]}
         for obs in parsed["observations"]:
             if obs["market"] in MARKETS and obs["post_id"] in posts:
                 self.first_seen.setdefault(obs["post_id"], (obs["market"], posts[obs["post_id"]]))
         return parsed
+
+    def _post_sounds(self, parsed):
+        """A searched post's sound has no counter row, so the run keeps one sighting of it per post (its
+        observation's day and market) for cultural_map_rows, which names it when a response gave its title."""
+        seen = {o["post_id"]: o for o in parsed["observations"]}
+        for post in parsed["posts"]:
+            obs = seen.get(post["post_id"])
+            if obs is None or not post.get("sound_id") or not post.get("platform"):
+                continue
+            item = self.ids.note("sound", post["sound_id"], post["platform"])
+            if item is not None:
+                self.run.post_sounds.append({"item_id": item, "obs_date": obs["observed_date"],
+                                             "market": obs["market"], "platform": post["platform"],
+                                             "source": "live"})
 
     def _record(self, call, status, moment, result=None, parsed=None):
         """One call's health inputs, dated on the market-local day of its fetch, as parse dates its rows."""
@@ -1567,11 +1699,13 @@ def country_phase(run, runner, profile_reader, cap):
 def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None, x_trends=False, share_cap=None,
             last_pulls=None, seeds=None, local_get=None, watches=None, known_posts=None,
             public_feed_transport=None, search_signals=False, only_routes=None, keep=frozenset(),
-            google_rss_transport=None, google_terms=None, country_profiles=None, on_run=None):
+            google_rss_transport=None, google_terms=None, country_profiles=None, on_run=None, sound_adoption=None):
     """Make every call of the run through client and parse each response. Nothing is written here.
     share_cap is the overridden collect cap (None without an override); last_pulls maps (market, series,
     protocol) to the last pull number already stored; seeds holds the seed_queue rows seeds.read gave;
-    watches the current watches writers.read_watches gave. run.seed_rows gets one yield row per seed used,
+    watches the current watches writers.read_watches gave; sound_adoption the stored posts
+    writers.read_sound_adoption gave per market, which rank the row 11 and 12 sounds with the harvest's (rank_sounds).
+    run.seed_rows gets one yield row per seed used,
     and run.items names every item the run made an id for (named_items). With local_get, the free getter
     (local_sources.http_get live), the local sources phase runs last on the same client. With search_signals,
     the Google Trends phase (trends_phase) runs before it, keeping the local hold in reserve. With
@@ -1605,7 +1739,9 @@ def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None,
     focus = {}
 
     def rank(market):
-        ranked = score_candidates(sightings(runner.done[market]))
+        harvest, songs = adoption_rows(runner.done[market])
+        stored = list((sound_adoption or {}).get(market, ()))
+        ranked = score_candidates(sightings(runner.done[market]), harvest + stored, songs)
         run.candidates[market] = ranked
         focus[market] = set(ranked["hashtag"][:search_calls(market)]) | set(ranked["sound"][:SONG_VIDEOS])
         return ranked
@@ -2079,11 +2215,12 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
     try:
         item_id_fn, geo_fn = fns or detect_fns()
         last = writers.last_pulls(bq, run_date)
-        queue, watches = [], []
+        queue, watches, adoption = [], [], {}
         if only is None:
             queue = seeding.read(bq, run_date, MARKETS)
             queue.extend(seeding.research_rows(research_terms.load_terms(), run_date))
             watches = writers.read_watches(bq, MARKETS)
+            adoption = writers.read_sound_adoption(bq, run_date - timedelta(days=1), MARKETS)
         collected = collect(make_client(run.run_id, caps), run_date, run.run_id, item_id_fn=item_id_fn,
                             geo_fn=geo_fn, clock=clock, x_trends=x_trends, share_cap=share_cap, last_pulls=last,
                             seeds=queue, local_get=get or local_sources.http_get, watches=watches,
@@ -2092,7 +2229,7 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
                             only_routes=only, keep=keep, google_rss_transport=public_feed_transport,
                             google_terms=lambda: google_trends.read_terms(bq, run_date, MARKETS),
                             country_profiles=lambda keys, **kw: writers.read_profile_countries(bq, keys, **kw),
-                            on_run=started.append)
+                            on_run=started.append, sound_adoption=adoption)
         if only is None:
             bq_trends_phase(collected, bq, run_date, clock=clock)
         written = writers.write_run(bq, collected, run.run_id, carry=base["health"] if base else None)
