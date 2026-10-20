@@ -914,6 +914,17 @@ def test_validity_rules_follow_data_md_3_3():
                  units_planned=12, units_ok=4) == (False, "effort", 3.0)
     assert judge(calls=8, calls_ok=8, items=5, ref_items=None, ref_days=0, lane_class="panel",
                  units_planned=8, units_ok=8) == (True, None, 1.0)
+    # a panel day is never held on items: a quiet day for its creators is still a complete read of them
+    assert judge(calls=1, calls_ok=1, items=4, ref_items=16, ref_days=6, lane_class="panel",
+                 units_planned=12, units_ok=12) == (True, None, 1.0)
+    assert judge(calls=1, calls_ok=1, items=0, ref_items=3, ref_days=6, lane_class="panel",
+                 units_planned=12, units_ok=9) == (True, None, 12 / 9)
+    assert judge(calls=1, calls_ok=1, items=4, ref_items=16, ref_days=6, lane_class="panel",
+                 units_planned=12, units_ok=5)[:2] == (False, "effort")
+    assert judge(calls=1, calls_ok=0, items=4, ref_items=16, ref_days=6, lane_class="panel",
+                 units_planned=12, units_ok=0)[:2] == (False, "calls")
+    assert judge(calls=3, calls_ok=3, items=4, ref_items=16, ref_days=6, lane_class="unbiased_counter",
+                 units_planned=3, units_ok=3)[:2] == (False, "items")
     assert judge(calls=0, calls_ok=0, items=0, ref_items=None, ref_days=0, lane_class="unbiased_rank",
                  units_planned=0, units_ok=0)[:2] == (False, "calls")
 

@@ -190,9 +190,10 @@ def test_a_day_with_no_calls_made_is_not_a_zero_yield_day_and_starts_no_run_of_t
 
 
 def test_a_day_already_invalid_for_a_drop_keeps_its_reason():
-    refs = {DAY: {("ZA", "panel_culture_desk", "panel:abc"): (50.0, 5)}}
-    [row] = health([rec()], prior_zero(PRIOR_KEY), refs).values()
-    assert (row["valid"], row["invalid_reason"]) == (False, "items")
+    # A panel day is judged on effort, not items: 12 profiles planned and 4 read is invalid before zero_yield looks.
+    thin = {**rec(), "units_planned": 12, "units_ok": 4}
+    [row] = health([thin], prior_zero(PRIOR_KEY)).values()
+    assert (row["valid"], row["invalid_reason"]) == (False, "effort")
 
 
 def test_the_default_is_no_prior_day_so_existing_callers_are_unchanged():

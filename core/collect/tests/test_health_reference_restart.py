@@ -1,8 +1,9 @@
 """The recovered prism/profiles panels and tiktok/song counters start a fresh health reference.
 
 Before the parser fixes these calls succeeded and parsed zero items, so collection_health holds valid days with a
-median of 0 items under their old protocol. judge() then fails any nonzero day as "items" until fewer than 3 such
-days remain in the 28 day window, and G1 holds the cards on the main platform. A new protocol token gives the
+median of 0 items under their old protocol. judge() then failed any nonzero day as "items" until fewer than 3 such
+days remained in the 28 day window, and G1 held the cards on the main platform (a panel day is no longer judged on
+items, so today only the counter shows that failure). A new protocol token gives the
 recovered series its own reference (DATA.md 3.2). The G1 checks run the publish gate's real context SQL on DuckDB.
 """
 
@@ -45,11 +46,11 @@ def _song():
 CASES = {"gossip": _gossip, "desk": _desk, "song": _song}
 
 
-def record(case, d, *, protocol, items=None, ok=True):
+def record(case, d, *, protocol, items=None, ok=True, units_ok=None):
     return {"row": "x", "route": case["route"], "market": case["market"], "day": d.isoformat(),
             "platform": case["platform"], "series": case["series"], "protocol": protocol,
             "lane_class": case["lane_class"], "status": "ok" if ok else "http_503", "ok": ok, "calls": 1,
-            "units_planned": case["units"], "units_ok": case["units"] if ok else 0,
+            "units_planned": case["units"], "units_ok": (case["units"] if ok else 0) if units_ok is None else units_ok,
             "items": case["items"] if items is None else items, "post_ids": [], "reason": "",
             "failure": "" if ok else "http_5xx"}
 
@@ -68,9 +69,12 @@ def test_the_new_token_leaves_the_zero_item_reference_behind(name):
     stale = {(case["market"], case["series"], case["legacy"]): STALE}
     fresh = health(case, D, stale)
     assert (fresh["valid"], fresh["invalid_reason"], fresh["ref_days"], fresh["ref_items"]) == (True, None, 0, None)
-    # The same day under the old token is the failure this guards against.
+    # The same day under the old token is the failure this guarded against. A counter still fails on items; a
+    # panel no longer does, since DATA.md 3.3 judges a panel day on calls and effort alone, but it would still
+    # carry the stale reference, which is why the token moved.
     old = health(case, D, stale, protocol=case["legacy"])
-    assert (old["valid"], old["invalid_reason"], old["ref_days"]) == (False, "items", 20)
+    expected = (True, None) if case["lane_class"] == "panel" else (False, "items")
+    assert (old["valid"], old["invalid_reason"], old["ref_days"], old["ref_items"]) == expected + (20, 0.0)
 
 
 def test_the_new_tokens_are_pinned():
@@ -100,12 +104,12 @@ def test_other_panels_and_counters_keep_their_tokens():
     assert hashtag.series_protocol() == "tiktok/hashtag"
 
 
-def _gate(case, protocol, days=3):
+def _gate(case, protocol, days=3, **kw):
     con = world()
     series_id = f"i1|{case['market']}|{case['series']}|{protocol}"
     series_platform(con, "instagram", series_id)
     stale = {(case["market"], case["series"], case["legacy"]): STALE}
-    rows = [health(case, day(i), stale, protocol=protocol) for i in range(days)]
+    rows = [health(case, day(i), stale, protocol=protocol, **kw) for i in range(days)]
     for row in rows:
         row["day"] = date.fromisoformat(row["day"])
     duck.load(con, "core.collection_health", rows)
@@ -114,11 +118,15 @@ def _gate(case, protocol, days=3):
 
 
 @pytest.mark.parametrize("name", ["gossip", "desk"])
-def test_g1_holds_no_card_on_a_new_token_and_does_on_the_old_one(name):
+def test_g1_holds_no_card_on_a_panel_token_and_does_when_its_profiles_do_not_answer(name):
     case = CASES[name]()
     assert _gate(case, case["protocol"]) [0] == [True, True, True]
     assert _gate(case, case["protocol"])[1] != "G1"
-    assert _gate(case, case["legacy"]) == ([False, False, False], "G1")
+    # The stale zero median under the old token no longer holds a panel day, since a panel is not judged on items.
+    assert _gate(case, case["legacy"])[0] == [True, True, True]
+    assert _gate(case, case["legacy"])[1] != "G1"
+    # A panel day whose profiles mostly did not answer is still invalid, on effort, and G1 still holds the card.
+    assert _gate(case, case["protocol"], units_ok=case["units"] // 3) == ([False, False, False], "G1")
 
 
 @pytest.mark.parametrize("name", sorted(CASES))
@@ -127,9 +135,17 @@ def test_a_new_token_still_fails_on_real_failures_once_it_has_its_own_reference(
     own = {(case["market"], case["series"], case["protocol"]): (case["items"] * 1.0, 3)}
     assert health(case, D, own)["valid"] is True
     too_many = health(case, D, own, items=case["items"] * 3)
-    assert (too_many["valid"], too_many["invalid_reason"]) == (False, "items")
     empty = health(case, D, own, items=0)
-    assert (empty["valid"], empty["invalid_reason"]) == (False, "items")
+    if case["lane_class"] == "panel":
+        # A panel's item count is its creators' output, so neither a busy nor a quiet day is a failure...
+        assert (too_many["valid"], too_many["invalid_reason"]) == (True, None)
+        assert (empty["valid"], empty["invalid_reason"]) == (True, None)
+        # ...but reading fewer than half of its profiles is.
+        thin = health(case, D, own, units_ok=case["units"] // 3)
+        assert (thin["valid"], thin["invalid_reason"]) == (False, "effort")
+    else:
+        assert (too_many["valid"], too_many["invalid_reason"]) == (False, "items")
+        assert (empty["valid"], empty["invalid_reason"]) == (False, "items")
     down = health(case, D, own, ok=False)
     assert down["valid"] is False and down["invalid_reason"].startswith("calls")
 

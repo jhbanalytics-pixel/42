@@ -39,6 +39,7 @@ Release Alpha, data quality, trend identity and research reliability.
 - Ask answers a question about figures, such as poll percentages, with the figures its sources report: one bar chart per source, with who ran it, when, the sample and the quoted words. A figure is kept only when its quote is found word for word in the record, and a hidden publisher's table is left out.
 - Ask searches live news it can cite and opens the article behind a news result to read it. A question about figures searches news first.
 - Ask's Deep level, several researchers in parallel and then a critic, is open to plain questions where the service has it switched on. The app does not offer a depth control yet.
+- A creator panel's collection day is no longer held invalid for a quiet or busy day among its creators. Its item count is what those creators posted, so the day is judged on how many of its profiles answered; feeds, counters and searches keep the item band. Until now small panels in Kenya, Nigeria and South Africa were read as invalid on ordinary days and held every card on their platform.
 - The morning collection also searches Bluesky, LinkedIn and each market's subreddit, only in the room the day's collection share leaves after the earlier sources.
 - The monthly credit cap rises to 180,000. The morning collection's credit share stays at 2,000 a day: at 4,000 the 20 October collection ran 162 minutes and the brief missed its 06:15 deadline, so no trend was explained.
 

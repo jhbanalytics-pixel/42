@@ -19,7 +19,8 @@ collection_health: one row per day, market, series and protocol, the day being t
 the fetches it summarises (the day parse gives their rows), judged as DATA.md section 3.3 does: calls
 when under 80% of calls succeeded (a series skipped for want of input has 0 calls and fails here too),
 items when the day's rows fall outside half to twice the median of up to 28 prior valid days (only once
-3 exist), effort when a panel's k = units_planned / units_ok lies outside 0.5 to 2. The drift check
+3 exist; a panel is never judged on items, its items being its members' output), effort when a panel's
+k = units_planned / units_ok lies outside 0.5 to 2. The drift check
 (TRUST.md A1) is not built yet. A repair run (COLLECT_ONLY_ROUTES) also appends the day's good collect run's
 rows for every key it did not read, under its own run_id (repair_base, carry_forward).
 
@@ -603,8 +604,9 @@ def judge(*, calls, calls_ok, items, ref_items, ref_days, lane_class, units_plan
     k = (units_planned / units_ok if units_ok else None) if lane_class == "panel" else None
     if calls == 0 or calls_ok < 0.8 * calls:
         reason = "calls"
-    elif ref_days >= 3 and ref_items is not None and not 0.5 * ref_items <= items <= 2 * ref_items:
-        reason = "items"
+    elif (lane_class != "panel" and ref_days >= 3 and ref_items is not None
+          and not 0.5 * ref_items <= items <= 2 * ref_items):
+        reason = "items"  # a panel's items are its creators' output; effort below judges the panel itself
     elif lane_class == "panel" and not 0.5 <= (99 if k is None else k) <= 2:
         reason = "effort"
     else:
