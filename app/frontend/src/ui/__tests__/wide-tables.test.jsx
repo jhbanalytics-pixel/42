@@ -113,15 +113,19 @@ async function serve(){
   return {server, port: server.address().port};
 }
 
+/* A loaded runner can take well over ten seconds to start Chrome, so the port and the
+   endpoint each get thirty seconds before the harness gives up. */
+const STARTUP_ATTEMPTS = 600;
+
 async function page(profile, url){
   let port = 0;
-  for (let attempt = 0; attempt < 200 && !port; attempt += 1){
+  for (let attempt = 0; attempt < STARTUP_ATTEMPTS && !port; attempt += 1){
     try { port = Number(readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split(/\r?\n/, 1)[0]); } catch {}
     if (!port) await wait(50);
   }
   if (!port) throw new Error('the wide table harness found no debugging port');
   let endpoint = null;
-  for (let attempt = 0; attempt < 200 && !endpoint; attempt += 1){
+  for (let attempt = 0; attempt < STARTUP_ATTEMPTS && !endpoint; attempt += 1){
     try { endpoint = (await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json())).webSocketDebuggerUrl; } catch {}
     if (!endpoint) await wait(50);
   }
@@ -274,13 +278,15 @@ async function arrowScroll(client, selector, index){
   let position = await readPosition();
   for (let i = 0; i < 100 && position.left < position.max - 1; i += 1){
     await client.press('ArrowRight', 'ArrowRight', 39);
-    await wait(20);
-    let next = await readPosition();
-    if (next.left <= position.left){
-      await wait(100);
+    /* Chrome scrolls a keyboard press on the compositor, so the box can move some time after
+       the key event returns; on a loaded runner that is well past a hundred milliseconds. A
+       press counts as stalled only when the box has not moved a full second later. */
+    let next = position;
+    for (let waited = 0; waited < 1000 && next.left <= position.left; waited += 50){
+      await wait(50);
       next = await readPosition();
-      if (next.left <= position.left) break;
     }
+    if (next.left <= position.left) break;
     position = next;
   }
   await wait(200);
