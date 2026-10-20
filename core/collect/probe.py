@@ -49,6 +49,16 @@ that decides whether a candidate earns a morning lane.
 
     py -3.13 -m core.collect.probe --candidates --plan               the calls and the total hold, no network
     python -m core.collect.probe --candidates                        inside the f42-probe job only
+
+--vendor-claims probes the SocialCrawl reply of 19 Oct 2026 (/mnt/project-files/42-collect/SOCIALCRAWL-REPLY-20261019.md
+in the project; the vendor's claims 1, 2a, 3, 4 and 9): Instagram reel search and TikTok top search with and
+without region=, one reel search with include=country, and YouTube search with include=channel, on each
+market's research term and on the generic term the vendor tested, under VENDOR_CAP (100) on the build share
+after the morning schedule. Each line counts the rows, where core.detect.geo places them and how many carry
+the promised fields (ext.region, ext.matched_song_id, ext.author_country, a channel country).
+
+    py -3.13 -m core.collect.probe --vendor-claims --plan            the calls and the total hold, no network
+    python -m core.collect.probe --vendor-claims                     inside a one-off f42-probe job only
 """
 
 import argparse
@@ -700,6 +710,114 @@ def run_candidates(client, calls, run_id):
     return 0
 
 
+# probe.py --vendor-claims: the SocialCrawl reply of 19 Oct 2026, one call per claim per market -----------------
+
+# Each market's first research term of the day, and the generic term the vendor tested, are searched the way
+# row 14 and row 16 search today and the way the vendor says to search: Instagram reels without and with
+# region=, TikTok top with country= (the filter 42 sends) and with region= (the ranking the vendor describes),
+# and, for ZA only, the market term on YouTube with include=channel and one reel search with include=country,
+# which holds 60 a page. Every row is counted by
+# core.detect.geo as today, and the fields the vendor promises are counted where they appear: ext.region and
+# ext.matched_song_id on TikTok rows, ext.author_country on Instagram rows, a channel country on YouTube rows.
+# Nothing here changes the morning run; the counts decide what the collector adopts.
+VENDOR_CAP = 100
+VENDOR_MARKETS = CANDIDATE_MARKETS
+GENERIC_TERM = "funny"  # the term the vendor's own test used, where a market term masks what region= changes
+VENDOR_FIELDS = {
+    "instagram/search/reels": ("author_country",),
+    "tiktok/search/top": ("region", "matched_song_id"),
+    "youtube/search/advanced": ("channel_country", "country"),
+}
+
+
+def vendor_plan(today, queries=None):
+    """(calls, dropped): the vendor-claim calls in run order, and the (market, route, value) rule 1 blocks."""
+    from core.collect.gdelt import blocked
+
+    queries = candidate_queries(today) if queries is None else queries
+    calls, dropped = [], []
+    for market in VENDOR_MARKETS:
+        query = queries.get(market)
+        if not query:
+            dropped.append((market, "*", "no research term"))
+            continue
+        if blocked(query):
+            dropped.append((market, "*", query))
+            continue
+        rows = [
+            ("igr0", "instagram/search/reels", {"query": query}, "reels as searched today"),
+            ("igr1", "instagram/search/reels", {"query": query, "region": market}, "reels with region"),
+            ("tt0", "tiktok/search/top", {"query": query, "country": market}, "top with country, as today"),
+            ("tt1", "tiktok/search/top", {"query": query, "region": market}, "top with region"),
+            ("gr1", "instagram/search/reels", {"query": GENERIC_TERM, "region": market}, "generic reels with region"),
+            ("gt0", "tiktok/search/top", {"query": GENERIC_TERM, "country": market}, "generic top with country"),
+            ("gt1", "tiktok/search/top", {"query": GENERIC_TERM, "region": market}, "generic top with region"),
+        ]
+        if market == "ZA":
+            rows.insert(2, ("igc", "instagram/search/reels", {"query": query, "region": market, "include": "country"},
+                            "reels with author country"))
+            # The generic search without region is the same call for every market, so it runs once; the channel
+            # country probe runs once too, since the vendor's own count was 16 channels of 57.
+            rows.append(("gr0", "instagram/search/reels", {"query": GENERIC_TERM}, "generic reels as searched today"))
+            rows.append(("yt", "youtube/search/advanced", {"query": query, "region": market, "include": "channel"},
+                         "channel country"))
+        for short, route, params, purpose in rows:
+            calls.append({"id": f"vend-{market.lower()}-{short}", "route": route, "method": PRICED[route].method,
+                          "params": params, "market": market, "purpose": purpose})
+    return calls, dropped
+
+
+def vendor_hold(p):
+    return quote_for(p["route"], p["method"], p["params"])
+
+
+def print_vendor_plan(calls, dropped):
+    for p in calls:
+        print(f"{p['id']:12} {p['market']:3} {p['route']:24} {vendor_hold(p):>4}  "
+              f"{json.dumps(p['params'], separators=(',', ':'))}  {p['purpose']}")
+    for market, route, value in dropped:
+        print(f"dropped: {market} {route} {value}")
+    print(f"{len(calls)} calls, total hold {sum(vendor_hold(p) for p in calls)} credits, cap {VENDOR_CAP}")
+
+
+def field_counts(rows, keys):
+    """{key: rows carrying a non-empty value under key, three levels deep}."""
+    return {k: sum(1 for r in rows if _strings(r, (k,))) for k in keys}
+
+
+def run_vendor_claims(client, calls, run_id):
+    """One call per claim, stopping before any hold that would take the run past VENDOR_CAP and after any call
+    charged more than its hold or not answered. Prints a line per call (rows, where core.detect.geo places
+    them, and how many rows carry each promised field). Bodies and the key are never printed."""
+    spent, made = 0, 0
+    try:
+        for p in calls:
+            held = vendor_hold(p)
+            if spent + held > VENDOR_CAP:
+                print(f"stopped before {p['id']}: {spent:g} charged plus {held} held is over the cap of {VENDOR_CAP}")
+                break
+            result = client.call(p["route"], p["params"], method=p["method"], market=p["market"], seed_key=p["id"],
+                                 lane=None)
+            made += 1
+            spent += result.credits_charged
+            counts = tally(p["route"], p["market"], result.items)
+            fields = field_counts(result.items, VENDOR_FIELDS.get(p["route"], ()))
+            print(f"{p['id']} {p['route']} {p['market']} {result.status} held={held} "
+                  f"charged={result.credits_charged:g} rows={counts['rows']} local={counts['local']} "
+                  f"foreign={counts['foreign']} unknown={counts['unknown']}"
+                  + "".join(f" {k}={v}" for k, v in fields.items()) + f"  ({p['purpose']})")
+            if result.status not in SUCCESS_STATUSES:
+                print(f"stopped after {p['id']}: {result.status}")
+                break
+            if result.credits_charged > held:
+                print(f"stopped after {p['id']}: charged {result.credits_charged:g} against a hold of {held}")
+                break
+    except Exception as exc:
+        print(f"stopped: {type(exc).__name__}")
+    print(f"done: {made} calls, {spent:g} credits charged for run_id {run_id}")
+    return 0
+
+
 def print_plan(probes):
     print(f"{'id':6} {'method':6} {'route':28} {'market':6} {'list':>4} {'hold':>4}  params  purpose")
     for p in probes:
@@ -717,6 +835,8 @@ def main(argv=None, *, client=None, clock=None, today=None, query=None, read=Non
     args.add_argument("--ig-locations", action="store_true", help="Instagram location searches for IG_CITIES")
     args.add_argument("--ig-locations-report", metavar="RUN_ID", help="print markets.yaml blocks from a run; local")
     args.add_argument("--candidates", action="store_true", help="one body from each endpoint audit candidate")
+    args.add_argument("--vendor-claims", action="store_true",
+                      help="the 19 Oct 2026 vendor claims: reel and top search options, one call each a market")
     opts = args.parse_args(argv)
     now = (clock or (lambda: datetime.now(timezone.utc)))()
     today = today or now.astimezone(SAST).date()
@@ -738,6 +858,17 @@ def main(argv=None, *, client=None, clock=None, today=None, query=None, read=Non
         for market, route, value in dropped:
             print(f"dropped: {market} {route} {value}")
         return run_candidates(client, calls, run_id)
+    if opts.vendor_claims:
+        calls, dropped = vendor_plan(today)
+        if opts.plan:
+            print_vendor_plan(calls, dropped)
+            return 0
+        run_id = "probe-vendor-" + now.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        client = client or live_client(run_id, schedule_started=True)
+        print(f"run_id {run_id}")
+        for market, route, value in dropped:
+            print(f"dropped: {market} {route} {value}")
+        return run_vendor_claims(client, calls, run_id)
     if opts.ig_locations:
         calls, dropped = ig_plan()
         if opts.plan:

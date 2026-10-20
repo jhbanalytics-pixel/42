@@ -72,13 +72,17 @@ def test_reel_sightings_are_search_presence_with_no_source_market():
 
 # Price
 
-def test_the_creator_card_holds_60_a_page_and_nothing_else_is_accepted():
+def test_the_creator_and_country_cards_hold_60_a_page_region_is_free_and_nothing_else_is_accepted():
     assert quote_for(ROUTE, "GET", {"query": "x"}) == 1
     assert quote_for(ROUTE, "GET", {"query": "x", "include": "creator"}) == 61
+    # The vendor's reply of 19 Oct 2026: region= appends the market name at no charge, include=country is the
+    # creator's country alone, held at the spec's creator-card price until probe.py --vendor-claims reads the charge.
+    assert quote_for(ROUTE, "GET", {"query": "x", "region": "ZA"}) == 1
+    assert quote_for(ROUTE, "GET", {"query": "x", "region": "ZA", "include": "country"}) == 61
     with pytest.raises(Refused):
         quote_for(ROUTE, "GET", {"query": "x", "include": "profile"})
     with pytest.raises(Refused):
-        quote_for(ROUTE, "GET", {"query": "x", "region": "ZA"})
+        quote_for(ROUTE, "GET", {"query": "x", "country": "ZA"})
 
 
 # Plan
