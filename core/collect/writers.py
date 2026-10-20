@@ -37,9 +37,11 @@ it; until then a gap over 35 days in one list is the only way to reach it.
 cultural_map (L2 Needs 11): every item on this run's counter rows (boards, charts, rank lists, counts and the
 local charts) goes into cultural_map through L2's own MERGE, core.detect.aggregate.cultural_map_merge_sql(),
 with rows shaped like aggregate.items_rows and passed as the @items parameter, so a board or chart item has a
-readable name before detect sees it. The MERGE only inserts new items and moves last_seen. An item is left
-out, and counted, when its label is one gdelt.blocked refuses (rule 1) or when it has no readable label (a
-bare id): an insert with no name would keep a later named one out.
+readable name before detect sees it. A searched post's sound (job.Collected.post_sounds) goes in the same way
+when a response named it, so a sound found by search is named too. The MERGE inserts new items, moves last_seen
+and names an open sound row still labelled by its raw id. An item is left out, and counted, when its label is one
+gdelt.blocked refuses (rule 1) or when it has no readable label (a bare id); a searched post's sound with no
+readable label is left out without being counted, as aggregate inserts it by its id.
 
 post_items (L2 Needs 34c): the pulse appends its posts' item links with L2's own INSERT,
 core.detect.aggregate.POST_ITEMS_INSERT_SQL, which adds only the post and item pairs not already there.
@@ -756,6 +758,14 @@ def cultural_map_rows(counters, items):
     return [r for r in rows.values() if r is not None], left
 
 
+def named_post_sounds(run):
+    """The run's searched post sound sightings (job.Collected.post_sounds) whose item has a label, shaped as
+    counter rows for cultural_map_rows."""
+    items = getattr(run, "items", None) or {}
+    return [s for s in getattr(run, "post_sounds", ()) or ()
+            if (items.get(s["item_id"]) or (None, None, None, None))[3]]
+
+
 def merge_cultural_map(bq, rows):
     """L2's cultural_map MERGE over rows, aggregate.CHUNK rows a statement. Returns the statements run."""
     from google.cloud import bigquery
@@ -893,6 +903,42 @@ def read_profile_countries(bq, keys, *, timeout=None):
             yield row
 
 
+# The stored posts whose sounds rank the morning's row 11 and 12 sound reads (job.rank_sounds): yesterday's
+# TikTok search and trending pulls.
+ADOPTION_ROUTES = ("tiktok/search/top", "tiktok/search/hashtag", "tiktok/trending")
+ADOPTION_SQL = (
+    "SELECT o.market, p.sound_id, p.creator_id, p.post_id, MAX(IFNULL(p.published_at, o.observed_at)) AS newest\n"
+    "FROM `{observations}` o\n"
+    "JOIN `{posts}` p ON p.post_id = o.post_id\n"
+    "WHERE o.observed_date = @d AND o.market IN UNNEST(@markets) AND o.route IN UNNEST(@routes)\n"
+    "  AND p.platform = 'tiktok' AND p.sound_id IS NOT NULL\n"
+    "GROUP BY o.market, p.sound_id, p.creator_id, p.post_id"
+)
+
+
+def read_sound_adoption(bq, day, markets):
+    """market -> [{sound_id, creator_id, post_id, newest}], one row per TikTok post with a sound that the
+    market's search or trending pulls (ADOPTION_ROUTES) observed on day, newest being its publish time, else its
+    latest observation. One parameterised SELECT; a failing read is logged and reads as no rows, so the run
+    ranks its sounds from the harvest alone, as before."""
+    from google.cloud import bigquery
+
+    sql = ADOPTION_SQL.format(observations=table("post_observations"), posts=table("posts"))
+    out = {m: [] for m in markets}
+    try:
+        rows = _query(bq, sql, [bigquery.ScalarQueryParameter("d", "DATE", day),
+                                bigquery.ArrayQueryParameter("markets", "STRING", list(markets)),
+                                bigquery.ArrayQueryParameter("routes", "STRING", list(ADOPTION_ROUTES))])
+    except Exception:
+        log.exception("the stored sound adoption read failed; sounds rank from the harvest alone")
+        return out
+    for r in rows:
+        r = dict(r.items())
+        if r.get("market") in out:
+            out[r["market"]].append({k: r.get(k) for k in ("sound_id", "creator_id", "post_id", "newest")})
+    return out
+
+
 def read_watches(bq, markets):
     """The active current watches in any of markets or in all markets, oldest first, target parsed; an item
     target carries its cultural_map item_kind, item_key and item_label (None when the item is not there)."""
@@ -948,7 +994,7 @@ def write_run(bq, run, run_id, carry=None):
     own = health_rows(run.records, run.posts, refs, run_id, prior)
     carried = carry_forward(carry, own, run_id) if carry is not None else []
     health = append(bq, "collection_health", own + carried)
-    mapped, left = cultural_map_rows(run.counters, run.items)
+    mapped, left = cultural_map_rows(run.counters + named_post_sounds(run), run.items)
     merge_cultural_map(bq, mapped)
     creators, error = write_creators(bq, run.creators)
     raw_rows = getattr(run, "public_feed_raw_rows", ()) or ()

@@ -49,7 +49,12 @@ USING (SELECT n.item_id, n.kind, n.canonical_key, n.label, n.first_seen, n.first
 ON t.item_id = s.item_id
 WHEN MATCHED AND t.valid_to IS NULL THEN
   UPDATE SET last_seen = GREATEST(IFNULL(t.last_seen, s.last_seen), s.last_seen),
-    status = IF(t.status IN ('active', 'generic'), s.status, t.status)
+    status = IF(t.status IN ('active', 'generic'), s.status, t.status),
+    label = IF(t.kind = 'sound' AND s.label IS NOT NULL
+               AND (t.label = REGEXP_EXTRACT(t.canonical_key, r'^[^:]*:(.*)$') OR REGEXP_CONTAINS(t.label, r'^[0-9]{8,}$'))
+               AND s.label != IFNULL(REGEXP_EXTRACT(s.canonical_key, r'^[^:]*:(.*)$'), '')
+               AND NOT REGEXP_CONTAINS(s.label, r'^[0-9]{8,}$'),
+               s.label, t.label)
 WHEN NOT MATCHED THEN
   INSERT (item_id, kind, canonical_key, label, first_seen, first_seen_market, first_seen_platform, last_seen,
           status, valid_from)
@@ -120,7 +125,10 @@ def cultural_map_merge_sql():
     """MERGE of @items into cultural_map: new items are inserted with their status; an open existing row
     has last_seen moved forward, and an 'active' or 'generic' status follows the stoplist both ways ('generic'
     when stoplisted, back to 'active' when taken off). Any other status such as 'rejected' never changes;
-    closed rows are left alone."""
+    closed rows are left alone. An open sound row whose label is still its raw id (the id part of its canonical
+    key, or 8 or more digits) takes the incoming label when that one is readable (neither its own id nor 8 or
+    more digits), so a sound first inserted by its id is named once collect reads its title; a readable label
+    is never replaced. Callers pass only labels that passed rule 1 (gdelt.blocked)."""
     return MERGE_SQL
 
 
