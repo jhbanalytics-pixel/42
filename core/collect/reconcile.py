@@ -258,7 +258,26 @@ def _vendor_side(items, start, end):
         if spend:
             rows.append({"id": t.get("id"), "request_id": t.get("request_id"), "route": vendor_route(t),
                          "at": at, "credits": _whole(spend)})
-    return total, rows, {"vendor_types": kinds, "vendor_not_spend": skipped, "vendor_untimed": untimed}
+    return total, net_by_request(rows), {"vendor_types": kinds, "vendor_not_spend": skipped,
+                                         "vendor_untimed": untimed}
+
+
+def net_by_request(rows):
+    """One row per vendor request id, holding what the call kept: a call charged when it starts and refunded when it
+    fails has a charge row and a refund row under the same request id (SocialCrawl, 19 Oct 2026), and their sum is
+    what it kept. A call that kept nothing drops out, as a zero transaction does. Rows without a request id stay as
+    they are. The netted row keeps the first row's time and id."""
+    netted, out = {}, []
+    for row in rows:
+        rid = row.get("request_id")
+        if not rid:
+            out.append(row)
+        elif rid in netted:
+            netted[rid]["credits"] = _whole(netted[rid]["credits"] + row["credits"])
+        else:
+            netted[rid] = dict(row)
+            out.append(netted[rid])
+    return [row for row in out if row["credits"]]
 
 
 def _sample(rows):

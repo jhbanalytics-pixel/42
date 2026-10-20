@@ -143,7 +143,9 @@ SEARCH_TOP, EXPLORE_SHARE, MULTI_TOP, MAX_SHARE = 60, 0.15, 7, 0.25
 # and every credit above PAGES_SHARE goes half to more row 14 searches and half to more row 16 search/multi
 # calls (Instagram, YouTube, Reddit, X, Threads and Facebook), split evenly over the markets (volume()).
 SEARCH_PAGES, PAGES_SHARE, MULTI_CREDITS = 2, 2000, 10
-# Row 14i: Instagram reel searches with the creator card (include=creator), on a market's first row 14 queries. Each
+# Row 14i: Instagram reel searches with the creator card (include=creator), localised to the market (region=), on a
+# market's first row 14 queries. region= is free and narrows the page toward the market (probe of 20 Oct 2026, NG: 12
+# of 12 rows placed local from text against 14 of 30 without it; a ZA page came back with 3 rows). Each
 # reel comes back with post.ext.author_country, the country its creator declares on their own Instagram profile, which
 # parse reads as the creator's home market. A call holds 61 credits: 1 for the page and 60 for the creator lookups of
 # a full page of 30, refunded for every creator not looked up or not found. The most a market reads a run; 0 turns its
@@ -478,8 +480,12 @@ def expansion_calls(market, day, ranked, rng, counted, search_top=SEARCH_TOP, *,
     return calls + placebo + regular
 
 
+def reels_params(query, market):
+    return {"query": query, "include": "creator", "region": market}
+
+
 def reels_calls(market, regular, count):
-    """Row 14i for a market: count Instagram reel searches with include=creator, on the first queries of its planned
+    """Row 14i for a market: count Instagram reel searches with include=creator and region=, on the first queries of its planned
     row 14 country searches (placebo searches left out). They carry no seed, so a seed's recorded yield stays its
     row 14 and 16 reads, and their health rows are search_presence, never baseline. The protocol names the market's
     REELS_TOP count, as row 14's names its planned searches."""
@@ -492,7 +498,7 @@ def reels_calls(market, regular, count):
             queries.append((c.seed.query, c.seed_key, c.lane))
     calls = []
     for query, key, lane in queries:
-        params = {"query": query, "include": "creator"}
+        params = reels_params(query, market)
         calls.append(Call(REELS_ROW, REELS_ROUTE, params, market, lane, seed_key=key,
                           protocol=search_protocol(REELS_ROUTE, params, REELS_TOP.get(market, 0))))
     return calls
@@ -551,7 +557,7 @@ def reels_counts(room, top=None):
     """Row 14i calls a market within room credits, market by market in the run's order (MARKETS), each up to its
     count in top (REELS_TOP) while a call's hold still fits, as the run makes them."""
     top = REELS_TOP if top is None else top
-    hold = quote_for(REELS_ROUTE, "GET", {"query": "x", "include": "creator"})
+    hold = quote_for(REELS_ROUTE, "GET", reels_params("x", MARKETS[0]))
     counts = {}
     for market in MARKETS:
         counts[market] = max(0, min(top.get(market, 0), int(room // hold)))

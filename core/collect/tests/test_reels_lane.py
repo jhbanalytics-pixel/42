@@ -72,13 +72,18 @@ def test_reel_sightings_are_search_presence_with_no_source_market():
 
 # Price
 
-def test_the_creator_card_holds_60_a_page_and_nothing_else_is_accepted():
+def test_the_creator_and_country_cards_hold_60_a_page_region_is_free_and_nothing_else_is_accepted():
     assert quote_for(ROUTE, "GET", {"query": "x"}) == 1
     assert quote_for(ROUTE, "GET", {"query": "x", "include": "creator"}) == 61
+    # The vendor's reply of 19 Oct 2026: region= appends the market name at no charge, include=country is the
+    # creator's country alone, held at the spec's creator-card price. The 20 October probe read 9 charged for
+    # 12 rows, so the hold stays on the conservative side until the vendor states the formula.
+    assert quote_for(ROUTE, "GET", {"query": "x", "region": "ZA"}) == 1
+    assert quote_for(ROUTE, "GET", {"query": "x", "region": "ZA", "include": "country"}) == 61
     with pytest.raises(Refused):
         quote_for(ROUTE, "GET", {"query": "x", "include": "profile"})
     with pytest.raises(Refused):
-        quote_for(ROUTE, "GET", {"query": "x", "region": "ZA"})
+        quote_for(ROUTE, "GET", {"query": "x", "country": "ZA"})
 
 
 # Plan
@@ -101,11 +106,12 @@ def test_a_planned_lane_searches_the_markets_first_row_14_queries_with_the_creat
         calls = reels(planned)[market]
         row14 = [c for c in planned["calls"][market] if c.row == "14" and c.route == "tiktok/search/top"
                  and c.lane != "placebo"]
-        assert [c.params for c in calls] == [{"query": c.seed.query, "include": "creator"} for c in row14[:count]]
+        assert [c.params for c in calls] == [{"query": c.seed.query, "include": "creator", "region": market}
+                                             for c in row14[:count]]
         for c in calls:
             assert c.row == job.REELS_ROW and c.hold() == 61 and c.seed is None
             assert c.lane_class() == "search_presence" and c.series() == "search"
-            assert "include=creator" in c.series_protocol()
+            assert "include=creator" in c.series_protocol() and f"region={market}" in c.series_protocol()
         # Made last in the market, after the row 22 evidence read.
         assert planned["calls"][market][-len(calls):] == calls
 
@@ -172,7 +178,7 @@ def test_a_reel_search_past_the_room_is_not_made_and_costs_nothing():
     client = FakeClient()
     runner = job._Runner(client, run, fake_item_id, FakeGeo(), lambda: NOW, job.Budget(), {}, TUESDAY,
                          reels_room=1100)
-    calls = [job.Call(job.REELS_ROW, ROUTE, {"query": q, "include": "creator"}, "ZA", "expansion")
+    calls = [job.Call(job.REELS_ROW, ROUTE, job.reels_params(q, "ZA"), "ZA", "expansion")
              for q in ("amapiano", "braai")]
     runner.calls(calls, "ZA")
     assert [c["params"]["query"] for c in client.calls] == ["amapiano"]

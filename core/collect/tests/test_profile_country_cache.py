@@ -511,3 +511,61 @@ def test_a_call_over_both_the_share_budget_and_the_room_keeps_the_bare_over_shar
                          reels_room=0)
     runner.calls([job.Call("C1", "tiktok/profile", {"handle": "creator"}, "NG", "panel")], "NG")
     assert run.records[-1]["status"] == "over_share" and run.records[-1]["reason"] == ""
+
+
+# A TikTok creator's country from the region of their own videos (SocialCrawl, 19 Oct 2026), behind REGION_COUNTRY
+
+def tiktok_body(*videos):
+    return {"success": True, "data": {"items": [{"post": {
+        "id": vid, "url": f"https://www.tiktok.com/@{handle}/video/{vid}", "platform": "tiktok",
+        "author": {"username": handle}, "content": {"text": "weekend"}, "ext": {"region": region}}}
+        for vid, handle, region in videos]}}
+
+
+def read(cache, route, params, body):
+    return parse.parse_with_creators(route, params, "ZA", body, NOW, "run1", item_id_fn=fake_item_id,
+                                     geo_fn=geo_for_post, lane="expansion", profile_cache=cache)
+
+
+def regioned(monkeypatch, on=True):
+    monkeypatch.setattr(location_sources, "REGION_COUNTRY", on)
+    cache = location_sources.ProfileCache()
+    read(cache, "tiktok/search/hashtag", {"hashtag": "amapiano", "region": "ZA"},
+         tiktok_body(("1", "local.maker", "ZA"), ("2", "local.maker", "ZA"), ("3", "one.video", "ZA"),
+                     ("4", "split.maker", "ZA"), ("5", "split.maker", "NG"), ("6", "filtered.maker", "ZA")))
+    read(cache, "tiktok/search/top", {"query": "amapiano", "country": "ZA", "region": "ZA"},
+         tiktok_body(("7", "filtered.maker", "ZA"), ("8", "filtered.maker", "ZA")))
+    return cache
+
+
+def test_two_unfiltered_videos_in_one_region_settle_the_creators_country_without_a_profile_call(monkeypatch):
+    cache = regioned(monkeypatch)
+    needed = {a["handle"] for a in cache.needed()}
+    assert cache.country("tiktok", "local.maker") == "ZA" and "local.maker" not in needed
+    # One video, a split, or videos only from a country-filtered search settle nothing: those are still looked up.
+    assert {"one.video", "split.maker", "filtered.maker"} <= needed
+    assert cache.country("tiktok", "filtered.maker") is None
+
+
+def test_with_the_switch_off_every_creator_is_looked_up_as_before(monkeypatch):
+    cache = regioned(monkeypatch, on=False)
+    assert {a["handle"] for a in cache.needed()} == {"local.maker", "one.video", "split.maker", "filtered.maker"}
+    assert cache.country("tiktok", "local.maker") is None
+
+
+def test_a_settled_region_country_reaches_the_creator_row(monkeypatch):
+    cache = regioned(monkeypatch)
+    cache.apply(geo_for_post)
+    rows = {r["handle"]: r["home_market"] for r in cache.creators}
+    assert rows["local.maker"] == "ZA" and rows["one.video"] is None
+
+
+def test_an_x_rows_author_location_is_its_profile_location():
+    body = {"success": True, "data": {"items": [{"post": {
+        "id": "1888", "url": "https://x.com/maker/status/1888", "platform": "twitter",
+        "author": {"username": "maker"}, "content": {"text": "kota run"},
+        "ext": {"author_location": "Soweto, South Africa"}}}]}}
+    out = parse.parse_with_creators("twitter/user/tweets", {"handle": "maker"}, "ZA", body, NOW, "run1",
+                                    item_id_fn=fake_item_id, geo_fn=geo_for_post)
+    assert out["creators"][0]["profile_location"] == "Soweto, South Africa"
+    assert out["posts"][0]["geo_market"] == "ZA"

@@ -2185,3 +2185,12 @@ def test_legitimate_empty_success_remains_a_free_cached_empty_result():
     assert second.items == [] and second.body["success"] is True
     assert second.credits_charged == 0
     assert http.routes().count("tiktok/trending") == 1
+
+
+def test_vendor_warnings_names_a_partly_served_page():
+    from core.collect.socialcrawl_client import vendor_warnings
+
+    assert vendor_warnings({"data": {"items": [], "_warnings": ["continuation_rescued"]}}) == ["continuation_rescued"]
+    assert vendor_warnings({"data": {"_warnings": [{"code": "ratings_unavailable"}, None, 3]}}) == [
+        "ratings_unavailable"]
+    assert vendor_warnings({"data": [1]}) == vendor_warnings(None) == vendor_warnings({"data": {}}) == []
