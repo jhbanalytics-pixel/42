@@ -19,7 +19,8 @@ collection_health: one row per day, market, series and protocol, the day being t
 the fetches it summarises (the day parse gives their rows), judged as DATA.md section 3.3 does: calls
 when under 80% of calls succeeded (a series skipped for want of input has 0 calls and fails here too),
 items when the day's rows fall outside half to twice the median of up to 28 prior valid days (only once
-3 exist), effort when a panel's k = units_planned / units_ok lies outside 0.5 to 2. The drift check
+3 exist; a panel is never judged on items, its items being its members' output), effort when a panel's
+k = units_planned / units_ok lies outside 0.5 to 2. The drift check
 (TRUST.md A1) is not built yet. A repair run (COLLECT_ONLY_ROUTES) also appends the day's good collect run's
 rows for every key it did not read, under its own run_id (repair_base, carry_forward).
 
