@@ -116,6 +116,15 @@ def test_a_video_format_shared_by_three_creators_is_counted_and_a_generic_one_is
                                              "creators": 3, "days": 3}}
 
 
+def test_a_post_whose_caption_and_clip_name_different_formats_counts_toward_both():
+    pack = {"evidence": [post("p1", "ada", 10, formats=["skit"], video_format="dance"),
+                         post("p2", "bayo", 11, formats=["skit"]),
+                         post("p3", "chi", 12, video_format="dance")]}
+    assert shared(pack) == {
+        "format dance": {"pattern": "format dance", "post_ids": ["p1", "p3"], "creators": 2, "days": 2},
+        "format skit": {"pattern": "format skit", "post_ids": ["p1", "p2"], "creators": 2, "days": 2}}
+
+
 def test_the_writer_pattern_line_counts_the_video_format_too():
     from core.brief.tests.test_brief_explain import W_END, W_START
 
