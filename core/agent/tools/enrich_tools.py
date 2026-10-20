@@ -34,6 +34,9 @@ COMMENT_ROUTES = {
     "twitter": "twitter/tweet/replies",
     "threads": "threads/post/comments",
 }
+# A TikTok video with no caption track is transcribed from its speech inside the same 10 credits; one with no
+# transcript at all is not charged (SocialCrawl, 19 Oct 2026). Without it those videos return a 404.
+TRANSCRIPT_PARAMS = {"tiktok/post/transcript": {"use_ai_as_fallback": "true"}}
 TRANSCRIPT_ROUTES = {
     "tiktok": "tiktok/post/transcript",
     "instagram": "instagram/media/transcript",
@@ -237,7 +240,8 @@ def get_transcript(ctx: RunContext, client: SocialCrawlClient, evidence_id: str)
         segments, spent, status, reason, cached = hit["segments"], 0.0, hit["status"], "", True
     else:
         _, route, url = _parent(ctx, evidence_id, TRANSCRIPT_ROUTES, "transcripts")
-        result, event = _charged_call(ctx, client, "get_transcript", route, {"url": url}, ctx.credits_left(),
+        params = {"url": url, **TRANSCRIPT_PARAMS.get(route, {})}
+        result, event = _charged_call(ctx, client, "get_transcript", route, params, ctx.credits_left(),
                                       evidence_id)
         status, spent, cached = result.get("status"), result["credits_charged"], False
         reason = str(result.get("reason") or "")

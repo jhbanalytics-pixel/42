@@ -17,7 +17,7 @@ when the body has none). first_seen and last_seen are the fetch time.
 
 Geo inputs: TikTok's ext.region; the author's (else the panel profile's) region or country, else ext.author_country
 (the country the creator declares on their own Instagram profile, which instagram/search/reels fills with
-include=creator), and location; the post text with YouTube's ext.description added; the language from
+include=creator), and location, else on X the row's ext.author_location; the post text with YouTube's ext.description added; the language from
 computed.language, else the post's own, else ext.content_language or ext.defaultAudioLanguage. A call's region=
 parameter is never a market: a country's trending list holds foreign posts.
 
@@ -142,7 +142,8 @@ ROUTES = {
     "tiktok/search/hashtag": ("search", "tiktok", "search", False,
                               ("region", "max_age_days", "min_views", "sort_rows"), MARKETS),
     "search/multi": ("search", None, "search", False, ("platforms",), MARKETS),
-    "instagram/search/reels": ("search", "instagram", "search", False, ("include", "date_posted", "max_pages"),
+    "instagram/search/reels": ("search", "instagram", "search", False,
+                               ("include", "region", "date_posted", "max_pages"),
                                MARKETS),
     "instagram/location/posts": ("location", "instagram", "ig_location", False, ("location_id",), MARKETS),
     "youtube/search/advanced": ("search", "youtube", "search", False,
@@ -252,6 +253,9 @@ def _parse(route, params, market, body, fetched_at, run_id, *, item_id_fn, geo_f
         "observed_date": _local_day(observed, market), "item_id_fn": item_id_fn, "geo_fn": geo_fn,
         "since": _since(params.get("since"), market) if family == "panel" else None,
         "handle": _first(params, "handle", "username"), "creators": [], "profile_cache": profile_cache,
+        # A country-filtered search returns only the filtered country's videos, so their region says nothing about
+        # where the creator is from (location_sources.ProfileCache.region_seen).
+        "country_filtered": bool(params.get("country")),
     }
     data = body.get("data")
     validate_data(route, data)
@@ -555,6 +559,10 @@ def _post(out, ctx, item, platform, *, rank=None, fallback=None, author=None, so
     if followers is None:
         followers = _number(profile, "followers", "follower_count", "followers_count", "subscribers")
     location = _first(author, "location") or _first(profile, "location")
+    if location is None and platform == "twitter":
+        # X search and timeline rows carry the author's profile location text (SocialCrawl, 19 Oct 2026), the same
+        # free text twitter/profile returns as author.location.
+        location = _first(ext, "author_location")
     location = location if isinstance(location, str) else None
     language = _first(_dict(item.get("computed")), "language") or _first(node, "language") \
         or _first(ext, "content_language", "defaultAudioLanguage")
@@ -596,6 +604,8 @@ def _post(out, ctx, item, platform, *, rank=None, fallback=None, author=None, so
     out["posts"].append(row)
     if cache is not None:
         cache.bind(row, platform, ctx["market"], handle, signals)
+        if platform == "tiktok" and not ctx["country_filtered"]:
+            cache.region_seen(handle, signals["ext_region"], pid)
     out["observations"].append(_observation(ctx, pid, platform, metrics, rank))
     if creator is not None:
         verified = author.get("verified")

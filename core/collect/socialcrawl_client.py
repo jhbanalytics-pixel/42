@@ -440,9 +440,12 @@ PRICED = {
          "video_embeddable", "video_type", "topic_id", "location", "location_radius") + SEARCH_FREE,
         add={"includeExtras": 5, "include": {"channel": 5}}, pages="max_pages", limits={"max_results": 50}),
     # include=creator holds 60 a page (2 a creator for a full page of 30) and refunds every creator not looked up.
+    # include=country (vendor reply 19 Oct 2026) is held at the same 60: the spec's formula prices the country card
+    # like the creator card, the reply says half; the hold takes the spec until the probe reads the charge.
+    # region=ZA/NG/KE is free: the vendor appends the market name to the query.
     "instagram/search/reels": rule(
-        1, ("query", "date_posted", "page") + SEARCH_FREE + RELEVANCE_FREE + LABEL_FREE,
-        add={"include": {"creator": 60}, **JUDGED_4}, pages="max_pages"),
+        1, ("query", "date_posted", "page", "region") + SEARCH_FREE + RELEVANCE_FREE + LABEL_FREE,
+        add={"include": {"creator": 60, "country": 60}, **JUDGED_4}, pages="max_pages"),
     "twitter/search/tweets": rule(
         1, ("query", "sort") + SEARCH_FREE + RELEVANCE_FREE + LABEL_FREE, add=JUDGED_4, pages="max_pages"),
     "reddit/search": rule(
@@ -501,7 +504,9 @@ PRICED = {
     "threads/post/comments": special(_threads_comments, ("url", "trim", "limit"), floor=1),
     "youtube/transcripts": special(_transcripts, ("ids",), method="POST", floor=0),
     "youtube/video/transcript": rule(3, ("url", "language")),
-    "tiktok/post/transcript": rule(10, ("url", "language")),
+    # use_ai_as_fallback transcribes speech when a video has no caption track, inside the same 10 credits; a video
+    # with no transcript is not charged (SocialCrawl, 19 Oct 2026).
+    "tiktok/post/transcript": rule(10, ("url", "language", "use_ai_as_fallback")),
     "instagram/media/transcript": rule(10, ("url",)),
     "twitter/tweet/transcript": rule(10, ("url",)),
     "reddit/post/transcript": rule(10, ("url", "language")),
@@ -563,6 +568,17 @@ def retry_fields(result):
         return {}
     return {"attempts": attempts, "first_status": getattr(result, "first_http_status", None),
             "server_retry": retry, "credits_charged": result.credits_charged or 0}
+
+
+def vendor_warnings(body):
+    """The names in a body's data._warnings, which the vendor uses for a partly served page."""
+    data = body.get("data") if isinstance(body, dict) else None
+    notes = data.get("_warnings") if isinstance(data, dict) else None
+    if not isinstance(notes, list):
+        return []
+    names = [n if isinstance(n, str) else (n.get("code") or n.get("type")) if isinstance(n, dict) else None
+             for n in notes]
+    return [str(n)[:60] for n in names if n]
 
 
 def transport_failure(exc):
@@ -1075,6 +1091,11 @@ class SocialCrawlClient:
                 str(exc).replace(key, "[key]")[:200]
         if outcome != "ok":
             log.warning("socialcrawl %s %s: %s", route, outcome, reason)
+        notes = vendor_warnings(body)
+        if notes:
+            # continuation_rescued: a fallback source served the page and a few posts near its boundary can be
+            # missing; ratings_unavailable: the store returned no ratings (SocialCrawl, 19 Oct 2026).
+            log.info("socialcrawl %s warnings: %s", route, ", ".join(notes))
         return Result(outcome, route, call["phash"], status, quote, charge, False, stored, items, labels, reason,
                       failure=failure)
 
