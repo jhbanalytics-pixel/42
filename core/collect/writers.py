@@ -603,8 +603,9 @@ def judge(*, calls, calls_ok, items, ref_items, ref_days, lane_class, units_plan
     k = (units_planned / units_ok if units_ok else None) if lane_class == "panel" else None
     if calls == 0 or calls_ok < 0.8 * calls:
         reason = "calls"
-    elif ref_days >= 3 and ref_items is not None and not 0.5 * ref_items <= items <= 2 * ref_items:
-        reason = "items"
+    elif (lane_class != "panel" and ref_days >= 3 and ref_items is not None
+          and not 0.5 * ref_items <= items <= 2 * ref_items):
+        reason = "items"  # a panel's items are its creators' output; effort below judges the panel itself
     elif lane_class == "panel" and not 0.5 <= (99 if k is None else k) <= 2:
         reason = "effort"
     else:

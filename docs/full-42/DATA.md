@@ -236,7 +236,7 @@ Rules:
 
 ### 3.3 Collection validity
 
-Appended by the collect job for day @d after its last call. v_route_day is a view giving that run's counts per market, series and protocol from raw_responses (calls_ok: HTTP 2xx with a parsable body), post_observations and item_counter_daily, plus drifted (the TRUST.md A1 feed overlap and concentration check). The reference is the median of prior valid days: 28 of them once they exist, otherwise whatever valid days exist, at least 3; with fewer than 3, a day is judged on call success alone.
+Appended by the collect job for day @d after its last call. v_route_day is a view giving that run's counts per market, series and protocol from raw_responses (calls_ok: HTTP 2xx with a parsable body), post_observations and item_counter_daily, plus drifted (the TRUST.md A1 feed overlap and concentration check). The reference is the median of prior valid days: 28 of them once they exist, otherwise whatever valid days exist, at least 3; with fewer than 3, a day is judged on call success alone. A panel day is never judged on items: a panel reads a fixed set of creators, so its item count is how much those creators posted, not how well the collection read them; the effort factor k (units planned over units read) judges that, with calls.
 
 ```sql
 INSERT INTO intelligence_42_core.collection_health
@@ -254,7 +254,8 @@ x AS (
     CASE
       WHEN t.calls_ok < .8 * t.calls THEN 'calls'
       WHEN t.drifted THEN 'drift'                       -- feed drift check, TRUST.md A1
-      WHEN IFNULL(r.ref_days, 0) >= 3 AND t.items NOT BETWEEN .5 * r.ref_items AND 2 * r.ref_items THEN 'items'
+      WHEN t.lane_class != 'panel' AND IFNULL(r.ref_days, 0) >= 3
+        AND t.items NOT BETWEEN .5 * r.ref_items AND 2 * r.ref_items THEN 'items'
       WHEN t.lane_class = 'panel'
         AND IFNULL(SAFE_DIVIDE(t.units_planned, t.units_ok), 99) NOT BETWEEN .5 AND 2 THEN 'effort'
     END invalid_reason
