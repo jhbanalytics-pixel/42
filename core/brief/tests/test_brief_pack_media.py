@@ -4,6 +4,7 @@ post_enrichment held screen_text and video_notes for every clip the video step r
 the evidence pack never read them, so both checks judged a clip by its caption alone. The pack now carries them as
 model-only fields: video_format in each post's head, the on-screen text and the clip's sound inside its fence, shown
 to the support check and the critic and never to the writer, so a quote is still checked against the caption alone.
+The writer sees video_format, never the on-screen text or the sound (20 Oct 2026).
 """
 
 import json
@@ -53,10 +54,15 @@ def test_the_critic_sees_the_same_media_fields():
     assert "on-screen text: WHEN THE BOSS WALKS IN" in inside and "video sound: trending amapiano track" in inside
 
 
-def test_the_writer_never_sees_the_clips_text_format_or_sound():
+def test_the_writer_sees_the_video_format_but_never_the_clips_text_or_sound():
+    # 20 Oct 2026: the writer sees video_format so it can name a format the pattern line counts; the on-screen text
+    # and the clip's sound stay with the support check and the critic, so quotes stay caption-only.
     prompt = explain._writer_user(CANDIDATE, media_pack(), "ZA", W_START, W_END)
     assert "WHEN THE BOSS WALKS IN" not in prompt and "trending amapiano track" not in prompt
-    assert "video_format" not in prompt and "on-screen text" not in prompt
+    assert "on-screen text" not in prompt and "video sound" not in prompt
+    found = {head["id"]: head["video_format"] for head in
+             map(json.loads, re.findall(r"^post (\{.*\})$", outside_fences(prompt), flags=re.M))}
+    assert found["tt_1"] == "skit" and found["ig_2"] is None
 
 
 def test_a_quote_of_the_on_screen_text_is_still_cut_because_quotes_are_checked_against_the_caption_alone():

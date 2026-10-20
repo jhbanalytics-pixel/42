@@ -226,14 +226,24 @@ def test_the_writer_shows_what_the_evidence_holds_against_a_simpler_explanation(
     assert "by two different creators where the pack has them" in text
 
 
-def test_the_writer_is_told_what_a_news_driven_card_needs():
+def test_the_writer_writes_no_pattern_claim_when_the_posts_only_react_to_an_event():
+    # 20 Oct 2026: the line left over from the removed reaction path asked for a sentence the critic holds by
+    # construction. The writer now names the event as the rival instead of dressing a reaction as a pattern.
     text = writer_text()
-    assert explain.NEWS_MIN_CREATORS == 2
     assert ("When the posts only respond to a news or scheduled event and share no such format, sound or practice, "
-            "say so plainly in the sentence rather than invent a pattern, and rest it on claims that cite at least "
-            "two different local creators reacting in their own words, such as opinions, jokes or personal stories, "
-            "and quote one such reaction.") in text
-    assert "Posts that only repeat, quote or share the news show no local reaction." in text
+            "write no pattern claim and do not dress a reaction as a pattern: name the event in the sentence's "
+            "why-now clause as the simpler explanation, the rival the critic will name.") in text
+    assert "say so plainly in the sentence rather than invent a pattern" not in text
+    assert "reacting in their own words" not in text
+    assert "show no local reaction" not in text
+
+
+def test_the_writer_is_told_to_name_the_rival_and_show_the_pattern_beyond_it():
+    text = writer_text()
+    assert ("You get the same line of simpler explanations checked by code that the critic gets; it is context, not "
+            "support for a claim. When the evidence shows a pattern, name in the sentence the simplest rival it "
+            "faces, such as the event the posts follow, and show the pattern beyond it in the posts you cite: a "
+            "shared sound or format, and posts made on days away from the event.") in text
 
 
 def test_the_writer_leads_with_the_shared_format_sound_or_practice_and_knows_what_they_mean():

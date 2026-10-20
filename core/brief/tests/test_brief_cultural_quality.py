@@ -108,3 +108,7 @@ def test_prompt_demands_a_cited_pattern_beyond_event_reaction():
     assert "adopted format, practice or emerging behaviour" in prompt
     assert "Ordinary event coverage, independent opinions, jokes, personal stories and event timing alone do not rule it out" in prompt
     assert "Name the pattern and the cited post evidence in reason" in prompt
+    # 20 Oct 2026: the evaluate-only line had no scope and could be read as limiting the whole critic.
+    assert ("For local_why_now, evaluate only the why-now clause and the local posts cited by its supporting "
+            "claims.") in prompt
+    assert "Evaluate only the why-now clause" not in prompt

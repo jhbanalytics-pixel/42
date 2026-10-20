@@ -101,3 +101,24 @@ def test_every_rival_the_code_knows_has_words(rival):
 
 def test_the_floor_the_prompt_names_is_the_one_the_code_applies():
     assert rivals.MIN_POSTS7 == 10 and "floor of 10 posts in 7 days" in " ".join(explain.CRITIC_SYSTEM.split())
+
+
+def test_the_writer_prompt_carries_the_same_rivals_line_after_its_pattern_line():
+    # 20 Oct 2026: the writer could not see the rivals the critic weighs, so it could not name one and show the
+    # pattern beyond it.
+    from core.brief.tests.test_brief_explain import W_END, W_START
+
+    pack = quiet(burst_share=0.5)
+    writer = outside_fences(explain._writer_user(CANDIDATE, pack, "ZA", W_START, W_END))
+    blocks = writer.split("\n\n")
+    at = next(i for i, b in enumerate(blocks) if b.startswith("Simpler explanations checked by code"))
+    assert blocks[at] == line(pack) == explain._rivals_line(pack)
+    assert blocks[at - 1].startswith("Shared sounds and formats, counted by code")
+    assert blocks[at + 1].startswith("post {")
+
+
+def test_the_run_sends_the_writer_the_rivals_line():
+    model = FakeModel([good()], critic=RULED_OUT)
+    run(model, pack=quiet(burst_share=0.5))
+    user = model.writer_calls()[0]["user"]
+    assert "Simpler explanations checked by code" in user and "found: a burst push (burst_share)." in user

@@ -110,7 +110,7 @@ def test_the_critic_rules_around_it_are_unchanged():
         "Name the simplest non-cultural explanation for why these posts rose: a paid campaign or sponsored push, a "
         "platform feature change, a bot or coordinated push, a news event or scheduled event that alone accounts for "
         "the posts, a scraping or collection artefact, or a single viral post or one creator carrying the count.",
-        "Evaluate only the why-now clause and the local posts cited by its supporting claims.",
+        "For local_why_now, evaluate only the why-now clause and the local posts cited by its supporting claims.",
         "Set local_why_now true only when those sources support a timely local cause or a cited post states the "
         "timing.",
         "Generic country labels, popularity alone, a missing time hook, unrelated local examples, and source-only "
@@ -145,7 +145,7 @@ def test_cultural_critic_prompt_and_unchanged_support_prompt_are_pinned():
     import hashlib
 
     assert hashlib.sha256(explain.CRITIC_SYSTEM.encode("utf-8")).hexdigest() == (
-        "11dc76a420374f5b063ce773e481d41ea1ad94ce7caa98f6fd89248e3df978d4")
+        "5c6b0082162f27fec1d6efb1e88eb664d316f4f44e0c67cf355d24e5274b5363")
     assert hashlib.sha256(explain.SUPPORT_SYSTEM.encode("utf-8")).hexdigest() == (
         "8c4717687699a1a328b50288f66290a4b7248cb6ef9d81c5ddf9251affad2c2b")
 
