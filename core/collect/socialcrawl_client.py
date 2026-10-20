@@ -440,9 +440,12 @@ PRICED = {
          "video_embeddable", "video_type", "topic_id", "location", "location_radius") + SEARCH_FREE,
         add={"includeExtras": 5, "include": {"channel": 5}}, pages="max_pages", limits={"max_results": 50}),
     # include=creator holds 60 a page (2 a creator for a full page of 30) and refunds every creator not looked up.
+    # include=country (vendor reply 19 Oct 2026) is held at the same 60: the spec's formula prices the country card
+    # like the creator card, the reply says half; the hold takes the spec until the probe reads the charge.
+    # region=ZA/NG/KE is free: the vendor appends the market name to the query.
     "instagram/search/reels": rule(
-        1, ("query", "date_posted", "page") + SEARCH_FREE + RELEVANCE_FREE + LABEL_FREE,
-        add={"include": {"creator": 60}, **JUDGED_4}, pages="max_pages"),
+        1, ("query", "date_posted", "page", "region") + SEARCH_FREE + RELEVANCE_FREE + LABEL_FREE,
+        add={"include": {"creator": 60, "country": 60}, **JUDGED_4}, pages="max_pages"),
     "twitter/search/tweets": rule(
         1, ("query", "sort") + SEARCH_FREE + RELEVANCE_FREE + LABEL_FREE, add=JUDGED_4, pages="max_pages"),
     "reddit/search": rule(

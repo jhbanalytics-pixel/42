@@ -6425,6 +6425,12 @@
      ]
     },
     {
+     "name": "region",
+     "in": "query",
+     "required": false,
+     "added": "vendor reply 19 Oct 2026: ZA, NG or KE appends the market name to the query, no extra credit"
+    },
+    {
      "name": "page",
      "in": "query",
      "required": false
@@ -6434,8 +6440,10 @@
      "in": "query",
      "required": false,
      "enum": [
-      "creator"
-     ]
+      "creator",
+      "country"
+     ],
+     "added": "country: vendor reply 19 Oct 2026, the creator country only"
     },
     {
      "name": "relevance",

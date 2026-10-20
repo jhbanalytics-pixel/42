@@ -1455,3 +1455,128 @@ def test_candidates_live_client_uses_the_build_share_after_the_schedule(monkeypa
     with redirect_stdout(io.StringIO()):
         probe.main(["--candidates"], clock=lambda: NOW)
     assert seen == {"run_id": "probe-candidates-20260929T040000Z", "schedule_started": True}
+
+
+# --vendor-claims: the 19 Oct 2026 SocialCrawl reply ---------------------------------------------------------------
+
+def vendor_http(credits=None):
+    """Each probed route answered in the common envelope. A region= or country= call lands two rows in the market
+    and one abroad; the plain call lands one in the market and two abroad. TikTok rows carry ext.region and one
+    carries ext.matched_song_id; an include=country reel row carries ext.author_country; a channel row carries
+    channel.country."""
+    seen = []
+    city = {"ZA": "Soweto", "NG": "Lagos", "KE": "Nairobi"}
+    abroad = {"ZA": "Lagos", "NG": "Nairobi", "KE": "Soweto"}
+
+    def http(method, url, *, params=None, json=None, headers=None, timeout=None):
+        route = url.split("/v1/", 1)[1]
+        params = params or {}
+        seen.append((route, dict(params)))
+        if route == "credits/balance":
+            return 200, {"success": True, "data": {"balance": 250000}}, {}
+        m = params.get("region") or params.get("country") or "ZA"
+        places = [city[m], city[m], abroad[m]] if ("region" in params or "country" in params) else \
+            [city[m], abroad[m], abroad[m]]
+        rows = [{"post": {"id": str(i), "content": {"text": f"Match day in {where}"}, "ext": {}}}
+                for i, where in enumerate(places)]
+        if route == "tiktok/search/top":
+            for row in rows:
+                row["post"]["ext"]["region"] = m
+            rows[0]["post"]["ext"]["matched_song_id"] = "7001"
+        if route == "instagram/search/reels" and params.get("include") == "country":
+            rows[0]["post"]["ext"]["author_country"] = m
+        if route == "youtube/search/advanced":
+            rows[0]["channel"] = {"country": m}
+        charge = (credits or {}).get(route, quote_for(route, method, params))
+        return 200, {"success": True, "cached": False, "credits_used": charge, "data": {"items": rows}}, {}
+    http.seen = seen
+    return http
+
+
+def test_vendor_plan_pairs_each_search_with_and_without_region_under_the_cap():
+    calls, dropped = probe.vendor_plan(TODAY, TERMS)
+    assert dropped == []
+    assert len(calls) == 24 and sum(probe.vendor_hold(p) for p in calls) == 89 <= probe.VENDOR_CAP
+    by_id = {p["id"]: p for p in calls}
+    assert by_id["vend-za-igr0"]["params"] == {"query": "Orlando Pirates"}
+    assert by_id["vend-za-igr1"]["params"] == {"query": "Orlando Pirates", "region": "ZA"}
+    assert by_id["vend-za-igc"]["params"] == {"query": "Orlando Pirates", "region": "ZA", "include": "country"}
+    assert probe.vendor_hold(by_id["vend-za-igc"]) == 61
+    assert by_id["vend-ng-tt0"]["params"] == {"query": "Take Ham Play", "country": "NG"}
+    assert by_id["vend-ng-tt1"]["params"] == {"query": "Take Ham Play", "region": "NG"}
+    assert by_id["vend-za-yt"]["params"] == {"query": "Orlando Pirates", "region": "ZA", "include": "channel"}
+    assert by_id["vend-ke-gt1"]["params"] == {"query": "funny", "region": "KE"}
+    assert [p["id"] for p in calls if p["id"].rsplit("-", 1)[1] in ("igc", "gr0", "yt")] == ["vend-za-igc", "vend-za-gr0", "vend-za-yt"]
+    assert all(p["market"] == p["id"].split("-")[1].upper() for p in calls)
+
+
+def test_vendor_plan_drops_a_market_whose_term_rule_1_blocks():
+    calls, dropped = probe.vendor_plan(TODAY, {**TERMS, "NG": NO_AGE + " Lagos"})
+    assert dropped == [("NG", "*", NO_AGE + " Lagos")]
+    assert {p["market"] for p in calls} == {"ZA", "KE"}
+
+
+def test_vendor_plan_flag_prints_without_network(monkeypatch):
+    monkeypatch.setattr(probe, "live_client", lambda *a, **k: pytest.fail("--plan must not build a client"))
+    monkeypatch.setattr(probe, "candidate_queries", lambda today: TERMS)
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert probe.main(["--vendor-claims", "--plan"], today=TODAY) == 0
+    assert "24 calls, total hold 89 credits, cap 100" in buf.getvalue()
+
+
+def test_vendor_run_books_every_call_on_the_build_share_and_counts_the_promised_fields(monkeypatch):
+    monkeypatch.setenv("SOCIALCRAWL_OGILVY_API_KEY", "sc-test-sentinel-9a")
+    monkeypatch.setattr(probe, "candidate_queries", lambda today: TERMS)
+    http = vendor_http()
+    client = body_client(http)
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert probe.main(["--vendor-claims"], client=client, clock=lambda: NOW) == 0
+    paid = [r for r in client.ledger.rows if r["route"] != "credits/balance"]
+    assert len(paid) == 24 and sum(r["credits_charged"] for r in paid) == 89
+    assert all(r["job"] == "build" and r["lane"] is None for r in client.ledger.rows)
+    assert [r["seed_key"] for r in client.raw.rows] == [p["id"] for p in probe.vendor_plan(TODAY, TERMS)[0]]
+    text = buf.getvalue()
+    assert ("vend-za-igr0 instagram/search/reels ZA ok held=1 charged=1 rows=3 local=1 foreign=2 unknown=0 "
+            "author_country=0  (reels as searched today)") in text
+    assert ("vend-za-igr1 instagram/search/reels ZA ok held=1 charged=1 rows=3 local=2 foreign=1 unknown=0 "
+            "author_country=0  (reels with region)") in text
+    assert "vend-za-igc instagram/search/reels ZA ok held=61 charged=61 rows=3 local=2 foreign=1 unknown=0 author_country=1" in text
+    assert "vend-ng-tt1 tiktok/search/top NG ok held=1 charged=1 rows=3 local=3 foreign=0 unknown=0 region=3 matched_song_id=1" in text
+    assert "vend-za-yt youtube/search/advanced ZA ok held=6 charged=6 rows=3" in text and "channel_country=0 country=1" in text
+    assert "done: 24 calls, 89 credits charged" in text and "sc-test-sentinel-9a" not in text
+
+
+def test_vendor_run_stops_on_an_overcharge_and_before_a_hold_over_the_cap(monkeypatch):
+    monkeypatch.setenv("SOCIALCRAWL_OGILVY_API_KEY", "sc-test-sentinel-9a")
+    monkeypatch.setattr(probe, "candidate_queries", lambda today: TERMS)
+    client = body_client(vendor_http(credits={"youtube/search/advanced": 9}))
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert probe.main(["--vendor-claims"], client=client, clock=lambda: NOW) == 0
+    assert "stopped after vend-za-yt: charged 9 against a hold of 6" in buf.getvalue()
+    monkeypatch.setattr(probe, "VENDOR_CAP", 40)
+    client = body_client(vendor_http())
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert probe.main(["--vendor-claims"], client=client, clock=lambda: NOW) == 0
+    # ZA's two plain reel searches charge 2; the include=country hold of 61 is the one that crosses 40.
+    assert "stopped before vend-za-igc: 2 charged plus 61 held is over the cap of 40" in buf.getvalue()
+
+
+def test_vendor_live_client_uses_the_build_share_after_the_schedule(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(probe, "live_client", lambda run_id, **kw: seen.update(run_id=run_id, **kw) or FakeClient())
+    monkeypatch.setattr(probe, "candidate_queries", lambda today: TERMS)
+    with redirect_stdout(io.StringIO()):
+        probe.main(["--vendor-claims"], clock=lambda: NOW)
+    assert seen == {"run_id": "probe-vendor-20260929T040000Z", "schedule_started": True}
+
+
+def test_reel_search_prices_region_free_and_include_country_at_60_a_page():
+    assert quote_for("instagram/search/reels", "GET", {"query": "x", "region": "ZA"}) == 1
+    assert quote_for("instagram/search/reels", "GET", {"query": "x", "region": "ZA", "include": "country"}) == 61
+    assert quote_for("instagram/search/reels", "GET", {"query": "x", "include": "country", "max_pages": 2}) == 122
+    with pytest.raises(socialcrawl_client.Refused):
+        quote_for("instagram/search/reels", "GET", {"query": "x", "country": "ZA"})
