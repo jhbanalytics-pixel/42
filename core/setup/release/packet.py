@@ -746,6 +746,8 @@ def cmd_bind_jobs(args):
     if args.release_letter is not None:
         bound["releaseLetter"] = args.release_letter
     if args.producer_only:
+        if args.accept_failed_baseline is not None:
+            raise Refused("--accept-failed-baseline binds against the baseline chain manifest; the producer bindings have none yet")
         jo.validate_jobs_bindings(bound, producer=True)
         write_json_new(out, bound)
         print(f"wrote {out}\nrelease_id {release_id}\nsha256 {sha_bytes(out)}")
@@ -786,13 +788,29 @@ def cmd_bind_jobs(args):
     differs = [key for key in (*jo.PRODUCER_BINDINGS, "schema_version", "mode", "priorJobsRelease", "releaseLetter") if produced.get(key) != bound.get(key)]
     if differs:
         raise Refused("The baseline chain manifest was produced under other bindings than these: " + ", ".join(differs))
-    chain_head = (read_json(chain_path, "the baseline chain manifest").get("generated_from") or {}).get("head")
+    chain_manifest = read_json(chain_path, "the baseline chain manifest")
+    chain_head = (chain_manifest.get("generated_from") or {}).get("head")
     if chain_head != head:
         raise Refused("The baseline chain manifest was generated from another commit than the one being bound")
+    if args.accept_failed_baseline is not None:
+        # Albert's typed acceptance of a chain that neither qualifies nor is a baseline by line. The reasons bound are the ones this
+        # manifest recorded, read here and never typed, so the acceptance is of this chain's findings and of nothing else.
+        line_path = Path(args.accept_failed_baseline)
+        if not line_path.is_file():
+            raise Refused("The baseline acceptance line file is missing")
+        reasons = (chain_manifest.get("verdict") or {}).get("reasons") or []
+        if not reasons:
+            raise Refused("The baseline chain manifest qualifies; a typed acceptance is not needed and is not bound")
+        bound["baselineChainAcceptance"] = {"line": " ".join(line_path.read_text(encoding="utf-8-sig").split()),
+                                            "run_date": chain_manifest.get("run_date"), "reasons": list(reasons)}
+        jo.validate_jobs_bindings(bound)
     # The baseline chain is judged by the check JobsCandidate will make, against baseline-J, the pinned digest and the clock.
     jo.check_baseline_chain(jo.JobsRelease(bound, None, packet_dir, now=utc_now))
     write_json_new(out, bound)
     print(f"wrote {out}\nrelease_id {release_id}\nsha256 {sha_bytes(out)}")
+    if "baselineChainAcceptance" in bound:
+        acceptance = bound["baselineChainAcceptance"]
+        print(f"baseline chain of {acceptance['run_date']} accepted by line for reasons {', '.join(acceptance['reasons'])}")
     return 0
 
 
@@ -1125,7 +1143,7 @@ REQUIRED = {
 # own, and never dropped without a word.
 MODE_ONLY = {
     "jobs": ("baseline_j", "baseline_chain", "dry_run_receipt", "chain_evidence_bytes_cap", "collect_start_tolerance_minutes",
-             "max_baseline_age_days", "max_candidate_age_hours", "prior_jobs_release", "producer_only"),
+             "max_baseline_age_days", "max_candidate_age_hours", "prior_jobs_release", "producer_only", "accept_failed_baseline"),
     "services-only": ("baseline", "max_smoke_age_minutes", "inflight_asks_bytes_cap", "prior_release", "expect_jobs_digest"),
 }
 
@@ -1206,6 +1224,8 @@ def build_parser():
     bind.add_argument("--prior-release", type=Path, help="services: the record `prior-release` wrote (default: the a80 pair)")
     bind.add_argument("--expect-jobs-digest", type=jobs_digest_argument, help="services: the image the fourteen jobs must run (with --prior-release)")
     bind.add_argument("--prior-jobs-release", type=Path, help="mode jobs: the record `prior-jobs-release` wrote (default: the release before B)")
+    bind.add_argument("--accept-failed-baseline", type=Path,
+                      help="mode jobs: the file holding Albert's typed acceptance of a baseline chain that does not qualify (BASELINE ACCEPT <date>: ...)")
     bind.add_argument("--release-letter", help="the letter of this release in the line or lines Albert types; required with --prior-release or "
                       "--prior-jobs-release")
     bind.set_defaults(handler=cmd_bind)

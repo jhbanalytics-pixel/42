@@ -32,17 +32,28 @@ Release Alpha, data quality, trend identity and research reliability.
 - Dossier reloads preserve drafts, saved figures retain their source checks, and hidden evidence stays excluded from lexical searches.
 - Discover retains the context of its displayed results during a failed refresh. Timed out reads offer another attempt and discard late replies.
 
+### Jobs update (21 October 2026)
+
+The jobs only release of 21 October 2026: the morning collection, detection and brief changes that answer the zero card mornings of 18 to 21 October.
+
+- The morning collection's credit share is back to 2,000 a day, so the chain reaches the brief well before 06:15. At 4,000 the 20 October collection ran 162 minutes and 29 of 30 candidates went unexplained. The monthly cap is 180,000, raised from 80,000 on 16 October.
+- A creator panel's collection day is no longer held invalid for a quiet or busy day among its creators. Its item count is what those creators posted, so the day is judged on how many of its profiles answered; feeds, counters and searches keep the item band.
+- The brief's pattern pool counts the video model's format for each clip beside the enriched formats, so a format three creators share across two days reaches the adopted pattern bucket even when captions do not name it.
+- The writer sees each clip's video format and the same line of simpler explanations the critic checks, and is told to name the rival event and show the pattern beyond it, or to write no pattern claim when the posts only react to an event.
+- Sound items are named once a title is read instead of staying raw ids, searched posts' sounds are named the same way, and the watched sounds are the ones most creators adopted rather than the lexically smallest ids.
+- The morning Instagram reel search asks for each market's own posts at no extra credit, X posts carry their author's stated location for placement, and a refunded failed call no longer shows as a stray refund in the nightly credit check.
+- Detection's coordination check holds one compact embedding a post instead of a copy per item, after the 21 October detection was stopped at its memory limit twice, and records its peak memory in its counts.
+- The release tooling takes any chain after the previous jobs release as the baseline when its job definitions match, and records a typed acceptance of a chain that did not qualify instead of refusing the release.
+
 ### Next release (not numbered yet)
 
+- Ask transcribes the speech of a TikTok video that has no captions when a question needs it.
 - The Control room look: a near black red field with Ogilvy red as the one filled action, new interface faces and Material 3 motion timing. Dark is now the default theme; Light and Match system stay in the menu.
 - Today's lead draws its posts a day as a field of red LED cells behind its header. Screen readers skip it, because the panel states the same series.
 - Ask answers a question about figures, such as poll percentages, with the figures its sources report: one bar chart per source, with who ran it, when, the sample and the quoted words. A figure is kept only when its quote is found word for word in the record, and a hidden publisher's table is left out.
 - Ask searches live news it can cite and opens the article behind a news result to read it. A question about figures searches news first.
 - Ask's Deep level, several researchers in parallel and then a critic, is open to plain questions where the service has it switched on. The app does not offer a depth control yet.
-- A creator panel's collection day is no longer held invalid for a quiet or busy day among its creators. Its item count is what those creators posted, so the day is judged on how many of its profiles answered; feeds, counters and searches keep the item band. Until now small panels in Kenya, Nigeria and South Africa were read as invalid on ordinary days and held every card on their platform.
-- The morning collection's Instagram reel search favours each market's own posts, at no extra credit. A refunded failed call no longer shows as a stray refund in the nightly credit check, X posts carry their author's stated location, and Ask transcribes the speech of a TikTok video that has no captions.
 - The morning collection also searches Bluesky, LinkedIn and each market's subreddit, only in the room the day's collection share leaves after the earlier sources.
-- The monthly credit cap rises to 180,000. The morning collection's credit share stays at 2,000 a day: at 4,000 the 20 October collection ran 162 minutes and the brief missed its 06:15 deadline, so no trend was explained.
 
 ## 2.3.0 (12 October 2026)
 

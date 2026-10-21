@@ -60,7 +60,14 @@ RELEASE_BINDINGS = (*PRODUCER_BINDINGS, "baselineChainPath", "baselineChainSha25
                     "maxCandidateAgeHours", "priorAttempts", "priorLedgers")
 # Keys a release may carry beyond RELEASE_BINDINGS, only when it follows a jobs release: the record of that release and the letter of this
 # one in the two lines Albert types. A release without a prior carries neither of the first, and its letter is B when it carries none.
-OPTIONAL_BINDINGS = ("priorJobsRelease", "releaseLetter")
+OPTIONAL_BINDINGS = ("priorJobsRelease", "releaseLetter", "baselineChainAcceptance")
+# Albert's typed acceptance of a baseline chain that neither qualifies nor is a baseline by line (typed 21 Oct 2026 for the chain
+# whose detect was killed for memory): his line, the chain's date and the reasons the manifest recorded, bound by
+# `packet bind --accept-failed-baseline`. The line opens with BASELINE ACCEPT and the date and names the prior jobs release's
+# commit when there is one. It never covers a chain on another image than the rollback digest, a chain from before the anchor,
+# or services that are not baseline-J's: those three say the release is measured against the wrong thing.
+ACCEPTANCE_LINE = re.compile(r"BASELINE ACCEPT (\d{4}-\d{2}-\d{2}):")
+NEVER_ACCEPTED = ("IMAGE", "WINDOW", "SERVICES")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 RELEASE_LETTER = re.compile(r"[A-Z]\Z")
 HASH_KEYS = ("baselineSha256", "baselineChainSha256", "buildConfigSha256", "dockerfileSha256", "durableManifestSha256",
@@ -88,6 +95,8 @@ def validate_jobs_bindings(bound, *, producer=False):
     if "releaseLetter" in bound:
         require(isinstance(bound["releaseLetter"], str) and RELEASE_LETTER.match(bound["releaseLetter"]), "BINDINGS",
                 "releaseLetter is not one capital letter")
+    if "baselineChainAcceptance" in bound:
+        validate_baseline_chain_acceptance(bound["baselineChainAcceptance"], bound.get("priorJobsRelease"))
     for key in HASH_KEYS:
         if key in bound:
             require(SHA256.match(str(bound[key])), "BINDINGS", f"{key} is not a sha256")
@@ -116,6 +125,27 @@ def validate_jobs_bindings(bound, *, producer=False):
         require(isinstance(bound["priorAttempts"], list) and isinstance(bound["priorLedgers"], list), "BINDINGS",
                 "priorAttempts and priorLedgers must be lists")
     return Path(bound["releaseDir"]).resolve()
+
+
+def validate_baseline_chain_acceptance(value, prior):
+    """The bound acceptance of a failed baseline chain, checked for shape: the line, the date it names and the reasons it covers."""
+    require(isinstance(value, dict) and set(value) == {"line", "run_date", "reasons"}, "BINDINGS",
+            "baselineChainAcceptance does not hold exactly line, run_date and reasons")
+    line, run_date, reasons = value["line"], value["run_date"], value["reasons"]
+    require(isinstance(line, str) and isinstance(run_date, str), "BINDINGS", "The baseline acceptance line and run_date must be text")
+    try:
+        dt.date.fromisoformat(run_date)
+    except ValueError:
+        raise Stop("BINDINGS", "The baseline acceptance run_date is not a date") from None
+    opening = ACCEPTANCE_LINE.match(" ".join(line.split()))
+    require(opening is not None and opening.group(1) == run_date, "BINDINGS",
+            "The baseline acceptance line does not open with BASELINE ACCEPT and the chain's date")
+    require(isinstance(reasons, list) and bool(reasons) and all(isinstance(r, str) for r in reasons) and set(reasons) <= set(CHAIN_CODES)
+            and len(set(reasons)) == len(reasons), "BINDINGS", "The baseline acceptance reasons are not a list of distinct chain reason codes")
+    refused = [r for r in reasons if r in NEVER_ACCEPTED]
+    require(not refused, "BINDINGS", "A typed acceptance never covers " + ", ".join(refused))
+    if prior is not None:
+        require(prior["commit"][:7] in line, "BINDINGS", "The baseline acceptance line does not name the prior jobs release's commit")
 
 
 def load_baseline_j(bound):
@@ -517,8 +547,10 @@ SIGNATURE = ("cannot round-trip through string representation", "PARSE_JSON")
 
 def check_baseline_chain(rel):
     """The baseline chain manifest is the file the bindings hash, was made against this baseline-J and this rollback digest,
-    qualifies or is a baseline by line, has no WINDOW reason, and is recent enough. Its verdict is not taken on its word: the
-    reasons must agree with qualifies, and a by-line claim must be supported by the degradation recorded in the same manifest."""
+    qualifies or is a baseline by line, has no WINDOW reason, recorded baseline-J's job definitions at its read, and is recent
+    enough. Its verdict is not taken on its word: the reasons must agree with qualifies, and a by-line claim must be supported
+    by the degradation recorded in the same manifest. The definitions are compared as the producer read them, after the chain's
+    deadline, not as they stood while the chain ran."""
     path = Path(rel.bound["baselineChainPath"])
     require(path.is_file(), "BINDINGS", "The baseline chain manifest does not exist")
     data = path.read_bytes()
@@ -536,23 +568,40 @@ def check_baseline_chain(rel):
     require(isinstance(reasons, list) and set(reasons) <= set(CHAIN_CODES) and verdict.get("qualifies") is (not reasons), "BASELINE",
             "The baseline chain verdict does not agree with its own reasons")
     require("WINDOW" not in reasons, "BASELINE", f"The baseline chain ran before {label}")
+    # A bound typed acceptance must be this manifest's: the same chain date and exactly the reasons it recorded. It is never a
+    # standing allowance for whatever the next read finds.
+    acceptance = rel.bound.get("baselineChainAcceptance")
+    if acceptance is not None:
+        require(acceptance["run_date"] == manifest.get("run_date"), "BASELINE",
+                "The typed baseline acceptance names another chain date than the manifest")
+        require(sorted(acceptance["reasons"]) == sorted(reasons), "BASELINE",
+                "The typed baseline acceptance does not name exactly the reasons the manifest recorded")
     if not verdict["qualifies"]:
         degradation = manifest.get("stages", {}).get("understand", {}).get("degradation") or {}
         lines = list((degradation.get("cluster_error_first_lines") or {}).values())
         supported = (verdict.get("baseline_by_line") is True and reasons == ["DEGRADED"] and not degradation.get("partial")
                      and not degradation.get("embed_error") and not degradation.get("enrich_error") and bool(lines)
                      and all(all(word in line for word in SIGNATURE) for line in lines))
-        require(supported, "BASELINE", "The baseline chain neither qualifies nor is a baseline by line")
+        require(supported or acceptance is not None, "BASELINE",
+                "The baseline chain neither qualifies nor is a baseline by line, and no typed acceptance is bound")
+    # Any chain after the anchor (WINDOW above) on the rollback digest can be the baseline, whatever its ordinal, provided the
+    # fourteen job definitions the producer recorded are the ones baseline-J holds and the chain is recent enough. The producer
+    # records the definitions as it read them, after the chain's deadline; the configuration during the chain's own hours is
+    # held by check_baseline_images, job_states and check_services on the day of the release.
+    definitions = manifest.get("jobs_image", {}).get("definitions")
+    definitions = definitions if isinstance(definitions, dict) else {}
+    for name in so.JOB_NAMES:
+        recorded = definitions.get(name)
+        recorded = recorded if isinstance(recorded, dict) else {}
+        require(recorded.get("view_sha256") == so.fingerprint(rel.baseline["jobs"][name]), "BASELINE",
+                f"The baseline chain manifest recorded another definition of {name} than baseline-J holds")
     day = dt.date.fromisoformat(manifest["run_date"])
     today = rel.now().astimezone(SAST).date()
-    at = aware(terminal["at_utc"]).astimezone(SAST)
-    first_chain = at.date() if at.time() < COLLECT_START_SAST else at.date() + dt.timedelta(days=1)
-    require(day in (first_chain, first_chain + dt.timedelta(days=1)), "BASELINE",
-            f"The baseline chain of {day.isoformat()} is not one of the first two chains after {label} (Q3)")
     require(0 <= (today - day).days <= rel.bound["maxBaselineAgeDays"], "BASELINE_AGE",
             f"The baseline chain of {day.isoformat()} is outside the bound maximum age")
     rel.observations["baseline_chain"] = {"run_date": day.isoformat(), "qualifies": verdict["qualifies"],
-                                          "baseline_by_line": bool(verdict.get("baseline_by_line")), "sha256": rel.bound["baselineChainSha256"]}
+                                          "baseline_by_line": bool(verdict.get("baseline_by_line")), "sha256": rel.bound["baselineChainSha256"],
+                                          "accepted_by_line": acceptance is not None}
 
 
 def phase_before_any_write(rel, phase, result):
