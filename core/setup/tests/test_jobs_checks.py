@@ -799,7 +799,8 @@ def test_rb_t8_the_listed_executions_keep_only_today_yesterday_and_the_active_on
     assert "f42-detect-old" not in names and "f42-detect-today" in names
 
 
-# F14: Q3, B's baseline is one of the first two chains after Release A
+# F14: the baseline chain is a chain after Release A's terminal readback, read under baseline-J's job definitions, inside the bound age.
+# Until 21 Oct 2026 only the first two chains after the readback could serve (Q3); a later chain is now accepted on the same checks.
 
 def chain_world(tmp_path, *, run_day, now_day, at_utc="2026-10-09T10:00:00+00:00"):
     w = jw.ReleaseWorld(tmp_path, day=dt.date(2026, 10, run_day))
@@ -808,38 +809,66 @@ def chain_world(tmp_path, *, run_day, now_day, at_utc="2026-10-09T10:00:00+00:00
     return w
 
 
-@pytest.mark.parametrize("run_day,now_day,accepted", [(10, 11, True), (11, 12, True), (12, 13, False), (13, 13, False)])
-def test_rb_t8_only_the_first_two_chains_after_a_terminal_readback_at_noon_sast_can_be_the_baseline(tmp_path, run_day, now_day, accepted):
+@pytest.mark.parametrize("run_day,now_day", [(10, 11), (11, 12), (12, 13), (13, 13), (14, 15), (20, 21)])
+def test_rb_t8_any_chain_after_a_terminal_readback_at_noon_sast_can_be_the_baseline_inside_the_bound_age(tmp_path, run_day, now_day):
     w = chain_world(tmp_path, run_day=run_day, now_day=now_day)
-    if accepted:
-        assert w.run("BeforeAnyWrite")["phase"] == "BeforeAnyWrite"
-    else:
-        stop = w.stop("BeforeAnyWrite")
-        assert stop.code == "BASELINE" and "first two chains" in stop.message
+    assert w.run("BeforeAnyWrite")["phase"] == "BeforeAnyWrite"
+    assert w.run("BeforeAnyWrite")["observations"]["baseline_chain"]["run_date"] == f"2026-10-{run_day}"
 
 
 @pytest.mark.parametrize("terminal,run_day,now_day,accepted", [
-    ("2026-10-09T23:30:00+00:00", 10, 11, True),   # 01:30 SAST on the 10th, before the day's 02:00 collect: the chain of the 10th is the first
+    ("2026-10-09T23:30:00+00:00", 10, 11, True),   # 01:30 SAST on the 10th, before the day's 02:00 collect: the chain of the 10th follows it
     ("2026-10-09T23:30:00+00:00", 11, 12, True),
-    ("2026-10-09T23:30:00+00:00", 12, 12, False),
-    ("2026-10-10T00:30:00+00:00", 12, 12, True),   # 02:30 SAST on the 10th, after that day's collect start: the 11th is the first
-    ("2026-10-10T00:30:00+00:00", 13, 13, False),
+    ("2026-10-09T23:30:00+00:00", 12, 12, True),   # the third chain after the readback serves as well
+    ("2026-10-10T00:30:00+00:00", 10, 11, False),  # 02:30 SAST on the 10th, after that day's collect start: the 10th's chain ran before it
+    ("2026-10-10T00:30:00+00:00", 12, 12, True),
+    ("2026-10-10T00:30:00+00:00", 13, 13, True),
 ])
-def test_rb_t8_the_first_chain_is_the_one_of_the_same_sast_day_only_when_the_terminal_readback_came_before_0200(tmp_path, terminal, run_day, now_day, accepted):
+def test_rb_t8_a_chain_whose_collect_started_before_the_terminal_readback_is_refused_and_any_later_one_is_accepted(tmp_path, terminal, run_day, now_day, accepted):
     w = chain_world(tmp_path, run_day=run_day, now_day=now_day, at_utc=terminal)
     if accepted:
         assert w.run("BeforeAnyWrite")["phase"] == "BeforeAnyWrite"
     else:
-        assert w.stop("BeforeAnyWrite").code == "BASELINE"
+        assert "WINDOW" in baseline_manifest(w)["verdict"]["reasons"]
+        stop = w.stop("BeforeAnyWrite")
+        assert stop.code == "BASELINE" and "ran before" in stop.message
 
 
-def test_rb_t8_a_by_line_baseline_outside_the_first_two_chains_is_refused_as_well(tmp_path):
+def test_rb_t8_a_by_line_baseline_after_the_first_two_chains_is_accepted_like_a_qualifying_one(tmp_path):
     w = jw.ReleaseWorld(tmp_path, day=dt.date(2026, 10, 12))
     w.now = dt.datetime(2026, 10, 13, 8, 0, tzinfo=jw.UTC)
     w.set_cluster_error("KE")
     w.set_cluster_error("NG")
     w.prepare()
     assert baseline_manifest(w)["verdict"]["baseline_by_line"] is True
+    assert w.run("BeforeAnyWrite")["observations"]["baseline_chain"] == {"run_date": "2026-10-12", "qualifies": False, "baseline_by_line": True,
+                                                                         "sha256": w.bound["baselineChainSha256"]}
+
+
+def test_rb_t8_a_chain_older_than_the_bound_age_is_refused_whatever_its_ordinal(tmp_path):
+    w = chain_world(tmp_path, run_day=12, now_day=15)
+    stop = w.stop("BeforeAnyWrite")
+    assert stop.code == "BASELINE_AGE" and "2026-10-12" in stop.message
+
+
+@pytest.mark.parametrize("name", ["f42-collect", "f42-detect", "f42-probe"])
+def test_rb_t8_a_chain_manifest_recorded_under_other_job_definitions_than_baseline_j_is_refused(tmp_path, name):
+    # The producer records each job's definition as read on the day of the chain read. A definition that is not baseline-J's (an
+    # environment variable set on the job, say) means the chain was read under a configuration the release is not measured against.
+    w = chain_world(tmp_path, run_day=12, now_day=13)
+    manifest = baseline_manifest(w)
+    assert manifest["jobs_image"]["definitions"][name]["view_sha256"] == so.fingerprint(w.baseline_j()["jobs"][name])
+    manifest["jobs_image"]["definitions"][name]["view_sha256"] = jw.sha("another definition")
+    rebind(w, manifest)
+    stop = w.stop("BeforeAnyWrite")
+    assert stop.code == "BASELINE" and name in stop.message and "baseline-J" in stop.message
+
+
+def test_rb_t8_a_chain_manifest_without_the_job_definitions_is_refused(tmp_path):
+    w = chain_world(tmp_path, run_day=12, now_day=13)
+    manifest = baseline_manifest(w)
+    manifest["jobs_image"].pop("definitions")
+    rebind(w, manifest)
     assert w.stop("BeforeAnyWrite").code == "BASELINE"
 
 

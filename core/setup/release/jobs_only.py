@@ -543,12 +543,18 @@ def check_baseline_chain(rel):
                      and not degradation.get("embed_error") and not degradation.get("enrich_error") and bool(lines)
                      and all(all(word in line for word in SIGNATURE) for line in lines))
         require(supported, "BASELINE", "The baseline chain neither qualifies nor is a baseline by line")
+    # Any chain after the anchor (WINDOW above) on the rollback digest can be the baseline, whatever its ordinal, provided the
+    # fourteen job definitions the producer recorded are the ones baseline-J holds and the chain is recent enough. Until 21 Oct
+    # 2026 only the first two chains after the anchor could serve (Q3); when both failed, no later chain could, however well it
+    # ran, and the release needed this file changed. The drift that rule stood against is refused by check_baseline_images,
+    # job_states and check_services on the day, and by the definitions compared here for the day the chain was read.
+    definitions = manifest.get("jobs_image", {}).get("definitions") or {}
+    for name in so.JOB_NAMES:
+        recorded = definitions.get(name) if isinstance(definitions.get(name), dict) else {}
+        require(recorded.get("view_sha256") == so.fingerprint(rel.baseline["jobs"][name]), "BASELINE",
+                f"The baseline chain manifest recorded another definition of {name} than baseline-J holds")
     day = dt.date.fromisoformat(manifest["run_date"])
     today = rel.now().astimezone(SAST).date()
-    at = aware(terminal["at_utc"]).astimezone(SAST)
-    first_chain = at.date() if at.time() < COLLECT_START_SAST else at.date() + dt.timedelta(days=1)
-    require(day in (first_chain, first_chain + dt.timedelta(days=1)), "BASELINE",
-            f"The baseline chain of {day.isoformat()} is not one of the first two chains after {label} (Q3)")
     require(0 <= (today - day).days <= rel.bound["maxBaselineAgeDays"], "BASELINE_AGE",
             f"The baseline chain of {day.isoformat()} is outside the bound maximum age")
     rel.observations["baseline_chain"] = {"run_date": day.isoformat(), "qualifies": verdict["qualifies"],

@@ -414,7 +414,7 @@ def test_the_release_phases_take_the_rollback_digest_and_the_definitions_from_th
 
 def test_the_baseline_chain_is_judged_from_the_prior_terminal_and_not_from_release_a(tmp_path):
     # The chain of 12 Oct is the first after Release B's AfterJobsUpdate (11 Oct 16:56 SAST). Counted from Release A's terminal (9 Oct) it
-    # would be the third chain, which the Q3 rule refuses.
+    # would be the fourth chain; the manifest must still name the prior terminal as its anchor.
     w, record = d_world(tmp_path)
     assert w.baseline_j()["aTerminal"]["at_utc"] == jw.A_TERMINAL_AT
     assert w.run("BeforeAnyWrite")["observations"]["baseline_chain"]["run_date"] == "2026-10-12"
@@ -425,14 +425,14 @@ def test_the_baseline_chain_is_judged_from_the_prior_terminal_and_not_from_relea
 @pytest.mark.parametrize("terminal,run_day,now_day,accepted", [
     ("2026-10-11T14:56:41.844177+00:00", 12, 13, True),
     ("2026-10-11T14:56:41.844177+00:00", 13, 13, True),
-    ("2026-10-11T14:56:41.844177+00:00", 14, 14, False),
-    ("2026-10-11T14:56:41.844177+00:00", 11, 12, False),
-    ("2026-10-11T23:30:00+00:00", 12, 13, True),    # 01:30 SAST on the 12th, before that day's 02:00 collect: the chain of the 12th is the first
-    ("2026-10-11T23:30:00+00:00", 14, 14, False),
-    ("2026-10-12T00:30:00+00:00", 12, 13, False),   # 02:30 SAST on the 12th: the 13th is the first, so the 12th is no chain after it
+    ("2026-10-11T14:56:41.844177+00:00", 14, 14, True),   # the third chain after the prior terminal serves as well (the Q3 ordinal rule is gone)
+    ("2026-10-11T14:56:41.844177+00:00", 11, 12, False),  # the 11th's collect started before the prior terminal: WINDOW
+    ("2026-10-11T23:30:00+00:00", 12, 13, True),    # 01:30 SAST on the 12th, before that day's 02:00 collect: the chain of the 12th follows it
+    ("2026-10-11T23:30:00+00:00", 14, 14, True),
+    ("2026-10-12T00:30:00+00:00", 12, 13, False),   # 02:30 SAST on the 12th: the 12th's chain ran before it
     ("2026-10-12T00:30:00+00:00", 14, 14, True),
 ])
-def test_only_the_first_two_chains_after_the_prior_terminal_can_be_the_baseline(tmp_path, terminal, run_day, now_day, accepted):
+def test_any_chain_after_the_prior_terminal_inside_the_bound_age_can_be_the_baseline(tmp_path, terminal, run_day, now_day, accepted):
     w, record = d_world(tmp_path, terminal_at=terminal, run_day=dt.date(2026, 10, run_day), now=dt.datetime(2026, 10, now_day, 8, 0, tzinfo=jw.UTC))
     if accepted:
         assert w.run("BeforeAnyWrite")["phase"] == "BeforeAnyWrite"
