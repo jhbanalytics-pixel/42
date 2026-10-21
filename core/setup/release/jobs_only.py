@@ -36,6 +36,11 @@ SCHEMA_VERSION = 1
 JOBS_REPO = f"{so.REGION}-docker.pkg.dev/{so.PROJECT}/intelligence-42/jobs"
 CHAIN_STAGES = ("collect", "understand", "detect", "brief")
 STAGE_JOB = {"collect": "f42-collect", "understand": "f42-understand", "detect": "f42-detect", "brief": "f42-brief"}
+# Each chain stage's task timeout, as core/collect/chain.TIMEOUTS holds it (a test pins the two equal). A running row older than this
+# belongs to an attempt the platform has already ended: a run killed before it could write its final row, which the chain itself reads
+# as dead (chain._duplicate).
+STAGE_TIMEOUT = {"collect": dt.timedelta(hours=3), "understand": dt.timedelta(hours=2), "detect": dt.timedelta(hours=1),
+                 "brief": dt.timedelta(hours=1)}
 CHAIN_GROUP = ("f42-brief", "f42-detect", "f42-understand", "f42-collect")
 UPDATE_ORDER = ("f42-watchdog", "f42-probe", "f42-gdelt", "f42-gdelt-daily", "f42-reconcile", "f42-drift", "f42-learn",
                 "f42-calendar", "f42-digest", "f42-scheduled-asks", *CHAIN_GROUP)
@@ -355,7 +360,9 @@ def row_order(row):
 def quiet_snapshot(reader, runner, taken_at):
     """Today's and yesterday's executions of the 14 jobs with their states, and the latest non-skipped runs row of each chain
     stage for both days with its version. It records; assert_quiet decides. A running watchdog or side job is recorded and
-    allowed."""
+    allowed. Today's latest row that still says running counts as a running stage while it is younger than the stage's task
+    timeout (STAGE_TIMEOUT); an older one is recorded as dead, because its attempt was ended by the platform without writing a
+    final row (a job killed at its memory limit). A live attempt of a chain job still stops the release through its execution."""
     today = aware(taken_at).astimezone(SAST).date()
     days = [today, today - dt.timedelta(days=1)]
     executions, active_chain, active_side = {}, [], []
@@ -374,7 +381,7 @@ def quiet_snapshot(reader, runner, taken_at):
                 (active_chain if job in STAGE_JOB.values() else active_side).append(entry["metadata"]["name"])
         executions[job] = sorted(kept, key=lambda e: e["name"])
     rows = runner.run("chain_rows", {"days": days, "stages": list(CHAIN_STAGES)})
-    latest, running_today = {}, []
+    latest, running_today, dead_today = {}, [], []
     for stage in CHAIN_STAGES:
         for day in days:
             mine = [r for r in rows if r["stage"] == stage and str(r["run_date"]) == day.isoformat()]
@@ -387,9 +394,12 @@ def quiet_snapshot(reader, runner, taken_at):
             group = sorted(group, key=row_order)
             latest[f"{stage}:{day.isoformat()}"] = {"run_id": run_id, "status": group[-1]["status"], "version": len(group)}
             if day == today and group[-1]["status"] == "running":
-                running_today.append(stage)
+                started = group[-1]["started_at"]
+                dead = started is not None and aware(taken_at) - aware(started) > STAGE_TIMEOUT[stage]
+                (dead_today if dead else running_today).append(stage)
     snapshot = {"taken_at": aware(taken_at).isoformat(), "executions": executions, "chain_rows": latest,
-                "active": {"chain": sorted(active_chain), "side": sorted(active_side), "chain_rows_running_today": running_today}}
+                "active": {"chain": sorted(active_chain), "side": sorted(active_side), "chain_rows_running_today": running_today,
+                           "chain_rows_dead_today": dead_today}}
     snapshot["sha256"] = so.fingerprint({k: v for k, v in snapshot.items() if k != "taken_at"})
     return snapshot
 
