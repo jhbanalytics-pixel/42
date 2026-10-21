@@ -203,7 +203,7 @@ def test_funded_call_checks_cumulative_debit_immediately_before_each_http() -> N
         def __init__(self):
             self.reported = iter((3, 0))
 
-        def get(self, _url, *, params, timeout, stream=False):
+        def get(self, _url, *, params, timeout, stream=False, allow_redirects=True):
             events.append(("http", dict(params), timeout))
             return response(credits_used=next(self.reported))
 

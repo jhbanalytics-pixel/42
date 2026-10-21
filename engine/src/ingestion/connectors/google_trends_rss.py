@@ -26,7 +26,7 @@ from typing import Any
 import defusedxml.ElementTree as DefusedET
 import pandas as pd
 
-from src.ingestion.connectors.base import RAW_COLUMNS, BaseConnector
+from src.ingestion.connectors.base import RAW_COLUMNS, BaseConnector, get_feed
 from src.utils.config_loader import load_sources
 
 GOOGLE_TRENDS_RSS_BASE = "https://trends.google.com/trending/rss"
@@ -70,7 +70,7 @@ class GoogleTrendsRssConnector(BaseConnector):
         url = f"{GOOGLE_TRENDS_RSS_BASE}?geo={geo}"
         headers = {"User-Agent": USER_AGENT}
         try:
-            resp = self._session.get(url, headers=headers, timeout=15)
+            resp = get_feed(self._session, url, headers=headers, timeout=15)
         except Exception as exc:
             self.logger.warning("google_trends_rss fetch failed: %s", exc)
             return self._empty()

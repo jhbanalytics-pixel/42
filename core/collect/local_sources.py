@@ -267,12 +267,75 @@ def total_hold(fetches):
 
 # Free fetches
 
-def http_get(url, timeout=(10, 60)):
-    """(connect, read) seconds: a free chart can answer slowly (NG App Store, 3 Oct 2026)."""
-    import requests
+# A free read is bounded: at most FREE_MAX_BYTES of body and FREE_DEADLINE_S seconds in all, and at most
+# FREE_MAX_REDIRECTS redirects, each on the same host and never from https down to http, so robots.txt (read per host)
+# still speaks for the page that is read and a feed host cannot point the job at another origin.
+FREE_MAX_BYTES = 4 * 1024 * 1024
+FREE_DEADLINE_S = 120
+FREE_MAX_REDIRECTS = 5
 
-    response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=timeout)
-    return response.status_code, response.text
+
+class FreeReadRefused(ValueError):
+    """A free read refused before its body was parsed: too large, too slow, or redirected off its host."""
+
+
+def same_site_redirect(source, target):
+    """Whether a redirect from source to target stays on the same host and port and is not a downgrade from https
+    to http (an upgrade from http to https on the default port is allowed)."""
+    try:
+        before, after = urlsplit(source), urlsplit(target)
+        same_host = (after.hostname or "").rstrip(".").lower() == (before.hostname or "").rstrip(".").lower()
+        same_port = after.port == before.port
+    except ValueError:
+        return False
+    if not after.hostname or after.scheme not in ("http", "https"):
+        return False
+    if before.scheme == "https" and after.scheme != "https":
+        return False
+    upgrade = before.scheme == "http" and after.scheme == "https" and after.port is None
+    return same_host and (same_port or upgrade)
+
+
+def http_get(url, timeout=(10, 60), *, max_bytes=FREE_MAX_BYTES, deadline_s=FREE_DEADLINE_S, monotonic=None):
+    """(connect, read) seconds: a free chart can answer slowly (NG App Store, 3 Oct 2026). Returns (status, text)
+    and raises FreeReadRefused for a body over max_bytes, a read past deadline_s or a redirect same_site_redirect
+    refuses, before any of the body is parsed."""
+    import requests
+    from requests.compat import chardet
+
+    clock = monotonic or time.monotonic
+    started = clock()
+    for _ in range(FREE_MAX_REDIRECTS + 1):
+        response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=timeout, allow_redirects=False,
+                                stream=True)
+        try:
+            if response.is_redirect:
+                target = urljoin(url, response.headers.get("location", ""))
+                if not same_site_redirect(url, target):
+                    raise FreeReadRefused(f"redirect from {urlsplit(url).hostname} to "
+                                          f"{urlsplit(target).hostname or target[:80]} refused")
+                url = target
+                continue
+            declared = response.headers.get("content-length", "")
+            if declared.isdigit() and int(declared) > max_bytes:
+                raise FreeReadRefused(f"body of {declared} bytes is over the {max_bytes} byte limit")
+            body = bytearray()
+            for chunk in response.iter_content(chunk_size=64 * 1024):
+                body.extend(chunk or b"")
+                if len(body) > max_bytes:
+                    raise FreeReadRefused(f"body is over the {max_bytes} byte limit")
+                if clock() - started > deadline_s:
+                    raise FreeReadRefused(f"read took over {deadline_s} seconds")
+            # As requests' own Response.text decodes: the declared charset, else a detected one, errors replaced.
+            encoding = response.encoding or (chardet.detect(bytes(body))["encoding"] if body else None) or "utf-8"
+            try:
+                text = str(bytes(body), encoding, errors="replace")
+            except LookupError:
+                text = str(bytes(body), "utf-8", errors="replace")
+            return response.status_code, text
+        finally:
+            response.close()
+    raise FreeReadRefused(f"more than {FREE_MAX_REDIRECTS} redirects")
 
 
 def _log_free_failure(run_id, fetch, status, *, http_status=None, exception_class=None):

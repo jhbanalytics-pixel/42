@@ -560,9 +560,15 @@ def test_free_fetches_send_a_user_agent_naming_42_and_no_email_address(monkeypat
     seen = {}
 
     class Response:
-        status_code, text = 200, "ok"
+        status_code, headers, encoding, is_redirect = 200, {}, "utf-8", False
 
-    def fake_get(url, headers=None, timeout=None):
+        def iter_content(self, chunk_size):
+            return iter([b"ok"])
+
+        def close(self):
+            pass
+
+    def fake_get(url, headers=None, timeout=None, **kwargs):
         seen.update(url=url, headers=headers, timeout=timeout)
         return Response()
 

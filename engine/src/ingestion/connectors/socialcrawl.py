@@ -58,7 +58,7 @@ from typing import Any, ClassVar
 import pandas as pd
 import requests
 
-from src.ingestion.connectors.base import RAW_COLUMNS, BaseConnector
+from src.ingestion.connectors.base import RAW_COLUMNS, BaseConnector, RedirectRefused, refuse_redirect
 from src.utils.config_loader import load_market_creators, load_sources
 from src.utils.secrets import get_secret
 
@@ -635,7 +635,9 @@ class SocialCrawlConnector(BaseConnector):
         if context is not None:
             context.pre_call_authority_hook(SocialCrawlConnector._global_credits_used + quoted)
         try:
-            resp = session.get(url, params=params, timeout=self._timeout)
+            # No redirect is followed: the session carries the x-api-key, which requests would copy to another origin.
+            resp = session.get(url, params=params, timeout=self._timeout, allow_redirects=False)
+            refuse_redirect(resp)
             payload = resp.json()
         except (requests.RequestException, ValueError) as exc:
             self._record_call(phase)
@@ -815,7 +817,12 @@ class SocialCrawlConnector(BaseConnector):
                     params=dict(request.params),
                     timeout=self._timeout,
                     stream=True,
+                    allow_redirects=False,
                 )
+                try:
+                    refuse_redirect(response)
+                except RedirectRefused as error:
+                    raise ValueError("Wave 1 response redirected") from error
                 payload = _read_wave1_payload(response)
                 if not isinstance(payload, Mapping):
                     raise ValueError("Wave 1 response is invalid")

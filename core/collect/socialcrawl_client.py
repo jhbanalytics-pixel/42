@@ -673,7 +673,10 @@ def requests_http(method, url, *, params=None, json=None, headers=None, timeout=
     """The HTTP callable for Cloud Run jobs. Returns (status code, parsed body or None, headers)."""
     import requests
 
-    resp = requests.request(method, url, params=params, json=json, headers=headers, timeout=timeout)
+    # No redirect is followed: requests strips Authorization on a cross-host redirect but copies x-api-key, so the
+    # key would go wherever a Location pointed. A 3xx comes back as a failed call (http_failure).
+    resp = requests.request(method, url, params=params, json=json, headers=headers, timeout=timeout,
+                            allow_redirects=False)
     try:
         body = resp.json()
     except ValueError:
