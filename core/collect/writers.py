@@ -179,17 +179,25 @@ PREVIOUS_SQL = (
 )
 
 LAST_PULL_DAYS = 35
+# A collect run that never finished ok (failed, or still marked running) does not hold its pull numbers: detect's
+# current views read counters from ok collect runs only (v_item_counter_daily_current), so a retry that counted them
+# would leave a hole between two adjacent pulls and lose the top-10-twice signal (audit F7D-COL-002). Rows of any
+# other stage's runs (pulse) count as before.
 LAST_PULLS_SQL = (
     "SELECT c.market, c.series, c.protocol, MAX(c.pull_seq) AS last_pull FROM (\n"
-    "  SELECT market, series, protocol, pull_seq FROM `{counters}`\n"
+    "  SELECT market, series, protocol, pull_seq, run_id FROM `{counters}`\n"
     f"  WHERE obs_date >= DATE_SUB(@day, INTERVAL {LAST_PULL_DAYS} DAY)\n"
     "    AND pull_seq IS NOT NULL AND (series IN UNNEST(@series)\n"
     "      OR (route = 'public_feed' AND series IN UNNEST(@public_feed_counter_series)))\n"
     "  UNION ALL\n"
-    "  SELECT market, series, protocol, pull_seq FROM `{observations}`\n"
+    "  SELECT market, series, protocol, pull_seq, run_id FROM `{observations}`\n"
     f"  WHERE observed_date >= DATE_SUB(@day, INTERVAL {LAST_PULL_DAYS} DAY) AND pull_seq IS NOT NULL\n"
     "    AND ((lane_class = 'unbiased_rank' AND series IN UNNEST(@observation_series))\n"
     "      OR (route = 'public_feed' AND series IN UNNEST(@public_feed_observation_series)))) c\n"
+    "WHERE c.run_id IS NULL\n"
+    "  OR c.run_id NOT IN (SELECT r.run_id FROM `{runs}` r WHERE r.stage = 'collect' AND r.run_id IS NOT NULL)\n"
+    "  OR c.run_id IN (SELECT r.run_id FROM `{runs}` r WHERE r.stage = 'collect' AND r.status = 'ok'\n"
+    "                  AND r.run_id IS NOT NULL)\n"
     "GROUP BY c.market, c.series, c.protocol"
 )
 
@@ -460,7 +468,8 @@ def last_pulls(bq, day):
     from google.cloud import bigquery
 
     counted = sorted(set(RANK_SERIES + LOCAL_RANK_SERIES) - set(OBSERVATION_SERIES))
-    sql = LAST_PULLS_SQL.format(counters=table("item_counter_daily"), observations=table("post_observations"))
+    sql = LAST_PULLS_SQL.format(counters=table("item_counter_daily"), observations=table("post_observations"),
+                                runs=table("runs", AGENT))
     rows = _query(bq, sql, [bigquery.ScalarQueryParameter("day", "DATE", day),
                             bigquery.ArrayQueryParameter("series", "STRING", counted),
                             bigquery.ArrayQueryParameter("observation_series", "STRING", list(OBSERVATION_SERIES)),
