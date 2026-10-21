@@ -875,9 +875,17 @@ describe('a release not numbered yet', () => {
       expect(line).not.toMatch(/^-|—|–|-{2}|[*_`#]/);
     }
     const said = pending[0].lines.join(' ');
-    for (const scope of [/Control room/, /Dark is now the default/, /LED/, /figures/, /word for word/, /news/, /Deep/, /Bluesky/, /4,000/]){
+    for (const scope of [/Control room/, /Dark is now the default/, /LED/, /figures/, /word for word/, /news/, /Deep/, /Bluesky/]){
       expect(said).toMatch(scope);
     }
+    /* The jobs only release of 21 October carries the collection, detection and brief lines under its own dated heading. */
+    const jobs = newest.updates.filter((u) => u.title === 'Jobs update');
+    expect(jobs.map((u) => u.when)).toEqual(['21 October 2026']);
+    const shipped = jobs[0].lines.join(' ');
+    for (const scope of [/2,000 a day/, /4,000/, /creator panel/, /video format/, /Sound items/, /reel search/, /memory limit/]){
+      expect(shipped).toMatch(scope);
+    }
+    expect(said).not.toMatch(/4,000|creator panel|reel search/);
     /* Alpha's own lines stay as they shipped. */
     expect(newest.lines.join(' ')).not.toMatch(/Control room|Deep/);
   });
