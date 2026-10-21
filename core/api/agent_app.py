@@ -453,6 +453,16 @@ def cap_day(created_at):
     return datetime.fromisoformat(created_at).astimezone(SAST).date().isoformat()
 
 
+def spend_day(ask_id, created_at):
+    """The runs row's run_date: the SAST day run_ask's cap decision held this ask's spend against (ask.spend_day),
+    so an Ask created before SAST midnight and admitted after it lands on the day its hold was taken (audit
+    F7D-ASK-004). An ask with no held spend (it ended before the decision) counts on the SAST day it started."""
+    from core.agent import ask as ask_mod
+
+    held = ask_mod.spend_day(ask_id)
+    return held.isoformat() if held is not None else cap_day(created_at)
+
+
 def sink(ask):
     """Write the ask's runs row. True when it is stored; False when BigQuery returns row errors."""
     record = ask.snapshot()
@@ -461,7 +471,7 @@ def sink(ask):
     row = {
         "run_id": run.get("run_id") or record["ask_id"],
         "stage": "ask",
-        "run_date": cap_day(record["created_at"]),
+        "run_date": spend_day(record["ask_id"], record["created_at"]),
         "status": record["status"],
         "started_at": record["created_at"],
         "finished_at": record["finished_at"],

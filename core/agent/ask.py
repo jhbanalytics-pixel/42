@@ -205,6 +205,15 @@ def recorded(ask_id) -> None:
                 _READING[reading] += held[1]
 
 
+def spend_day(ask_id) -> date | None:
+    """The SAST day an ask's model spend was held and counted against (its cap decision's day), while its runs row is
+    not yet recorded: agent_app.sink writes it as the row's run_date, so the row lands on the day the cap read and
+    the hold used, even for an ask created before SAST midnight and admitted after it (audit F7D-ASK-004)."""
+    with _SPEND_LOCK:
+        held = _UNRECORDED.get(ask_id)
+    return held[0] if held is not None else None
+
+
 def _unrecorded_usd(day: date) -> float:
     """Spend finished today and not yet in runs. Call with _SPEND_LOCK held; an earlier day's entries are dropped."""
     for key in [k for k, (held_day, _) in _UNRECORDED.items() if held_day != day]:
