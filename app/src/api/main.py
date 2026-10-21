@@ -4328,7 +4328,6 @@ def _run_research_batch_job(
                     "status": "failed",
                     "message": "No briefs were generated.",
                 },
-                ttl=batch_ttl,
             )
             return
         ok = [r for r in batch_results if r.get("artifact_id")]
@@ -4347,7 +4346,6 @@ def _run_research_batch_job(
                     ),
                     "batch_results": batch_results,
                 },
-                ttl=batch_ttl,
             )
             return
         synth.cache_set(
@@ -4376,7 +4374,6 @@ def _run_research_batch_job(
                 **research.research_failure(exc, "Batch research generation failed."),
                 "batch_results": batch_results,
             },
-            ttl=batch_ttl,
         )
     finally:
         research._batch_progress_meta.pop(key, None)
@@ -4651,7 +4648,8 @@ def api_research_generate_consolidated(
 
 # A job with no status is pending only while it may still be running: this process runs it, or it started less
 # than RESEARCH_JOB_MAX_AGE_S ago (its id carries its start, research_job_id). Past that, a missing status is
-# unknown, never pending again (audit F7D-APP-010). The error text is what the app shows.
+# unknown, never pending again (audit F7D-APP-010). The error text is what the app shows. Running statuses carry a
+# ttl and stay in-process, so this holds only while the app runs as one instance (--max-instances 1).
 RESEARCH_JOB_MAX_AGE_S = 900
 RESEARCH_STATUS_UNKNOWN = {
     "status": "unknown",

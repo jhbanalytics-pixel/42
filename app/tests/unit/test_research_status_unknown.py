@@ -64,3 +64,14 @@ def test_a_finished_batch_status_outlives_the_old_600_second_hold(monkeypatch):
     monkeypatch.setattr(synth.time, "time", lambda: later)
     out = status(key[1])
     assert out["status"] == "completed" and out["artifact_id"] == "ra_1"
+
+
+def test_a_failed_batch_status_outlives_the_old_600_second_hold(monkeypatch):
+    key = ("research", main.research_job_id("research_batch"))
+    monkeypatch.setattr(main.research, "run_research_job", lambda *a, **k: {"status": "failed", "error": True})
+    monkeypatch.setattr(main.research, "focus_payload_for_behaviour", lambda row: ([], ""))
+    monkeypatch.setattr(main, "_release_generation_capacity", lambda: None)
+    main._run_research_batch_job(key, "audience_neutral", None, [{"market": "za", "behaviour": "b"}])
+    later = time.time() + 601
+    monkeypatch.setattr(synth.time, "time", lambda: later)
+    assert status(key[1])["status"] == "failed"
