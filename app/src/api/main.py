@@ -4822,7 +4822,10 @@ def api_research_refine(
     refined = research.refine_research_artifact(artifact, instruction)
     if refined is None:
         raise HTTPException(status_code=502, detail="Research refinement unavailable")
-    new_id = bq.insert_research_artifact(refined)
+    try:
+        new_id = bq.insert_research_artifact(refined)
+    except bq.ResearchPersistError:
+        raise HTTPException(status_code=503, detail="Research artifact could not be saved")
     return {
         "artifact_id": new_id,
         "parent_artifact_id": aid,

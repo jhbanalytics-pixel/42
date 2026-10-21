@@ -1206,3 +1206,28 @@ def test_the_research_export_reads_once_and_compares_the_stored_scope_with_the_s
     now_foreign = client().get("/api/research/ra_0123456789abcdef/export.html")
     assert now_foreign.status_code == 404
     assert len(rendered) == 1
+
+
+def test_a_refined_research_artifact_that_cannot_be_saved_is_a_503_with_no_id(monkeypatch):
+    # Audit F7D-APP-009 review: refine reported a failed durable write as an unexplained 500.
+    monkeypatch.setenv("LP_ALLOW_OPEN_GATE", "true")
+    monkeypatch.delenv("UI_PASSCODE", raising=False)
+    row = {
+        "artifact_id": "ra_0123456789abcdef",
+        "client_scope_id": investigation_scopes.default_client_scope_id(),
+        "synthesis": {"title": "Bound brief"},
+        "evidence": [],
+        "markets": ["za"],
+    }
+    monkeypatch.setattr(bq, "get_research_artifact", lambda value: dict(row) if value == row["artifact_id"] else None)
+    monkeypatch.setattr(main.research, "refine_research_artifact", lambda artifact, instruction: {"doc_json": {}})
+
+    def refuse(artifact):
+        raise bq.ResearchPersistError("research artifact upload failed")
+
+    monkeypatch.setattr(bq, "insert_research_artifact", refuse)
+    refined = client().post(
+        "/api/research/refine",
+        json={"artifact_id": "ra_0123456789abcdef", "instruction": "shorter"},
+    )
+    assert (refined.status_code, refined.json()["detail"]) == (503, "Research artifact could not be saved")

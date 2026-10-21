@@ -23,9 +23,9 @@ def test_the_same_figure_twice_is_still_one():
     assert len(kept) == 1
 
 
-def _row(eid, measure, handle, population=""):
+def _row(eid, measure, handle, population="", sample="", fieldwork=""):
     return {"subject": "ANC", "value": 40.0, "unit": "%", "quote": f"{measure}: ANC 40%", "measure": measure,
-            "source": "Ipsos", "fieldwork": "", "sample": "", "population": population, "evidence_id": eid,
+            "source": "Ipsos", "fieldwork": fieldwork, "sample": sample, "population": population, "evidence_id": eid,
             "platform": "x", "handle": handle, "url": f"https://src.example/{eid}",
             "posted_at": "2026-10-13T08:00:00", "market": "ZA", "source_market": None}
 
@@ -50,3 +50,15 @@ def test_tables_for_different_populations_stay_apart():
 def test_tables_that_state_no_measure_still_merge_when_their_rows_match():
     built = figures.tables([_row("e1", "", "News24"), _row("e2", "", "eNCA")])
     assert len(built) == 1 and built[0]["title"] == "Reported percentages"
+
+
+def test_a_copy_that_drops_the_sample_or_fieldwork_still_merges():
+    built = figures.tables([_row("e1", "Support", "News24", sample="1,200 adults", fieldwork="1-5 October"),
+                            _row("e2", "Support", "eNCA")])
+    assert len(built) == 1 and len(built[0]["also_reported_by"]) == 1
+
+
+def test_tables_with_two_stated_fieldwork_periods_stay_apart():
+    built = figures.tables([_row("e1", "Support", "News24", fieldwork="1-5 October"),
+                            _row("e2", "Support", "eNCA", fieldwork="1-5 September")])
+    assert len(built) == 2

@@ -21,6 +21,9 @@ class Blob:
     def download_as_text(self):
         return self.bucket.objects[self.name]
 
+    def delete(self):
+        del self.bucket.objects[self.name]
+
 
 class Bucket:
     def __init__(self, refuse=False):
@@ -83,3 +86,13 @@ def test_a_failed_bigquery_insert_falls_back_to_the_durable_object_not_the_cache
     monkeypatch.setattr(bq, "_run_query", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("bq down")))
     aid = bq.insert_research_artifact({"synthesis": {"title": "Brief"}})
     assert f"research/artifacts/{aid}.json" in bucket.objects
+
+
+def test_a_deleted_artifact_is_not_served_from_its_bucket_object(monkeypatch):
+    monkeypatch.setenv("RESEARCH_PERSIST_BACKEND", "gcs")
+    bucket = Bucket()
+    _bucket(monkeypatch, bucket)
+    monkeypatch.setattr(bq, "_run_query", lambda *a, **k: [])
+    artifact_id = bq.insert_research_artifact({"synthesis": {"title": "Brief"}})
+    assert bq.delete_research_artifact(artifact_id) is True
+    assert [n for n in bucket.objects if artifact_id in n] == [] and bq.get_research_artifact(artifact_id) is None

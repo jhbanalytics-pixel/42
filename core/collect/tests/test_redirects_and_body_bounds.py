@@ -56,7 +56,7 @@ def test_a_free_read_follows_an_upgrade_and_a_new_path_on_its_own_host(wire):
     routes["http://feeds.example.org/rss"] = (301, {"Location": "https://feeds.example.org/rss"}, b"")
     routes["https://feeds.example.org/rss"] = (302, {"Location": "/rss2"}, b"")
     routes["https://feeds.example.org/rss2"] = (200, {"Content-Type": "application/rss+xml; charset=utf-8"},
-                                                "<rss>Mzansi</rss>".encode())
+                                                b"<rss>Mzansi</rss>")
     assert http_get("http://feeds.example.org/rss") == (200, "<rss>Mzansi</rss>")
     assert len(sent) == 3
 
@@ -102,6 +102,19 @@ def test_a_free_read_past_its_deadline_is_refused(wire):
     ticks = iter([0.0, 500.0, 1000.0])
     with pytest.raises(FreeReadRefused, match="seconds"):
         http_get("https://feeds.example.org/slow", monotonic=lambda: next(ticks))
+
+
+def test_the_deadline_covers_every_redirect_hop_and_bounds_each_request(wire, monkeypatch):
+    routes, sent = wire
+    routes["https://feeds.example.org/a"] = (302, {"Location": "/b"}, b"")
+    routes["https://feeds.example.org/b"] = (302, {"Location": "/c"}, b"")
+    timeouts = []
+    real_get = requests.get
+    monkeypatch.setattr(requests, "get", lambda url, **kw: timeouts.append(kw["timeout"]) or real_get(url, **kw))
+    ticks = iter([0.0, 0.0, 115.0, 121.0])
+    with pytest.raises(FreeReadRefused, match="seconds"):
+        http_get("https://feeds.example.org/a", monotonic=lambda: next(ticks))
+    assert len(sent) == 2 and timeouts == [(10, 60), (5.0, 5.0)]
 
 
 def test_robots_reads_through_the_same_bounded_getter(wire):

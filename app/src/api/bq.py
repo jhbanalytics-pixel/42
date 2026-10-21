@@ -3635,12 +3635,28 @@ def get_research_artifact(artifact_id: str) -> dict | None:
 
 
 def delete_research_artifact(artifact_id: str) -> bool:
+    """Deletes the BigQuery row, the artifact's own bucket object and its cached copy, each of which
+    get_research_artifact would otherwise still serve. False when any delete fails; an object that is already gone
+    counts as deleted."""
     sql = "DELETE FROM " + _research_table_ref() + " WHERE artifact_id = @id"
     try:
         _run_query(sql, [("id", "STRING", artifact_id)])
-        return True
     except Exception:
         return False
+    key = ("research", "artifact", artifact_id)
+    with synth._CACHE_LOCK:
+        synth._CACHE.pop(key, None)
+    bucket = synth._gcs_bucket()
+    if bucket is None:
+        return True
+    try:
+        for name in (_research_artifact_object(artifact_id), synth.cache_object_name(key)):
+            blob = bucket.get_blob(name)
+            if blob is not None:
+                blob.delete()
+    except Exception:
+        return False
+    return True
 
 
 def list_recent_research_artifacts(limit: int = 20) -> list:

@@ -305,9 +305,14 @@ def http_get(url, timeout=(10, 60), *, max_bytes=FREE_MAX_BYTES, deadline_s=FREE
 
     clock = monotonic or time.monotonic
     started = clock()
+    connect, read = timeout if isinstance(timeout, tuple) else (timeout, timeout)
     for _ in range(FREE_MAX_REDIRECTS + 1):
-        response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=timeout, allow_redirects=False,
-                                stream=True)
+        # The deadline covers every hop: each request may wait only for what is left of it.
+        left = deadline_s - (clock() - started)
+        if left <= 0:
+            raise FreeReadRefused(f"read took over {deadline_s} seconds")
+        response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=(min(connect, left), min(read, left)),
+                                allow_redirects=False, stream=True)
         try:
             if response.is_redirect:
                 target = urljoin(url, response.headers.get("location", ""))

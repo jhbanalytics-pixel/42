@@ -488,8 +488,10 @@ def tables(figures: list[dict]) -> list[dict]:
     merged = []
     for table in built:
         same = next((m for m in merged if m["source"].casefold() == table["source"].casefold()
-                     and all(m[k].casefold() == table[k].casefold() for k in ("title", "population", "sample",
-                                                                             "fieldwork"))
+                     and all(m[k].casefold() == table[k].casefold() for k in ("title", "population"))
+                     # A syndicated copy often drops the sample or fieldwork: only two stated values must agree.
+                     and all(NOT_STATED in (m[k], table[k]) or m[k].casefold() == table[k].casefold()
+                             for k in ("sample", "fieldwork"))
                      and sorted((r["subject"].casefold(), r["value"]) for r in m["rows"])
                      == sorted((r["subject"].casefold(), r["value"]) for r in table["rows"])), None)
         if same is not None:
