@@ -50,6 +50,7 @@ import hashlib
 import math
 import random
 import re
+from array import array
 from collections import Counter, defaultdict
 from datetime import timedelta, timezone
 from functools import lru_cache
@@ -91,8 +92,10 @@ NUMBER = re.compile(r"\d+(?:[.,:]\d+)*")
 TOKEN = re.compile(r"#?\w+")
 PLACEHOLDERS = {"URL", "HANDLE", "NUM"}
 
+# Only the embedding is read: the whole enrichment row (video notes, formats, the lot) for tens of thousands of candidate posts was
+# held in memory for nothing, and detect was killed at its 4 GiB limit in coaction on 21 Oct 2026.
 ENRICHMENT_SQL = """
-SELECT pe.* FROM {core}.post_enrichment pe WHERE pe.post_id IN (SELECT n.post_id FROM UNNEST(@ids) n)
+SELECT pe.post_id, pe.embedding FROM {core}.post_enrichment pe WHERE pe.post_id IN (SELECT n.post_id FROM UNNEST(@ids) n)
 """
 
 INSERT_SQL = """
@@ -162,7 +165,7 @@ def features(row, embedding=None):
             "template": masked if len(words) >= MIN_TEMPLATE_WORDS else None,
             "tags": tuple(tags) if len(tags) >= MIN_TAGS else None,
             "text": plain if len(plain) >= MIN_TEXT_CHARS else None,
-            "embedding": list(embedding) if embedding else None}
+            "embedding": embedding if embedding else None}
 
 
 @lru_cache(maxsize=100_000)
@@ -635,7 +638,9 @@ def run_coaction(client, d, run_id, rule_version, core=CORE, agent=AGENT):
         chunk = [{"post_id": p} for p in ids[i:i + CHUNK]]
         for r in _run(client, ENRICHMENT_SQL, [_struct_array("ids", chunk, ID_FIELDS)], core, agent):
             if r.get("embedding"):
-                embeddings[r["post_id"]] = [float(x) for x in r["embedding"]]
+                # One compact float32 vector per post, shared by every feature set that cites the post: a list of Python floats
+                # costs about eight times as much and was copied once more per item the post sits on.
+                embeddings[r["post_id"]] = array("f", (float(x) for x in r["embedding"]))
     result = analyse(rows, d, embeddings)
 
     signal_rows = [{"metric_date": d, "run_id": run_id, "rule_version": rule_version, **s}
@@ -650,4 +655,15 @@ def run_coaction(client, d, run_id, rule_version, core=CORE, agent=AGENT):
         _run(client, MERGE_SQL, [_struct_array("rows", score_rows[i:i + CHUNK], SCORE_FIELDS)], core, agent)
 
     return {"posts": len({(r["post_id"], r["market"]) for r in rows}), "networks": len(result["networks"]),
-            "coord_signals": len(signal_rows), "coord_scores": len(score_rows)}
+            "coord_signals": len(signal_rows), "coord_scores": len(score_rows), "peak_rss_mb": peak_rss_mb()}
+
+
+def peak_rss_mb():
+    """The process's peak resident memory in MiB so far, or None where the platform does not report it. Written into the
+    coaction counts because this step holds the 30 day post rows and the embeddings in memory and is where detect met
+    its limit on 21 Oct 2026."""
+    try:
+        import resource
+    except ImportError:
+        return None
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
