@@ -36,7 +36,7 @@ Release Alpha, data quality, trend identity and research reliability.
 
 The jobs only release of 21 October 2026: the morning collection, detection and brief changes that answer the zero card mornings of 18 to 21 October.
 
-- The morning collection's credit share is back to 2,000 a day, so the chain reaches the brief well before 06:15. At 4,000 the 20 October collection ran 162 minutes and 29 of 30 candidates went unexplained. The monthly cap stays at 180,000.
+- The morning collection's credit share is back to 2,000 a day, so the chain reaches the brief well before 06:15. At 4,000 the 20 October collection ran 162 minutes and 29 of 30 candidates went unexplained. The monthly cap is 180,000, raised from 80,000 on 16 October.
 - A creator panel's collection day is no longer held invalid for a quiet or busy day among its creators. Its item count is what those creators posted, so the day is judged on how many of its profiles answered; feeds, counters and searches keep the item band.
 - The brief's pattern pool counts the video model's format for each clip beside the enriched formats, so a format three creators share across two days reaches the adopted pattern bucket even when captions do not name it.
 - The writer sees each clip's video format and the same line of simpler explanations the critic checks, and is told to name the rival event and show the pattern beyond it, or to write no pattern claim when the posts only react to an event.

@@ -380,6 +380,16 @@ def test_bind_binds_a_typed_acceptance_of_a_failed_baseline_chain_with_the_reaso
     release = jo.JobsRelease(value, rw.FakeReader(bench.world), bench.tmp / "evidence", now=lambda: jpw.NOW)
     jo.check_baseline_chain(release)
     assert release.observations["baseline_chain"]["accepted_by_line"] is True
+    assert f"baseline chain of {manifest['run_date']} accepted by line for reasons {', '.join(manifest['verdict']['reasons'])}" in out
+
+
+def test_the_producer_bindings_refuse_the_acceptance_flag_because_no_chain_manifest_exists_yet(bench, capsys):
+    captured(bench, capsys)
+    path = bench.tmp / "albert-baseline-accept.txt"
+    path.write_text("BASELINE ACCEPT 2026-10-21: I accept the chain, whose detect failed, as the baseline of the jobs only release.\n", encoding="utf-8")
+    code, out, err = run([*bench.producer_argv(), "--accept-failed-baseline", str(path)], capsys)
+    assert code == 1 and "REFUSED" in err and "producer bindings" in err, err
+    assert not bench.producer.exists()
 
 
 def test_bind_refuses_a_failed_baseline_chain_without_the_typed_acceptance(bench, capsys):

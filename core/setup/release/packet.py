@@ -746,6 +746,8 @@ def cmd_bind_jobs(args):
     if args.release_letter is not None:
         bound["releaseLetter"] = args.release_letter
     if args.producer_only:
+        if args.accept_failed_baseline is not None:
+            raise Refused("--accept-failed-baseline binds against the baseline chain manifest; the producer bindings have none yet")
         jo.validate_jobs_bindings(bound, producer=True)
         write_json_new(out, bound)
         print(f"wrote {out}\nrelease_id {release_id}\nsha256 {sha_bytes(out)}")
@@ -806,6 +808,9 @@ def cmd_bind_jobs(args):
     jo.check_baseline_chain(jo.JobsRelease(bound, None, packet_dir, now=utc_now))
     write_json_new(out, bound)
     print(f"wrote {out}\nrelease_id {release_id}\nsha256 {sha_bytes(out)}")
+    if "baselineChainAcceptance" in bound:
+        acceptance = bound["baselineChainAcceptance"]
+        print(f"baseline chain of {acceptance['run_date']} accepted by line for reasons {', '.join(acceptance['reasons'])}")
     return 0
 
 
