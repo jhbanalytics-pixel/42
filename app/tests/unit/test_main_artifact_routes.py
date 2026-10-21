@@ -1194,6 +1194,7 @@ def test_the_research_export_reads_once_and_compares_the_stored_scope_with_the_s
     assert recent.json() == {"artifacts": [{"artifact_id": "ra_0123456789abcdef", "markets": ["za"]}]}
     stamped = {}
     monkeypatch.setattr(bq, "_persist_research_artifact_gcs", lambda aid, row: stamped.update(row))
+    monkeypatch.setattr(bq, "_write_research_artifact_durable_gcs", lambda aid, row: None)
     monkeypatch.setenv("RESEARCH_PERSIST_BACKEND", "gcs")
     assert bq.insert_research_artifact({"synthesis": {"title": "New brief"}}).startswith("ra_")
     assert stamped["client_scope_id"] == server_scope

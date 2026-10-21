@@ -3481,6 +3481,40 @@ def _persist_research_artifact_gcs(artifact_id: str, row: dict) -> None:
     synth.cache_set(_research_index_key(), {"ids": ids[:100]})
 
 
+class ResearchPersistError(RuntimeError):
+    """No durable write of a research artifact succeeded, so no artifact id is issued."""
+
+
+def _research_artifact_object(artifact_id: str) -> str:
+    return f"research/artifacts/{artifact_id}.json"
+
+
+def _write_research_artifact_durable_gcs(artifact_id: str, row: dict) -> None:
+    """The artifact as its own object in the bucket, outside the cache and its TTL. Raises ResearchPersistError when
+    there is no bucket or the upload fails: unlike the cache write, this one must not be swallowed."""
+    bucket = synth._gcs_bucket()
+    if bucket is None:
+        raise ResearchPersistError("no bucket for research artifacts")
+    try:
+        bucket.blob(_research_artifact_object(artifact_id)).upload_from_string(
+            json.dumps(row, default=str), content_type="application/json"
+        )
+    except Exception as exc:
+        raise ResearchPersistError("research artifact upload failed") from exc
+
+
+def _read_research_artifact_durable_gcs(artifact_id: str) -> dict | None:
+    bucket = synth._gcs_bucket()
+    if bucket is None:
+        return None
+    try:
+        blob = bucket.get_blob(_research_artifact_object(artifact_id))
+        value = json.loads(blob.download_as_text()) if blob is not None else None
+    except Exception:  # an unreadable object is a miss here; the BigQuery row is tried next
+        return None
+    return value if isinstance(value, dict) else None
+
+
 def insert_research_artifact(artifact: dict) -> str:
     import uuid
 
@@ -3491,8 +3525,12 @@ def insert_research_artifact(artifact: dict) -> str:
     # The row binds itself to the server scope it was produced under; readers
     # refuse a row whose stored scope is not the one they serve.
     artifact["client_scope_id"] = investigation_scopes.default_client_scope_id()
+    # An artifact id is issued only after a durable write: the BigQuery row, or the artifact's own bucket object when
+    # the backend is gcs or the INSERT fails. The cache (expiring, best effort) is never the saved copy, and when no
+    # durable write succeeds ResearchPersistError is raised and no id goes out (audit F7D-APP-009).
     backend = os.environ.get("RESEARCH_PERSIST_BACKEND", "gcs").lower()
     if backend == "gcs":
+        _write_research_artifact_durable_gcs(artifact_id, artifact)
         _persist_research_artifact_gcs(artifact_id, artifact)
         return artifact_id
 
@@ -3533,9 +3571,8 @@ def insert_research_artifact(artifact: dict) -> str:
             ],
         )
     except Exception:
-        _persist_research_artifact_gcs(artifact_id, artifact)
-    else:
-        _persist_research_artifact_gcs(artifact_id, artifact)
+        _write_research_artifact_durable_gcs(artifact_id, artifact)
+    _persist_research_artifact_gcs(artifact_id, artifact)
     return artifact_id
 
 
@@ -3549,6 +3586,9 @@ def get_research_artifact(artifact_id: str) -> dict | None:
     hit = synth.cache_get(("research", "artifact", artifact_id))
     if isinstance(hit, dict):
         return hit
+    saved = _read_research_artifact_durable_gcs(artifact_id)
+    if saved is not None:
+        return saved
     sql = (
         "SELECT artifact_id, persona_id, markets, trend_date, status, quality_level, "
         "product_frame, evidence_json, synthesis_json, markdown, degraded_reason, created_at "
