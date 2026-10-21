@@ -23,9 +23,9 @@ def test_the_same_figure_twice_is_still_one():
     assert len(kept) == 1
 
 
-def _row(eid, measure, handle):
+def _row(eid, measure, handle, population=""):
     return {"subject": "ANC", "value": 40.0, "unit": "%", "quote": f"{measure}: ANC 40%", "measure": measure,
-            "source": "Ipsos", "fieldwork": "", "sample": "", "population": "", "evidence_id": eid,
+            "source": "Ipsos", "fieldwork": "", "sample": "", "population": population, "evidence_id": eid,
             "platform": "x", "handle": handle, "url": f"https://src.example/{eid}",
             "posted_at": "2026-10-13T08:00:00", "market": "ZA", "source_market": None}
 
@@ -39,3 +39,14 @@ def test_tables_with_the_same_rows_but_different_measures_stay_apart():
 def test_tables_with_the_same_measure_and_rows_still_merge():
     built = figures.tables([_row("e1", "Support", "News24"), _row("e2", "Support", "eNCA")])
     assert len(built) == 1 and len(built[0]["also_reported_by"]) == 1
+
+
+def test_tables_for_different_populations_stay_apart():
+    built = figures.tables([_row("e1", "Support", "News24", "Gauteng voters"),
+                            _row("e2", "Support", "eNCA", "Western Cape voters")])
+    assert sorted(t["population"] for t in built) == ["Gauteng voters", "Western Cape voters"]
+
+
+def test_tables_that_state_no_measure_still_merge_when_their_rows_match():
+    built = figures.tables([_row("e1", "", "News24"), _row("e2", "", "eNCA")])
+    assert len(built) == 1 and built[0]["title"] == "Reported percentages"

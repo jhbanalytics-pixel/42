@@ -216,11 +216,15 @@ class AskModelBudget:
             return float(billed_micros / MICROS)
 
     def settle(self, reservation: _Reservation, usage, *, stop_unknown: bool = True) -> bool:
+        return self.settle_usd(reservation, usage, stop_unknown=stop_unknown)[0]
+
+    def settle_usd(self, reservation: _Reservation, usage, *, stop_unknown: bool = True) -> tuple[bool, float]:
         """Book a finished call. Unknown usage books the full reserve and stops later calls, unless stop_unknown is
         False: a call Google failed with a 5xx books its full reserve the same way, but one retry may still run within
         the cap, and a call that succeeded with an incomplete usage report books its full reserve and later calls
         still run within the cap. Returns True when later calls may run on this call's account: its usage is known (or
-        unknown with stop_unknown False, so booked at the full reserve) and within its reserve and the caps."""
+        unknown with stop_unknown False, so booked at the full reserve) and within its reserve and the caps, with the
+        USD booked for the call (settle returns the first only)."""
         with self._lock:
             self._take(reservation)
             known = self._known_usage(usage)
@@ -247,7 +251,8 @@ class AskModelBudget:
                 self._stopped = True
                 self._stop_reason = ("usage_unknown" if unknown else "bound_exceeded" if bound_exceeded else
                                      "ceiling_exceeded" if overrun else "question_model_budget_exceeded")
-            return (known or not stop_unknown) and not bound_exceeded and not overrun and not over_cap
+            return ((known or not stop_unknown) and not bound_exceeded and not overrun and not over_cap,
+                    float(billed_micros / MICROS))
 
     def fail(self, reservation: _Reservation, *, stop: bool = True) -> float:
         self.settle(reservation, None, stop_unknown=stop)
