@@ -310,7 +310,8 @@ def gather(post, sc_client) -> dict:
         if status == "cap_reached":
             out["stopped"] = "credit_cap"
             return out
-        items = getattr(result, "items", None) or [] if status in ("ok", "partial") else []
+        # A same-day cached reply carries the items the paid call returned, at no charge (audit F7D-UND-001).
+        items = (getattr(result, "items", None) or []) if status in ("ok", "partial", "cached") else []
         out[what] = _segments_text(items) if what == "transcript" else _screen_text(items)
     return out
 
