@@ -351,6 +351,60 @@ def test_bind_refuses_a_baseline_chain_manifest_that_does_not_qualify(bench, cap
     assert "baseline" in refuse(bench, capsys).lower()
 
 
+def failed_chain_prepared(bench, capsys):
+    with_producer(bench, capsys)
+    bench.fixture.set_terminal("detect", status="failed", has_error=True)
+    bench.write_chain()
+    bench.write_durable()
+    bench.write_dry_run()
+    return bench
+
+
+def acceptance_file(bench, text=None):
+    manifest = json.loads(bench.chain_path.read_text(encoding="utf-8"))
+    path = bench.tmp / "albert-baseline-accept.txt"
+    path.write_text(text or f"BASELINE ACCEPT {manifest['run_date']}: I accept the chain, whose detect failed, as the baseline of the jobs only release.\n",
+                    encoding="utf-8")
+    return path, manifest
+
+
+def test_bind_binds_a_typed_acceptance_of_a_failed_baseline_chain_with_the_reasons_the_manifest_recorded(bench, capsys):
+    failed_chain_prepared(bench, capsys)
+    path, manifest = acceptance_file(bench)
+    assert manifest["verdict"]["qualifies"] is False and "TERMINAL" in manifest["verdict"]["reasons"]
+    code, out, err = run(bench.bind_argv(**{"--accept-failed-baseline": path}), capsys)
+    assert code == 0, err
+    value = bench.bindings_value()
+    assert value["baselineChainAcceptance"] == {"line": path.read_text(encoding="utf-8").strip(), "run_date": manifest["run_date"],
+                                                "reasons": manifest["verdict"]["reasons"]}
+    release = jo.JobsRelease(value, rw.FakeReader(bench.world), bench.tmp / "evidence", now=lambda: jpw.NOW)
+    jo.check_baseline_chain(release)
+    assert release.observations["baseline_chain"]["accepted_by_line"] is True
+
+
+def test_bind_refuses_a_failed_baseline_chain_without_the_typed_acceptance(bench, capsys):
+    failed_chain_prepared(bench, capsys)
+    assert "no typed acceptance" in refuse(bench, capsys)
+
+
+def test_bind_refuses_a_typed_acceptance_whose_line_does_not_open_with_the_chains_date(bench, capsys):
+    failed_chain_prepared(bench, capsys)
+    path, manifest = acceptance_file(bench, "I accept the failed chain as the baseline.\n")
+    assert "BASELINE ACCEPT" in refuse(bench, capsys, bench.bind_argv(**{"--accept-failed-baseline": path}))
+
+
+def test_bind_refuses_a_typed_acceptance_for_a_chain_that_qualifies(bench, capsys):
+    prepared(bench, capsys)
+    path, manifest = acceptance_file(bench)
+    assert manifest["verdict"]["qualifies"] is True
+    assert "qualifies" in refuse(bench, capsys, bench.bind_argv(**{"--accept-failed-baseline": path}))
+
+
+def test_bind_refuses_a_missing_acceptance_line_file(bench, capsys):
+    failed_chain_prepared(bench, capsys)
+    assert "missing" in refuse(bench, capsys, bench.bind_argv(**{"--accept-failed-baseline": bench.tmp / "nowhere.txt"}))
+
+
 def test_bind_refuses_a_baseline_chain_manifest_that_is_too_old(bench, capsys, monkeypatch):
     prepared(bench, capsys)
     monkeypatch.setattr(packet, "utc_now", lambda: jpw.NOW.replace(day=20))

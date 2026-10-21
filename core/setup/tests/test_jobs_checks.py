@@ -842,7 +842,7 @@ def test_rb_t8_a_by_line_baseline_after_the_first_two_chains_is_accepted_like_a_
     w.prepare()
     assert baseline_manifest(w)["verdict"]["baseline_by_line"] is True
     assert w.run("BeforeAnyWrite")["observations"]["baseline_chain"] == {"run_date": "2026-10-12", "qualifies": False, "baseline_by_line": True,
-                                                                         "sha256": w.bound["baselineChainSha256"]}
+                                                                         "sha256": w.bound["baselineChainSha256"], "accepted_by_line": False}
 
 
 def test_rb_t8_a_chain_older_than_the_bound_age_is_refused_whatever_its_ordinal(tmp_path):
@@ -870,6 +870,91 @@ def test_rb_t8_a_chain_manifest_without_the_job_definitions_is_refused(tmp_path)
     manifest["jobs_image"].pop("definitions")
     rebind(w, manifest)
     assert w.stop("BeforeAnyWrite").code == "BASELINE"
+
+
+# F15: Albert's typed acceptance of a baseline chain that neither qualifies nor is a baseline by line (21 Oct 2026)
+
+def failed_detect_world(tmp_path):
+    w = jw.ReleaseWorld(tmp_path, day=dt.date(2026, 10, 12))
+    w.now = dt.datetime(2026, 10, 13, 8, 0, tzinfo=jw.UTC)
+    w.set_terminal("detect", status="failed", has_error=True)
+    w.prepare()
+    return w
+
+
+def acceptance_for(w, **over):
+    manifest = baseline_manifest(w)
+    value = {"line": f"BASELINE ACCEPT {manifest['run_date']}: I accept the chain, whose detect failed, as the baseline of the jobs only release.",
+             "run_date": manifest["run_date"], "reasons": list(manifest["verdict"]["reasons"])}
+    value.update(over)
+    return value
+
+
+def test_rb_t9_a_failed_detect_chain_is_refused_without_a_typed_acceptance(tmp_path):
+    w = failed_detect_world(tmp_path)
+    verdict = baseline_manifest(w)["verdict"]
+    assert verdict["qualifies"] is False and "TERMINAL" in verdict["reasons"] and verdict["failed_stage"] == "detect"
+    stop = w.stop("BeforeAnyWrite")
+    assert stop.code == "BASELINE" and "no typed acceptance" in stop.message
+
+
+def test_rb_t9_a_typed_acceptance_of_exactly_the_recorded_reasons_lets_the_failed_chain_serve(tmp_path):
+    w = failed_detect_world(tmp_path)
+    w.bound["baselineChainAcceptance"] = acceptance_for(w)
+    observed = w.run("BeforeAnyWrite")["observations"]["baseline_chain"]
+    assert observed == {"run_date": "2026-10-12", "qualifies": False, "baseline_by_line": False, "sha256": w.bound["baselineChainSha256"],
+                        "accepted_by_line": True}
+
+
+def test_rb_t9_a_qualifying_chain_records_that_no_acceptance_was_needed(tmp_path):
+    w = world(tmp_path)
+    assert w.run("BeforeAnyWrite")["observations"]["baseline_chain"]["accepted_by_line"] is False
+
+
+@pytest.mark.parametrize("change", [
+    {"run_date": "2026-10-11", "line": "BASELINE ACCEPT 2026-10-11: I accept the chain of the 11th."},
+    {"reasons": ["TERMINAL"]},
+    {"reasons": ["TERMINAL", "UPSTREAM", "LINEAGE", "RETRIED"]},
+])
+def test_rb_t9_an_acceptance_of_another_date_or_other_reasons_than_the_manifest_recorded_is_refused(tmp_path, change):
+    w = failed_detect_world(tmp_path)
+    value = acceptance_for(w, **change)
+    if sorted(value["reasons"]) == sorted(baseline_manifest(w)["verdict"]["reasons"]) and value["run_date"] == "2026-10-12":
+        pytest.skip("the changed reasons happen to equal the recorded ones")
+    w.bound["baselineChainAcceptance"] = value
+    stop = w.stop("BeforeAnyWrite")
+    assert stop.code == "BASELINE" and "typed baseline acceptance" in stop.message
+
+
+def test_rb_t9_an_acceptance_bound_to_a_chain_that_qualifies_is_refused_as_not_the_manifests(tmp_path):
+    w = world(tmp_path)
+    w.bound["baselineChainAcceptance"] = {"line": "BASELINE ACCEPT 2026-10-10: I accept the chain.", "run_date": "2026-10-10", "reasons": ["TERMINAL"]}
+    assert w.stop("BeforeAnyWrite").code == "BASELINE"
+
+
+@pytest.mark.parametrize("name,change", [
+    ("a line that does not open with BASELINE ACCEPT and the date", {"line": "I accept the chain of 2026-10-12 as the baseline."}),
+    ("a line naming another date than run_date", {"line": "BASELINE ACCEPT 2026-10-11: I accept the chain.", "run_date": "2026-10-12"}),
+    ("a run_date that is not a date", {"run_date": "yesterday", "line": "BASELINE ACCEPT yesterday: I accept the chain."}),
+    ("no reasons", {"reasons": []}),
+    ("a reason that is not a chain code", {"reasons": ["TERMINAL", "FLAKE"]}),
+    ("a repeated reason", {"reasons": ["TERMINAL", "TERMINAL"]}),
+    ("an acceptance covering the image", {"reasons": ["IMAGE", "TERMINAL"]}),
+    ("an acceptance covering the window", {"reasons": ["WINDOW"]}),
+    ("an acceptance covering the services", {"reasons": ["SERVICES"]}),
+    ("an extra key", {"typed_by": "Albert"}),
+])
+def test_rb_t9_a_malformed_or_forbidden_acceptance_is_a_bindings_stop(tmp_path, name, change):
+    w = failed_detect_world(tmp_path)
+    with pytest.raises(so.Stop) as stop:
+        jo.validate_jobs_bindings({**w.bound, "baselineChainAcceptance": acceptance_for(w, **change)})
+    assert stop.value.code == "BINDINGS", name
+
+
+def test_rb_t9_the_acceptance_shape_is_checked_on_the_acting_path_too(tmp_path):
+    w = failed_detect_world(tmp_path)
+    w.bound["baselineChainAcceptance"] = acceptance_for(w, reasons=["IMAGE", *baseline_manifest(w)["verdict"]["reasons"]])
+    assert w.stop("BeforeAnyWrite").code == "BINDINGS"
 
 
 @pytest.mark.parametrize("over", [
