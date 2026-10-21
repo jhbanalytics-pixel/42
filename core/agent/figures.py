@@ -334,7 +334,8 @@ def verify(figures: list, ctx: RunContext) -> tuple[list[dict], dict]:
         for name in ("sample", "fieldwork"):
             if _text_breaches(fields[name]):
                 fields[name] = NOT_STATED
-        key = (record["id"], subject.casefold(), float(value))
+        # Two measures of one subject in one record ('ANC support 40%', 'ANC turnout 40%') are two figures.
+        key = (record["id"], fields["measure"].casefold(), subject.casefold(), float(value))
         if key in seen:
             continue
         seen.add(key)
@@ -487,6 +488,7 @@ def tables(figures: list[dict]) -> list[dict]:
     merged = []
     for table in built:
         same = next((m for m in merged if m["source"].casefold() == table["source"].casefold()
+                     and m["title"].casefold() == table["title"].casefold()
                      and sorted((r["subject"].casefold(), r["value"]) for r in m["rows"])
                      == sorted((r["subject"].casefold(), r["value"]) for r in table["rows"])), None)
         if same is not None:
