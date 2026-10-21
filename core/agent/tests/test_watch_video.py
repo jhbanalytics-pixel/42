@@ -292,3 +292,23 @@ def test_the_suppression_check_reads_the_view_by_post_and_by_handle():
     sql, params, _ = wh.runs[0]
     assert "intelligence_42_core.v_suppressed_creators" in sql
     assert params["post_id"] == "tiktok_7412" and params["key"] == "tiktok:chef_za"
+
+
+def test_watch_video_is_refused_when_the_research_share_has_no_room_and_the_question_goes_on():
+    # Audit F7D-ASK-002: the read reserved on the question's hold only, so it ran past the T2 research allocation.
+    from core.agent.model_budget import AskModelBudget
+
+    c, model = make_ctx(), FakeModel()
+    c.model_budget = AskModelBudget(1.0, 0.000001)
+    with pytest.raises(Refused, match="model budget"):
+        watch(c, model=model)
+    assert model.calls == [] and not c.model_budget.stopped and c.model_budget.research_exhausted
+
+
+def test_watch_video_spend_is_booked_on_the_research_share():
+    from core.agent.model_budget import AskModelBudget
+
+    c = make_ctx()
+    c.model_budget = AskModelBudget(1.0, 0.5)
+    watch(c, model=FakeModel(usd=0.03))
+    assert c.model_budget._research_booked_micros == 30_000

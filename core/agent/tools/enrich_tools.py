@@ -373,12 +373,12 @@ def _stored_video(ctx: RunContext, warehouse, evidence_id: str) -> dict:
 
 
 class _SpendingModel:
-    """The model, with each call's spend booked on the question: reserved in its model budget before the call and
-    settled after it when the question has one, added to ctx.model_usd_extra otherwise. Without one, a call whose
-    reserve (its input bound and full output allowance at the model's price) is over what the context's own
-    max_budget_usd leaves after the research model's spend and earlier tool spend is refused before it is sent. A
-    billed failure counts. Under a budget a 429 refusal gives its reserve back and is waited out, and a 5xx books its
-    reserve and is tried once more, each try on a fresh reserve."""
+    """The model, with each call's spend booked on the question: reserved in its model budget, on the research share
+    as well as the question's hold, before the call and settled after it when the question has one, added to
+    ctx.model_usd_extra otherwise. Without one, a call whose reserve (its input bound and full output allowance at the
+    model's price) is over what the context's own max_budget_usd leaves after the research model's spend and earlier
+    tool spend is refused before it is sent. A billed failure counts. Under a budget a 429 refusal gives its reserve
+    back and is waited out, and a 5xx books its reserve and is tried once more, each try on a fresh reserve."""
 
     def __init__(self, ctx: RunContext, model, input_bound: int):
         self.ctx, self.model, self.input_bound = ctx, model, input_bound
@@ -395,7 +395,10 @@ class _SpendingModel:
             reservation = None
             if budget is not None:
                 try:
-                    reservation = budget.reserve(kwargs["model"], self.input_bound, kwargs["max_tokens"])
+                    # A video read is research (a researcher's tool call), so it is booked on the research share as
+                    # well as the question's hold: past that share it is refused and the question goes on.
+                    reservation = budget.reserve(kwargs["model"], self.input_bound, kwargs["max_tokens"],
+                                                 research=True)
                 except BudgetRefused as e:
                     raise Refused(f"The question's model budget has no room to watch a video ({e}).") from None
             else:
