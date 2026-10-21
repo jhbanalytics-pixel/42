@@ -869,7 +869,17 @@ def test_rb_t8_a_chain_manifest_without_the_job_definitions_is_refused(tmp_path)
     manifest = baseline_manifest(w)
     manifest["jobs_image"].pop("definitions")
     rebind(w, manifest)
-    assert w.stop("BeforeAnyWrite").code == "BASELINE"
+    stop = w.stop("BeforeAnyWrite")
+    assert stop.code == "BASELINE" and so.JOB_NAMES[0] in stop.message and "baseline-J" in stop.message
+
+
+def test_rb_t8_a_chain_manifest_whose_job_definitions_are_not_a_mapping_is_refused(tmp_path):
+    w = chain_world(tmp_path, run_day=12, now_day=13)
+    manifest = baseline_manifest(w)
+    manifest["jobs_image"]["definitions"] = ["f42-collect"]
+    rebind(w, manifest)
+    stop = w.stop("BeforeAnyWrite")
+    assert stop.code == "BASELINE" and so.JOB_NAMES[0] in stop.message and "baseline-J" in stop.message
 
 
 # F15: Albert's typed acceptance of a baseline chain that neither qualifies nor is a baseline by line (21 Oct 2026)

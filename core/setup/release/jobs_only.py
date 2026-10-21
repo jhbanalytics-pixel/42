@@ -547,8 +547,10 @@ SIGNATURE = ("cannot round-trip through string representation", "PARSE_JSON")
 
 def check_baseline_chain(rel):
     """The baseline chain manifest is the file the bindings hash, was made against this baseline-J and this rollback digest,
-    qualifies or is a baseline by line, has no WINDOW reason, and is recent enough. Its verdict is not taken on its word: the
-    reasons must agree with qualifies, and a by-line claim must be supported by the degradation recorded in the same manifest."""
+    qualifies or is a baseline by line, has no WINDOW reason, recorded baseline-J's job definitions at its read, and is recent
+    enough. Its verdict is not taken on its word: the reasons must agree with qualifies, and a by-line claim must be supported
+    by the degradation recorded in the same manifest. The definitions are compared as the producer read them, after the chain's
+    deadline, not as they stood while the chain ran."""
     path = Path(rel.bound["baselineChainPath"])
     require(path.is_file(), "BINDINGS", "The baseline chain manifest does not exist")
     data = path.read_bytes()
@@ -583,13 +585,14 @@ def check_baseline_chain(rel):
         require(supported or acceptance is not None, "BASELINE",
                 "The baseline chain neither qualifies nor is a baseline by line, and no typed acceptance is bound")
     # Any chain after the anchor (WINDOW above) on the rollback digest can be the baseline, whatever its ordinal, provided the
-    # fourteen job definitions the producer recorded are the ones baseline-J holds and the chain is recent enough. Until 21 Oct
-    # 2026 only the first two chains after the anchor could serve (Q3); when both failed, no later chain could, however well it
-    # ran, and the release needed this file changed. The drift that rule stood against is refused by check_baseline_images,
-    # job_states and check_services on the day, and by the definitions compared here for the day the chain was read.
-    definitions = manifest.get("jobs_image", {}).get("definitions") or {}
+    # fourteen job definitions the producer recorded are the ones baseline-J holds and the chain is recent enough. The producer
+    # records the definitions as it read them, after the chain's deadline; the configuration during the chain's own hours is
+    # held by check_baseline_images, job_states and check_services on the day of the release.
+    definitions = manifest.get("jobs_image", {}).get("definitions")
+    definitions = definitions if isinstance(definitions, dict) else {}
     for name in so.JOB_NAMES:
-        recorded = definitions.get(name) if isinstance(definitions.get(name), dict) else {}
+        recorded = definitions.get(name)
+        recorded = recorded if isinstance(recorded, dict) else {}
         require(recorded.get("view_sha256") == so.fingerprint(rel.baseline["jobs"][name]), "BASELINE",
                 f"The baseline chain manifest recorded another definition of {name} than baseline-J holds")
     day = dt.date.fromisoformat(manifest["run_date"])
