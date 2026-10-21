@@ -942,3 +942,15 @@ def test_skin_run_investigation_read_and_list_are_masked_through_f42_api(skin_ru
     for path in (f"/api/investigations/{skin_run.inv_id}", "/api/investigations"):
         r = skin_run.client.get(path, headers=GOOD)
         assert r.status_code == 200 and skin_run_leaks(r.text) == [], path
+
+
+def test_a_dossier_export_reaches_the_browser_marked_no_store(ctx):
+    # Audit F7D-SEC-002: _passthrough kept only Content-Disposition, so the agent's no-store was dropped.
+    r = ctx.client.get("/api/dossiers/d_1/versions/2/export", headers=GOOD)
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-store"
+
+
+def test_passthrough_keeps_the_agents_cache_control():
+    upstream = httpx.Response(200, content=b"{}", headers={"Content-Type": "application/json",
+                                                           "Cache-Control": "no-store"})
+    assert api_mod._passthrough(upstream).headers["cache-control"] == "no-store"

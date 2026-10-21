@@ -1711,7 +1711,8 @@ def export_dossier(dossier_id: str, version: int, format: str = "html"):
         page = dossiers.render_html(projected)
     except dossiers.Refused as exc:
         return refused(exc)
-    headers = {"Content-Disposition": f'attachment; filename="{dossiers.export_filename(dossier_id, version, format)}"'}
+    headers = {"Content-Disposition": f'attachment; filename="{dossiers.export_filename(dossier_id, version, format)}"',
+               **privacy.NO_STORE}
     if format == "html":
         return Response(page, media_type="text/html; charset=utf-8", headers=headers)
     from core.api import pdf

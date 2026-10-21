@@ -3837,3 +3837,11 @@ def test_bigquery_ask_record_reads_only_the_partitions_around_the_ask_id_date():
     assert bq.ask_record("a_x") is None
     sql, params = client.calls[-1]
     assert "run_date" not in sql and set(params) == {"ask_id"}
+
+
+def test_a_dossier_export_is_not_stored_by_caches(client, dossier_store):
+    # Audit F7D-SEC-002: contract section 22 marks every stored copy no-store, exports too.
+    dossier_id = freeze_ready(client, dossier_store)
+    client.post(f"/api/dossiers/{dossier_id}/freeze")
+    r = client.get(f"/api/dossiers/{dossier_id}/versions/2/export", params={"format": "html"})
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-store"
