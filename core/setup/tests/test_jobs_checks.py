@@ -929,8 +929,8 @@ def test_rb_t9_a_qualifying_chain_records_that_no_acceptance_was_needed(tmp_path
 def test_rb_t9_an_acceptance_of_another_date_or_other_reasons_than_the_manifest_recorded_is_refused(tmp_path, change):
     w = failed_detect_world(tmp_path)
     value = acceptance_for(w, **change)
-    if sorted(value["reasons"]) == sorted(baseline_manifest(w)["verdict"]["reasons"]) and value["run_date"] == "2026-10-12":
-        pytest.skip("the changed reasons happen to equal the recorded ones")
+    # The case must differ from the manifest in the field it changes, or it would test nothing.
+    assert value["run_date"] != "2026-10-12" or sorted(value["reasons"]) != sorted(baseline_manifest(w)["verdict"]["reasons"])
     w.bound["baselineChainAcceptance"] = value
     stop = w.stop("BeforeAnyWrite")
     assert stop.code == "BASELINE" and "typed baseline acceptance" in stop.message
