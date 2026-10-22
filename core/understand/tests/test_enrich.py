@@ -412,12 +412,45 @@ def test_select_sql_on_fixtures_returns_the_days_sightings_and_marks_enriched_on
         creators=[("c1", "@mzansi")])
     rows = run_sql(con, "enrich_select", {"run_date": DAY})
     by_id = {r["post_id"]: r for r in rows}
-    assert sorted(by_id) == ["embedded_only", "enriched", "no_text", "seen_today"]
-    assert [r["post_id"] for r in rows] == sorted(by_id)
+    # seen_yesterday has no enrichment row and has text, so it is tried again (22 Oct 2026), after today's posts.
+    assert sorted(by_id) == ["embedded_only", "enriched", "no_text", "seen_today", "seen_yesterday"]
+    assert [r["post_id"] for r in rows] == ["embedded_only", "enriched", "no_text", "seen_today", "seen_yesterday"]
+    assert {pid: r["today"] for pid, r in by_id.items()} == {
+        "embedded_only": True, "enriched": True, "no_text": True, "seen_today": True, "seen_yesterday": False}
     assert by_id["enriched"]["enriched"] is True
     assert by_id["embedded_only"]["enriched"] is False and by_id["embedded_only"]["content"] == "Jollof wars"
     assert by_id["seen_today"]["handle"] == "@mzansi" and by_id["seen_today"]["market"] == "ZA"
     assert by_id["no_text"]["content"] == ""
+
+
+def test_select_sql_retries_unenriched_posts_sighted_in_the_packs_seven_days_after_todays():
+    # EVIDENCE E1 (22 Oct 2026): a post was enriched only on a day it was sighted, so one missed that day (the time
+    # budget, the cap, a failed output) was never tried again, while the brief's pack reads 7 days of posts. A post
+    # sighted in the 7 days up to run_date with no enrichment row and some content is now selected too, after the
+    # posts of its part of the order sighted today. An enriched one, an empty one, one sighted only before the
+    # window, and one by a suppressed creator are not.
+    con = fixture_warehouse(
+        posts=[("a_today", "c1", "today", DAY), ("b_missed_2d", "c1", "missed", DAY),
+               ("c_missed_6d", "c1", "edge of window", DAY), ("d_missed_7d", "c1", "outside", DAY),
+               ("e_done_3d", "c1", "enriched", DAY), ("f_empty_1d", "c1", "  ", DAY),
+               ("g_hidden_1d", "c_hidden", "hidden", DAY), ("h_eligible_4d", "c1", "eligible", DAY),
+               ("i_eligible_today", "c1", "eligible today", DAY), ("j_future", "c1", "tomorrow", DAY)],
+        observations=[("a_today", DAY), ("b_missed_2d", DAY - timedelta(days=2)),
+                      ("c_missed_6d", DAY - timedelta(days=6)), ("d_missed_7d", DAY - timedelta(days=7)),
+                      ("e_done_3d", DAY - timedelta(days=3)), ("f_empty_1d", DAY - timedelta(days=1)),
+                      ("g_hidden_1d", DAY - timedelta(days=1)), ("h_eligible_4d", DAY - timedelta(days=4), "NG"),
+                      ("i_eligible_today", DAY), ("j_future", DAY + timedelta(days=1))],
+        enrichment=[("e_done_3d", "neutral")],
+        post_items=[("h_eligible_4d", "jollof"), ("i_eligible_today", "jollof")],
+        states=[(DAY - timedelta(days=1), "NG", "jollof", True), (DAY - timedelta(days=1), "ZA", "jollof", True)],
+        suppressed=["c_hidden"])
+    rows = run_sql(con, "enrich_select", {"run_date": DAY})
+    assert [r["post_id"] for r in rows] == ["i_eligible_today", "h_eligible_4d", "a_today", "b_missed_2d",
+                                            "c_missed_6d"]
+    assert [r["today"] for r in rows] == [True, False, True, False, False]
+    assert all(r["enriched"] is False and r["content"].strip() for r in rows)
+    text = sql("enrich_select")
+    assert text.count("BETWEEN DATE_SUB(@run_date, INTERVAL 6 DAY) AND @run_date") == 2  # the pack's 7 days
 
 
 def test_select_sql_leaves_out_the_posts_of_a_suppressed_creator_and_keeps_those_without_a_creator():

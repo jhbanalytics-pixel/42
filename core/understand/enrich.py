@@ -2,11 +2,12 @@
 entities, format, sound, hashtags, tone, stance and sponsored markers as strict JSON.
 
 run_enrich selects the posts sighted on run_date that have no enrichment row yet (enrich_select.sql, the same
-sighting rule as embed.sql), sends at most limit distinct post_ids in its order (posts of items detect holds eligible
-first, then the rest, each lowest post_id first), validates every output against
+sighting rule as embed.sql), and those sighted in the 7 days up to run_date (the window the brief's pack reads) that
+still have none, sends at most limit distinct post_ids in its order (posts of items detect holds eligible first, then
+the rest, each part today's sightings first, then lowest post_id), validates every output against
 ENRICH_SCHEMA, drops invalid ones as failed and appends the rest to post_enrichment (enrich_insert.sql) with no
-embedding. Posts past the limit are neither sent nor counted, and are sent on a later sighting. A rerun sends
-nothing that was written already. enriched is the row count the inserts report adding (num_dml_affected_rows in
+embedding. Posts past the limit or the budget are neither sent nor counted, and are tried again on a later day while
+they were sighted in that day's 7-day window. A rerun sends nothing that was written already. enriched is the row count the inserts report adding (num_dml_affected_rows in
 the job-like result job.bigquery_execute returns; an execute that reports none counts every row it was given).
 failed counts each sent post once, however many outputs came back for it. model_usd is the spend from token usage
 at MODEL's price (price_for), and a collected batch job's at BATCH_PRICE less BATCH_DISCOUNT. Each spend is booked in
