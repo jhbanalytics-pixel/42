@@ -243,7 +243,7 @@ def build_creator(store, creator_id, market):
 def _communities(page):
     """[(every member id, community body)] for the market, largest first."""
     store = page.store
-    # The creators joined by three shared items, grouped as the pairs stream in (store.community_components).
+    # The creators joined by three shared items, grouped as the pairs stream in (store.py community_components).
     groups = store.community_groups(page.market, page.start, page.end, page.no_edge) or []
     found = [(members, shared) for members, shared in groups if len(members) >= MIN_MEMBERS]
     if not found:

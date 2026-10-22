@@ -674,7 +674,7 @@ default day and Coverage's way back from an empty day)."""
         return out
 
     def community_groups(self, market, start, end, excluded):
-        """community_components of community_edges, as BigQueryStore streams them. None until the tables exist."""
+        """community_components of community_edges, as BigQueryStore groups them. None until the tables exist."""
         edges = self.community_edges(market, start, end, excluded)
         return None if edges is None else community_components(edges)
 
