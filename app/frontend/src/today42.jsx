@@ -212,8 +212,11 @@ function todaySpecificityView(card){
   const examples = [quoteSource, evidenceById.get(secondId)].map((item) => (
     nonEmptyString(item.text) ? item : {...item, text: item.quote_text}
   ));
+  /* Albert, 22 October 2026: a card whose why-now no cited post states publishes on code-counted adoption by 3 or
+     more independent local creators on 2 or more days, and its stored specificity says why_now_basis inferred. */
   return {
     whyNow: card.explanation,
+    inferred: specificity.why_now_basis === 'inferred',
     quote: quoteText,
     examples,
   };

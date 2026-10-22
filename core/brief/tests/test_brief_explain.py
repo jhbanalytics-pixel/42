@@ -31,7 +31,8 @@ CAP_BEFORE_EXPIRY = datetime(2026, 10, 2, 21, 59, 59, tzinfo=timezone.utc)
 CAP_AFTER_EXPIRY = datetime(2026, 10, 2, 22, 0, tzinfo=timezone.utc)
 USAGE = {"input_tokens": 1000, "output_tokens": 200, "usd": 0.01}
 RESULT_KEYS = {"explanation", "explanation_claim_ids", "claims", "numbers_only", "reason", "usage_usd", "checks",
-               "error", "local_why_now_checked", "specificity", "news_driven", "critic", "title_written"}
+               "error", "local_why_now_checked", "why_now_inferred", "specificity", "news_driven", "critic",
+               "title_written"}
 
 
 def post(eid, platform, handle, text, posted_at="2026-09-26T19:40:00+02:00"):
@@ -1603,8 +1604,9 @@ def critic_row(result):
 
 
 # The structured keys a critic row carries beside the base row keys; patterns_seen is the shadow record of the pattern
-# line the critic read, news_driven and scheduled_event the critic's own flags the wording reads (22 Oct 2026).
-CRITIC_ROW_KEYS = {"standing", "local_why_now", "patterns_seen", "news_driven", "scheduled_event"}
+# line the critic read, news_driven and scheduled_event the critic's own flags the wording reads, why_now_inferred
+# whether the row passed on code-counted adoption with no post-stated cause (22 Oct 2026).
+CRITIC_ROW_KEYS = {"standing", "local_why_now", "patterns_seen", "news_driven", "scheduled_event", "why_now_inferred"}
 
 
 def test_a_critic_that_rules_out_the_simple_explanation_lets_the_card_publish(monkeypatch):

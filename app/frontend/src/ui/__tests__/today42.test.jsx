@@ -2592,6 +2592,22 @@ test('an ISO date in the model prose reads as a day and month; the stored text i
   expect(today).toEqual(stored);
 });
 
+/* Albert, 22 October 2026: a card whose why-now no cited post states publishes on an adoption code counted, and
+   its stored specificity says why_now_basis inferred; the card says so beside Why now. */
+test('a why-now inferred from local adoption is labelled inferred, and a stated one is not', async () => {
+  const today = clone(todayFixture);
+  const card = zaCard(today);
+  card.specificity.why_now_basis = 'inferred';
+  await mount({}, today);
+  const label = host.querySelector('.t42-specificity-why-now .t42-specificity-label');
+  expect(label.textContent).toBe('Why now, inferred');
+
+  resetRoot();
+  const stated = clone(todayFixture);
+  await mount({}, stated);
+  expect(host.querySelector('.t42-specificity-why-now .t42-specificity-label').textContent).toBe('Why now');
+});
+
 test('local examples say their window, and a post from before the counted days says so', async () => {
   await mount();
   const examples = host.querySelector('[data-local-examples]');

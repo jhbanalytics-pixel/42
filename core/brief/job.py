@@ -171,7 +171,11 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # WRITER_SYSTEM), not-run-reason a Today-bound item whose explanation was started and not completed names the cause in
 # failed_reason, still a G10 hold with the reader wording unchanged (core/brief/payload.py NOT_RUN_WORDS,
 # _payload_candidate), pattern-line-not-pack-numbers the writer's pattern line says its creators and days are not pack
-# numbers, as the Counts line does (core/brief/explain.py _writer_pattern_line).
+# numbers, as the Counts line does (core/brief/explain.py _writer_pattern_line), why-now-inferred-adoption with the
+# critic's simpler explanation ruled out and no local why-now a cited post states, an explanation passes when code
+# counts a format, sound or practice adopted by 3 or more independent local creators on 2 or more days among the posts
+# the writer may cite, its why-now labelled inferred on the stored card and in the app; a rival left standing still
+# holds (Albert, 22 Oct 2026; core/brief/quality.py, core/brief/explain.py adopted_pattern, core/brief/specificity.py).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
@@ -183,7 +187,8 @@ RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8
                 "+pattern-video-formats+writer-rivals-line+video-format-counted"
                 "+critic-pattern-citable+critic-detection-facts+pack-lane-member-marks+critic-patterns-recorded"
                 "+redraft-critic-rival+critic-rival-flags"
-                "+writer-crowd-handles+sentence-numeral-resting+board-line-feed-wording+writer-numbered-names+writer-rival-post-text+not-run-reason+pattern-line-not-pack-numbers")
+                "+writer-crowd-handles+sentence-numeral-resting+board-line-feed-wording+writer-numbered-names+writer-rival-post-text+not-run-reason+pattern-line-not-pack-numbers"
+                "+why-now-inferred-adoption")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -387,6 +392,8 @@ _CRITIC_PARTS = re.compile(r"^critic: simplest non-cultural explanation: .*?; (n
 # The CRITIC_MENU item the critic's own news_driven or scheduled_event flag names (explain._critic_row puts them on the
 # row): set only when the simplest explanation is that event and no other applies (CRITIC_SYSTEM).
 EVENT_MENU = "a news or scheduled event"
+# A critic pass with no local why-now a post states, on code-counted local adoption (Albert, 22 Oct 2026).
+WHY_NOW_INFERRED = "; why-now inferred from local adoption"
 # A critic answer that contradicts itself (explain.INCONSISTENT) is a cut of its own, never worded as a simpler
 # explanation left standing (18 Oct 2026).
 CRITIC_INCONSISTENT = "Critic: the critic's answer was inconsistent"
@@ -1146,7 +1153,9 @@ def _wording(chk, rested=False):
             return CRITIC_INCONSISTENT
         if verdict == "pass":
             head = "Critic: the simpler explanation was ruled out"
-            return f"{head}: {menu}" if menu else head
+            head = f"{head}: {menu}" if menu else head
+            # Albert, 22 Oct 2026: no post states the local cause; code counted the adoption the why-now rests on.
+            return f"{head}{WHY_NOW_INFERRED}" if chk.get("why_now_inferred") is True else head
         # A cut names the part that failed: the simpler explanation, the local why-now, or both.
         ruled_out = standing == "ruled out"
         if ruled_out and not local:
@@ -1635,6 +1644,7 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
                 explanation=checked.get("explanation"), claims=checked.get("claims"),
                 explanation_claim_ids=checked.get("explanation_claim_ids"), evidence=c["pack"]["evidence"],
                 market=market, local_why_now=checked.get("local_why_now_checked") is True,
+                why_now_inferred=checked.get("why_now_inferred") is True,
             )
         item = _payload_candidate(c, result, specificity)
         if where == "today" and (item["explanation_status"] != "explained" or publish is not True

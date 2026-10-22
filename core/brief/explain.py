@@ -36,7 +36,12 @@ pack: {"evidence": [contract Evidence dicts], "numbers": [{value, unit, query_id
        "facts": [short plain lines written by code about state, counts and first sighting]}
 
 Returns {explanation, explanation_claim_ids, claims, numbers_only, reason, usage_usd, checks, error,
-         local_why_now_checked, specificity, news_driven, critic, title_written}.
+         local_why_now_checked, why_now_inferred, specificity, news_driven, critic, title_written}.
+local_why_now_checked is true on an explanation that passed with a local why-now a cited post states. why_now_inferred
+is true on one that passed with none (Albert, 22 Oct 2026): the critic ruled the simpler explanation out and code
+counted a format, sound or practice adopted by 3 or more independent local creators on 2 or more days among the posts
+the writer may cite (adopted_pattern); the critic answer then carries that count as why_now_adoption and the
+specificity why_now_basis "inferred".
 news_driven remains a retained output field; event reaction alone no longer qualifies for publication.
 reason is None when the explanation passed, else one of model_cap, model_error, breach, failed_checks,
 too_few_claims, check_incomplete (a support or critic call gave nothing back twice). error holds the exception text on model_error. checks are claim_checks rows. critic is the
@@ -63,18 +68,19 @@ import unicodedata
 from datetime import datetime
 
 from core.brief import rivals
-from core.brief.quality import critic_is_valid, cultural_critic_passes
+from core.brief.quality import adoption_counted, critic_is_valid, cultural_critic_passes, why_now_inferred
 from core.brief.reaction import creator_key
 from core.brief.specificity import assess_specificity, counted_local_posts, local_posts, specificity_basis
 from core.config.caps import model_daily_usd
 from core.llm.provider import default_model, price_for, reserve_output
 from core.plain_dates import format_generated_dates
 from core.trust import retained
+from core.trust.independence import independent_groups
 from core.trust.claims import (
     _QUOTE_MARKS, _QUOTED, LABELS, MARKET_NAMES, _norm, _pinned, _quote_fault, _quoted, _strip_quotes,
     _unmatched_numeral, _verified_quotes, window_spans,
-    check_answer, inferred_only_by_author_step, inferred_only_by_source_step, located_market, named_markets,
-    place_fault, source_market,
+    NOT_INDEPENDENT, check_answer, inferred_only_by_author_step, inferred_only_by_source_step, located_market,
+    named_markets, place_fault, source_market,
 )
 
 WRITER_MAX_TOKENS = 4000
@@ -873,6 +879,55 @@ def _title_row(verdict, checker, detail):
     return {"claim_id": None, "rule": TITLE_RULE, "verdict": verdict, "checker": checker, "detail": f"title: {detail}"}
 
 
+def _not_independent(record):
+    return bool({str(f).lower() for f in record.get("flags") or []} & NOT_INDEPENDENT)
+
+
+def _independent_creators(records):
+    """How many independent creators made records: authors (_author) counted once, and authors that
+    core/trust/independence.py links (a shared thumbnail, caption, link or reply relation, or one display name, the
+    rule K5 uses for unrelated authors) counted once together. A post with no author key adds no creator."""
+    keys = {r.get("id"): _author(r) for r in records if _author(r) is not None}
+    parent = {k: k for k in keys.values()}
+
+    def find(x):
+        while parent[x] != x:
+            x = parent[x]
+        return x
+
+    for group in independent_groups(records, excluded=NOT_INDEPENDENT):
+        linked = [keys[i] for i in group["post_ids"] if i in keys]
+        for k in linked[1:]:
+            parent[find(k)] = find(linked[0])
+    return len({find(k) for k in parent})
+
+
+def adopted_pattern(pack, market):
+    """The code's own count behind an inferred why-now (Albert, 22 Oct 2026; core/brief/quality.py
+    adoption_counted): of the sounds and formats the pattern line names (_shared_patterns), the one adopted by the most
+    independent local creators, then on the most days, among the posts the writer may cite, as {pattern, post_ids,
+    creators, days}, or None when none reaches 3 creators on 2 days. A post counts when it is citable (_citable),
+    local as specificity counts it (counted_local_posts: located in the market or found in its feeds, news
+    public-feed posts left out), has an author key and carries no flag in NOT_INDEPENDENT (brand, paid, sponsored,
+    near-duplicate, flagged or generated). Creators are counted by _independent_creators; days are the posts'
+    market-local posting dates. The model's answer is never read here."""
+    evidence = pack.get("evidence") or []
+    local = {r.get("id") for r in counted_local_posts(evidence, market)}
+    pool = [r for r in evidence if r.get("id") in local and _citable(r, market) and _author(r) is not None
+            and not _not_independent(r)]
+    best = None
+    for shared in _shared_patterns({"evidence": pool}, _sound_letters(pack)):
+        ids = set(shared["post_ids"])
+        posts = [r for r in pool if r.get("id") in ids]
+        days = {w.date() for w in (_when(r.get("posted_at")) for r in posts) if w is not None}
+        found = {"pattern": shared["pattern"], "post_ids": [r.get("id") for r in posts],
+                 "creators": _independent_creators(posts), "days": len(days)}
+        if adoption_counted(found) and (best is None or (found["creators"], found["days"])
+                                        > (best["creators"], best["days"])):
+            best = found
+    return best
+
+
 # Formats that show no practice a creator could adopt; the pattern line leaves them out (18 Oct 2026). talking_head
 # too: the prompts say it alone shows no adopted practice, yet the line counted it as a shared format (18 Oct 2026).
 PATTERN_SKIP_FORMATS = ("talking_head", "other", "news_clip")
@@ -1049,22 +1104,26 @@ INCONSISTENT = "critic answer inconsistent"
 STANDINGS = ("ruled out", "not ruled out", INCONSISTENT)
 
 
-def _critic_row(out, reacting_creators=0):
+def _critic_row(out, reacting_creators=0, adoption=None):
     """The critic's check row. standing and local_why_now are the structured reading job.py derives the stored
     reason code and wording from; the detail embeds the model's own text and is never parsed for them. news_driven and
     scheduled_event are the critic's own flags on a valid answer (false on any other), so the wording names a news or
-    scheduled event from them rather than from the model's free text (22 Oct 2026)."""
+    scheduled event from them rather than from the model's free text (22 Oct 2026). adoption is the code's own count
+    (adopted_pattern): with the simpler explanation ruled out and no local why-now a post states, the row passes on it
+    and carries why_now_inferred true (Albert, 22 Oct 2026); a rival left standing is a cut whatever it shows."""
     valid = critic_is_valid(out)
     out = out if isinstance(out, dict) else {}
     ruled_out = valid and out.get("ruled_out") is True
     local_why_now = out.get("local_why_now") is True
-    passed = cultural_critic_passes(out)
+    passed = cultural_critic_passes(out, adoption)
+    inferred = why_now_inferred(out, adoption)
     standing = "ruled out" if ruled_out else "not ruled out" if valid else INCONSISTENT
     # Keep the original count for audit; reaction volume does not qualify a cultural pattern.
     return {"claim_id": None, "rule": "critic", "verdict": "pass" if passed else "cut", "checker": "model",
             "standing": standing, "local_why_now": local_why_now,
             "news_driven": valid and out.get("news_driven") is True,
             "scheduled_event": valid and out.get("scheduled_event") is True,
+            "why_now_inferred": inferred,
             "detail": f"critic: simplest non-cultural explanation: {out.get('non_cultural_explanation', '')}; "
                       f"{standing}: {out.get('reason', '')}; "
                       f"reacting local creators: {reacting_creators}; "
@@ -1536,7 +1595,7 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
                                         "detail": CHECK_INCOMPLETE}, text))
                 raise _CheckIncomplete() from second
 
-    def assess(explanation, claims, refs, local_why_now=False):
+    def assess(explanation, claims, refs, local_why_now=False, inferred=False):
         return assess_specificity(
             explanation=explanation,
             claims=claims,
@@ -1544,16 +1603,18 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
             evidence=evidence,
             market=market,
             local_why_now=local_why_now,
+            why_now_inferred=inferred,
         )
 
     def result(reason=None, error=None, explanation=None, rests_on=(), claims=(), local_why_now_checked=False,
-               specificity=None, news_driven=False, critic=None, title_written=None):
+               specificity=None, news_driven=False, critic=None, title_written=None, why_now_inferred=False):
         if specificity is None:
-            specificity = assess(explanation, claims, rests_on, local_why_now_checked)
+            specificity = assess(explanation, claims, rests_on, local_why_now_checked, why_now_inferred)
         formatted = format_generated_dates({
             "explanation": explanation, "explanation_claim_ids": list(rests_on), "claims": list(claims),
             "numbers_only": reason is not None, "reason": reason, "usage_usd": spent["usd"], "checks": checks,
-            "error": error, "local_why_now_checked": local_why_now_checked, "specificity": specificity,
+            "error": error, "local_why_now_checked": local_why_now_checked, "why_now_inferred": why_now_inferred,
+            "specificity": specificity,
             "news_driven": news_driven, "critic": critic, "title_written": title_written,
         }, reference=window_end)
         if spent["reserved_usd"]:
@@ -1793,7 +1854,13 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         cited = {i for c in rechecked["claims"] if c["id"] in rests_on for i in c.get("evidence_ids") or []}
         reacting = len({str(r.get("handle") or "").strip().lower() for r in counted_local_posts(evidence, market)
                         if r.get("id") in cited and str(r.get("handle") or "").strip()})
-        row = _stamped(_critic_row(out, reacting), sentence)
+        # The code's own adoption count, read only when no cited post states the local cause (Albert, 22 Oct 2026). A
+        # fault in it counts nothing, so the reading is held as it was.
+        try:
+            adoption = adopted_pattern(pack, market)
+        except Exception:
+            adoption = None
+        row = _stamped(_critic_row(out, reacting, adoption), sentence)
         checks.append(row)
         critic = _critic_answer(out)
         shadow = _shadow_record(pack, out)
@@ -1809,7 +1876,10 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         row["patterns_seen"] = seen
         critic = {**critic, "patterns_seen": seen}
         local_why_now = out.get("local_why_now") is True
-        specificity = assess(sentence, rechecked["claims"], rests_on, local_why_now)
+        inferred = row["why_now_inferred"] is True
+        if inferred:
+            critic = {**critic, "why_now_adoption": copy.deepcopy(adoption)}
+        specificity = assess(sentence, rechecked["claims"], rests_on, local_why_now, inferred)
         if row["verdict"] != "pass" or specificity["status"] != "pass":
             failed_specificity = assess(sentence, rechecked["claims"], rests_on)
             held = (draft, out) if _wording_only(out, reacting) else None
@@ -1817,8 +1887,9 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         news = False
         claims = rechecked["claims"]
         title = written_title(draft, rechecked, rests_on)
-        return result(explanation=sentence, rests_on=rests_on, claims=claims, local_why_now_checked=True,
-                      specificity=specificity, news_driven=news, critic=critic, title_written=title), None
+        return result(explanation=sentence, rests_on=rests_on, claims=claims, local_why_now_checked=local_why_now,
+                      why_now_inferred=inferred, specificity=specificity, news_driven=news, critic=critic,
+                      title_written=title), None
 
     try:
         user = _writer_user(candidate, pack, market, window_start, window_end)

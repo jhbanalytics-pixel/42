@@ -83,7 +83,7 @@ Every Ask answer and every morning explanation. Steps 3 to 5 are code on 100% of
 8. One repair round, then cut. One exception (Albert, 4 October 2026): when the critic rules out the simpler explanation and holds the morning explanation only because its why-now is not shown, the writer gets one second draft with the simpler explanation the critic named and its reason. Every check in steps 3 to 7 runs again in full on that draft, with no further repair round; if it fails, cut. A simpler explanation left standing never gets a second draft.
 9. Log verdicts to intelligence_42_agent.claim_checks.
 
-Morning trends: section 4, section 5, confirm lane, this pipeline, gate. Explanations hold 3 to 5 claims; "why now" is Inferred unless posts state the cause.
+Morning trends: section 4, section 5, confirm lane, this pipeline, gate. Explanations hold 3 to 5 claims; "why now" is Inferred unless posts state the cause. A morning card passes the critic only when the simpler explanation is ruled out, and then on a local why-now that a cited local post states, or, when no post states the local cause (Albert, 22 October 2026), on a format, sound or practice that code, not the critic, counts as adopted by 3 or more independent local creators on 2 or more days among the posts the writer may cite: its why-now is labelled Inferred on the stored card and in the app. Independent creators are authors with no brand, paid, sponsored, near-duplicate, flagged or generated mark, counted once when step 5 links them; local is the 2-local rule's local. A simpler explanation left standing, a news or event spike among them, holds the card either way.
 
 ## 4. Detection statistics
 
