@@ -2,11 +2,12 @@
 entities, format, sound, hashtags, tone, stance and sponsored markers as strict JSON.
 
 run_enrich selects the posts sighted on run_date that have no enrichment row yet (enrich_select.sql, the same
-sighting rule as embed.sql), sends at most limit distinct post_ids in its order (posts of items detect holds eligible
-first, then the rest, each lowest post_id first), validates every output against
+sighting rule as embed.sql), and those sighted in the 7 days up to run_date (the window the brief's pack reads) that
+still have none, sends at most limit distinct post_ids in its order (posts of items detect holds eligible first, then
+the rest, each part today's sightings first, then lowest post_id), validates every output against
 ENRICH_SCHEMA, drops invalid ones as failed and appends the rest to post_enrichment (enrich_insert.sql) with no
-embedding. Posts past the limit are neither sent nor counted, and are sent on a later sighting. A rerun sends
-nothing that was written already. enriched is the row count the inserts report adding (num_dml_affected_rows in
+embedding. Posts past the limit or the budget are neither sent nor counted, and are tried again on a later day while
+they were sighted in that day's 7-day window. A rerun sends nothing that was written already. enriched is the row count the inserts report adding (num_dml_affected_rows in
 the job-like result job.bigquery_execute returns; an execute that reports none counts every row it was given).
 failed counts each sent post once, however many outputs came back for it. model_usd is the spend from token usage
 at MODEL's price (price_for), and a collected batch job's at BATCH_PRICE less BATCH_DISCOUNT. Each spend is booked in
@@ -773,6 +774,32 @@ def run_enrich(execute, runner: Runner | None = None, *, run_date, run_id=None, 
     return counts
 
 
+def _eligible_first(execute, todo, counts, *, run_date) -> list:
+    """todo with the posts of eligible items first, the rest after, each in enrich_select.sql's order. A post is of
+    an eligible item when post_items links it to one (linked_eligible) or when its own hashtags, sound or creator name
+    one in a market it was sighted in, by the key rule detect's aggregate step uses (items_for_post), since aggregate
+    writes post_items for a post first sighted today only after this step. When the eligible items cannot be read
+    the order is enrich_select.sql's, and eligible_error says why."""
+    from core.detect.items import items_for_post
+
+    try:
+        eligible = {(str(row["market"]), str(row["item_id"]))
+                    for row in _rows(execute(load("enrich_eligible"), {"run_date": run_date}))}
+    except Exception as err:
+        counts["eligible_error"] = type(err).__name__
+        return todo
+    if not eligible:
+        return todo
+
+    def first(post) -> bool:
+        if post.get("linked_eligible"):
+            return True
+        markets = [str(m) for m in post.get("markets") or []]
+        return any((m, it["item_id"]) in eligible for it in items_for_post(post) for m in markets)
+
+    return sorted(todo, key=lambda post: not first(post))  # stable: each part keeps the select's order
+
+
 def _enrich(execute, runner, counts, *, run_date, day, limit, batches, now, spend, clock, budgeted_sync=False,
             deadline=None, monotonic=None):
     done = set()
@@ -787,6 +814,8 @@ def _enrich(execute, runner, counts, *, run_date, day, limit, batches, now, spen
     counts["skipped"] = len(rows) - len(todo)
     if budgeted_sync:
         counts["candidate"] = len(todo)
+    if todo:
+        todo = _eligible_first(execute, todo, counts, run_date=run_date)
     todo = todo[:limit]
     if not todo:
         return

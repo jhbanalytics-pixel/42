@@ -2,8 +2,10 @@
 
 The clips that matter are the top clips by engagement, then velocity, in each of today's clusters (pick_clips, on the
 rows video_clips.sql returns: members of clusters written for run_date, on TikTok, YouTube and Instagram, never a post
-already read or one by a suppressed creator). Clusters take turns, so every cluster's top clip comes before any
-cluster's second.
+already read or one by a suppressed creator). The clusters whose item detect holds eligible go first, then the rest;
+within each, clusters take turns with the markets interleaved, so every cluster's top clip comes before any
+cluster's second and the daily clip cap is shared across markets (22 Oct 2026: in cluster id order the 60 clips went
+to KE and NG and ZA got none).
 
 read_clip reads one clip. It takes the post's stored transcript, or else the vendor transcript (the route map is
 core/agent/tools/enrich_tools.TRANSCRIPT_ROUTES), and on TikTok the vendor's screen text (tiktok/video/screen-text),
@@ -14,7 +16,8 @@ the bucket. Then one structured call describes format, the hook in the first thr
 people (never their age or nationality), brands, sound and edit style, with timed observations. Every free-text value
 that fails the age scan (age_scan.py) is dropped, as enrichment does. The row appended to post_enrichment
 (video_insert.sql) holds screen_text, the vendor's when there is one and the model's otherwise, and video_notes, the
-rest as a JSON string.
+rest as a JSON string, with the vendor transcript the read paid for under transcript (a post's stored transcript is
+on posts already and is not copied).
 
 run_video is the understand job's step. It does nothing while VIDEO_DAILY (core/config/caps.yaml) has zero clips or
 zero credits, which is the default, and nothing on any family but gemini. Otherwise it reads at most the clips
@@ -188,23 +191,47 @@ def _number(value) -> float:
     return number if math.isfinite(number) else 0.0  # NaN and infinity read as nothing
 
 
+def cluster_turns(posts, clusters) -> list:
+    """The clusters' turns: [eligible cluster ids, the rest], each list with the markets interleaved (every market's
+    first cluster, then every market's second, markets in name order) and each market's clusters in id order, so the
+    daily clip cap is shared across markets instead of going to the market whose ids sort first. A cluster is
+    eligible when video_clips.sql marks its item eligible."""
+    meta = {}
+    for post in posts:
+        cluster_id = post.get("cluster_id")
+        if cluster_id in clusters:
+            market, eligible = meta.get(cluster_id, (str(post.get("market") or ""), False))
+            meta[cluster_id] = (market, eligible or post.get("eligible") is True)
+    groups, turn = ([], []), {}
+    for cluster_id in sorted(clusters):
+        market, eligible = meta.get(cluster_id, ("", False))
+        rank = turn[(eligible, market)] = turn.get((eligible, market), -1) + 1
+        groups[0 if eligible else 1].append((rank, market, cluster_id))
+    return [[cluster_id for _, _, cluster_id in sorted(group)] for group in groups]
+
+
 def pick_clips(posts, clusters, k: int = CLIPS_PER_CLUSTER) -> list:
-    """The top k clips of each cluster by engagement, then velocity, then post id, clusters in id order taking turns,
-    so every cluster's best clip comes before any cluster's second. A post in two clusters is picked once."""
+    """The top k clips of each cluster by engagement, then velocity, then post id. The clusters whose item is
+    eligible go first, then the rest; within each, clusters take turns in cluster_turns' order (markets
+    interleaved), so every cluster's best clip comes before any cluster's second. A post in two clusters is picked
+    once."""
     by_id = {}
     for post in posts:
         by_id.setdefault(post["post_id"], post)
-    ranked = []
-    for cluster_id in sorted(clusters):
-        clips = [by_id[pid] for pid in dict.fromkeys(clusters[cluster_id]) if pid in by_id and is_clip(by_id[pid])]
-        clips.sort(key=lambda p: (-_number(p.get("engagement")), -_number(p.get("velocity")), str(p["post_id"])))
-        ranked.append(clips[:k])
     picked, seen = [], set()
-    for rank in range(k):
-        for clips in ranked:
-            if rank < len(clips) and clips[rank]["post_id"] not in seen:
-                seen.add(clips[rank]["post_id"])
-                picked.append(clips[rank])
+    for group in cluster_turns(posts, clusters):
+        ranked = []
+        for cluster_id in group:
+            clips = [by_id[pid] for pid in dict.fromkeys(clusters[cluster_id])
+                     if pid in by_id and is_clip(by_id[pid])]
+            clips.sort(key=lambda p: (-_number(p.get("engagement")), -_number(p.get("velocity")),
+                                      str(p["post_id"])))
+            ranked.append(clips[:k])
+        for rank in range(k):
+            for clips in ranked:
+                if rank < len(clips) and clips[rank]["post_id"] not in seen:
+                    seen.add(clips[rank]["post_id"])
+                    picked.append(clips[rank])
     return picked
 
 
@@ -288,7 +315,7 @@ def gather(post, sc_client) -> dict:
     refused a call. A stored transcript is used and paid for once only, at collection. With no client (no SocialCrawl
     key on the job) only the stored transcript is used and no vendor call is made. reasons holds the client's reason
     for each vendor call that did not return items."""
-    from core.agent.tools.enrich_tools import TRANSCRIPT_ROUTES
+    from core.agent.tools.enrich_tools import TRANSCRIPT_PARAMS, TRANSCRIPT_ROUTES
 
     out = {"transcript": str(post.get("transcript") or ""), "screen_text": "", "credits": 0.0, "stopped": None,
            "statuses": {}, "reasons": {}}
@@ -301,7 +328,10 @@ def gather(post, sc_client) -> dict:
     if platform == "tiktok" and url:
         calls.append(("screen_text", SCREEN_TEXT_ROUTE))
     for what, route in calls:
-        result = sc_client.call(route, {"url": url})
+        # The transcript is asked for as the agent's get_transcript asks (TRANSCRIPT_PARAMS): on TikTok a video with
+        # no caption track is then transcribed from its speech inside the same 10 credits instead of a 404.
+        params = {"url": url, **(TRANSCRIPT_PARAMS.get(route, {}) if what == "transcript" else {})}
+        result = sc_client.call(route, params)
         status = getattr(result, "status", None)
         out["statuses"][what] = status
         if status not in VENDOR_OK:
@@ -312,7 +342,13 @@ def gather(post, sc_client) -> dict:
             return out
         # A same-day cached reply carries the items the paid call returned, at no charge (audit F7D-UND-001).
         items = (getattr(result, "items", None) or []) if status in ("ok", "partial", "cached") else []
-        out[what] = _segments_text(items) if what == "transcript" else _screen_text(items)
+        if what == "transcript" and not items and status in ("ok", "cached"):
+            # The YouTube transcript's body is data.transcript, which the client's item keys do not find; read it
+            # as the agent path does (sc_adapter._transcript_rows), so the 3 credits paid buy the transcript.
+            from core.agent.tools.sc_adapter import _transcript_rows
+
+            items = _transcript_rows(route, getattr(result, "body", None)) or []
+        out[what] =_segments_text(items) if what == "transcript" else _screen_text(items)
     return out
 
 
@@ -389,6 +425,13 @@ def read_clip(post, model, sc_client, *, fetch_bytes=fetch_image, question=None,
         clean, dropped = scanned(output)
         notes = {k: clean[k] for k in VIDEO_SCHEMA["properties"] if k != "on_screen_text"}
         notes["read_from"] = read_from
+        # The vendor transcript this read paid for is kept with the notes, as the model was given it, so it is not
+        # lost once read; a stored post transcript is on posts already. It is free text, so it is age scanned too.
+        vendor = "" if str(post.get("transcript") or "").strip() else found["transcript"].strip()
+        if vendor and passes_age_scan(vendor):
+            notes["transcript"] = vendor[:MAX_TRANSCRIPT_CHARS]
+        elif vendor:
+            dropped += 1
         screen = found["screen_text"].strip() or clean["on_screen_text"]
         read.update(output=clean, read_from=read_from, age_dropped=dropped,
                     row={"post_id": post["post_id"], "screen_text": screen[:MAX_SCREEN_TEXT_CHARS] or None,

@@ -136,7 +136,8 @@ def test_read_clip_on_tiktok_sends_the_thumbnail_bytes_with_transcript_and_scree
     read = video.read_clip(clip("a"), model, sc, fetch_bytes=jpeg)
     routes = [route for route, _, _ in sc.calls]
     assert routes == ["tiktok/post/transcript", "tiktok/video/screen-text"]
-    assert all(params == {"url": "https://www.tiktok.com/@a/video/a"} for _, params, _ in sc.calls)
+    url = "https://www.tiktok.com/@a/video/a"
+    assert [params for _, params, _ in sc.calls] == [{"url": url, "use_ai_as_fallback": "true"}, {"url": url}]
     sent = model.calls[0]
     assert sent["media"] == [{"bytes": b"\xff\xd8\xff thumbnail", "mime_type": "image/jpeg"}]
     assert sent["model"] == "gemini-3.8-flash"
@@ -664,3 +665,175 @@ def test_gather_reads_the_transcript_and_screen_text_of_a_paid_or_same_day_cache
 def test_gather_reads_nothing_from_an_empty_reply():
     out = video.gather(clip("tt1"), FakeSC(status="empty", items=[]))
     assert out["transcript"] == "" and out["screen_text"] == "" and out["reasons"] == {}
+
+
+def test_gather_asks_for_the_tiktok_transcript_with_the_ai_fallback_the_agent_sends():
+    # EVIDENCE V2 (22 Oct 2026): video reading sent {"url"} alone, so a TikTok video with no caption track came back
+    # a 404; the agent's get_transcript sends TRANSCRIPT_PARAMS. The price is the same 10 credits, the screen-text
+    # call and the other platforms' transcript calls are unchanged.
+    from core.agent.tools.enrich_tools import TRANSCRIPT_PARAMS
+    from core.collect.socialcrawl_client import quote_for
+
+    sc = FakeSC()
+    video.gather(clip("tt1"), sc)
+    sent = {route: params for route, params, _ in sc.calls}
+    url = "https://www.tiktok.com/@a/video/tt1"
+    assert sent["tiktok/post/transcript"] == {"url": url, **TRANSCRIPT_PARAMS["tiktok/post/transcript"]}
+    assert sent["tiktok/video/screen-text"] == {"url": url}
+    assert quote_for("tiktok/post/transcript", "GET", sent["tiktok/post/transcript"]) == \
+        quote_for("tiktok/post/transcript", "GET", {"url": url})
+    sc = FakeSC()
+    video.gather(clip("y1", platform="youtube", url="https://www.youtube.com/watch?v=abc"), sc)
+    assert [params for _, params, _ in sc.calls] == [{"url": "https://www.youtube.com/watch?v=abc"}]
+
+
+class BodySC:
+    """Returns a vendor body through the real client's item extraction (_items, _is_empty), body kept on the result
+    as the client's Result keeps it."""
+
+    def __init__(self, bodies, status=None, credits=3):
+        self.bodies, self.status, self.credits, self.calls = bodies, status, credits, []
+
+    def call(self, route, params=None, **kw):
+        from core.collect.socialcrawl_client import _is_empty, _items
+
+        self.calls.append((route, dict(params or {})))
+        body = self.bodies[route]
+        status = self.status or ("empty" if _is_empty(body) else "ok")
+        return NS(status=status, items=_items(body), body=body, reason="",
+                  credits_charged=self.credits if status in ("ok", "empty") else 0)
+
+
+YOUTUBE_TRANSCRIPT = {"success": True, "data": {"transcript": [
+    {"offset": 0.0, "duration": 2.0, "text": "sawubona"}, {"offset": 2.0, "duration": 2.0, "text": "skroef challenge"}]}}
+
+
+@pytest.mark.parametrize("status,credits", [(None, 3), ("cached", 0)])
+def test_gather_reads_the_youtube_transcript_it_pays_for(status, credits):
+    # EVIDENCE V1 (22 Oct 2026): the YouTube transcript body is data.transcript (probe t1), which the client's
+    # ITEM_KEYS do not find, so the call came back ok with no items: 3 credits paid, nothing read. It is now read as
+    # the agent path reads it (sc_adapter._transcript_rows), a same-day cached reply too, at the same price.
+    post = {"post_id": "p", "platform": "youtube", "url": "https://www.youtube.com/watch?v=x", "transcript": None}
+    sc = BodySC({"youtube/video/transcript": YOUTUBE_TRANSCRIPT}, status=status, credits=credits)
+    out = video.gather(post, sc)
+    assert out["statuses"] == {"transcript": status or "ok"} and out["credits"] == credits
+    assert out["transcript"] == "[0s] sawubona\n[2s] skroef challenge"
+    assert out["reasons"] == {} and len(sc.calls) == 1
+
+
+def test_gather_reads_an_empty_youtube_transcript_as_nothing_and_never_reads_a_failed_body():
+    post = {"post_id": "p", "platform": "youtube", "url": "https://www.youtube.com/watch?v=x", "transcript": None}
+    out = video.gather(post, BodySC({"youtube/video/transcript": {"data": {"transcript": []}}}))
+    assert out["transcript"] == ""
+    out = video.gather(post, BodySC({"youtube/video/transcript": YOUTUBE_TRANSCRIPT}, status="error"))
+    assert out["transcript"] == "" and out["reasons"] == {"transcript": "error"}
+
+
+def _clusters_of_three_markets(per_market=40):
+    rows = []
+    for market in ("KE", "NG", "ZA"):
+        for t in range(per_market):  # cluster ids as cluster.py names them: YYYYMMDD-{market}-{nnn}
+            cid = f"20261022-{market}-{t:03d}"
+            for k in range(2):
+                rows.append({"cluster_id": cid, "market": market, "post_id": f"{cid}-{k}", "platform": "tiktok",
+                             "engagement": 100 - k, "velocity": 1.0, "duration_s": 10})
+    for t in range(per_market):
+        cid = f"20261022-pan-{t:03d}"
+        rows.append({"cluster_id": cid, "market": "pan", "post_id": f"{cid}-0", "platform": "tiktok",
+                     "engagement": 100, "velocity": 1.0, "duration_s": 10})
+    return rows
+
+
+def _by_market(picked):
+    markets = {}
+    for p in picked:
+        markets[p["market"]] = markets.get(p["market"], 0) + 1
+    return markets
+
+
+def test_the_daily_clips_are_shared_across_markets_not_given_in_cluster_id_order():
+    # EVIDENCE V3 (22 Oct 2026): in sorted cluster id order the 60 clips _run keeps went KE 40, NG 20, ZA 0. With the
+    # markets interleaved every market gets its turn; the cap is the same 60.
+    rows = _clusters_of_three_markets()
+    picked = video.pick_clips(rows, video.clusters_of(rows))[:60]
+    assert _by_market(picked) == {"KE": 15, "NG": 15, "ZA": 15, "pan": 15}
+    assert [p["market"] for p in picked[:4]] == ["KE", "NG", "ZA", "pan"]
+    assert len({p["post_id"] for p in picked}) == 60
+
+
+def test_clusters_of_eligible_items_get_their_clips_first():
+    # V3: a cluster whose item detect holds eligible gets its clips (both of them) before any other cluster's, the
+    # eligible clusters with the markets interleaved too; the rest follow in turns as before.
+    rows = _clusters_of_three_markets(per_market=5)
+    eligible = {"20261022-ZA-004", "20261022-NG-003", "20261022-ZA-001"}
+    for row in rows:
+        row["eligible"] = row["cluster_id"] in eligible
+    picked = video.pick_clips(rows, video.clusters_of(rows))
+    assert [p["post_id"] for p in picked[:6]] == [
+        "20261022-NG-003-0", "20261022-ZA-001-0", "20261022-ZA-004-0",
+        "20261022-NG-003-1", "20261022-ZA-001-1", "20261022-ZA-004-1"]
+    assert [p["post_id"] for p in picked[6:10]] == [
+        "20261022-KE-000-0", "20261022-NG-000-0", "20261022-ZA-000-0", "20261022-pan-000-0"]
+    assert len(picked) == len({p["post_id"] for p in picked}) == len(rows)
+
+
+def test_video_clips_marks_the_clusters_whose_item_is_eligible_in_their_markets_newest_state():
+    import duckdb
+
+    db = '"ogilvy-trends-v2"'
+    core = f"{db}.intelligence_42_core"
+    con = duckdb.connect()
+    con.execute(f"ATTACH ':memory:' AS {db}")
+    con.execute(f"CREATE SCHEMA {core}")
+    con.execute(f"CREATE TABLE {core}.clusters (cluster_date DATE, cluster_id VARCHAR, market VARCHAR, "
+                "item_id VARCHAR)")
+    con.execute(f"CREATE TABLE {core}.cluster_members (cluster_id VARCHAR, post_id VARCHAR)")
+    con.execute(f"CREATE TABLE {core}.post_observations (post_id VARCHAR, observed_date DATE, "
+                "observed_at TIMESTAMP)")
+    con.execute(f"CREATE TABLE {core}.post_enrichment (post_id VARCHAR, video_notes VARCHAR)")
+    con.execute(f"CREATE TABLE {core}.posts (post_id VARCHAR, platform VARCHAR, url VARCHAR, thumbnail_url VARCHAR, "
+                "duration_s DOUBLE, text VARCHAR, transcript VARCHAR, hashtags VARCHAR[], sound_id VARCHAR, "
+                "engagement DOUBLE, published_at TIMESTAMP, post_date DATE, creator_id VARCHAR)")
+    con.execute(f"CREATE TABLE {core}.v_suppressed_creators (creator_id VARCHAR)")
+    con.execute(f"CREATE TABLE {core}.v_item_state_current (metric_date DATE, market VARCHAR, item_id VARCHAR, "
+                "eligible BOOLEAN)")
+    day, before = date(2026, 10, 22), date(2026, 10, 21)
+    clusters = [("c-za-elig", "za", "i_za"), ("c-za-not", "za", "i_ng"), ("c-ng-elig", "ng", "i_ng"),
+                ("c-pan", "pan", "i_za"), ("c-stale", "za", "i_stale"), ("c-new", "ke", "i_new")]
+    for cid, market, item in clusters:
+        con.execute(f"INSERT INTO {core}.clusters VALUES (?, ?, ?, ?)", [day, cid, market, item])
+        con.execute(f"INSERT INTO {core}.cluster_members VALUES (?, ?)", [cid, f"{cid}-p"])
+        con.execute(f"INSERT INTO {core}.posts VALUES (?, 'tiktok', 'u', NULL, 10, 't', NULL, [], NULL, 5, NULL, ?, "
+                    "'c1')", [f"{cid}-p", day])
+    con.executemany(f"INSERT INTO {core}.v_item_state_current VALUES (?, ?, ?, ?)", [
+        (before, "ZA", "i_za", True), (before, "NG", "i_ng", True), (before, "ZA", "i_ng", False),
+        (date(2026, 10, 19), "ZA", "i_stale", True)])  # ZA's newest state is the 21st, so the 19th's is not read
+    text = sqlglot.transpile(sql("video_clips"), read="bigquery", write="duckdb")[0]
+    rows = con.execute(text, {"run_date": day}).fetchall()
+    names = [d[0] for d in con.description]
+    eligible = {r[names.index("cluster_id")]: r[names.index("eligible")] for r in rows}
+    assert eligible == {"c-za-elig": True, "c-za-not": False, "c-ng-elig": True, "c-pan": True, "c-stale": False,
+                        "c-new": False}
+
+
+def test_read_clip_keeps_the_vendor_transcript_it_paid_for_in_the_notes(gemini):
+    # 22 Oct 2026: the vendor transcript was fetched and paid for, given to the model, then dropped. It is now kept
+    # in video_notes (no new column), cut as the prompt cuts it and age scanned as every other free-text value.
+    read = video.read_clip(clip("a"), FakeModel(), FakeSC(), fetch_bytes=jpeg)
+    notes = json.loads(read["row"]["video_notes"])
+    assert notes["transcript"] == "[0s] light the coals\n[3.2s] now the wors"
+    assert read["age_dropped"] == 0
+    long = [{"text": "w" * 50, "start": float(i)} for i in range(400)]
+    sc = FakeSC(by_route={"tiktok/post/transcript": ("ok", long)})
+    notes = json.loads(video.read_clip(clip("b"), FakeModel(), sc, fetch_bytes=jpeg)["row"]["video_notes"])
+    assert len(notes["transcript"]) == video.MAX_TRANSCRIPT_CHARS
+
+
+def test_read_clip_copies_no_stored_transcript_and_keeps_none_that_fails_the_age_scan(gemini):
+    read = video.read_clip(clip("a", transcript="stored words"), FakeModel(), FakeSC(), fetch_bytes=jpeg)
+    assert "transcript" not in json.loads(read["row"]["video_notes"])
+    sc = FakeSC(by_route={"tiktok/post/transcript": ("ok", [{"text": "a dance for the kids", "start": 0}])})
+    read = video.read_clip(clip("b"), FakeModel(), sc, fetch_bytes=jpeg)
+    assert "transcript" not in json.loads(read["row"]["video_notes"]) and read["age_dropped"] == 1
+    read = video.read_clip(clip("c"), FakeModel(), FakeSC(status="empty", items=[]), fetch_bytes=jpeg)
+    assert "transcript" not in json.loads(read["row"]["video_notes"])
