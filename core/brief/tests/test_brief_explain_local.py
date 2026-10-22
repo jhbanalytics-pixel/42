@@ -301,7 +301,8 @@ def test_the_writer_prompt_lists_the_shared_patterns_of_the_citable_posts_with_t
     assert json.loads(row) == {"pattern": "format skit", "post_ids": ["ev_a", "ev_b", "ev_ng"], "creators": 3, "days": 1}
     assert tail == ("When you lead the sentence with one of these, the claim it rests on for that pattern cites every "
                     "post id listed for it, and names the pattern in plain words, never by its letter. none means the "
-                    "citable posts share no sound or specific format.")
+                    "citable posts share no sound or specific format. Its creators and days are counts for your "
+                    "wording only: they are not pack numbers, so write none of them as a numeral.")
     assert block in user.split("post {", 1)[0]  # before the posts, with the scope lines
 
 

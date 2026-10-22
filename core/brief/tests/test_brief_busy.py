@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 from core.brief import job
-from core.brief.payload import MODEL_BUSY, MODEL_REFUSED
+from core.brief.payload import MODEL_BUSY, MODEL_REFUSED, NOT_RUN_WORDS
 # busy_waits and market_scope_is_valid_by_default are test_brief_job's autouse fixtures, imported to apply here too.
 from core.brief.tests.test_brief_job import (EARLY, MARKETS, SAST, Client, FakeChain, FakeConfirm, FakeCtx,  # noqa: F401
                                              FakeModel, all_cards, busy_waits, held_items,
@@ -212,13 +212,16 @@ def test_a_deadline_stop_after_waiting_on_the_model_names_the_busy_model():
     assert all(c["failed_reason"] is None for c in all_cards(payload(r, "ZA")))
 
 
-def test_a_slow_run_with_no_refusals_keeps_failed_reason_unset_at_the_deadline():
+def test_a_slow_run_with_no_refusals_never_says_the_model_was_busy_at_the_deadline():
     model = FakeModel()
     r = run(world(n=3), model=model, clock=lambda: datetime.combine(D, time(6, 20), SAST) if model.writer_calls()
             else EARLY, sleep=lambda s: pytest.fail("no wait without a refusal"))
     assert "model_busy" not in r.counts
     held = held_items(r, "ZA")
-    assert held and all(i["failed_reason"] is None for i in held.values())
+    # 22 Oct 2026, not-run-reason: no busy wording without a refusal; an explanation started and cut off by the
+    # deadline names its own cause instead of none, and the item never reached keeps none.
+    assert held and all(i["failed_reason"] in (None, NOT_RUN_WORDS["model_error"]) for i in held.values())
+    assert not {i["failed_reason"] for i in held.values()} & {MODEL_BUSY, MODEL_REFUSED}
 
 
 def test_a_refusal_that_reports_spend_is_not_made_again_and_its_spend_is_booked_once():

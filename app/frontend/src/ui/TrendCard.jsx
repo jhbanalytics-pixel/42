@@ -316,7 +316,7 @@ function TodaySpecificity({specificity, date}){
   return (
     <div className="t42-specificity" data-today-specificity="">
       <p className="t42-explanation t42-specificity-why-now">
-        <span className="t42-specificity-label">Why now</span>
+        <span className="t42-specificity-label">{specificity.inferred ? 'Why now, inferred' : 'Why now'}</span>
         {proseDates(specificity.whyNow)}
       </p>
       <blockquote className="t42-specificity-quote">

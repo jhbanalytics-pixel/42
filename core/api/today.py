@@ -757,7 +757,10 @@ def _publication_fault(card, payload):
     if (not matches or any(not critic_is_valid(entry) for entry in matches)
             or any(entry != matches[0] for entry in matches)):
         return "The cultural pattern has not been assessed"
-    if not cultural_critic_passes(matches[0]):
+    # The producer's own adoption count beside the critic's answer (core/brief/explain.py why_now_adoption): with the
+    # simpler explanation ruled out and no post-stated cause, the card's why-now is inferred from it (Albert, 22 Oct
+    # 2026). The critic's answer alone is never read for it.
+    if not cultural_critic_passes(matches[0], matches[0].get("why_now_adoption")):
         return "A distinct cultural pattern was not established"
     return None
 

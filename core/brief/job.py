@@ -68,7 +68,7 @@ from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read
 from core.brief.explain import CHECK_INCOMPLETE, INCONSISTENT, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.locality_audit import build_locality_audit
 from core.brief.market_scope import read_market_scope
-from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _today_order, _worth,
+from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, NOT_RUN_WORDS, _today_order, _worth,
                                SHOWN, brief_row, build_market_payload, preview_card)
 from core.brief.same_event import near as same_event_near, reason as same_event_reason
 from core.brief.same_event import fixture_anchor, fixture_reason
@@ -151,7 +151,36 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # pool; rank only (core/brief/sql/brief.sql pattern_posts.is_local), generic-label-last a topic named only by
 # platform-generic tag words ranks after the other named rows (_generic_label, _ranked), fold-rank-order folds within
 # a round, and the regrow merge, run in pool rank order before worth so a pattern item is not folded into a broader
-# card (_fold_plan, _regrow).
+# card (_fold_plan, _regrow),
+# critic-pattern-citable the critic's counted pattern line counts only the posts the writer may cite, as the writer's
+# own line does (core/brief/explain.py _citable_pack, CRITIC_PATTERN_SCOPE), critic-detection-facts the critic gets the
+# facts lines from detection the writer gets, with the calendar moment on each local post's day (core/brief/explain.py
+# _critic_user), pack-lane-member-marks each pack post carries measured and market_member as model-only fields to the
+# writer and the critic, with a critic line on weighing them against a collection or grouping artefact; the pack order
+# and scope are unchanged (core/brief/evidence.py _record, core/brief/explain.py CRITIC_SYSTEM),
+# critic-patterns-recorded the pattern line the critic read is kept beside code_rivals on the critic row and answer as a
+# shadow record (core/brief/explain.py _critic_patterns), redraft-critic-rival the critic-informed second draft gets the
+# simpler explanation the critic named beside its reason (core/brief/explain.py _redraft_user), critic-rival-flags the
+# critic row carries the critic's own news_driven and scheduled_event flags, and the held wording names a news or
+# scheduled event from them, not from the free text, while the dead news or event pass on local reaction is gone
+# (core/brief/explain.py _critic_row, STANDINGS, _critic_menu), writer-crowd-handles the writer's Counts line says a
+# crowd word is checked against the cited posts' handles only and how to word more creators than they show, the check
+# unchanged (core/brief/explain.py _writer_user), sentence-numeral-resting a numeral in the explanation sentence must be
+# pinned on a claim the sentence rests on, checked by code with K2's sentence reason code (core/brief/explain.py
+# _resting_numeral_rows), board-line-feed-wording the board line words a board place as ranked on the market's YouTube
+# trending board, the wording K3 passes, and the support check sees board_only and is told what it shows
+# (core/brief/explain.py _board_only_line, _support_user, SUPPORT_SYSTEM), writer-numbered-names law 8 tells the writer
+# how K2 reads a year and that a numeral inside a name such as Part 2 is no pinned number, K2 unchanged
+# (core/brief/explain.py WRITER_SYSTEM), writer-rival-post-text the writer names a rival and an event date only as a
+# cited post's own text states it, since the sentence's support check sees only the cited posts (core/brief/explain.py
+# WRITER_SYSTEM), not-run-reason a Today-bound item whose explanation was started and not completed names the cause in
+# failed_reason, still a G10 hold with the reader wording unchanged (core/brief/payload.py NOT_RUN_WORDS,
+# _payload_candidate), pattern-line-not-pack-numbers the writer's pattern line says its creators and days are not pack
+# numbers, as the Counts line does (core/brief/explain.py _writer_pattern_line), why-now-inferred-adoption with the
+# critic's simpler explanation ruled out and no local why-now a cited post states, an explanation passes when code
+# counts a format, sound or practice adopted by 3 or more independent local creators on 2 or more days among the posts
+# the writer may cite, its why-now labelled inferred on the stored card and in the app; a rival left standing still
+# holds (Albert, 22 Oct 2026; core/brief/quality.py, core/brief/explain.py adopted_pattern, core/brief/specificity.py).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
@@ -161,7 +190,11 @@ RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8
                 "+critic-rivals-line+author-step-note+pack-board-only-mark+creator-letters"
                 "+data-issue-full-judgement+claim-floor-fault+writer-no-earliest+fixture-reaction-code"
                 "+pattern-video-formats+writer-rivals-line+video-format-counted+pattern-local-adoption+generic-label-last"
-                "+fold-rank-order")
+                "+fold-rank-order"
+                "+critic-pattern-citable+critic-detection-facts+pack-lane-member-marks+critic-patterns-recorded"
+                "+redraft-critic-rival+critic-rival-flags"
+                "+writer-crowd-handles+sentence-numeral-resting+board-line-feed-wording+writer-numbered-names+writer-rival-post-text+not-run-reason+pattern-line-not-pack-numbers"
+                "+why-now-inferred-adoption")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -359,16 +392,14 @@ CRITIC_MENU = (
 )
 _MENU = tuple((words, re.compile(rf"\b(?:{pattern})\b", re.I)) for words, pattern in CRITIC_MENU)
 _NEGATION = re.compile(r"\b(?:not|no|never|rather\s+than|instead\s+of|unlike|without)\b", re.I)
-_CRITIC = re.compile(r"^critic: simplest non-cultural explanation: (.*?); (?:(?:not )?ruled out|(?:news|event)-driven "
-                     r"with local reaction): ", re.S)
-_CRITIC_PARTS = re.compile(r"^critic: simplest non-cultural explanation: .*?; (not ruled out|ruled out|news-driven with "
-                           r"local reaction|event-driven with local reaction|critic answer inconsistent): ", re.S)
-# A critic pass on a news event that local creators react to (Albert, 2 Oct); never worded as ruled out.
-NEWS_PASS = "Critic: news-driven, local creators react in their own words"
-# The same pass on a scheduled event: a release, match, holiday or scheduled cultural moment (Albert, 3 Oct).
-EVENT_PASS = "Critic: event-driven, local creators react in their own words"
-# The standings of a news or scheduled event that passed on local reaction; a cut there failed the why-now only.
-REACTION_STANDINGS = ("news-driven with local reaction", "event-driven with local reaction")
+_CRITIC = re.compile(r"^critic: simplest non-cultural explanation: (.*?); (?:not )?ruled out: ", re.S)
+_CRITIC_PARTS = re.compile(r"^critic: simplest non-cultural explanation: .*?; (not ruled out|ruled out|critic answer "
+                           r"inconsistent): ", re.S)
+# The CRITIC_MENU item the critic's own news_driven or scheduled_event flag names (explain._critic_row puts them on the
+# row): set only when the simplest explanation is that event and no other applies (CRITIC_SYSTEM).
+EVENT_MENU = "a news or scheduled event"
+# A critic pass with no local why-now a post states, on code-counted local adoption (Albert, 22 Oct 2026).
+WHY_NOW_INFERRED = "; why-now inferred from local adoption"
 # A critic answer that contradicts itself (explain.INCONSISTENT) is a cut of its own, never worded as a simpler
 # explanation left standing (18 Oct 2026).
 CRITIC_INCONSISTENT = "Critic: the critic's answer was inconsistent"
@@ -1117,23 +1148,37 @@ def _code_label(chk):
     return chk.get("rule") == "K6" and _CODE_LABEL.match(detail) is not None
 
 
+def _critic_menu(chk):
+    """The CRITIC_MENU item a critic row names. A row that carries the critic's own flags (explain._critic_row) names a
+    news or scheduled event from them: when either is true it is that event, whatever the free text matches (22 Oct
+    2026, KE stand-up comedy: scheduled_event true, its text matched release and promot, so no rival was named), and
+    when both are false the free text cannot name it. Any other menu item still comes from the text (_menu), since the
+    critic has no flag for it. A hand-built row without the flags reads its text alone."""
+    news, event = chk.get("news_driven"), chk.get("scheduled_event")
+    flagged = isinstance(news, bool) and isinstance(event, bool)
+    if flagged and (news or event):
+        return EVENT_MENU
+    menu = _menu(chk.get("detail"))
+    return None if flagged and menu == EVENT_MENU else menu
+
+
 def _wording(chk, rested=False):
     """The fixed wording for one check row. rested: the row cuts a claim the explanation sentence rests on."""
     rule, verdict = chk["rule"], chk["verdict"]
     if chk.get("detail") == CHECK_INCOMPLETE:
         return f"{'Critic' if rule == 'critic' else RULE_NAMES.get(rule, 'Claim checks')}: {CHECK_INCOMPLETE}"
     if rule == "critic":
-        menu = _menu(chk.get("detail"))
+        menu = _critic_menu(chk)
         standing, local = _critic_parts(chk)
         if standing == INCONSISTENT:
             return CRITIC_INCONSISTENT
-        news = standing == "news-driven with local reaction"
-        event = standing == "event-driven with local reaction"
         if verdict == "pass":
-            head = NEWS_PASS if news else EVENT_PASS if event else "Critic: the simpler explanation was ruled out"
-            return f"{head}: {menu}" if menu else head
+            head = "Critic: the simpler explanation was ruled out"
+            head = f"{head}: {menu}" if menu else head
+            # Albert, 22 Oct 2026: no post states the local cause; code counted the adoption the why-now rests on.
+            return f"{head}{WHY_NOW_INFERRED}" if chk.get("why_now_inferred") is True else head
         # A cut names the part that failed: the simpler explanation, the local why-now, or both.
-        ruled_out = standing == "ruled out" or standing in REACTION_STANDINGS
+        ruled_out = standing == "ruled out"
         if ruled_out and not local:
             return "Critic: local why-now not shown"
         head = "Critic: a simpler explanation was not ruled out"
@@ -1432,12 +1477,18 @@ def _payload_candidate(cand, result, specificity=None):
                  and result.get("numbers_only") is False)
     status = "not_run" if not isinstance(result, dict) or "reason" not in result else (
         "explained" if explained else "failed_checks" if reason in FAILED_CHECKS else "not_run")
+    # An explanation started and not completed names its cause (payload.NOT_RUN_WORDS) unless a busy model's wording
+    # already does; the model's error text goes to the log only, never to the payload (22 Oct 2026).
+    not_run = cand.get("busy_reason") or (NOT_RUN_WORDS.get(reason) if status == "not_run" else None)
+    if status == "not_run" and reason in NOT_RUN_WORDS and isinstance(result, dict) and result.get("error"):
+        print(f"brief: explanation not run for {row.get('item_id')}: {reason}: {str(result['error'])[:300]}",
+              file=sys.stderr)
     return {
         **row, "decision": cand["decision"], "explanation_status": status, "numbers": pack["numbers"],
         "evidence": pack["evidence"], "sparkline": cand["sparkline"], "held_reason": cand.get("held_reason"),
         "held_reason_detail": cand.get("held_reason_detail"), "held_reason_audit": cand.get("held_reason_audit"),
         "failed_reason": failed_reason(result) if status == "failed_checks" else (
-            cand.get("busy_reason") if status == "not_run" else None),
+            not_run if status == "not_run" else None),
         "explanation": result.get("explanation") if explained else None,
         "title_written": result.get("title_written") if explained else None,
         "explanation_claim_ids": result.get("explanation_claim_ids") if explained else [],
@@ -1614,6 +1665,7 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
                 explanation=checked.get("explanation"), claims=checked.get("claims"),
                 explanation_claim_ids=checked.get("explanation_claim_ids"), evidence=c["pack"]["evidence"],
                 market=market, local_why_now=checked.get("local_why_now_checked") is True,
+                why_now_inferred=checked.get("why_now_inferred") is True,
             )
         item = _payload_candidate(c, result, specificity)
         if where == "today" and (item["explanation_status"] != "explained" or publish is not True

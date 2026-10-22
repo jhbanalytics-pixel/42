@@ -71,7 +71,9 @@ def test_the_line_sits_after_the_pattern_line_and_before_the_numbers():
     blocks = prompt.split("\n\n")
     at = next(i for i, b in enumerate(blocks) if b.startswith("Simpler explanations checked by code"))
     assert blocks[at - 1].startswith("Shared sounds and formats, counted by code")
-    assert blocks[at + 1].startswith("The trend's numbers")
+    # 22 Oct 2026: the detection facts the writer gets come next, then the numbers.
+    assert blocks[at + 1].startswith("Facts from 42's detection")
+    assert blocks[at + 2].startswith("The trend's numbers")
 
 
 def test_the_shadow_record_is_unchanged_and_no_call_is_added():

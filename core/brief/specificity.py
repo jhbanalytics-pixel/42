@@ -138,7 +138,12 @@ def specificity_basis(*, explanation, claims, explanation_claim_ids, evidence, m
     return result
 
 
-def assess_specificity(*, explanation, claims, explanation_claim_ids, evidence, market, local_why_now=False):
+def assess_specificity(*, explanation, claims, explanation_claim_ids, evidence, market, local_why_now=False,
+                       why_now_inferred=False):
+    """The specificity basis, passed only with a local why-now: one the critic found a cited local post states
+    (local_why_now), or one inferred from code-counted local adoption (why_now_inferred, core/brief/quality.py
+    why_now_inferred; Albert, 22 Oct 2026). A pass on the inferred why-now alone carries why_now_basis "inferred", the
+    label the stored card and Today show; a pass on a stated one keeps the shape it had."""
     result = specificity_basis(
         explanation=explanation,
         claims=claims,
@@ -146,7 +151,9 @@ def assess_specificity(*, explanation, claims, explanation_claim_ids, evidence, 
         evidence=evidence,
         market=market,
     )
-    if result["reason"] is None and local_why_now is not True:
+    if result["reason"] is None and local_why_now is not True and why_now_inferred is not True:
         result["reason"] = "local_why_now_not_checked"
     result["status"] = "pass" if result["reason"] is None else "fail"
+    if result["status"] == "pass" and local_why_now is not True:
+        result["why_now_basis"] = "inferred"
     return result

@@ -28,8 +28,8 @@ def test_the_writer_sees_the_mark_on_the_post_and_a_line_naming_board_only_posts
     assert marks == {"tt_1": True, "ig_2": None, "tt_3": None}  # marked only when true, like feed_evidence
     [scope] = [line for line in outside_fences(user).splitlines() if line.startswith("Posts you may cite")]
     assert ('Posts whose every sighting in the window was the YouTube trending board, marked board_only true: '
-            '["tt_1"]; a board place shows the video ranked on YouTube trending in South Africa, not a creator posting '
-            "in South Africa's feeds. They stay local by the rules above and are cited for what their own text and "
+            '["tt_1"]; a board place shows the video ranked on South Africa\'s YouTube trending board, not a creator '
+            "posting in South Africa's feeds. They stay local by the rules above and are cited for what their own text and "
             "fields show.") in scope
     # The mark changes nothing about what is local or citable.
     assert 'marked local true: ["tt_1", "ig_2", "tt_3"]' in scope and 'marked citable true: ["tt_1", "ig_2", "tt_3"]' in scope
@@ -50,9 +50,11 @@ def test_the_critic_sees_the_mark_on_every_post_and_the_same_line():
     assert "marked board_only true: []" in plain  # the line is always there for the critic, as the own-feed line is
 
 
-def test_the_support_check_does_not_carry_the_mark_and_the_stored_card_keeps_its_shape():
+def test_the_support_check_carries_the_mark_and_the_stored_card_keeps_its_shape():
+    # 22 Oct 2026, board-line-feed-wording: the support check sees the mark the writer and the critic see, on the
+    # marked post only, so it can judge the board wording the line hands the writer.
     pack = board_pack()
     prompt = explain._support_user(LEDGER[0], pack["evidence"][:2], pack, "ZA")
-    assert "board_only" not in prompt
+    assert prompt.count('"board_only": true') == 1 and '"board_only": false' not in prompt
     assert "board_only" in MODEL_ONLY_FIELDS
     assert not any("board_only" in e for e in reader_evidence(pack["evidence"]))

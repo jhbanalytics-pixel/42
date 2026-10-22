@@ -114,8 +114,12 @@ def test_writer_keeps_the_explanation_inside_the_claims_actual_scope():
 
 def test_support_contract_remains_pinned():
     # 18 Oct 2026, prompt-formats-sound: SUPPORT_SYSTEM says what formats and sound mean.
+    # 22 Oct 2026, board-line-feed-wording: SUPPORT_SYSTEM says a post marked board_only supports board feed wording
+    # only, and nothing about a creator posting there; the support check reads exactly as before otherwise.
     assert hashlib.sha256(explain.SUPPORT_SYSTEM.encode("utf-8")).hexdigest() == (
-        "8c4717687699a1a328b50288f66290a4b7248cb6ef9d81c5ddf9251affad2c2b")
+        "2e6cef9b77ddf9e72687cdab033d5a793fb63a664d9f71958c9e6ea351b5131d")
     # 16 Oct 2026, pack-formats-sound: each cited post's head also carries its sound letter (_sound_letters).
+    # 22 Oct 2026, board-line-feed-wording: a cited post sighted only on the YouTube trending board carries
+    # board_only true in its head, as the writer and the critic see it; nothing else in the prompt changed.
     assert hashlib.sha256(inspect.getsource(explain._support_user).encode("utf-8")).hexdigest() == (
-        "1311e06e9625d93336940750e09aae980ce986c617741371f8325ddb010f4fae")
+        "39554c26cae83cd91c274838fc0c83c45fd3211a08c85428fb61fb5aae921e7d")

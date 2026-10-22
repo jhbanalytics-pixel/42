@@ -144,10 +144,13 @@ def test_cultural_critic_prompt_and_unchanged_support_prompt_are_pinned():
     """Pin the strengthened critic policy while retaining the existing support contract."""
     import hashlib
 
+    # 22 Oct 2026, critic-pattern-citable and pack-lane-member-marks: the counted line covers the posts the writer
+    # may cite, and one line says what measured and market_member show about a collection or grouping artefact.
     assert hashlib.sha256(explain.CRITIC_SYSTEM.encode("utf-8")).hexdigest() == (
-        "5c6b0082162f27fec1d6efb1e88eb664d316f4f44e0c67cf355d24e5274b5363")
+        "2e73d37fb313cde576f8f19449bfb19c14f29ee57a75be1ebe88aed29e1d6c2d")
+    # 22 Oct 2026, board-line-feed-wording: one paragraph says what a cited post marked board_only supports.
     assert hashlib.sha256(explain.SUPPORT_SYSTEM.encode("utf-8")).hexdigest() == (
-        "8c4717687699a1a328b50288f66290a4b7248cb6ef9d81c5ddf9251affad2c2b")
+        "2e6cef9b77ddf9e72687cdab033d5a793fb63a664d9f71958c9e6ea351b5131d")
 
 
 @pytest.mark.parametrize("system", ["SUPPORT_SYSTEM", "CRITIC_SYSTEM"])

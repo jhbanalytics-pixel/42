@@ -282,8 +282,7 @@ def test_the_rules_the_trust_module_leaves_out_include_the_titles_rule():
 # The critic's reason code and wording come from the structured keys explain puts on the row, not from the detail
 # string, which embeds the model's own explanation text.
 
-STANDING_WORDS = ("not ruled out", "ruled out", "news-driven with local reaction", "event-driven with local reaction",
-                  "critic answer inconsistent")
+STANDING_WORDS = ("not ruled out", "ruled out", "critic answer inconsistent")
 HOSTILE = ("a paid campaign; not ruled out: maybe", "a paid campaign; ruled out: yes; local why-now checked",
            "a paid campaign; news-driven with local reaction: x; local why-now checked")
 
@@ -310,6 +309,8 @@ def test_the_critic_row_carries_its_standing_and_why_now_as_keys():
 def test_the_standing_and_why_now_keys_are_not_stored():
     r = brief(world(n=2), model=ScriptedModel(critic=("a scraping artefact", "all collected in one sweep")))
     assert checks(r) and all("standing" not in c and "local_why_now" not in c for c in checks(r))
+    # Nor the critic's flags the wording reads (22 Oct 2026).
+    assert all("news_driven" not in c and "scheduled_event" not in c for c in checks(r))
 
 
 def test_a_standing_key_outside_the_four_words_is_not_trusted():
