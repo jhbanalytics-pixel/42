@@ -136,7 +136,8 @@ def test_read_clip_on_tiktok_sends_the_thumbnail_bytes_with_transcript_and_scree
     read = video.read_clip(clip("a"), model, sc, fetch_bytes=jpeg)
     routes = [route for route, _, _ in sc.calls]
     assert routes == ["tiktok/post/transcript", "tiktok/video/screen-text"]
-    assert all(params == {"url": "https://www.tiktok.com/@a/video/a"} for _, params, _ in sc.calls)
+    url = "https://www.tiktok.com/@a/video/a"
+    assert [params for _, params, _ in sc.calls] == [{"url": url, "use_ai_as_fallback": "true"}, {"url": url}]
     sent = model.calls[0]
     assert sent["media"] == [{"bytes": b"\xff\xd8\xff thumbnail", "mime_type": "image/jpeg"}]
     assert sent["model"] == "gemini-3.8-flash"
@@ -664,3 +665,23 @@ def test_gather_reads_the_transcript_and_screen_text_of_a_paid_or_same_day_cache
 def test_gather_reads_nothing_from_an_empty_reply():
     out = video.gather(clip("tt1"), FakeSC(status="empty", items=[]))
     assert out["transcript"] == "" and out["screen_text"] == "" and out["reasons"] == {}
+
+
+def test_gather_asks_for_the_tiktok_transcript_with_the_ai_fallback_the_agent_sends():
+    # EVIDENCE V2 (22 Oct 2026): video reading sent {"url"} alone, so a TikTok video with no caption track came back
+    # a 404; the agent's get_transcript sends TRANSCRIPT_PARAMS. The price is the same 10 credits, the screen-text
+    # call and the other platforms' transcript calls are unchanged.
+    from core.agent.tools.enrich_tools import TRANSCRIPT_PARAMS
+    from core.collect.socialcrawl_client import quote_for
+
+    sc = FakeSC()
+    video.gather(clip("tt1"), sc)
+    sent = {route: params for route, params, _ in sc.calls}
+    url = "https://www.tiktok.com/@a/video/tt1"
+    assert sent["tiktok/post/transcript"] == {"url": url, **TRANSCRIPT_PARAMS["tiktok/post/transcript"]}
+    assert sent["tiktok/video/screen-text"] == {"url": url}
+    assert quote_for("tiktok/post/transcript", "GET", sent["tiktok/post/transcript"]) == \
+        quote_for("tiktok/post/transcript", "GET", {"url": url})
+    sc = FakeSC()
+    video.gather(clip("y1", platform="youtube", url="https://www.youtube.com/watch?v=abc"), sc)
+    assert [params for _, params, _ in sc.calls] == [{"url": "https://www.youtube.com/watch?v=abc"}]

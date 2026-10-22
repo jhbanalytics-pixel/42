@@ -288,7 +288,7 @@ def gather(post, sc_client) -> dict:
     refused a call. A stored transcript is used and paid for once only, at collection. With no client (no SocialCrawl
     key on the job) only the stored transcript is used and no vendor call is made. reasons holds the client's reason
     for each vendor call that did not return items."""
-    from core.agent.tools.enrich_tools import TRANSCRIPT_ROUTES
+    from core.agent.tools.enrich_tools import TRANSCRIPT_PARAMS, TRANSCRIPT_ROUTES
 
     out = {"transcript": str(post.get("transcript") or ""), "screen_text": "", "credits": 0.0, "stopped": None,
            "statuses": {}, "reasons": {}}
@@ -301,7 +301,10 @@ def gather(post, sc_client) -> dict:
     if platform == "tiktok" and url:
         calls.append(("screen_text", SCREEN_TEXT_ROUTE))
     for what, route in calls:
-        result = sc_client.call(route, {"url": url})
+        # The transcript is asked for as the agent's get_transcript asks (TRANSCRIPT_PARAMS): on TikTok a video with
+        # no caption track is then transcribed from its speech inside the same 10 credits instead of a 404.
+        params = {"url": url, **(TRANSCRIPT_PARAMS.get(route, {}) if what == "transcript" else {})}
+        result = sc_client.call(route, params)
         status = getattr(result, "status", None)
         out["statuses"][what] = status
         if status not in VENDOR_OK:
