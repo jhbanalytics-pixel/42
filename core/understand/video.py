@@ -348,7 +348,7 @@ def gather(post, sc_client) -> dict:
             from core.agent.tools.sc_adapter import _transcript_rows
 
             items = _transcript_rows(route, getattr(result, "body", None)) or []
-        out[what] =_segments_text(items) if what == "transcript" else _screen_text(items)
+        out[what] = _segments_text(items) if what == "transcript" else _screen_text(items)
     return out
 
 

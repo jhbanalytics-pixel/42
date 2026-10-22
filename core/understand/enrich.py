@@ -7,8 +7,9 @@ still have none, sends at most limit distinct post_ids in its order (posts of it
 the rest, each part today's sightings first, then lowest post_id), validates every output against
 ENRICH_SCHEMA, drops invalid ones as failed and appends the rest to post_enrichment (enrich_insert.sql) with no
 embedding. Posts past the limit or the budget are neither sent nor counted, and are tried again on a later day while
-they were sighted in that day's 7-day window. A rerun sends nothing that was written already. enriched is the row count the inserts report adding (num_dml_affected_rows in
-the job-like result job.bigquery_execute returns; an execute that reports none counts every row it was given).
+they were sighted in that day's 7-day window. A rerun sends nothing that was written already. enriched is the row
+count the inserts report adding (num_dml_affected_rows in the job-like result job.bigquery_execute returns; an
+execute that reports none counts every row it was given).
 failed counts each sent post once, however many outputs came back for it. model_usd is the spend from token usage
 at MODEL's price (price_for), and a collected batch job's at BATCH_PRICE less BATCH_DISCOUNT. Each spend is booked in
 runs the moment it is made (embed.book_spend, an understand_spend row the daily spend query sums against

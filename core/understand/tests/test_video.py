@@ -705,7 +705,8 @@ class BodySC:
 
 
 YOUTUBE_TRANSCRIPT = {"success": True, "data": {"transcript": [
-    {"offset": 0.0, "duration": 2.0, "text": "sawubona"}, {"offset": 2.0, "duration": 2.0, "text": "skroef challenge"}]}}
+    {"offset": 0.0, "duration": 2.0, "text": "sawubona"},
+    {"offset": 2.0, "duration": 2.0, "text": "skroef challenge"}]}}
 
 
 @pytest.mark.parametrize("status,credits", [(None, 3), ("cached", 0)])

@@ -1,4 +1,5 @@
--- Posts sighted on one day, for model enrichment (BUILD.md 2.1). Parameter: @run_date, DATE.
+-- Posts sighted on one day, and the posts of the 6 days before it still unenriched, for model enrichment
+-- (BUILD.md 2.1). Parameter: @run_date, DATE.
 -- Same sighting rule as embed.sql: a post is in the day when any post_observations row for it has
 -- observed_date = @run_date, and its post_date is at most 400 days before that day.
 -- A post sighted in the 7 days up to @run_date (the window the brief's evidence pack reads) that has no enrichment
