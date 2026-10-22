@@ -774,6 +774,32 @@ def run_enrich(execute, runner: Runner | None = None, *, run_date, run_id=None, 
     return counts
 
 
+def _eligible_first(execute, todo, counts, *, run_date) -> list:
+    """todo with the posts of eligible items first, the rest after, each in enrich_select.sql's order. A post is of
+    an eligible item when post_items links it to one (linked_eligible) or when its own hashtags, sound or creator name
+    one in a market it was sighted in, by the key rule detect's aggregate step uses (items_for_post), since aggregate
+    writes post_items for a post first sighted today only after this step. When the eligible items cannot be read
+    the order is enrich_select.sql's, and eligible_error says why."""
+    from core.detect.items import items_for_post
+
+    try:
+        eligible = {(str(row["market"]), str(row["item_id"]))
+                    for row in _rows(execute(load("enrich_eligible"), {"run_date": run_date}))}
+    except Exception as err:
+        counts["eligible_error"] = type(err).__name__
+        return todo
+    if not eligible:
+        return todo
+
+    def first(post) -> bool:
+        if post.get("linked_eligible"):
+            return True
+        markets = [str(m) for m in post.get("markets") or []]
+        return any((m, it["item_id"]) in eligible for it in items_for_post(post) for m in markets)
+
+    return sorted(todo, key=lambda post: not first(post))  # stable: each part keeps the select's order
+
+
 def _enrich(execute, runner, counts, *, run_date, day, limit, batches, now, spend, clock, budgeted_sync=False,
             deadline=None, monotonic=None):
     done = set()
@@ -788,6 +814,8 @@ def _enrich(execute, runner, counts, *, run_date, day, limit, batches, now, spen
     counts["skipped"] = len(rows) - len(todo)
     if budgeted_sync:
         counts["candidate"] = len(todo)
+    if todo:
+        todo = _eligible_first(execute, todo, counts, run_date=run_date)
     todo = todo[:limit]
     if not todo:
         return

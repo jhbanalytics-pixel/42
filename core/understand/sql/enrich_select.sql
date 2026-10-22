@@ -10,10 +10,16 @@
 -- content is the post text plus its transcript, cut to 4000 characters, and it is left empty for a post
 -- enriched already, since that post is not sent again. run_enrich skips enriched posts and posts with no
 -- content, and sends the rest in this order, so a day past its limit leaves the least useful posts unsent.
--- Posts linked (post_items) to an item that detect marked eligible come first: eligible in a market the post
--- was sighted in on @run_date, in that market's newest good detect run (v_item_state_current, the view the
--- brief's candidates read) dated within the 7 days up to @run_date, so the posts the brief's candidates rest on
--- are enriched before the rest. Then come the posts that are members of a cluster dated within the 7 days up to
+-- Posts linked (post_items) to an item that detect marked eligible come first (linked_eligible): eligible in a
+-- market the post was sighted in within the 7 days up to @run_date, in that market's newest good detect run
+-- (v_item_state_current, the view the brief's candidates read) dated within the 7 days up to @run_date.
+-- post_items holds only the posts detect has aggregated, and detect's aggregate step writes a post's links on the
+-- day it is first sighted, after this step runs, so no post first sighted on @run_date is linked here. enrich.py
+-- therefore also puts first the posts whose own hashtags, sound or creator name an eligible item in a market they
+-- were sighted in (core.detect.items.items_for_post, the key rule aggregate uses, against enrich_eligible.sql),
+-- so today's new posts of the brief's candidates are enriched before the rest (22 Oct 2026). A topic item's
+-- posts are linked through clusters that do not exist yet at this step; the 7-day retry above covers them.
+-- Then come the posts that are members of a cluster dated within the 7 days up to
 -- @run_date (clusters, cluster_members): the day's own clusters are written after this step, so these are the
 -- newest clusters there are, and a post sighted again that one of them holds is a post the brief's topics rest
 -- on (18 Oct 2026). The order changes which posts the budget reaches, not the budget.
@@ -29,7 +35,8 @@ WITH latest_state AS (
   QUALIFY s.metric_date = MAX(s.metric_date) OVER (PARTITION BY s.market)
 ),
 sightings AS (
-  SELECT o.post_id, LOGICAL_OR(o.observed_date = @run_date) AS today
+  SELECT o.post_id, LOGICAL_OR(o.observed_date = @run_date) AS today,
+    ARRAY_AGG(DISTINCT o.market IGNORE NULLS) AS markets
   FROM `ogilvy-trends-v2.intelligence_42_core.post_observations` AS o
   WHERE o.observed_date BETWEEN DATE_SUB(@run_date, INTERVAL 6 DAY) AND @run_date
   GROUP BY o.post_id
@@ -57,13 +64,16 @@ SELECT
   c.handle,
   p.hashtags,
   p.sound_id,
+  p.creator_id,
   p.duration_s,
   IF(done.post_id IS NOT NULL, '', LEFT(TRIM(CONCAT(
     COALESCE(p.text, ''),
     IF(TRIM(COALESCE(p.transcript, '')) = '', '', CONCAT('\n', p.transcript))
   )), 4000)) AS content,
   done.post_id IS NOT NULL AS enriched,
-  sg.today
+  sg.today,
+  sg.markets,
+  ep.post_id IS NOT NULL AS linked_eligible
 FROM `ogilvy-trends-v2.intelligence_42_core.posts` AS p
 JOIN sightings AS sg
   ON sg.post_id = p.post_id

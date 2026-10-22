@@ -19,7 +19,8 @@ from core.agent.ask import SPEND_SQL, model_daily_usd
 from core.understand import embed, enrich, job
 
 SQL_DIR = Path(__file__).resolve().parents[1] / "sql"
-ENRICH_FILES = ("enrich_select", "enrich_insert", "enrich_insert_sensitive", "enrich_batches", "enrich_check_rows")
+ENRICH_FILES = ("enrich_select", "enrich_insert", "enrich_insert_sensitive", "enrich_batches", "enrich_check_rows",
+                "enrich_eligible")
 DAY = date(2026, 9, 28)
 CORE = "`ogilvy-trends-v2.intelligence_42_core"
 
@@ -521,6 +522,34 @@ def test_select_sql_sends_the_posts_of_recent_clusters_after_the_eligible_ones_a
     assert len(rows) == 7 and all(r["enriched"] is False for r in rows)
 
 
+def test_select_sql_returns_what_the_eligible_first_order_needs_for_todays_new_posts():
+    # EVIDENCE E2 (22 Oct 2026): post_items holds no post first sighted today (detect's aggregate writes those links
+    # after understand), so the select hands enrich.py each post's hashtags, sound, creator and sighting markets, and
+    # whether post_items already links it to an eligible item, for _eligible_first to finish the order.
+    con = fixture_warehouse(
+        posts=[("new_today", "c1", "skroef", DAY), ("linked", "c1", "old", DAY)],
+        observations=[("new_today", DAY), ("new_today", DAY, "NG"), ("linked", DAY - timedelta(days=1))],
+        post_items=[("linked", "amapiano")], states=[(DAY - timedelta(days=1), "ZA", "amapiano", True)])
+    rows = {r["post_id"]: r for r in run_sql(con, "enrich_select", {"run_date": DAY})}
+    assert rows["linked"]["linked_eligible"] is True and rows["new_today"]["linked_eligible"] is False
+    assert sorted(rows["new_today"]["markets"]) == ["NG", "ZA"] and rows["linked"]["markets"] == ["ZA"]
+    assert rows["new_today"]["creator_id"] == "c1" and rows["new_today"]["hashtags"] == ["#x"]
+    eligible = run_sql(con, "enrich_eligible", {"run_date": DAY})
+    assert eligible == [{"market": "ZA", "item_id": "amapiano"}]
+
+
+def test_eligible_sql_reads_each_markets_newest_state_in_the_window():
+    con = fixture_warehouse(posts=[], observations=[], states=[
+        (DAY - timedelta(days=1), "ZA", "amapiano", True), (DAY - timedelta(days=1), "ZA", "generic", False),
+        (DAY - timedelta(days=2), "ZA", "old_trend", True), (DAY - timedelta(days=3), "KE", "gengetone", True),
+        (DAY + timedelta(days=1), "ZA", "future", True), (DAY - timedelta(days=9), "NG", "ancient", True)])
+    rows = run_sql(con, "enrich_eligible", {"run_date": DAY})
+    assert sorted((r["market"], r["item_id"]) for r in rows) == [("KE", "gengetone"), ("ZA", "amapiano")]
+    text = sql("enrich_eligible")
+    assert set(re.findall(r"@(\w+)", code_only(text))) == {"run_date"}
+    assert f"{CORE}.v_item_state_current`" in text
+
+
 def test_insert_sql_on_fixtures_appends_once_and_leaves_embeddings_alone():
     con = fixture_warehouse(posts=[], observations=[], enrichment=[("p1", None), ("p2", "neutral")])
     payload = json.dumps([enrich.enrichment_row("p1", good_output()),
@@ -617,6 +646,57 @@ def test_run_enrich_writes_valid_outputs_and_counts_invalid_ones_failed():
     assert counts == {"enriched": 1, "failed": 2, "skipped": 2, "model_usd": spent, "booked_usd": spent,
                       "batch_collected": 0, "batch_pending": 0}
     assert fake.calls[:2] == [(sql("enrich_batches"), {"run_date": DAY}), (sql("enrich_select"), {"run_date": DAY})]
+
+
+class EligibleExecute(FakeExecute):
+    def __init__(self, rows, eligible, **kw):
+        super().__init__(rows, **kw)
+        self.eligible = eligible
+
+    def __call__(self, text, params, max_bytes=None):
+        if text == sql("enrich_eligible"):
+            self.calls.append((text, params))
+            if isinstance(self.eligible, Exception):
+                raise self.eligible
+            return [{"market": m, "item_id": i} for m, i in self.eligible]
+        return super().__call__(text, params, max_bytes)
+
+
+def _item(**post):
+    from core.detect.items import items_for_post
+
+    return items_for_post({"platform": "tiktok", **post})[0]["item_id"]
+
+
+def test_run_enrich_sends_todays_new_posts_of_eligible_items_first():
+    # EVIDENCE E2 (22 Oct 2026): the eligible-first order read post_items only, which holds no post first sighted
+    # today, so today's new posts of the brief's candidates fell among the rest in post_id (hash) order and a limit
+    # or budget cut them at random. A post whose own hashtag, sound or creator is an item eligible in a market it was
+    # sighted in now goes first, beside the posts post_items already links; each part keeps the select's order and
+    # the limit is the same.
+    rows = [dict(post("e_linked"), linked_eligible=True, markets=["ZA"]),
+            dict(post("a_plain"), markets=["ZA"]),
+            dict(post("b_other_market"), hashtags=["#Skroef"], markets=["KE"]),
+            dict(post("c_hashtag"), hashtags=["#skroef", "#fyp"], markets=["ZA"]),
+            dict(post("d_sound"), sound_id="777", markets=["NG", "ZA"]),
+            dict(post("f_creator"), creator_id="cr9", markets=["NG"]),
+            dict(post("g_plain"), markets=["ZA"])]
+    eligible = [("ZA", _item(hashtags=["#skroef"])), ("NG", _item(sound_id="777")), ("NG", _item(creator_id="cr9"))]
+    fake, runner = EligibleExecute(rows, eligible), FakeRunner()
+    counts = enrich.run_enrich(fake, runner, run_date=DAY, limit=4)
+    assert runner.sent == [["e_linked", "c_hashtag", "d_sound", "f_creator"]]
+    assert counts["enriched"] == 4 and "eligible_error" not in counts
+    assert (sql("enrich_eligible"), {"run_date": DAY}) in fake.calls
+
+
+def test_run_enrich_keeps_the_selects_order_when_nothing_is_eligible_or_the_state_cannot_be_read():
+    rows = [dict(post(pid), hashtags=["#skroef"], markets=["ZA"]) for pid in ("b", "a")]
+    runner = FakeRunner()
+    enrich.run_enrich(EligibleExecute(rows, []), runner, run_date=DAY, limit=10)
+    assert runner.sent == [["b", "a"]]
+    runner = FakeRunner()
+    counts = enrich.run_enrich(EligibleExecute(rows, RuntimeError("bq down")), runner, run_date=DAY, limit=10)
+    assert runner.sent == [["b", "a"]] and counts["eligible_error"] == "RuntimeError"
 
 
 def test_run_enrich_reads_a_job_shaped_result_too():
