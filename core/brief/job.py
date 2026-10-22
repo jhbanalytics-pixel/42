@@ -146,7 +146,12 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # rival and show the pattern beyond it, writes no pattern claim when the posts only react to an event, and the critic's
 # evaluate-only line is scoped to local_why_now (core/brief/explain.py WRITER_SYSTEM, CRITIC_SYSTEM, _writer_user),
 # video-format-counted the pattern line counts each post's video_format beside its enriched formats, with the same
-# exclusions, and the writer sees video_format (core/brief/explain.py _shared_patterns, _writer_user).
+# exclusions, and the writer sees video_format (core/brief/explain.py _shared_patterns, _writer_user),
+# pattern-local-adoption only local posts (the local_creators rule) count toward an adopted sound or format in the
+# pool; rank only (core/brief/sql/brief.sql pattern_posts.is_local), generic-label-last a topic named only by
+# platform-generic tag words ranks after the other named rows (_generic_label, _ranked), fold-rank-order folds within
+# a round, and the regrow merge, run in pool rank order before worth so a pattern item is not folded into a broader
+# card (_fold_plan, _regrow).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
@@ -155,7 +160,8 @@ RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8
                 "+critic-inconsistent+pattern-skip-talking-head+writer-critic-agree+pack-video-fields"
                 "+critic-rivals-line+author-step-note+pack-board-only-mark+creator-letters"
                 "+data-issue-full-judgement+claim-floor-fault+writer-no-earliest+fixture-reaction-code"
-                "+pattern-video-formats+writer-rivals-line+video-format-counted")
+                "+pattern-video-formats+writer-rivals-line+video-format-counted+pattern-local-adoption+generic-label-last"
+                "+fold-rank-order")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -671,12 +677,24 @@ def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_
     return cand
 
 
+def _generic_label(row):
+    """True for a topic whose label is made only of platform-generic tag words (core/detect/stoplist.yaml), such as
+    "tiktok, viralvideo, viral" or "mombasatiktokers, kenyantiktok": the stoplist says those words name no topic."""
+    from core.detect.items import is_generic
+
+    words = [w for part in str(row.get("label") or "").split(",") for w in part.split()]
+    return ((row.get("kind") or row.get("map_kind")) == "topic" and bool(words)
+            and all(is_generic("hashtag", w) for w in words))
+
+
 def _ranked(rows):
     """At most POOL rows in the query's order, rows without a readable title (card_title) after every named row,
-    so a platform id never takes a slot from a named item. Unnamed rows still fill slots named rows leave empty, and
-    are held there as having no readable name."""
-    named = [r for r in rows if card_title(r) is not None]
-    return (named + [r for r in rows if card_title(r) is None])[:POOL]
+    so a platform id never takes a slot from a named item, and a topic named only by platform-generic tag words
+    (_generic_label) after the other named rows. Unnamed rows still fill slots named rows leave empty, and are held
+    there as having no readable name."""
+    named = [r for r in rows if card_title(r) is not None and not _generic_label(r)]
+    generic = [r for r in rows if card_title(r) is not None and _generic_label(r)]
+    return (named + generic + [r for r in rows if card_title(r) is None])[:POOL]
 
 
 def _held_g1(cand):
@@ -869,9 +887,11 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
                                                       political_terms=political_terms[mr[0]], hidden=hidden,
                                                       calendar=calendar.get(mr[0], ()), core=core, agent=agent),
                                   rows))
-            for cand in cands:
+            for cand, (m, row) in zip(cands, rows):
                 cand["decision"] = _gate(cand, None)
                 cand["_round"] = rounds
+                # The pool position (pattern-first SQL order): within a round a fold keeps the higher-ranked row.
+                cand["_rank"] = next(n for n, r in enumerate(ranked[m]) if r is row)
                 by_market[cand["market"]].append(cand)
     if selection_audits is not None:
         for m in MARKETS:
@@ -911,7 +931,8 @@ def _fold_plan(cands):
     in worth order alone it could take posts from an earlier fold and undo it, and the market would judge more than
     CANDIDATES. Rounds first, no decision rests on a later round's rows."""
     kept, kept_posts, claimed, folds = [], [], set(), []
-    for cand in sorted((c for c in cands if _for_today(c)), key=lambda c: (c.get("_round", 0), _worth(c["row"]))):
+    for cand in sorted((c for c in cands if _for_today(c)),
+                       key=lambda c: (c.get("_round", 0), c.get("_rank", 0), _worth(c["row"]))):
         posts = cand.get("posts") or set()
         best = max(((len(posts & kp), -i) for i, kp in enumerate(kept_posts)), default=(0, 0))
         if best[0] > 0 and (len(posts - claimed) < MIN_EVIDENCE or best[0] * 2 >= len(posts)):
@@ -1812,6 +1833,7 @@ def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags,
                 print(f"brief {d.isoformat()}: regrow {m}:{cand['row']['item_id']}: {new['error']}", file=sys.stderr)
                 continue
             new["pack"]["facts"].extend(f for f in cand["pack"]["facts"] if f not in new["pack"]["facts"])
+            new["_round"], new["_rank"] = cand.get("_round", 0), cand.get("_rank", 0)
             new["decision"] = _gate(new, None)
             by_market[m][i] = new
             grown.append({"market": m, "item_id": cand["row"]["item_id"],
@@ -1820,7 +1842,7 @@ def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags,
         kept = [c for c in by_market[m] if _for_today(c) and "also" in c]
         claimed = set().union(*(c["posts"] for c in kept))
         for cand in sorted((c for c in by_market[m] if _for_today(c) and "also" not in c),
-                           key=lambda c: _worth(c["row"])):
+                           key=lambda c: (c.get("_rank", 0), _worth(c["row"]))):
             posts = cand["posts"]
             best = max(((len(posts & k["posts"]), -j) for j, k in enumerate(kept)), default=(0, 0))
             if best[0] > 0 and (len(posts - claimed) < MIN_EVIDENCE or best[0] * 2 >= len(posts)):

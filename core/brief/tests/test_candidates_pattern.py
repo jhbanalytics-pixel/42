@@ -24,7 +24,8 @@ def posts(con, item, rows):
         duck.load(con, "core.posts", [{"post_id": post_id, "platform": "tiktok", "creator_id": creator,
                                        "sound_id": sound, "published_at": datetime(day.year, day.month, day.day, 9,
                                                                                    tzinfo=UTC),
-                                       "post_date": day}])
+                                       "post_date": day, "geo_market": "NG", "geo_confidence": .9,
+                                       "geo_source": "home_market"}])
         duck.load(con, "core.post_items", [{"post_id": post_id, "item_id": item, "via": "hashtag", "linked_on": day}])
         duck.load(con, "core.post_observations", [{"post_id": post_id, "observed_at": T, "observed_date": day,
                                                    "market": "NG", "platform": "tiktok", "lane": "seed",
@@ -194,3 +195,11 @@ def test_a_post_with_the_format_in_both_its_caption_and_its_video_counts_once(co
     by = {r["item_id"]: r for r in rows}
     assert (by["dance"]["_selection_format_creators"], by["dance"]["_selection_format_days"]) == (3, 3)
     assert by["dance"]["_selection_pattern"] == 0
+
+
+def test_a_format_adopted_only_by_creators_placed_in_another_market_does_not_lift_the_item(con):
+    con.execute("UPDATE core.posts SET geo_market = 'ZA' WHERE post_id IN ('f1', 'f2', 'f3', 's1')")
+    _, rows = order(con)
+    by = {r["item_id"]: r for r in rows}
+    assert by["dance"]["_selection_pattern"] == 1 and by["sound"]["_selection_pattern"] == 1
+    assert by["clips"]["_selection_pattern"] == 2          # the news test still reads every post

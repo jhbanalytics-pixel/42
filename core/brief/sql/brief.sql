@@ -52,7 +52,17 @@ fs AS (
 -- dropped, no gate, threshold or judged count changes.
 pattern_posts AS (
   SELECT DISTINCT pi.item_id, po.post_id, IFNULL(ps.creator_id, ps.post_id) creator_id, ps.sound_id,
-    ps.post_date post_day
+    ps.post_date post_day,
+    -- Local by local_creators' rule below: the card rule and the critic need adoption by local creators, so only a
+    -- local post counts toward an adopted sound or format (pattern_news still reads every post).
+    ((ps.geo_market = @market AND IFNULL(ps.geo_confidence, 0) >= 0.7
+      AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'))
+     OR (EXISTS (SELECT 1 FROM {core}.v_post_source_markets v CROSS JOIN UNNEST(v.source_sightings) sight
+                 WHERE v.post_id = po.post_id AND sight.source_market = @market
+                   AND IFNULL(sight.route, '') != 'youtube/videos/trending'
+                   AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d)
+         AND NOT IFNULL(ps.geo_market != @market AND ps.geo_confidence >= 0.7
+                        AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE))) is_local
   FROM {core}.post_observations po
   JOIN {core}.post_items pi ON pi.post_id = po.post_id
   JOIN {core}.posts ps ON ps.post_id = po.post_id
@@ -71,13 +81,13 @@ pattern_sound AS (
     LOGICAL_OR(creators >= 3 AND days >= 2) sound_adopted FROM (
     SELECT pp.item_id, pp.sound_id, COUNT(DISTINCT pp.creator_id) creators, COUNT(DISTINCT pp.post_day) days,
       COUNT(DISTINCT pp.post_id) posts
-    FROM pattern_posts pp WHERE pp.sound_id IS NOT NULL AND TRIM(pp.sound_id) != ''
+    FROM pattern_posts pp WHERE pp.sound_id IS NOT NULL AND TRIM(pp.sound_id) != '' AND pp.is_local
     GROUP BY pp.item_id, pp.sound_id) own
   JOIN pattern_sound_posts tot ON tot.sound_id = own.sound_id
   WHERE 2 * own.posts >= tot.posts
   GROUP BY item_id),
 pattern_enriched AS (
-  SELECT DISTINCT pp.item_id, pp.post_id, pp.creator_id, pp.post_day, post_format
+  SELECT DISTINCT pp.item_id, pp.post_id, pp.creator_id, pp.post_day, pp.is_local, post_format
   FROM pattern_posts pp
   JOIN {core}.post_enrichment pe ON pe.post_id = pp.post_id
   CROSS JOIN UNNEST(pe.formats) post_format),
@@ -86,7 +96,7 @@ pattern_enriched AS (
 -- format the video model saw counts as the post's format too. Only the adoption count reads it: news clips seen on
 -- video do not change pattern_news, the third bucket or any gate.
 pattern_video AS (
-  SELECT DISTINCT pp.item_id, pp.post_id, pp.creator_id, pp.post_day,
+  SELECT DISTINCT pp.item_id, pp.post_id, pp.creator_id, pp.post_day, pp.is_local,
     JSON_VALUE(pe.video_notes, '$.format') post_format
   FROM pattern_posts pp
   JOIN {core}.post_enrichment pe ON pe.post_id = pp.post_id
@@ -96,9 +106,9 @@ pattern_format AS (
     LOGICAL_OR(creators >= 3 AND days >= 2) format_adopted FROM (
     SELECT item_id, post_format, COUNT(DISTINCT creator_id) creators, COUNT(DISTINCT post_day) days
     FROM (
-      SELECT item_id, post_id, creator_id, post_day, post_format FROM pattern_enriched
+      SELECT item_id, post_id, creator_id, post_day, post_format FROM pattern_enriched WHERE is_local
       UNION DISTINCT
-      SELECT item_id, post_id, creator_id, post_day, post_format FROM pattern_video) format_rows
+      SELECT item_id, post_id, creator_id, post_day, post_format FROM pattern_video WHERE is_local) format_rows
     WHERE post_format NOT IN ('other', 'news_clip', 'talking_head')
     GROUP BY item_id, post_format)
   GROUP BY item_id),

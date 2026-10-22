@@ -250,9 +250,12 @@ def _label_keywords(keywords):
     keyword that holds all the words of kept ones takes the first one's place, so the bigram wins whichever ranks
     first ("drum", "log", "log drum" gives "log drum"). One that would still share a word with another kept keyword is
     skipped, since taking the place would only move the repeat ("school trip", "bus", "school bus" keeps "school trip,
-    bus")."""
+    bus"). A keyword made only of platform-generic tag words (core/detect/stoplist.yaml) names no topic and is
+    skipped, so "tiktok, viralvideo, viral" is never a label."""
     kept = []
     for k in (str(k) for k in keywords if str(k).strip()):
+        if all(is_generic("hashtag", w) for w in k.casefold().split()):
+            continue
         words = set(k.casefold().split())
         inside = [n for n, c in enumerate(kept) if set(c.casefold().split()) < words]
         others = {w for n, c in enumerate(kept) if n not in inside for w in c.casefold().split()}

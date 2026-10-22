@@ -634,7 +634,9 @@ def _tag(raw):
     tag = str(raw or "").strip().lstrip("#").casefold()
     if not tag or len(tag) > 100 or any(ch.isspace() for ch in tag) or not any(ch.isalnum() for ch in tag):
         return None
-    return None if tag in GENERIC_TAGS or blocked(tag) else tag
+    from core.detect.items import is_generic
+
+    return None if tag in GENERIC_TAGS or is_generic("hashtag", tag) or blocked(tag) else tag
 
 
 def sightings(done):
