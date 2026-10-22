@@ -16,7 +16,8 @@ the bucket. Then one structured call describes format, the hook in the first thr
 people (never their age or nationality), brands, sound and edit style, with timed observations. Every free-text value
 that fails the age scan (age_scan.py) is dropped, as enrichment does. The row appended to post_enrichment
 (video_insert.sql) holds screen_text, the vendor's when there is one and the model's otherwise, and video_notes, the
-rest as a JSON string.
+rest as a JSON string, with the vendor transcript the read paid for under transcript (a post's stored transcript is
+on posts already and is not copied).
 
 run_video is the understand job's step. It does nothing while VIDEO_DAILY (core/config/caps.yaml) has zero clips or
 zero credits, which is the default, and nothing on any family but gemini. Otherwise it reads at most the clips
@@ -424,6 +425,13 @@ def read_clip(post, model, sc_client, *, fetch_bytes=fetch_image, question=None,
         clean, dropped = scanned(output)
         notes = {k: clean[k] for k in VIDEO_SCHEMA["properties"] if k != "on_screen_text"}
         notes["read_from"] = read_from
+        # The vendor transcript this read paid for is kept with the notes, as the model was given it, so it is not
+        # lost once read; a stored post transcript is on posts already. It is free text, so it is age scanned too.
+        vendor = "" if str(post.get("transcript") or "").strip() else found["transcript"].strip()
+        if vendor and passes_age_scan(vendor):
+            notes["transcript"] = vendor[:MAX_TRANSCRIPT_CHARS]
+        elif vendor:
+            dropped += 1
         screen = found["screen_text"].strip() or clean["on_screen_text"]
         read.update(output=clean, read_from=read_from, age_dropped=dropped,
                     row={"post_id": post["post_id"], "screen_text": screen[:MAX_SCREEN_TEXT_CHARS] or None,
