@@ -685,3 +685,45 @@ def test_gather_asks_for_the_tiktok_transcript_with_the_ai_fallback_the_agent_se
     sc = FakeSC()
     video.gather(clip("y1", platform="youtube", url="https://www.youtube.com/watch?v=abc"), sc)
     assert [params for _, params, _ in sc.calls] == [{"url": "https://www.youtube.com/watch?v=abc"}]
+
+
+class BodySC:
+    """Returns a vendor body through the real client's item extraction (_items, _is_empty), body kept on the result
+    as the client's Result keeps it."""
+
+    def __init__(self, bodies, status=None, credits=3):
+        self.bodies, self.status, self.credits, self.calls = bodies, status, credits, []
+
+    def call(self, route, params=None, **kw):
+        from core.collect.socialcrawl_client import _is_empty, _items
+
+        self.calls.append((route, dict(params or {})))
+        body = self.bodies[route]
+        status = self.status or ("empty" if _is_empty(body) else "ok")
+        return NS(status=status, items=_items(body), body=body, reason="",
+                  credits_charged=self.credits if status in ("ok", "empty") else 0)
+
+
+YOUTUBE_TRANSCRIPT = {"success": True, "data": {"transcript": [
+    {"offset": 0.0, "duration": 2.0, "text": "sawubona"}, {"offset": 2.0, "duration": 2.0, "text": "skroef challenge"}]}}
+
+
+@pytest.mark.parametrize("status,credits", [(None, 3), ("cached", 0)])
+def test_gather_reads_the_youtube_transcript_it_pays_for(status, credits):
+    # EVIDENCE V1 (22 Oct 2026): the YouTube transcript body is data.transcript (probe t1), which the client's
+    # ITEM_KEYS do not find, so the call came back ok with no items: 3 credits paid, nothing read. It is now read as
+    # the agent path reads it (sc_adapter._transcript_rows), a same-day cached reply too, at the same price.
+    post = {"post_id": "p", "platform": "youtube", "url": "https://www.youtube.com/watch?v=x", "transcript": None}
+    sc = BodySC({"youtube/video/transcript": YOUTUBE_TRANSCRIPT}, status=status, credits=credits)
+    out = video.gather(post, sc)
+    assert out["statuses"] == {"transcript": status or "ok"} and out["credits"] == credits
+    assert out["transcript"] == "[0s] sawubona\n[2s] skroef challenge"
+    assert out["reasons"] == {} and len(sc.calls) == 1
+
+
+def test_gather_reads_an_empty_youtube_transcript_as_nothing_and_never_reads_a_failed_body():
+    post = {"post_id": "p", "platform": "youtube", "url": "https://www.youtube.com/watch?v=x", "transcript": None}
+    out = video.gather(post, BodySC({"youtube/video/transcript": {"data": {"transcript": []}}}))
+    assert out["transcript"] == ""
+    out = video.gather(post, BodySC({"youtube/video/transcript": YOUTUBE_TRANSCRIPT}, status="error"))
+    assert out["transcript"] == "" and out["reasons"] == {"transcript": "error"}

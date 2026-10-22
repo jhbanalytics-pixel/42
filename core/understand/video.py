@@ -315,7 +315,13 @@ def gather(post, sc_client) -> dict:
             return out
         # A same-day cached reply carries the items the paid call returned, at no charge (audit F7D-UND-001).
         items = (getattr(result, "items", None) or []) if status in ("ok", "partial", "cached") else []
-        out[what] = _segments_text(items) if what == "transcript" else _screen_text(items)
+        if what == "transcript" and not items and status in ("ok", "cached"):
+            # The YouTube transcript's body is data.transcript, which the client's item keys do not find; read it
+            # as the agent path does (sc_adapter._transcript_rows), so the 3 credits paid buy the transcript.
+            from core.agent.tools.sc_adapter import _transcript_rows
+
+            items = _transcript_rows(route, getattr(result, "body", None)) or []
+        out[what] =_segments_text(items) if what == "transcript" else _screen_text(items)
     return out
 
 
