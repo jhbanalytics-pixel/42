@@ -1029,15 +1029,17 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
 
 # An answer critic_is_valid rejects (ruled_out true with a news, event or reaction flag, say) has a standing of its own
 # and is always a cut; it was shown as not ruled out, which named a simpler explanation the critic never stood by
-# (18 Oct 2026).
+# (18 Oct 2026). A news or scheduled event no longer passes on local reaction (critic_is_valid rejects ruled_out with
+# any of the three flags), so no row carries a reaction standing (22 Oct 2026).
 INCONSISTENT = "critic answer inconsistent"
-STANDINGS = ("ruled out", "news-driven with local reaction", "event-driven with local reaction", "not ruled out",
-             INCONSISTENT)
+STANDINGS = ("ruled out", "not ruled out", INCONSISTENT)
 
 
 def _critic_row(out, reacting_creators=0):
     """The critic's check row. standing and local_why_now are the structured reading job.py derives the stored
-    reason code and wording from; the detail embeds the model's own text and is never parsed for them."""
+    reason code and wording from; the detail embeds the model's own text and is never parsed for them. news_driven and
+    scheduled_event are the critic's own flags on a valid answer (false on any other), so the wording names a news or
+    scheduled event from them rather than from the model's free text (22 Oct 2026)."""
     valid = critic_is_valid(out)
     out = out if isinstance(out, dict) else {}
     ruled_out = valid and out.get("ruled_out") is True
@@ -1047,6 +1049,8 @@ def _critic_row(out, reacting_creators=0):
     # Keep the original count for audit; reaction volume does not qualify a cultural pattern.
     return {"claim_id": None, "rule": "critic", "verdict": "pass" if passed else "cut", "checker": "model",
             "standing": standing, "local_why_now": local_why_now,
+            "news_driven": valid and out.get("news_driven") is True,
+            "scheduled_event": valid and out.get("scheduled_event") is True,
             "detail": f"critic: simplest non-cultural explanation: {out.get('non_cultural_explanation', '')}; "
                       f"{standing}: {out.get('reason', '')}; "
                       f"reacting local creators: {reacting_creators}; "
@@ -1059,8 +1063,10 @@ def _wording_only(out, reacting_creators):
 
 
 def _redraft_user(user, draft, out):
-    """The writer prompt again, the previous draft and the critic's reason, both fenced: the critic's reason is model
-    text that may repeat scraped words."""
+    """The writer prompt again, the previous draft, the simpler explanation the critic named and its reason, all
+    fenced: the critic's words are model text that may repeat scraped words. The named rival is the one the critic
+    ruled out (_wording_only), so the second draft keeps the pattern beyond it (22 Oct 2026: it got the reason
+    alone)."""
     return "\n\n".join([
         user,
         "The critic held the why-now clause of your previous draft: it found no timely local cause shown by the cited "
@@ -1070,6 +1076,7 @@ def _redraft_user(user, draft, out):
         "Word the clause as seen in the market's feeds when every post it rests on is marked "
         "located_in_market false. When no cited local post shows a timely cause, do not invent one.",
         f"Previous draft:\n{_fence(json.dumps(draft, ensure_ascii=False))}",
+        f"The simpler explanation the critic named and ruled out:\n{_fence(out.get('non_cultural_explanation', ''))}",
         f"The critic's reason:\n{_fence(out.get('reason', ''))}",
     ])
 

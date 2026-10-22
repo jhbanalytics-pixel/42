@@ -1598,8 +1598,8 @@ def critic_row(result):
 
 
 # The structured keys a critic row carries beside the base row keys; patterns_seen is the shadow record of the pattern
-# line the critic read (22 Oct 2026).
-CRITIC_ROW_KEYS = {"standing", "local_why_now", "patterns_seen"}
+# line the critic read, news_driven and scheduled_event the critic's own flags the wording reads (22 Oct 2026).
+CRITIC_ROW_KEYS = {"standing", "local_why_now", "patterns_seen", "news_driven", "scheduled_event"}
 
 
 def test_a_critic_that_rules_out_the_simple_explanation_lets_the_card_publish(monkeypatch):

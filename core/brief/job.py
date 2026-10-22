@@ -154,7 +154,11 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # writer and the critic, with a critic line on weighing them against a collection or grouping artefact; the pack order
 # and scope are unchanged (core/brief/evidence.py _record, core/brief/explain.py CRITIC_SYSTEM),
 # critic-patterns-recorded the pattern line the critic read is kept beside code_rivals on the critic row and answer as a
-# shadow record (core/brief/explain.py _critic_patterns).
+# shadow record (core/brief/explain.py _critic_patterns), redraft-critic-rival the critic-informed second draft gets the
+# simpler explanation the critic named beside its reason (core/brief/explain.py _redraft_user), critic-rival-flags the
+# critic row carries the critic's own news_driven and scheduled_event flags, and the held wording names a news or
+# scheduled event from them, not from the free text, while the dead news or event pass on local reaction is gone
+# (core/brief/explain.py _critic_row, STANDINGS, _critic_menu).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
@@ -164,7 +168,8 @@ RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8
                 "+critic-rivals-line+author-step-note+pack-board-only-mark+creator-letters"
                 "+data-issue-full-judgement+claim-floor-fault+writer-no-earliest+fixture-reaction-code"
                 "+pattern-video-formats+writer-rivals-line+video-format-counted"
-                "+critic-pattern-citable+critic-detection-facts+pack-lane-member-marks+critic-patterns-recorded")
+                "+critic-pattern-citable+critic-detection-facts+pack-lane-member-marks+critic-patterns-recorded"
+                "+redraft-critic-rival+critic-rival-flags")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -362,16 +367,12 @@ CRITIC_MENU = (
 )
 _MENU = tuple((words, re.compile(rf"\b(?:{pattern})\b", re.I)) for words, pattern in CRITIC_MENU)
 _NEGATION = re.compile(r"\b(?:not|no|never|rather\s+than|instead\s+of|unlike|without)\b", re.I)
-_CRITIC = re.compile(r"^critic: simplest non-cultural explanation: (.*?); (?:(?:not )?ruled out|(?:news|event)-driven "
-                     r"with local reaction): ", re.S)
-_CRITIC_PARTS = re.compile(r"^critic: simplest non-cultural explanation: .*?; (not ruled out|ruled out|news-driven with "
-                           r"local reaction|event-driven with local reaction|critic answer inconsistent): ", re.S)
-# A critic pass on a news event that local creators react to (Albert, 2 Oct); never worded as ruled out.
-NEWS_PASS = "Critic: news-driven, local creators react in their own words"
-# The same pass on a scheduled event: a release, match, holiday or scheduled cultural moment (Albert, 3 Oct).
-EVENT_PASS = "Critic: event-driven, local creators react in their own words"
-# The standings of a news or scheduled event that passed on local reaction; a cut there failed the why-now only.
-REACTION_STANDINGS = ("news-driven with local reaction", "event-driven with local reaction")
+_CRITIC = re.compile(r"^critic: simplest non-cultural explanation: (.*?); (?:not )?ruled out: ", re.S)
+_CRITIC_PARTS = re.compile(r"^critic: simplest non-cultural explanation: .*?; (not ruled out|ruled out|critic answer "
+                           r"inconsistent): ", re.S)
+# The CRITIC_MENU item the critic's own news_driven or scheduled_event flag names (explain._critic_row puts them on the
+# row): set only when the simplest explanation is that event and no other applies (CRITIC_SYSTEM).
+EVENT_MENU = "a news or scheduled event"
 # A critic answer that contradicts itself (explain.INCONSISTENT) is a cut of its own, never worded as a simpler
 # explanation left standing (18 Oct 2026).
 CRITIC_INCONSISTENT = "Critic: the critic's answer was inconsistent"
@@ -1105,23 +1106,35 @@ def _code_label(chk):
     return chk.get("rule") == "K6" and _CODE_LABEL.match(detail) is not None
 
 
+def _critic_menu(chk):
+    """The CRITIC_MENU item a critic row names. A row that carries the critic's own flags (explain._critic_row) names a
+    news or scheduled event from them: when either is true it is that event, whatever the free text matches (22 Oct
+    2026, KE stand-up comedy: scheduled_event true, its text matched release and promot, so no rival was named), and
+    when both are false the free text cannot name it. Any other menu item still comes from the text (_menu), since the
+    critic has no flag for it. A hand-built row without the flags reads its text alone."""
+    news, event = chk.get("news_driven"), chk.get("scheduled_event")
+    flagged = isinstance(news, bool) and isinstance(event, bool)
+    if flagged and (news or event):
+        return EVENT_MENU
+    menu = _menu(chk.get("detail"))
+    return None if flagged and menu == EVENT_MENU else menu
+
+
 def _wording(chk, rested=False):
     """The fixed wording for one check row. rested: the row cuts a claim the explanation sentence rests on."""
     rule, verdict = chk["rule"], chk["verdict"]
     if chk.get("detail") == CHECK_INCOMPLETE:
         return f"{'Critic' if rule == 'critic' else RULE_NAMES.get(rule, 'Claim checks')}: {CHECK_INCOMPLETE}"
     if rule == "critic":
-        menu = _menu(chk.get("detail"))
+        menu = _critic_menu(chk)
         standing, local = _critic_parts(chk)
         if standing == INCONSISTENT:
             return CRITIC_INCONSISTENT
-        news = standing == "news-driven with local reaction"
-        event = standing == "event-driven with local reaction"
         if verdict == "pass":
-            head = NEWS_PASS if news else EVENT_PASS if event else "Critic: the simpler explanation was ruled out"
+            head = "Critic: the simpler explanation was ruled out"
             return f"{head}: {menu}" if menu else head
         # A cut names the part that failed: the simpler explanation, the local why-now, or both.
-        ruled_out = standing == "ruled out" or standing in REACTION_STANDINGS
+        ruled_out = standing == "ruled out"
         if ruled_out and not local:
             return "Critic: local why-now not shown"
         head = "Critic: a simpler explanation was not ruled out"

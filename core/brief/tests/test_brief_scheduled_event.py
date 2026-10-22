@@ -77,13 +77,27 @@ def event_row(verdict, why_now=True):
     return {"claim_id": None, "rule": "critic", "verdict": verdict, "checker": "model", "detail": detail}
 
 
-def test_an_event_pass_is_worded_as_event_driven_with_local_reaction():
-    assert job.check_reason(event_row("pass")) == f"{job.EVENT_PASS}: a news or scheduled event"
-    assert job.EVENT_PASS == "Critic: event-driven, local creators react in their own words"
+# 22 Oct 2026: a news or scheduled event no longer passes on local reaction. critic_is_valid rejects ruled_out with
+# any event or reaction flag, so explain._critic_row never writes a reaction standing and job.py no longer words one;
+# the hand-built rows of that era now read as the not-ruled-out holds they are.
+def test_no_critic_answer_gives_a_reaction_standing_or_a_pass_on_reaction():
+    import itertools
+    for flags in itertools.product([True, False], repeat=5):
+        out = dict(zip(("ruled_out", "news_driven", "scheduled_event", "local_reaction", "local_why_now"), flags),
+                   non_cultural_explanation="a scheduled event", reason="r")
+        row = explain._critic_row(out, 20)
+        assert row["standing"] in ("ruled out", "not ruled out", explain.INCONSISTENT)
+        if out["news_driven"] or out["scheduled_event"] or out["local_reaction"]:
+            assert row["verdict"] == "cut"
+    assert explain.STANDINGS == ("ruled out", "not ruled out", explain.INCONSISTENT)
+    for name in ("NEWS_PASS", "EVENT_PASS", "REACTION_STANDINGS"):
+        assert not hasattr(job, name)
 
 
-def test_an_event_reading_without_a_local_why_now_is_held_for_the_why_now_only():
-    assert job.check_reason(event_row("cut", why_now=False)) == "Critic: local why-now not shown"
+def test_a_hand_built_event_reaction_row_reads_as_a_simpler_explanation_not_ruled_out():
+    assert job.check_reason(event_row("cut", why_now=False)) == (
+        "Critic: a simpler explanation was not ruled out; local why-now not shown")
+    assert job.check_reason(event_row("cut")) == "Critic: a simpler explanation was not ruled out"
 
 
 def test_the_row_explain_writes_for_an_event_is_the_row_job_reads():

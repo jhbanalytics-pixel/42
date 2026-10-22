@@ -2478,7 +2478,6 @@ def fixed_words():
     held = {"Critic: a simpler explanation was not ruled out"} | {
         f"Critic: a simpler explanation was not ruled out: {m}" for m in MENU}
     out |= {f"{c}; local why-now not shown" for c in held} | {"Critic: local why-now not shown"}
-    out |= {job.NEWS_PASS} | {f"{job.NEWS_PASS}: {m}" for m in MENU}
     out |= {job.TOO_FEW, job.NO_REST, job.CRITIC_INCONSISTENT}
     out |= set(REASON_TEXT.values())
     return out | {job.REPAIR + w for w in out}
@@ -2486,7 +2485,8 @@ def fixed_words():
 
 class ScriptedModel(FakeModel):
     """FakeModel with scripted support and critic outputs: claim_support {claim text fragment: (verdict, reason)},
-    sentence (verdict, reason) for the explanation sentence check, critic (non_cultural_explanation, reason)."""
+    sentence (verdict, reason) for the explanation sentence check, critic (non_cultural_explanation, reason) or
+    (non_cultural_explanation, reason, {flag: value}) to set the critic's own flags."""
 
     def __init__(self, claim_support=None, sentence=None, critic=None, **kw):
         super().__init__(ruled_out=critic is None, **kw)
@@ -2501,7 +2501,7 @@ class ScriptedModel(FakeModel):
             # A whole answer, every flag given: one critic_is_valid rejects has a standing of its own (18 Oct 2026).
             return {"non_cultural_explanation": self.critic[0], "ruled_out": False, "news_driven": False,
                     "scheduled_event": False, "local_reaction": False, "local_why_now": True,
-                    "reason": self.critic[1]}, usage
+                    "reason": self.critic[1], **(self.critic[2] if len(self.critic) > 2 else {})}, usage
         if "verdict" in schema["properties"]:
             if "Label: explanation sentence" in user:
                 if self.sentence:
@@ -2555,19 +2555,27 @@ def test_a_critic_hold_maps_its_explanation_onto_the_menu():
     assert held["reason_text"] == "Explanation failed its checks"
 
 
-@pytest.mark.parametrize("explanation,menu", [
-    ("a sponsored push by a drinks brand", "a paid campaign"),
-    ("TikTok changed a platform feature this week", "a platform feature change"),
-    ("bots posting on a schedule", "a coordinated push"),
-    ("a news event about the match", "a news or scheduled event"),
-    ("a collection artefact of one sweep", "a scraping or collection artefact"),
-    ("a single viral post carrying the count", "one viral post or creator"),
+@pytest.mark.parametrize("explanation,flags,menu", [
+    ("a sponsored push by a drinks brand", {}, "a paid campaign"),
+    ("TikTok changed a platform feature this week", {}, "a platform feature change"),
+    ("bots posting on a schedule", {}, "a coordinated push"),
+    # 22 Oct 2026: a news or scheduled event is named from the critic's own flag, not from its words.
+    ("a news event about the match", {"news_driven": True}, "a news or scheduled event"),
+    ("the match itself", {"scheduled_event": True}, "a news or scheduled event"),
+    ("a collection artefact of one sweep", {}, "a scraping or collection artefact"),
+    ("a single viral post carrying the count", {}, "one viral post or creator"),
 ])
-def test_the_critic_explanation_is_named_only_by_its_menu_wording(explanation, menu):
-    r = brief(world(n=1), model=ScriptedModel(critic=(explanation, "nothing rules it out")))
+def test_the_critic_explanation_is_named_only_by_its_menu_wording(explanation, flags, menu):
+    r = brief(world(n=1), model=ScriptedModel(critic=(explanation, "nothing rules it out", flags)))
     [critic] = [c for c in za1_checks(r) if c["rule"] == "critic"]
     assert critic["reason"] == f"Critic: a simpler explanation was not ruled out: {menu}"
     assert za1_held(r)["reason"] == "explanation_failed"
+
+
+def test_a_news_word_with_both_flags_false_names_no_rival():
+    r = brief(world(n=1), model=ScriptedModel(critic=("a news event about the match", "nothing rules it out")))
+    [critic] = [c for c in za1_checks(r) if c["rule"] == "critic"]
+    assert critic["reason"] == "Critic: a simpler explanation was not ruled out"
 
 
 def critic_out(ruled_out, local_why_now, explanation="a sponsored push by a drinks brand"):
