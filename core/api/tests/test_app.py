@@ -1454,3 +1454,19 @@ def test_discover_routes_refuse_unknown_platforms_and_states(v2, query):
     for path in ("/api/discover?market=ZA&", "/api/discover/radar?market=ZA&"):
         r = v2.client.get(path + query, headers=GOOD)
         assert r.status_code == 400 and r.json()["error"] == "bad_request" and r.json()["message"]
+
+
+def test_history_reads_are_not_stored_by_caches(v2):
+    # Audit F7D-SEC-002: contract section 22 marks every stored copy no-store; the history reads carried no
+    # Cache-Control at all.
+    for path, params in (("/api/history/asks", {"limit": 1}), ("/api/history/briefs", {}),
+                         ("/api/history/findings", {}), ("/api/history/search", {"q": "heritage"})):
+        r = v2.client.get(path, params=params, headers=GOOD)
+        assert r.status_code == 200 and r.headers.get("cache-control") == "no-store", path
+
+
+def test_the_answer_export_is_not_stored_by_caches(ctx):
+    record = json.loads((FIXTURES / "ask_complete.json").read_text(encoding="utf-8"))
+    ctx.store.records["a_done"] = record
+    r = ctx.client.get("/api/ask/a_done/export?format=html", headers=GOOD)
+    assert r.status_code == 200 and r.headers.get("cache-control") == "no-store"

@@ -56,7 +56,12 @@ def main() -> int:
         print("Failures:")
         for market, topic, err in report.failures:
             print(f"  {market}/{topic}: {err}")
-    return 0
+    # A topic that failed, or briefs that were never stored, fail the job (audit F7D-ENG-003): an exit 0 would read
+    # as a clean run on Cloud Run.
+    persist_failed = getattr(report, "persist_attempted", False) and not getattr(report, "persist_succeeded", False)
+    if persist_failed:
+        print(f"PERSIST FAILED: {getattr(report, 'persist_error', None) or 'not every brief reached trend_analysis'}")
+    return 1 if report.failures or persist_failed else 0
 
 
 if __name__ == "__main__":

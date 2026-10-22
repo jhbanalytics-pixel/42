@@ -4328,7 +4328,6 @@ def _run_research_batch_job(
                     "status": "failed",
                     "message": "No briefs were generated.",
                 },
-                ttl=batch_ttl,
             )
             return
         ok = [r for r in batch_results if r.get("artifact_id")]
@@ -4347,7 +4346,6 @@ def _run_research_batch_job(
                     ),
                     "batch_results": batch_results,
                 },
-                ttl=batch_ttl,
             )
             return
         synth.cache_set(
@@ -4363,7 +4361,8 @@ def _run_research_batch_job(
                 "evidence_graph": ok[0].get("evidence_graph"),
                 "degraded_reason": ok[0].get("degraded_reason"),
             },
-            ttl=batch_ttl,
+            # No short ttl: a finished job's result stays readable (and reaches the shared bucket) as a single
+            # job's does, so a later poll does not find it gone (audit F7D-APP-010).
         )
     except Exception as exc:
         logger.exception("research batch job failed persona=%s", persona_id)
@@ -4375,7 +4374,6 @@ def _run_research_batch_job(
                 **research.research_failure(exc, "Batch research generation failed."),
                 "batch_results": batch_results,
             },
-            ttl=batch_ttl,
         )
     finally:
         research._batch_progress_meta.pop(key, None)
@@ -4432,7 +4430,7 @@ def _run_research_consolidated_job(
                 "phase": "completed",
                 "consolidated": True,
             },
-            ttl=600,
+            # No short ttl, as for a batch (audit F7D-APP-010).
         )
     except Exception as exc:
         logger.exception("consolidated research job failed persona=%s", persona_id)
@@ -4533,7 +4531,7 @@ def api_research_generate(
     if not _try_acquire_generation_capacity():
         return _capacity_busy_response()
     with _research_jobs_lock:
-        job_id = "research_" + uuid.uuid4().hex
+        job_id = research_job_id("research")
         key = ("research", job_id)
         _research_jobs.add(key)
         _start_generation_thread(
@@ -4580,7 +4578,7 @@ def api_research_generate_batch(
     if not _try_acquire_generation_capacity():
         return _capacity_busy_response()
     with _research_jobs_lock:
-        job_id = "research_batch_" + uuid.uuid4().hex
+        job_id = research_job_id("research_batch")
         key = ("research", job_id)
         _research_jobs.add(key)
         _start_generation_thread(
@@ -4628,7 +4626,7 @@ def api_research_generate_consolidated(
     if not _try_acquire_generation_capacity():
         return _capacity_busy_response()
     with _research_jobs_lock:
-        job_id = "research_consolidated_" + uuid.uuid4().hex
+        job_id = research_job_id("research_consolidated")
         key = ("research", job_id)
         _research_jobs.add(key)
         _start_generation_thread(
@@ -4648,6 +4646,34 @@ def api_research_generate_consolidated(
     )
 
 
+# A job with no status is pending only while it may still be running: this process runs it, or it started less
+# than RESEARCH_JOB_MAX_AGE_S ago (its id carries its start, research_job_id). Past that, a missing status is
+# unknown, never pending again (audit F7D-APP-010). The error text is what the app shows. Running statuses carry a
+# ttl and stay in-process, so this holds only while the app runs as one instance (--max-instances 1).
+RESEARCH_JOB_MAX_AGE_S = 900
+RESEARCH_STATUS_UNKNOWN = {
+    "status": "unknown",
+    "code": "research_status_unknown",
+    "error": "This research job's status is no longer held. Open History to find any brief it saved, or start again.",
+    "message": "This research job's status is no longer held. Open History to find any brief it saved, or start again.",
+}
+
+
+def research_job_id(prefix: str) -> str:
+    """A job id that carries its start second: <prefix>_<epoch seconds>_<hex>."""
+    return f"{prefix}_{int(time.time())}_{uuid.uuid4().hex}"
+
+
+def _research_job_unknown(key) -> bool:
+    with _research_jobs_lock:
+        if key in _research_jobs:
+            return False
+    match = re.search(r"_(\d{10})_[0-9a-f]{32}$", key[1])
+    if match is None:  # an id from before ids carried their start: as before, pending
+        return False
+    return time.time() - int(match.group(1)) > RESEARCH_JOB_MAX_AGE_S
+
+
 @app.get("/api/research/status")
 def api_research_status(
     job_id: str = Query(default=""), _gate: None = Depends(require_passcode)
@@ -4658,6 +4684,8 @@ def api_research_status(
     key = ("research", job_id)
     cached = synth.cache_get(key)
     if cached is None:
+        if _research_job_unknown(key):
+            return dict(RESEARCH_STATUS_UNKNOWN)
         return {"pending": True, "phase": "gathering", "status": "gathering"}
     if isinstance(cached, dict) and cached.get("pending"):
         return cached

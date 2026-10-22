@@ -649,3 +649,18 @@ def test_the_enrichment_and_video_budgets_still_leave_the_job_its_morning():
     assert enrich.GEMINI_SYNC_BUDGET_SECONDS == 1_500 and video.VIDEO_BUDGET_SECONDS == 900
     budgets = enrich.GEMINI_SYNC_BUDGET_SECONDS + video.VIDEO_BUDGET_SECONDS
     assert budgets <= chain.TIMEOUTS["understand"].total_seconds() / 3
+
+
+@pytest.mark.parametrize("status", ["ok", "cached"])
+def test_gather_reads_the_transcript_and_screen_text_of_a_paid_or_same_day_cached_reply(status):
+    # Audit F7D-UND-001: a cached reply's items were dropped, so a clip read twice in a day lost both texts.
+    sc = FakeSC(status=status, credits=0 if status == "cached" else 5)
+    out = video.gather(clip("tt1"), sc)
+    assert "light the coals" in out["transcript"] and "BRAAI HACKS" in out["screen_text"]
+    assert out["reasons"] == {}
+    assert out["credits"] == (0 if status == "cached" else 10)
+
+
+def test_gather_reads_nothing_from_an_empty_reply():
+    out = video.gather(clip("tt1"), FakeSC(status="empty", items=[]))
+    assert out["transcript"] == "" and out["screen_text"] == "" and out["reasons"] == {}

@@ -224,7 +224,8 @@ def test_an_age_marker_beats_a_measure_word():
     assert claims._k6_term("A woman in her late 20s who scored highly", set())
 
 
-def test_aged_18_still_breaches():
+def test_aged_18_still_breaches_after_a_measure_word_fix():
+    # Renamed (audit F7D-TQ-001): it shared its name with the full-name case above, so Python dropped that one.
     assert claims._k6_term("aged 18", set())
     assert claims._k6_term("Posts by people aged 18", set())
 

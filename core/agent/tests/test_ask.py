@@ -3682,3 +3682,13 @@ def test_follow_up_prompt_carries_the_parents_findings_as_context():
     assert "Amapiano dance videos rose on TikTok." in seen["prompt"]
     assert "Springbok fans posted match reactions." in seen["prompt"]
     assert "context only, never evidence" in seen["prompt"]
+
+
+# Audit F7D-ASK-004: one SAST accounting day from the cap decision to the runs row
+
+def test_an_unrecorded_ask_names_the_sast_day_its_spend_was_held_against():
+    after_midnight = datetime(2026, 9, 29, 0, 0, 1, tzinfo=SAST)
+    Harness(spent=lambda: 0.0, now=after_midnight).run(ask_id="a_20260928_late")
+    assert ask.spend_day("a_20260928_late") == date(2026, 9, 29)
+    ask.recorded("a_20260928_late")
+    assert ask.spend_day("a_20260928_late") is None
