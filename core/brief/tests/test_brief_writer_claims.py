@@ -296,7 +296,10 @@ def test_a_second_draft_gets_no_support_repair():
     assert len(writes) == 2
 
 
-def test_a_support_cut_that_unpins_the_sentences_number_gets_the_repair():
+def test_a_sentence_number_pinned_on_no_claim_it_rests_on_gets_the_code_repair():
+    # 22 Oct 2026, sentence-numeral-resting: 31 is pinned only on c1, which the sentence does not rest on. It used to
+    # pass the code checks and fall only once the support check cut c1; code now cuts it at once, and the one repair
+    # round gets that exact fault rather than the support check's verdict on another claim.
     draft = good(explanation="31 creators do the shaya step at braais, likely because of the Heritage Day weekend.",
                  explanation_claim_ids=["c2", "c3"])
     draft["claims"][1]["text"] = 'The earliest post in the pack is from @thandi_moves: "shaya step".'
@@ -305,6 +308,6 @@ def test_a_support_cut_that_unpins_the_sentences_number_gets_the_repair():
     result = run(model)
     assert_numbers_only(result, "failed_checks")
     assert len(model.writer_calls()) == 2
-    assert "claim c1 (unsupported)" in model.writer_calls()[1]["user"]
+    assert "numeral '31' has no pinned numbers entry on a claim the sentence rests on" in model.writer_calls()[1]["user"]
     assert any(r["claim_id"] is None and r["rule"] == "K2" and r["detail"].startswith(job.REPAIR)
                for r in result["checks"])

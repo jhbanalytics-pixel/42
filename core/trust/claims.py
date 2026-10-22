@@ -654,8 +654,9 @@ def _swap_for_03d(terms):
 _K6_TERMS_03D = _swap_for_03d(_K6_TERMS)
 
 
-def check_answer(answer, *, window_start, window_end, market=None, rerun=None):
-    """Run K1, K2, K3, K5, K6, K8 and K10 on one answer. See the module docstring."""
+def window_spans(window_start, window_end):
+    """(start, end, spans): the window as aware times and the spans K2 reads a numeral against (the window's length
+    in hours, days and weeks, and the latest year it reads as a year)."""
     start, end = _window(window_start, "window_start"), _window(window_end, "window_end")
     seconds = (end - start).total_seconds()
     spans = {
@@ -663,6 +664,12 @@ def check_answer(answer, *, window_start, window_end, market=None, rerun=None):
         for unit, size in (("hour", 3600), ("day", 86400), ("week", 604800))
     }
     spans["max_year"] = end.year + 1
+    return start, end, spans
+
+
+def check_answer(answer, *, window_start, window_end, market=None, rerun=None):
+    """Run K1, K2, K3, K5, K6, K8 and K10 on one answer. See the module docstring."""
+    start, end, spans = window_spans(window_start, window_end)
     new = copy.deepcopy(answer)
     records = {r.get("id"): r for r in new.get("evidence") or []}
     checks = []

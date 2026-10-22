@@ -10,6 +10,7 @@ from types import SimpleNamespace
 import pytest
 
 from core.brief import explain, job
+from core.brief.payload import NOT_RUN_WORDS
 from core.brief.tests.test_brief_explain import FakeModel, good, run as run_unguarded
 from core.brief.tests.test_brief_job import (
     CHECK_KEYS, D, SAST, FakeModel as JobModel, brief, checks, held_items, payload, world,
@@ -543,10 +544,15 @@ def test_two_504s_in_the_job_store_exactly_what_one_504_stored_at_1cfda9c():
     assert sorted(now["briefs"]) == sorted(before["briefs"]) == ["KE", "NG", "ZA"]
     for m in ("ZA", "NG", "KE"):
         assert set(now["briefs"][m]) == set(before["briefs"][m])
-        for key in before["briefs"][m]:
-            assert now["briefs"][m][key] == before["briefs"][m][key], (m, key)
         [item] = now["briefs"][m]["payload"]["held_back"]["items"]
         [old] = before["briefs"][m]["payload"]["held_back"]["items"]
+        # 22 Oct 2026, not-run-reason: the explanation the 504 left unfinished now names its cause, where 1cfda9c
+        # stored none; nothing else changed.
+        assert old.get("failed_reason") is None
+        assert item.pop("failed_reason") == NOT_RUN_WORDS["model_error"]
+        item["failed_reason"] = None
+        for key in before["briefs"][m]:
+            assert now["briefs"][m][key] == before["briefs"][m][key], (m, key)
         for key in ("reason", "explanation_status", "failed_reason", "reason_text"):
             assert item.get(key) == old.get(key), (m, key)
     assert len(now["claim_checks"]) == len(before["claim_checks"])

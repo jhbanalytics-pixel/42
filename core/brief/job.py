@@ -68,7 +68,7 @@ from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read
 from core.brief.explain import CHECK_INCOMPLETE, INCONSISTENT, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.locality_audit import build_locality_audit
 from core.brief.market_scope import read_market_scope
-from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _today_order, _worth,
+from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, NOT_RUN_WORDS, _today_order, _worth,
                                SHOWN, brief_row, build_market_payload, preview_card)
 from core.brief.same_event import near as same_event_near, reason as same_event_reason
 from core.brief.same_event import fixture_anchor, fixture_reason
@@ -158,7 +158,20 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # simpler explanation the critic named beside its reason (core/brief/explain.py _redraft_user), critic-rival-flags the
 # critic row carries the critic's own news_driven and scheduled_event flags, and the held wording names a news or
 # scheduled event from them, not from the free text, while the dead news or event pass on local reaction is gone
-# (core/brief/explain.py _critic_row, STANDINGS, _critic_menu).
+# (core/brief/explain.py _critic_row, STANDINGS, _critic_menu), writer-crowd-handles the writer's Counts line says a
+# crowd word is checked against the cited posts' handles only and how to word more creators than they show, the check
+# unchanged (core/brief/explain.py _writer_user), sentence-numeral-resting a numeral in the explanation sentence must be
+# pinned on a claim the sentence rests on, checked by code with K2's sentence reason code (core/brief/explain.py
+# _resting_numeral_rows), board-line-feed-wording the board line words a board place as ranked on the market's YouTube
+# trending board, the wording K3 passes, and the support check sees board_only and is told what it shows
+# (core/brief/explain.py _board_only_line, _support_user, SUPPORT_SYSTEM), writer-numbered-names law 8 tells the writer
+# how K2 reads a year and that a numeral inside a name such as Part 2 is no pinned number, K2 unchanged
+# (core/brief/explain.py WRITER_SYSTEM), writer-rival-post-text the writer names a rival and an event date only as a
+# cited post's own text states it, since the sentence's support check sees only the cited posts (core/brief/explain.py
+# WRITER_SYSTEM), not-run-reason a Today-bound item whose explanation was started and not completed names the cause in
+# failed_reason, still a G10 hold with the reader wording unchanged (core/brief/payload.py NOT_RUN_WORDS,
+# _payload_candidate), pattern-line-not-pack-numbers the writer's pattern line says its creators and days are not pack
+# numbers, as the Counts line does (core/brief/explain.py _writer_pattern_line).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
@@ -169,7 +182,8 @@ RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8
                 "+data-issue-full-judgement+claim-floor-fault+writer-no-earliest+fixture-reaction-code"
                 "+pattern-video-formats+writer-rivals-line+video-format-counted"
                 "+critic-pattern-citable+critic-detection-facts+pack-lane-member-marks+critic-patterns-recorded"
-                "+redraft-critic-rival+critic-rival-flags")
+                "+redraft-critic-rival+critic-rival-flags"
+                "+writer-crowd-handles+sentence-numeral-resting+board-line-feed-wording+writer-numbered-names+writer-rival-post-text+not-run-reason+pattern-line-not-pack-numbers")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -1433,12 +1447,18 @@ def _payload_candidate(cand, result, specificity=None):
                  and result.get("numbers_only") is False)
     status = "not_run" if not isinstance(result, dict) or "reason" not in result else (
         "explained" if explained else "failed_checks" if reason in FAILED_CHECKS else "not_run")
+    # An explanation started and not completed names its cause (payload.NOT_RUN_WORDS) unless a busy model's wording
+    # already does; the model's error text goes to the log only, never to the payload (22 Oct 2026).
+    not_run = cand.get("busy_reason") or (NOT_RUN_WORDS.get(reason) if status == "not_run" else None)
+    if status == "not_run" and reason in NOT_RUN_WORDS and isinstance(result, dict) and result.get("error"):
+        print(f"brief: explanation not run for {row.get('item_id')}: {reason}: {str(result['error'])[:300]}",
+              file=sys.stderr)
     return {
         **row, "decision": cand["decision"], "explanation_status": status, "numbers": pack["numbers"],
         "evidence": pack["evidence"], "sparkline": cand["sparkline"], "held_reason": cand.get("held_reason"),
         "held_reason_detail": cand.get("held_reason_detail"), "held_reason_audit": cand.get("held_reason_audit"),
         "failed_reason": failed_reason(result) if status == "failed_checks" else (
-            cand.get("busy_reason") if status == "not_run" else None),
+            not_run if status == "not_run" else None),
         "explanation": result.get("explanation") if explained else None,
         "title_written": result.get("title_written") if explained else None,
         "explanation_claim_ids": result.get("explanation_claim_ids") if explained else [],

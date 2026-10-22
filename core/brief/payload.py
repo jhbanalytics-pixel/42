@@ -25,6 +25,13 @@ LABELS = {"ZA": "South Africa", "NG": "Nigeria", "KE": "Kenya"}
 MODEL_BUSY = "Model busy: not explained before the deadline"
 MODEL_REFUSED = "Model busy: the model kept refusing calls, so this was not explained"
 NOT_RUN_REASONS = (MODEL_BUSY, MODEL_REFUSED)
+# The job's fixed wording for a Today-bound item whose explanation was started and never completed for a cause other
+# than a busy model (core/brief/explain.py reason model_error or model_cap, core/brief/job.py job_error): the hold stays
+# G10 and the reader wording stays the cause-neutral one (core/api/held_words.py NOT_COMPLETED_WORDS), and the held item
+# names the cause in failed_reason instead of none (22 Oct 2026, NG "realtemiday0": checks none, failed_reason none).
+NOT_RUN_WORDS = {"model_error": "Explanation not run: a model call failed or ran out of time",
+                 "model_cap": "Explanation not run: the day's model budget was used",
+                 "job_error": "Explanation not run: the brief job hit an error"}
 # The held reason of a Today-bound item the explanation loop never reached (a cap, a day change or the deadline stopped
 # the run before it) when the model was not busy: no explanation was tried, so no check failed.
 NOT_REACHED_TEXT = "Not explained: the run stopped before this topic was reached"
@@ -242,9 +249,11 @@ def _title_written(c, explained):
 
 def _failed_reason(c, status):
     """failed_reason as the job wrote it, on an item whose explanation failed its checks, or on one not run whose
-    reason is a busy model's fixed wording (NOT_RUN_REASONS); else None."""
+    reason is a busy model's fixed wording (NOT_RUN_REASONS) or the fixed wording of the cause it did not complete
+    (NOT_RUN_WORDS); else None."""
     reason = c.get("failed_reason")
-    if status == "failed_checks" or (status == "not_run" and reason in NOT_RUN_REASONS):
+    if status == "failed_checks" or (status == "not_run" and (reason in NOT_RUN_REASONS
+                                                              or reason in NOT_RUN_WORDS.values())):
         return reason
     return None
 

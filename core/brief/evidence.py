@@ -20,8 +20,10 @@ pack is the shape core/brief/explain.py reads:
         sponsor_checked true and no sponsored flag was checked and shows no paid label; false means unknown.
         sound_id, formats, screen_text, video_format and video_sound are model-only fields (payload.MODEL_ONLY_FIELDS):
         the sound id and the enrich model's formats, and what the video step read from the clip (post_enrichment
-        screen_text and video_notes, core/understand/video.py); the support check and the critic see them, the writer
-        and the stored card do not, and a quote is checked against the caption alone (18 Oct 2026). board_only, model-only
+        screen_text and video_notes, core/understand/video.py). The stored card never carries them. The writer sees
+        formats, video_format and the sound as a code letter (core/brief/explain.py _writer_user, 20 Oct 2026); only
+        screen_text and video_sound stay off the writer, for the support check and the critic, and a quote is checked
+        against the caption alone (18 Oct 2026). creator_id reaches every prompt only as a code letter. board_only, model-only
         too, is true for a post whose every sighting in the window was the YouTube trending board; the writer and the
         critic are told so, and the post stays local by the same rules (18 Oct 2026). measured and market_member,
         model-only too, say whether the post was sighted in a measured lane and whether it is a member of the item's
@@ -273,8 +275,9 @@ def _record(row, tz, item=None):
         "sound_id": row.get("sound_id") or None, "formats": sorted({f for f in row.get("formats") or [] if f}),
     }
     # What the video step read from the clip (18 Oct 2026): its on-screen text and, from its notes, the format and
-    # sound. Model-only too (payload.MODEL_ONLY_FIELDS): the support check and the critic see them, the writer and the
-    # stored card do not, and a quote is still checked against the caption alone (text, quote_text).
+    # sound. Model-only too (payload.MODEL_ONLY_FIELDS), never on the stored card: the writer sees video_format (20 Oct
+    # 2026), the on-screen text and the sound go to the support check and the critic only, and a quote is still checked
+    # against the caption alone (text, quote_text).
     video_format, video_sound = _video_notes(row)
     record.update({"screen_text": _screen_text(row), "video_format": video_format, "video_sound": video_sound})
     # Every sighting of the post in the window was the YouTube trending board (evidence.sql board_only): marked for
@@ -309,9 +312,10 @@ def _sparkline(rows, d):
 
 def _day_lines(evidence, market, moments):
     """One line per local post (specificity's rule: located in the market or found in its feeds) with its weekday
-    and market-local date, so the writer can date a cause a post already names (WRITER_SYSTEM law 12 allows a cause
-    "that its posted_at dates"). A calendar moment is named only when the market's calendar has one on that date.
-    These are facts lines: the why-now never rests on them (WRITER_SYSTEM, "never on the facts lines")."""
+    and market-local date. A day line dates the post only, never an event: a posting date shows when the post was
+    published, not when an event happened (WRITER_SYSTEM laws 19 and 20, WHY_NOW_DEFINITION). A calendar moment is
+    named only when the market's calendar has one on that date. These are facts lines, read by the writer and the
+    critic: the why-now never rests on them (WRITER_SYSTEM, "never on the facts lines")."""
     on = {}
     for m in moments or ():
         on.setdefault(str(m.get("date")), m.get("name"))

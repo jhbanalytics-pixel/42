@@ -1412,7 +1412,12 @@ def test_the_writer_names_a_place_only_from_a_cited_posts_market_and_is_told_wha
 def test_the_writer_writes_no_bare_numeral_but_a_pinned_number_and_never_42():
     assert ('8 The only numerals you write are pinned pack numbers and dates. A numeral inside a unit is not pinned, '
             'so write "31 creators in three days", never "in 3 days". Write any other count in words or leave it '
-            'out, and never write 42.') in writer_lines()
+            'out, and never write 42. A year reads as a date only at the start of a sentence, after the, a, in, '
+            'since, of or a possessive, or before a capitalised name, such as "in 2027" or "the 2027 Rugby World '
+            'Cup", never after a name: "World Cup 2027" or "AFCON 2025" is cut as an unpinned number. A numeral '
+            'inside a title or name, such as Part 2, Season 10 or Matric 2026, is not a pinned number either: copy '
+            'it inside an exact quote of at least two words from a cited post, write the name without it, or write '
+            'it in words.') in writer_lines()
 
 
 def test_the_writer_spreads_across_platforms_only_over_the_cited_posts():

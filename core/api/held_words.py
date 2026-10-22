@@ -52,7 +52,9 @@ GATE_WORDS = (
 EXPLANATION_HELD = frozenset({"Explanation failed its checks", "The explanation did not pass its checks"})
 EXPLANATION_WORDS = "The explanation did not pass our checks"
 BUSY_WORDS = "Not explained in time: the model was busy"
-# `not_run` with the generic G10 reason is ambiguous: the producer may be missing a more specific model failure.
+# `not_run` with the generic G10 reason is ambiguous: the producer may be missing a more specific model failure. Since
+# 22 Oct 2026 the held item names that cause in failed_reason (core/brief/payload.py NOT_RUN_WORDS); the reason text
+# stays this cause-neutral wording, which is true of each of them.
 NOT_COMPLETED_WORDS = "Not explained: no complete explanation is available for this topic"
 
 
