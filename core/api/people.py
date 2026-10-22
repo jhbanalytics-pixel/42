@@ -137,8 +137,8 @@ class _Page:
         self.sensitive_known = self.ex["sensitive"] is not None and store.sensitive_complete()
         self.never_named = (self.ex["sensitive"] or set()) | self.ex["rule_3"]
         self.no_edge = set().union(*(s for s in self.ex.values() if s))
-        if edges:  # a page that lists communities reads its edges beside the names below
-            fast.start(store, "community_edges", self.market, self.start, self.end, self.no_edge)
+        if edges:  # a page that lists communities reads its groups beside the names below
+            fast.start(store, "community_groups", self.market, self.start, self.end, self.no_edge)
         self.suppressed = suppressed(store)
         self.nameable = self._nameable_authors()
 
@@ -240,35 +240,12 @@ def build_creator(store, creator_id, market):
     }
 
 
-def _components(edges):
-    parent = {}
-
-    def find(x):
-        parent.setdefault(x, x)
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    for e in edges:
-        a, b = find(e["creator_a"]), find(e["creator_b"])
-        if a != b:
-            parent[max(a, b)] = min(a, b)
-    groups, shared = {}, {}
-    for x in list(parent):
-        groups.setdefault(find(x), set()).add(x)
-    for e in edges:
-        items = shared.setdefault(find(e["creator_a"]), {})
-        for i in e["items"]:
-            items.setdefault(i, set()).update((e["creator_a"], e["creator_b"]))
-    return [(groups[root], shared.get(root, {})) for root in groups]
-
-
 def _communities(page):
     """[(every member id, community body)] for the market, largest first."""
     store = page.store
-    edges = store.community_edges(page.market, page.start, page.end, page.no_edge) or []
-    found = [(members, shared) for members, shared in _components(edges) if len(members) >= MIN_MEMBERS]
+    # The creators joined by three shared items, grouped as the pairs stream in (store.community_components).
+    groups = store.community_groups(page.market, page.start, page.end, page.no_edge) or []
+    found = [(members, shared) for members, shared in groups if len(members) >= MIN_MEMBERS]
     if not found:
         return []
     everyone = sorted(set().union(*(m for m, _ in found)))

@@ -94,6 +94,35 @@ def current_suppressions(rows):
     return sorted(best.values(), key=lambda r: (rank(r)[0], r["suppression_id"]))
 
 
+def community_components(edges):
+    """[(member ids, {item_id: the members an edge joins on that item})], one per connected component of the
+    creators that edges (creator_a, creator_b, items) join. One pass over edges in any order, keeping only the
+    members and their shared items, so a store can stream the pairs past instead of holding them: the pairs grow with
+    the square of the creators sharing a few broad items (22 Oct 2026, the API's 512 MiB went on a list of them)."""
+    parent, sharing = {}, {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for e in edges:
+        a, b = find(e["creator_a"]), find(e["creator_b"])
+        if a != b:
+            parent[max(a, b)] = min(a, b)
+        for i in e["items"]:
+            sharing.setdefault(i, set()).update((e["creator_a"], e["creator_b"]))
+    groups, shared = {}, {}
+    for x in list(parent):
+        groups.setdefault(find(x), set()).add(x)
+    for i, creators in sharing.items():
+        for c in creators:
+            shared.setdefault(find(c), {}).setdefault(i, set()).add(c)
+    return [(groups[root], shared.get(root, {})) for root in groups]
+
+
 HTTP_POOL = 32  # connections the BigQuery client keeps open: fast.WORKERS reads at once, plus pages reading alone
 
 
@@ -644,6 +673,11 @@ default day and Coverage's way back from an empty day)."""
                     out.append({"creator_a": a, "creator_b": b, "items": sorted(shared)})
         return out
 
+    def community_groups(self, market, start, end, excluded):
+        """community_components of community_edges, as BigQueryStore streams them. None until the tables exist."""
+        edges = self.community_edges(market, start, end, excluded)
+        return None if edges is None else community_components(edges)
+
     def posts_by_id(self, post_ids):
         return [p for p in self._posts() or [] if p["post_id"] in post_ids]
 
@@ -836,7 +870,8 @@ class BigQueryStore:
     def _t(self, name):
         return f"`{self.project}.{name}`"
 
-    def _query(self, sql, **params):
+    def _rows(self, sql, **params):
+        """The rows as the client pages them in, one at a time; _query keeps them all."""
         qp = []
         for name, (typ, value) in params.items():
             if typ.startswith("ARRAY<"):
@@ -852,7 +887,10 @@ class BigQueryStore:
             rows = self.client.query_and_wait(sql, job_config=cfg)
         else:
             rows = self.client.query(sql, job_config=cfg).result()
-        return [_normalise(dict(r.items())) for r in rows]
+        return (_normalise(dict(r.items())) for r in rows)
+
+    def _query(self, sql, **params):
+        return list(self._rows(sql, **params))
 
     def latest_brief_date(self):
         rows = self._query(f"SELECT MAX(b.brief_date) AS d FROM {self._t('intelligence_42_agent.v_briefs_current')} b")
@@ -1634,7 +1672,10 @@ or None."""
         posts, obs, links = self._find("posts"), self._find("post_observations"), self._find("post_items")
         if posts is None or obs is None or links is None:
             return None
-        return self._query(
+        return self._query(self._edges_sql(posts, obs, links), **self._edges_params(market, start, end, excluded))
+
+    def _edges_sql(self, posts, obs, links):
+        return (
             f"WITH sight AS ({self._sight(obs)}),\n"
             "ci AS (\n"
             "  SELECT DISTINCT p.creator_id, pit.item_id\n"
@@ -1649,9 +1690,21 @@ or None."""
             "  ARRAY_AGG(a.item_id ORDER BY a.item_id) AS items\n"
             "FROM k a JOIN k b ON b.item_id = a.item_id AND a.creator_id < b.creator_id\n"
             "GROUP BY a.creator_id, b.creator_id HAVING COUNT(*) >= 3\n"
-            "ORDER BY creator_a, creator_b",
-            market=("STRING", market), start=("DATE", start), end=("DATE", end),
-            excluded=("ARRAY<STRING>", sorted(excluded)))
+            "ORDER BY creator_a, creator_b")
+
+    @staticmethod
+    def _edges_params(market, start, end, excluded):
+        return {"market": ("STRING", market), "start": ("DATE", start), "end": ("DATE", end),
+                "excluded": ("ARRAY<STRING>", sorted(excluded))}
+
+    def community_groups(self, market, start, end, excluded):
+        """community_components of community_edges's pairs, read as BigQuery pages them in and never kept as a list.
+        None until the tables exist."""
+        posts, obs, links = self._find("posts"), self._find("post_observations"), self._find("post_items")
+        if posts is None or obs is None or links is None:
+            return None
+        return community_components(self._rows(self._edges_sql(posts, obs, links), **self._edges_params(
+            market, start, end, excluded)))
 
     def post_creators(self, post_ids, since, until):
         """Who wrote these posts, from posts partitioned by post_date, so the date bounds are required."""
