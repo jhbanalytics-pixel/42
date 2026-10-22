@@ -408,7 +408,7 @@ def test_checks_hold_code_rows_for_every_claim_and_a_support_row_per_claim():
         support = [r for r in rows if r["claim_id"] == cid and r["rule"] == "K4"]
         assert len(support) == 1 and support[0]["verdict"] == "pass" and support[0]["checker"] == "model"
     base = {"claim_id", "rule", "verdict", "checker", "detail"}
-    assert all(set(r) == base | ({"standing", "local_why_now"} if r["rule"] == "critic" else set()) for r in rows)
+    assert all(set(r) == base | (CRITIC_ROW_KEYS if r["rule"] == "critic" else set()) for r in rows)
 
 
 def test_conditional_watch_question_is_allowed_under_k9():
@@ -1597,6 +1597,11 @@ def critic_row(result):
     return row
 
 
+# The structured keys a critic row carries beside the base row keys; patterns_seen is the shadow record of the pattern
+# line the critic read (22 Oct 2026).
+CRITIC_ROW_KEYS = {"standing", "local_why_now", "patterns_seen"}
+
+
 def test_a_critic_that_rules_out_the_simple_explanation_lets_the_card_publish(monkeypatch):
     model = FakeModel([good()])
     result = run(model, model_id=other_model(monkeypatch))
@@ -1607,7 +1612,7 @@ def test_a_critic_that_rules_out_the_simple_explanation_lets_the_card_publish(mo
     row = critic_row(result)
     assert row["claim_id"] is None and row["verdict"] == "pass" and row["checker"] == "model"
     assert "a paid campaign" in row["detail"] and "adopt the shaya step dance" in row["detail"]
-    assert set(row) == {"claim_id", "rule", "verdict", "checker", "detail", "standing", "local_why_now"}
+    assert set(row) == {"claim_id", "rule", "verdict", "checker", "detail"} | CRITIC_ROW_KEYS
     assert row["standing"] == "ruled out" and row["local_why_now"] is True
 
 
@@ -1975,7 +1980,7 @@ def test_the_critics_answer_is_returned_field_for_field_when_it_passes():
     assert result["critic"] == {"non_cultural_explanation": "a paid campaign", "ruled_out": True,
                                 "news_driven": False, "scheduled_event": False, "local_reaction": False,
                                 "local_why_now": True,
-                                "reason": RULED_OUT["reason"]}
+                                "reason": RULED_OUT["reason"], "patterns_seen": []}
 
 
 def test_the_critics_answer_is_kept_when_it_holds_the_explanation_back():
@@ -1983,7 +1988,7 @@ def test_the_critics_answer_is_kept_when_it_holds_the_explanation_back():
 
     assert held["reason"] == "failed_checks" and held["numbers_only"] is True
     assert held["explanation"] is None and held["claims"] == []
-    assert held["critic"] == dict(NOT_RULED_OUT, scheduled_event=None)
+    assert held["critic"] == dict(NOT_RULED_OUT, scheduled_event=None, patterns_seen=[])
     [row] = [r for r in held["checks"] if r["rule"] == "critic"]
     assert row["verdict"] == "cut"
 

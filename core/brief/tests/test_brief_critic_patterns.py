@@ -43,7 +43,9 @@ def test_a_sound_and_a_format_shared_by_different_creators_are_counted_with_post
                          post("p3", "chi", 11, sound="9911", formats=["skit"]),
                          post("p4", "ada", 12, formats=["skit"])]}
     head, _ = pattern_lines(pack)
-    assert "over the 4 posts shown here, not the whole trend" in head
+    # 22 Oct 2026: the critic's line counts the posts the writer may cite, and says so.
+    assert ("over the 4 posts shown here that the writer may cite, posts located in another market left out, not the "
+            "whole trend") in head
     got = shared(pack)
     assert got["sound A"] == {"pattern": "sound A", "post_ids": ["p1", "p2", "p3"], "creators": 3, "days": 2}
     # ada and @ada are one creator: the handle is read as creator_key reads it.
@@ -93,7 +95,8 @@ def test_the_critic_is_told_what_the_line_is_and_that_a_posting_day_is_no_why_no
     text = " ".join(explain.CRITIC_SYSTEM.split())
     assert ("A line counted by code lists each sound letter and each format, talking_head, other and news_clip left "
             "out,") in text
-    assert "It counts only the posts shown, never the whole trend" in text
+    assert "It counts only those posts, never the whole trend" in text
+    assert "among the posts shown here that the writer may cite" in text
     assert "A posting day shows when a post was published, never a why-now." in text
 
 

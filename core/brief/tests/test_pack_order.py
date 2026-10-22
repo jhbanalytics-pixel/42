@@ -494,5 +494,6 @@ def test_the_briefs_rule_version_names_every_wave_8_rule_change():
             "+pack-formats-sound+k6-sound-label+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead+critic-inconsistent"
             "+pattern-skip-talking-head+writer-critic-agree+pack-video-fields+critic-rivals-line"
             "+author-step-note+pack-board-only-mark+creator-letters+data-issue-full-judgement+claim-floor-fault"
-            "+writer-no-earliest+fixture-reaction-code+pattern-video-formats+writer-rivals-line+video-format-counted")
+            "+writer-no-earliest+fixture-reaction-code+pattern-video-formats+writer-rivals-line+video-format-counted"
+            "+critic-pattern-citable+critic-detection-facts+pack-lane-member-marks+critic-patterns-recorded")
     assert job.RULE_VERSION in {detect_job.rule_version_for(authority) + tail for authority in ("v1", "v2")}

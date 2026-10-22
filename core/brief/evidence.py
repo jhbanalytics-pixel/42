@@ -23,7 +23,9 @@ pack is the shape core/brief/explain.py reads:
         screen_text and video_notes, core/understand/video.py); the support check and the critic see them, the writer
         and the stored card do not, and a quote is checked against the caption alone (18 Oct 2026). board_only, model-only
         too, is true for a post whose every sighting in the window was the YouTube trending board; the writer and the
-        critic are told so, and the post stays local by the same rules (18 Oct 2026).
+        critic are told so, and the post stays local by the same rules (18 Oct 2026). measured and market_member,
+        model-only too, say whether the post was sighted in a measured lane and whether it is a member of the item's
+        own market cluster; the writer and the critic see them (22 Oct 2026).
     numbers: {value, unit, query_id, run_id, result_hash} for creators3, posts3 and, when the item was tested,
         main_ratio. result_hash is "sha256:" plus the hex sha256 of the canonical JSON of the query's rows.
         After those, when detect has them for the item, the rival-explanation numbers of RIVAL_NUMBERS (posts7,
@@ -283,6 +285,12 @@ def _record(row, tz, item=None):
     # (_creator_letters) so the checks count creators when a handle is missing; the raw id reaches no prompt
     # and no stored card (18 Oct 2026).
     record["creator_id"] = str(row["creator_id"]) if row.get("creator_id") else None
+    # Model-only marks the pack statement already computes and orders by (evidence.sql s.measured, market_member):
+    # the post was sighted in a measured lane (a rank list or a fixed panel), not only by search, and it is a member of
+    # this item's own market cluster in the window. The writer and the critic see them, the evidence on a collection or
+    # grouping artefact (22 Oct 2026); the pack order and scope do not change. A row without the column gives False.
+    record["measured"] = row.get("measured") is True
+    record["market_member"] = row.get("market_member") is True
     # The pack statement (C4 v3 appendix G) emits is_outlet. A row without the column gets no class, so the record
     # shape does not change until the pack carries it, and a post of unknown class never counts as a creator's reaction.
     if "is_outlet" in row:

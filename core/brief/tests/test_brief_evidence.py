@@ -139,6 +139,8 @@ def test_measured_lanes_rank_before_search_presence_then_engagement():
     add_post(con, "p_search_low", "c5", utc(day(1), 9), 3, sightings=[("exploration", "search_presence")])
     pack, *_ = build(con)
     assert ids(pack) == ["p_panel", "p_mixed", "p_rank", "p_search", "p_search_low"]
+    # 22 Oct 2026: each record says whether a measured lane sighted it, a model-only mark the order already reads.
+    assert [e["measured"] for e in pack["evidence"]] == [True, True, True, False, False]
 
 
 def test_evidence_record_has_the_contract_fields_and_flags():
@@ -170,9 +172,11 @@ def test_evidence_record_has_the_contract_fields_and_flags():
         "duration_s": 21.0, "creator_tier": "mid", "sponsor_checked": True, "outlet_class": "creator",
         "sound_id": "7301234567890", "formats": ["dance", "duet"],
         "screen_text": None, "video_format": None, "video_sound": None, "board_only": False, "creator_id": "c1",
+        "measured": True, "market_member": False,
     }
     assert set(first) == CONTRACT_FIELDS | {"quote_text", "sponsor_checked", "sound_id", "formats", "screen_text",
-                                            "video_format", "video_sound", "board_only", "creator_id"}
+                                            "video_format", "video_sound", "board_only", "creator_id", "measured",
+                                            "market_member"}
     assert len(first["text"]) == 280 and len(first["quote_text"]) == 450
     assert second["text"] == "caption words" and second["quote_text"] == "caption words"
     assert second["market"] is None and second["flags"] == ["market_assumed"]

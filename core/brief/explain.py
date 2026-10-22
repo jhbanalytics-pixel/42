@@ -44,7 +44,8 @@ critic's own answer as it returned it (CRITIC_FIELDS), kept for audit, or None w
 shared qualification reads the same existing fields before admission. When the pack carries detect's rival values (core/brief/rivals.py), the critic row and
 this answer also hold code_rivals: the rivals the code found from those numbers and whether the critic's ruled_out
 disagrees, for every judged candidate whether or not a rival was found. It is a shadow record and changes no
-decision, draft or call.
+decision, draft or call. patterns_seen, beside it on every critic row and answer, is the shared-pattern line the
+critic read (_critic_patterns), recorded the same way (22 Oct 2026).
 
 The same writer call gives a short title in the posts' own terms (tester report, 6 Oct: a card titled with its cluster
 label "northeast governors, northeast, governors" was about Independence Day reflections). Only an explanation that
@@ -319,8 +320,9 @@ creator letters are by different creators even when a handle is missing, and the
 A shared sound or a shared specific format across different creators on different days is evidence of adoption that
 you may weigh; a generic format such as talking_head, other or news_clip alone shows no adopted practice, and
 news_clip points toward news. A line counted by code lists each sound letter and each format, talking_head, other and
-news_clip left out, that 2 or more different creators share among the posts shown here, with its post ids, its different
-creators and its different posting days. It counts only the posts shown, never the whole trend; it is evidence you
+news_clip left out, that 2 or more different creators share among the posts shown here that the writer may cite (a
+post located in another market is left out, as it is from the writer's own line), with its post ids, its different
+creators and its different posting days. It counts only those posts, never the whole trend; it is evidence you
 may weigh, not a verdict. A posting day shows when a post was published, never a why-now.
 A post also carries video_format: the format, from the same list, that a model which watched the clip gave it, or
 null when no clip was read. Where that model read the clip, the post's fence also holds its on-screen text and its
@@ -338,6 +340,7 @@ Sport, news and releases can support a pattern when cited posts show the adopted
 mere event reaction. Judge whether the event alone explains that pattern, not whether the event occurred.
 Name the pattern and the cited post evidence in reason. When the evidence is silent, thin or mixed, set ruled_out false.
 A post with sponsor_checked true and no sponsored flag was checked and shows no paid label; sponsor_checked false means whether it carries one is unknown.
+measured is true when 42 sighted the post in a measured lane, a rank list or a fixed panel of accounts, and false when it was found only by a keyword or hashtag search; market_member is true when the post is in this trend's own cluster for the market and false when it is linked to the trend only by its terms. Weigh both when the simpler explanation is a scraping, collection or grouping artefact; neither rules a simpler explanation out on its own.
 A line written by code says which simpler explanations detect's own numbers show (found), do not show (not found) or
 could not assess, with the thresholds and the floor of 10 posts in 7 days that detect itself applies to burst_share
 and top3_share: a share below its threshold, or with fewer than 10 posts in 7 days, is not a found rival on its own.
@@ -622,6 +625,8 @@ def _writer_user(candidate, pack, market, window_start, window_end):
             head["board_only"] = True
             board_only_ids.append(r.get("id"))
         head["located_in_market"] = code is not None and head["market"] == code
+        head["measured"] = r.get("measured") is True
+        head["market_member"] = r.get("market_member") is True
         head["text_has_non_tag_words"] = _has_non_tag_words(_source_text(r))
         if terms:
             head["title_terms_named"] = _terms_named(r, terms)
@@ -681,7 +686,10 @@ def _writer_user(candidate, pack, market, window_start, window_end):
         "a unique earliest posting time, never an event date or the trend's origin. formats are the format names "
         "42 recorded for a post; sound is a label 42 gives the posts in this pack that share one sound, and creator a "
         "label it gives the posts by one author. Describe a shared format or sound in plain words; never write a "
-        "sound label such as \"sound A\", and name an author by handle, never by a creator letter.",
+        "sound label such as \"sound A\", and name an author by handle, never by a creator letter. measured says "
+        "whether 42 sighted a post in a measured lane (a rank list or a fixed panel) rather than only by search, and "
+        "market_member whether it is in this trend's own cluster for the market; the critic weighs them against a "
+        "collection or grouping artefact, and neither is support for a claim.",
         f"Evidence pack, {len(posts)} posts:",
         scope,
         _writer_pattern_line(citable, letters),
@@ -883,13 +891,30 @@ def _shared_patterns(pack, letters):
     return out
 
 
-def _pattern_line(pack, letters):
+def _pattern_line(pack, letters, scope="shown here"):
     shared = _shared_patterns(pack, letters)
     body = "\n".join(json.dumps(p, ensure_ascii=False, default=str) for p in shared) or "none"
-    return (f"Shared sounds and formats, counted by code over the {len(pack.get('evidence') or [])} posts shown here, "
+    return (f"Shared sounds and formats, counted by code over the {len(pack.get('evidence') or [])} posts {scope}, "
             f"not the whole trend: each sound letter and each format in formats or video_format (talking_head, other "
             f"and news_clip left out) that 2 or more different creators share, with its post ids, different creators "
             f"and different posting days:\n{body}")
+
+
+def _citable_pack(pack, market):
+    """The pack with only the posts the writer may cite (_citable), the set the writer's pattern line counts."""
+    return {"evidence": [r for r in pack.get("evidence") or [] if _citable(r, market)]}
+
+
+# The critic's pattern line names its scope: the posts the writer may cite, as the writer's own line counts them
+# (22 Oct 2026: the critic counted posts located in another market, which the card rule's local adoption leaves out).
+CRITIC_PATTERN_SCOPE = "shown here that the writer may cite, posts located in another market left out"
+
+
+def _critic_patterns(pack, market):
+    """The shared patterns the critic's line lists (_shared_patterns over the citable posts, with the whole pack's
+    sound letters), kept beside the critic's answer as a shadow record so a pattern lost before the critic can be
+    shown (22 Oct 2026). Nothing reads it to hold or pass a card."""
+    return _shared_patterns(_citable_pack(pack, market), _sound_letters(pack))
 
 
 # The rivals the code can find from detect's numbers, worded for the critic (core/brief/rivals.py RIVALS).
@@ -940,10 +965,13 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
     located in the market, and, on a line of its own, which are own-feed local: found in the market's own feeds with
     location unknown, as specificity counts them local, and never merged into located_in_market. Each post carries
     sponsor_checked: true when 42 has a paid-label reading for it, so no sponsored flag then means none was found,
-    and board_only: true when its every sighting was the YouTube trending board (_board_only_line).
-    A line counted by code lists the sounds and formats different creators share among the posts shown
-    (_shared_patterns), and another says which simpler explanations detect's numbers show, with their thresholds and
-    floor (_rivals_line)."""
+    and board_only: true when its every sighting was the YouTube trending board (_board_only_line). measured and
+    market_member say whether 42 sighted the post in a measured lane and whether it is in the trend's own market
+    cluster (core/brief/evidence.py _record), the evidence on a collection or grouping artefact (22 Oct 2026).
+    A line counted by code lists the sounds and formats different creators share among the posts the writer may cite
+    (_shared_patterns over _citable_pack, the writer's own count), another says which simpler explanations detect's
+    numbers show, with their thresholds and floor (_rivals_line), and the facts lines from detection are the ones the
+    writer gets (diffusion, lead market and the calendar moment on each local post's day, 22 Oct 2026)."""
     earliest, letters, authors = _earliest_id(pack), _sound_letters(pack), _creator_letters(pack)
     resting = {c.get("id") for c in claims if c.get("id") in set(rests_on)}
     cited = {e for c in claims if c.get("id") in resting for e in c.get("evidence_ids") or []}
@@ -957,6 +985,8 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
         head = {**_head(r, earliest, letters, authors), "engagement": r.get("engagement")}
         head["sponsor_checked"] = r.get("sponsor_checked") is True
         head["board_only"] = r.get("board_only") is True
+        head["measured"] = r.get("measured") is True
+        head["market_member"] = r.get("market_member") is True
         head["cited_by_resting_claims"] = r.get("id") in cited
         head["located_in_market"] = local is not None and head["market"] == local
         head["own_feed_local"] = _own_feed_local(r, market)
@@ -987,8 +1017,10 @@ def _critic_user(candidate, market, sentence, claims, pack, rests_on=()):
         scope,
         own_feed,
         _board_only_line(board_only_ids, feeds),
-        _pattern_line(pack, letters),
+        _pattern_line(_citable_pack(pack, market), letters, CRITIC_PATTERN_SCOPE),
         _rivals_line(pack),
+        "Facts from 42's detection, context you may weigh, never a cited post:\n"
+        + ("\n".join(f"- {f}" for f in pack.get("facts") or []) or "none"),
         "The trend's numbers, each with the query that produced it and its scope:\n" + ("\n".join(numbers) or "none"),
         "The trend's posts:",
         *posts,
@@ -1725,6 +1757,14 @@ def explain_trend(candidate, pack, *, model, spent_today_usd, window_start, wind
         if shadow is not None:
             row["code_rivals"] = shadow
             critic = {**critic, "code_rivals": shadow}
+        # The pattern line the critic read, as a shadow record beside code_rivals (22 Oct 2026): it changes no
+        # decision, and a fault in it is recorded as its exception type.
+        try:
+            seen = _critic_patterns(pack, market)
+        except Exception as exc:
+            seen = {"error": type(exc).__name__}
+        row["patterns_seen"] = seen
+        critic = {**critic, "patterns_seen": seen}
         local_why_now = out.get("local_why_now") is True
         specificity = assess(sentence, rechecked["claims"], rests_on, local_why_now)
         if row["verdict"] != "pass" or specificity["status"] != "pass":

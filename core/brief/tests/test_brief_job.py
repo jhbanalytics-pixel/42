@@ -2991,6 +2991,8 @@ def test_the_critics_answer_is_stored_in_the_briefs_payload_for_shown_and_held_i
         for stored, ruled_out in ((payload(shown, m)["critic"], True), (payload(held, m)["critic"], False)):
             [entry] = stored
             assert entry.pop("code_rivals")["critic_ruled_out"] is ruled_out
+            # The pattern line the critic read rides beside it as a shadow record (22 Oct 2026).
+            assert isinstance(entry.pop("patterns_seen"), list)
             assert stored == [{"item_id": item(m, 1), **answer, "ruled_out": ruled_out}]
         assert [c["item_id"] for c in all_cards(payload(shown, m))] == [item(m, 1)]
         assert all("critic" not in c for c in all_cards(payload(shown, m)))

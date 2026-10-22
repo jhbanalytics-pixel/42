@@ -20,7 +20,7 @@ def test_ordinary_event_reactions_hold_and_cannot_receive_timing_redraft(event):
                   local_reaction=True, reason="Independent creators give ordinary match opinions.")
     result = run(FakeModel([good()], critic=critic))
     assert result["numbers_only"] is True and result["reason"] == "failed_checks"
-    assert result["critic"] == critic
+    assert result["critic"] == dict(critic, patterns_seen=[])
     assert result["usage_usd"] > 0
     assert explain._wording_only(dict(critic, local_why_now=False), 20) is False
 
@@ -75,7 +75,7 @@ def test_supported_dance_adoption_keeps_existing_post_and_claim_evidence():
     original = copy.deepcopy(pack)
     result = run(FakeModel([good()], critic=PATTERN), pack=pack)
     assert result["numbers_only"] is False
-    assert result["critic"] == PATTERN
+    assert result["critic"] == dict(PATTERN, patterns_seen=[])
     assert result["claims"][0]["quotes"] == [{"evidence_id": "tt_1", "text": "shaya step"}]
     assert pack == original
 

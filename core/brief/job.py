@@ -146,7 +146,15 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # rival and show the pattern beyond it, writes no pattern claim when the posts only react to an event, and the critic's
 # evaluate-only line is scoped to local_why_now (core/brief/explain.py WRITER_SYSTEM, CRITIC_SYSTEM, _writer_user),
 # video-format-counted the pattern line counts each post's video_format beside its enriched formats, with the same
-# exclusions, and the writer sees video_format (core/brief/explain.py _shared_patterns, _writer_user).
+# exclusions, and the writer sees video_format (core/brief/explain.py _shared_patterns, _writer_user),
+# critic-pattern-citable the critic's counted pattern line counts only the posts the writer may cite, as the writer's
+# own line does (core/brief/explain.py _citable_pack, CRITIC_PATTERN_SCOPE), critic-detection-facts the critic gets the
+# facts lines from detection the writer gets, with the calendar moment on each local post's day (core/brief/explain.py
+# _critic_user), pack-lane-member-marks each pack post carries measured and market_member as model-only fields to the
+# writer and the critic, with a critic line on weighing them against a collection or grouping artefact; the pack order
+# and scope are unchanged (core/brief/evidence.py _record, core/brief/explain.py CRITIC_SYSTEM),
+# critic-patterns-recorded the pattern line the critic read is kept beside code_rivals on the critic row and answer as a
+# shadow record (core/brief/explain.py _critic_patterns).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
@@ -155,7 +163,8 @@ RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8
                 "+critic-inconsistent+pattern-skip-talking-head+writer-critic-agree+pack-video-fields"
                 "+critic-rivals-line+author-step-note+pack-board-only-mark+creator-letters"
                 "+data-issue-full-judgement+claim-floor-fault+writer-no-earliest+fixture-reaction-code"
-                "+pattern-video-formats+writer-rivals-line+video-format-counted")
+                "+pattern-video-formats+writer-rivals-line+video-format-counted"
+                "+critic-pattern-citable+critic-detection-facts+pack-lane-member-marks+critic-patterns-recorded")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
