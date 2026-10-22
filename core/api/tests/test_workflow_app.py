@@ -35,7 +35,8 @@ SERVICES = ("f42-agent", "f42-api")
 # The Cloud Run definitions deploy.sh carried before the flags moved to deploy_flags.env (task 1.14), except
 # f42-agent's --min-instances, raised from 0 to 1 so one instance stays warm for Ask, plus F42_T2_READY=1 on
 # f42-agent since 3 October 2026 (T2 for the brand lens and the context pack), and f42-api's --min-instances
-# raised from 0 to 1 on 4 October 2026 so the first page load in demo week skips a cold start.
+# raised from 0 to 1 on 4 October 2026 so the first page load in demo week skips a cold start, and f42-api's
+# --memory 1Gi since 22 October 2026, when it ran out of memory at 512Mi on /api/communities.
 EXPECTED = {
     "BUILD_SOURCE_STAGING_DIR": "gs://ogilvy-trends-v2-f42-media-staging/build-source",
     "AGENT_SA": "f42-agent",
@@ -45,7 +46,7 @@ EXPECTED = {
                  "MODEL_PROVIDER=gemini,GEMINI_MODEL=gemini-3.8-flash,F42_T2_READY=1",
     "AGENT_SECRETS": "SOCIALCRAWL_OGILVY_API_KEY=SOCIALCRAWL_OGILVY_API_KEY:latest",
     "API_SA": "f42-web",
-    "API_FLAGS": ["--no-invoker-iam-check", "--min-instances", "1", "--max-instances", "3", "--timeout", "3600"],
+    "API_FLAGS": ["--no-invoker-iam-check", "--min-instances", "1", "--max-instances", "3", "--timeout", "3600", "--memory", "1Gi"],
     "API_ENV": "APP_MODULE=core.api.app:app,F42_DATA=bigquery,F42_PROJECT=${PROJECT},F42_VERSION=${TAG}",
     "API_SECRETS": "UI_PASSCODE=UI_PASSCODE:latest",
 }

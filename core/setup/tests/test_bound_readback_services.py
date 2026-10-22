@@ -403,6 +403,57 @@ def test_hr24_a_changed_candidate_resource_names_its_field(tmp_path, name, field
     assert error.code in ("CANDIDATE_REVISION", "POLICY") and field in error.message, (error.code, error.message)
 
 
+# memory: f42-api is raised from 512Mi to the 1Gi deploy_flags.env declares (22 Oct 2026), and nothing else about resources may move
+
+def test_hr24_the_declared_memory_is_read_from_the_deploy_flags_and_bound_in_the_manifest(tmp_path):
+    assert so.declared_memory("f42-api") == "1Gi" and so.declared_memory("f42-agent") == "1Gi"
+    s = Scenario(tmp_path)
+    assert s.world.svc["f42-api"]["resources"]["limits"]["memory"] == "512Mi"
+    s.to("AfterPromotion")
+    for name in SERVICES:
+        assert s.manifest()["candidates"][name]["resources"] == {"limits": {"cpu": "1000m", "memory": "1Gi"}}
+        assert container(s.world, CAND_REV[name])["resources"]["limits"]["memory"] == "1Gi"
+    # The baseline keeps what was live: the rollback target of the API is the 512Mi revision.
+    assert container(s.world, A80_REV["f42-api"])["resources"]["limits"]["memory"] == "512Mi"
+
+
+def test_hr24_an_api_candidate_left_at_the_baseline_memory_is_a_stop(tmp_path):
+    s = Scenario(tmp_path)
+    s.ready("Freeze")
+    s.run("Freeze")
+    s.world.pin()
+    s.run("BeforeCandidate")
+    for name in SERVICES:
+        s.world.deploy_candidate(name, rid=s.rid, memory=s.world.svc[name]["resources"]["limits"]["memory"])
+    stops_with(s, "BeforeSmoke", "CANDIDATE_REVISION", "f42-api resources memory changed")
+
+
+def test_hr24_a_template_that_does_not_carry_the_declared_memory_is_a_preservation_stop(tmp_path):
+    s = Scenario(tmp_path)
+    s.ready("BeforeSmoke")
+    s.world.svc["f42-api"]["resources"] = {"limits": {"cpu": "1000m", "memory": "512Mi"}}
+    stops_with(s, "BeforeSmoke", "PRESERVATION", "f42-api template differs from the baseline: resources")
+
+
+@pytest.mark.parametrize("flags, expected", [
+    ('API_FLAGS="--timeout 3600"', None), ('API_FLAGS="--timeout 3600 --memory 2Gi"', "2Gi"), ('API_FLAGS="--memory=768Mi"', "768Mi"),
+])
+def test_hr24_declared_memory_reads_one_well_formed_size_or_none(tmp_path, flags, expected):
+    path = tmp_path / "deploy_flags.env"
+    path.write_text(f'# API_FLAGS="--memory 9Gi" in a comment is not read\nAGENT_FLAGS="--memory 1Gi"\n{flags}\n', encoding="utf-8")
+    assert so.declared_memory("f42-api", path) == expected
+
+
+@pytest.mark.parametrize("flags", ['API_FLAGS="--memory 1Gi --memory 2Gi"', 'API_FLAGS="--memory"', 'API_FLAGS="--memory lots"',
+                                   'API_FLAGS="--memory 1G"', 'API_FLAGS="--memory 1Gi"\nAPI_FLAGS="--memory 2Gi"', ""])
+def test_hr24_declared_memory_refuses_a_flag_that_is_twice_bare_malformed_or_missing(tmp_path, flags):
+    path = tmp_path / "deploy_flags.env"
+    path.write_text(f"{flags}\n", encoding="utf-8")
+    with pytest.raises(so.Stop) as error:
+        so.declared_memory("f42-api", path)
+    assert error.value.code == "BINDINGS"
+
+
 @pytest.mark.parametrize("case", ["public_policy", "agent_invoker_disabled", "policy_hash"])
 def test_hr25_a_policy_change_stops_the_candidate_phases(tmp_path, case):
     s = Scenario(tmp_path)

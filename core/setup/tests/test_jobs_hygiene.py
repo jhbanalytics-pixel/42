@@ -264,6 +264,9 @@ def test_jp04_each_mutation_is_caught_by_its_named_test_in_a_copy_and_the_copy_i
     shutil.copyfile(ROOT / "core/__init__.py", copy_root / "core/__init__.py")
     # the worlds read the schema files to build the apply dry run receipt the release now demands (JS-09)
     shutil.copytree(ROOT / "core/schema", copy_root / "core/schema", ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "tests"))
+    # the services readback reads the memory each service is deployed with from the deploy flags (services_only.declared_memory)
+    (copy_root / "core/api").mkdir(parents=True)
+    shutil.copyfile(ROOT / "core/api/deploy_flags.env", copy_root / "core/api/deploy_flags.env")
     nodes = sorted({node for *_, node in MUTATIONS})
     code, out = pytest_run(copy_root, nodes)
     assert code == 0, "the copy is not clean before a mutation:\n" + out[-1500:]

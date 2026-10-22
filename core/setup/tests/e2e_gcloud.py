@@ -129,8 +129,12 @@ def run_deploy(world, args):
         raw["spec"]["serviceAccountName"] = service_account
     if opt(args, "--timeout"):
         raw["spec"]["timeoutSeconds"] = int(opt(args, "--timeout"))
+    resources = state.get("resources") or rw.RESOURCES[name]
     if opt(args, "--memory"):
-        raw["spec"]["containers"][0]["resources"]["limits"]["memory"] = opt(args, "--memory")
+        # Cloud Run keeps the memory on the service template too, so the next revision and the readback of the template carry it.
+        resources = {**resources, "limits": {**resources["limits"], "memory": opt(args, "--memory")}}
+    raw["spec"]["containers"][0]["resources"] = json.loads(json.dumps(resources))
+    state["resources"] = resources
     world.revisions[revision] = raw
     state.update(image=image, env=env, latest_created=revision, latest_ready=revision, tmpl_ann=annotations)
     state["traffic"].append({"revisionName": revision, "percent": 0, "tag": tag})

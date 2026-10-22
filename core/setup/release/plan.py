@@ -287,8 +287,11 @@ IMAGE_BY_DIGEST = re.compile(r"[^@\s]+@sha256:[0-9a-f]{64}")
 DEPLOY_VALUED = {"--project", "--region", "--image", "--revision-suffix", "--tag", "--service-account", "--update-env-vars", "--remove-env-vars",
                  "--set-secrets", "--min-instances", "--max-instances", "--timeout", "--memory"}
 DEPLOY_SWITCHES = {"--no-traffic", "--no-cpu-throttling", "--no-invoker-iam-check"}
-DEPLOY_ONLY_ON = {"--remove-env-vars": "f42-agent", "--no-cpu-throttling": "f42-agent", "--memory": "f42-agent", "--no-invoker-iam-check": "f42-api"}
+# --memory is on both services since f42-api was raised to 1Gi (it went out of memory at 512 MiB on /api/communities on 22 Oct 2026). Its
+# value is a size in Mi or Gi, and the readback holds each candidate to the size deploy_flags.env declares (services_only.declared_memory).
+DEPLOY_ONLY_ON = {"--remove-env-vars": "f42-agent", "--no-cpu-throttling": "f42-agent", "--no-invoker-iam-check": "f42-api"}
 DEPLOY_NUMBERS = ("--min-instances", "--max-instances", "--timeout")
+DEPLOY_MEMORY = re.compile(r"[1-9][0-9]*(Mi|Gi)")
 
 
 def _deploy_flags(tokens):
@@ -330,6 +333,8 @@ def deploy_call_allowed(argv):
     if any(DEPLOY_ONLY_ON[f] != a[2] for f in flags if f in DEPLOY_ONLY_ON):
         return False
     if any(not re.fullmatch(r"[0-9]+", flags[f]) for f in DEPLOY_NUMBERS if f in flags):
+        return False
+    if "--memory" in flags and not DEPLOY_MEMORY.fullmatch(flags["--memory"]):
         return False
     return "--remove-env-vars" not in flags or bool(PLAIN_NAME_LIST.fullmatch(flags["--remove-env-vars"]))
 

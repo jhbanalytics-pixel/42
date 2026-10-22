@@ -19,6 +19,7 @@ import datetime as dt
 import hashlib
 import json
 import re
+import shlex
 import time
 from pathlib import Path
 
@@ -499,6 +500,44 @@ def env_matches(actual, baseline, bound, service, rid):
     return actual == expected_env_variants(baseline, bound, service, rid)[0][0]
 
 
+# The memory each service is deployed with is the --memory of its flags in core/api/deploy_flags.env, the file deploy_candidate.sh
+# sources and passes to gcloud run deploy. f42-api went out of memory at 512 MiB on /api/communities on 22 Oct 2026 and is declared at
+# 1Gi; f42-agent carries 1Gi as it did before. A service whose flags carry no --memory keeps the memory of its baseline template. The
+# candidate and its template must carry exactly this memory and the baseline CPU, so a 512Mi API candidate is a stop as well.
+DEPLOY_FLAGS = Path(__file__).resolve().parents[2] / "api" / "deploy_flags.env"
+FLAG_VARIABLES = {"f42-agent": "AGENT_FLAGS", "f42-api": "API_FLAGS"}
+MEMORY = re.compile(r"[1-9][0-9]*(Mi|Gi)\Z")
+
+
+def declared_memory(service, path=DEPLOY_FLAGS):
+    """The --memory value the release deploy passes for the service, read from deploy_flags.env, or None when its flags carry none."""
+    require(Path(path).is_file(), "BINDINGS", "deploy_flags.env is not in the checkout")
+    values = []
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        name, equals, raw = line.strip().partition("=")
+        if equals and name == FLAG_VARIABLES[service]:
+            values.append(" ".join(shlex.split(raw)).split())
+    require(len(values) == 1, "BINDINGS", f"deploy_flags.env does not set the flags of {service} exactly once")
+    tokens, found = values[0], []
+    for i, token in enumerate(tokens):
+        if token == "--memory":
+            found.append(tokens[i + 1] if i + 1 < len(tokens) else "")
+        elif token.startswith("--memory="):
+            found.append(token[len("--memory="):])
+    require(len(found) <= 1 and all(MEMORY.match(v) for v in found), "BINDINGS",
+            f"The {service} flags in deploy_flags.env do not carry one well formed --memory")
+    return found[0] if found else None
+
+
+def expected_resources(baseline, service):
+    """The resources each candidate and its template must carry: the baseline template's, with the declared memory when there is one."""
+    resources = copy.deepcopy(baseline["services"][service]["template"]["resources"])
+    memory = declared_memory(service)
+    if memory is not None:
+        resources.setdefault("limits", {})["memory"] = memory
+    return resources
+
+
 def stage1(bound, baseline):
     """Everything the release knows before any write, re-derived from the bindings and the bound baseline."""
     rid = bound["release_id"]
@@ -512,7 +551,8 @@ def stage1(bound, baseline):
         variants, removals = expected_env_variants(baseline, bound, name, rid)
         candidates[name] = {"revision": f"{name}-{rid}", "tag": rid, "tag_url": tag_url(rid, baseline["canonical"][name]),
                             "env_deltas": candidate_deltas(bound, baseline, name, rid),
-                            "env_removals_declared_sha256": sorted(sha_text(n) for n in removals), "expected_env_sha256": fingerprint(variants[0])}
+                            "env_removals_declared_sha256": sorted(sha_text(n) for n in removals), "expected_env_sha256": fingerprint(variants[0]),
+                            "resources": expected_resources(baseline, name)}
     derived = {
         "release_id": rid, "mode": "services-only",
         "source": {"commit": bound["target"], "tree": bound["tree"], "short7": bound["target"][:7], "short12": short12(bound)},
@@ -754,11 +794,14 @@ def check_retained_tags(rel, live):
 
 def check_template_baseline(rel, live):
     """The service template (the latest created revision) equals the baseline. After an earlier failed attempt it may
-    carry that attempt's image and environment, so then only the rest is compared."""
+    carry that attempt's image and environment, and its resources may be the declared ones that attempt deployed, so then
+    only the rest is compared."""
     for name in SERVICES:
         got, want = live.services[name]["template"], rel.baseline["services"][name]["template"]
         for key in want:
             if rel.bound.get("priorAttempts") and key in ("image", "env"):
+                continue
+            if rel.bound.get("priorAttempts") and key == "resources" and got[key] == rel.stage1["candidates"][name]["resources"]:
                 continue
             require(got[key] == want[key], "BASELINE", f"The {name} template differs from the baseline: {key}")
 
@@ -827,8 +870,9 @@ def check_candidate_revisions(rel, live, manifest):
         require(view["service_account"] == want["service_account"], "CANDIDATE_REVISION", f"{name} service_account changed")
         require(view["timeout_seconds"] == want["timeout_seconds"], "CANDIDATE_REVISION", f"{name} timeout_seconds changed")
         require(view["command"] == want["command"] and view["args"] == want["args"], "CANDIDATE_REVISION", f"{name} command changed")
+        resources = rel.stage1["candidates"][name]["resources"]
         for res in ("memory", "cpu"):
-            require(view["resources"].get("limits", {}).get(res) == want["resources"].get("limits", {}).get(res),
+            require(view["resources"].get("limits", {}).get(res) == resources.get("limits", {}).get(res),
                     "CANDIDATE_REVISION", f"{name} resources {res} changed")
         for key in SCALING_ANNOTATIONS:
             require(view["annotations"].get(key) == want["annotations"].get(key), "CANDIDATE_REVISION",
@@ -842,15 +886,17 @@ def check_candidate_revisions(rel, live, manifest):
 
 
 def check_template_candidate(rel, live, manifest):
-    """The only allowed change to a template before promotion: the candidate image and environment, and the latest
-    created revision naming the candidate."""
+    """The only allowed change to a template before promotion: the candidate image and environment, the declared memory, and the
+    latest created revision naming the candidate."""
     for name in SERVICES:
         got, want = live.services[name]["template"], rel.baseline["services"][name]["template"]
         require(got["image"] == f"{REPO}@{manifest['image']['digest']}", "PRESERVATION", f"The {name} template image is not the candidate digest")
         require(env_matches(got["env"], rel.baseline, rel.bound, name, rel.rid), "PRESERVATION",
                 f"The {name} template environment differs from the expected one")
+        require(got["resources"] == rel.stage1["candidates"][name]["resources"], "PRESERVATION",
+                f"The {name} template differs from the baseline: resources")
         for key in want:
-            if key not in ("image", "env"):
+            if key not in ("image", "env", "resources"):
                 require(got[key] == want[key], "PRESERVATION", f"The {name} template differs from the baseline: {key}")
         require(live.services[name]["latest_created"] == rel.stage1["candidates"][name]["revision"], "PRESERVATION",
                 f"The {name} latest created revision is not the candidate")
