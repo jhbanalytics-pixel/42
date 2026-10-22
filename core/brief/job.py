@@ -1894,7 +1894,7 @@ def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags,
         kept = [c for c in by_market[m] if _for_today(c) and "also" in c]
         claimed = set().union(*(c["posts"] for c in kept))
         for cand in sorted((c for c in by_market[m] if _for_today(c) and "also" not in c),
-                           key=lambda c: (c.get("_rank", 0), _worth(c["row"]))):
+                           key=lambda c: (c.get("_round", 0), c.get("_rank", 0), _worth(c["row"]))):
             posts = cand["posts"]
             best = max(((len(posts & k["posts"]), -j) for j, k in enumerate(kept)), default=(0, 0))
             if best[0] > 0 and (len(posts - claimed) < MIN_EVIDENCE or best[0] * 2 >= len(posts)):

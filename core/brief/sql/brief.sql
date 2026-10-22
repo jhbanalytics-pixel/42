@@ -42,6 +42,16 @@ fs AS (
   FROM {core}.v_item_daily_current i
   WHERE i.market = @market AND i.metric_date <= @d
   GROUP BY i.item_id),
+-- Posts sighted in the market in the last 7 days whose market is @market by a source other than the YouTube
+-- trending board: the market's own feeds and lists (TikTok, Instagram, Facebook, Reddit and the rest) in
+-- v_post_source_markets. A video on the board carries the board's region as its source market whoever made it
+-- (core/collect/parse.py _source_provenance), so the board alone never counts here.
+sourced_posts AS (
+  SELECT DISTINCT v.post_id
+  FROM {core}.v_post_source_markets v
+  CROSS JOIN UNNEST(v.source_sightings) sight
+  WHERE sight.source_market = @market AND IFNULL(sight.route, '') != 'youtube/videos/trending'
+    AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d),
 -- Pattern evidence (held-topics root cause, 16 Oct 2026). Posts published and observed in the market in the last 7 days. Since the critic passes only an evidenced adopted format,
 -- practice or behaviour (04bc5cc), the pool orders candidates whose own posts already show adoption before ones the
 -- code can see are an event spike, one creator or news. Per item, over the market's posts of the last 7 days (the
@@ -53,19 +63,18 @@ fs AS (
 pattern_posts AS (
   SELECT DISTINCT pi.item_id, po.post_id, IFNULL(ps.creator_id, ps.post_id) creator_id, ps.sound_id,
     ps.post_date post_day,
-    -- Local by local_creators' rule below: the card rule and the critic need adoption by local creators, so only a
-    -- local post counts toward an adopted sound or format (pattern_news still reads every post).
+    -- Local by local_creators' rule below, with sourced_posts above: the card rule and the critic need adoption by
+    -- local creators, so only a local post counts toward an adopted sound or format (pattern_news still reads every
+    -- post).
     ((ps.geo_market = @market AND IFNULL(ps.geo_confidence, 0) >= 0.7
       AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'))
-     OR (EXISTS (SELECT 1 FROM {core}.v_post_source_markets v CROSS JOIN UNNEST(v.source_sightings) sight
-                 WHERE v.post_id = po.post_id AND sight.source_market = @market
-                   AND IFNULL(sight.route, '') != 'youtube/videos/trending'
-                   AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d)
+     OR (sourced.post_id IS NOT NULL
          AND NOT IFNULL(ps.geo_market != @market AND ps.geo_confidence >= 0.7
                         AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE))) is_local
   FROM {core}.post_observations po
   JOIN {core}.post_items pi ON pi.post_id = po.post_id
   JOIN {core}.posts ps ON ps.post_id = po.post_id
+  LEFT JOIN sourced_posts sourced ON sourced.post_id = po.post_id
   WHERE po.market = @market AND po.observed_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
     AND ps.post_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
     AND po.lane_class != 'legacy' AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
@@ -116,16 +125,9 @@ pattern_news AS (
   SELECT item_id, COUNT(DISTINCT post_id) enriched_posts,
     COUNT(DISTINCT IF(post_format = 'news_clip', post_id, NULL)) news_clip_posts
   FROM pattern_enriched GROUP BY item_id),
--- Posts sighted in the market in the last 7 days whose market is @market by a source other than the YouTube
--- trending board: the market's own feeds and lists (TikTok, Instagram, Facebook, Reddit and the rest) in
--- v_post_source_markets. A video on the board carries the board's region as its source market whoever made it
--- (core/collect/parse.py _source_provenance), so the board alone never counts here.
+-- The sourced posts above, under the name local_creators reads.
 sourced AS (
-  SELECT DISTINCT v.post_id
-  FROM {core}.v_post_source_markets v
-  CROSS JOIN UNNEST(v.source_sightings) sight
-  WHERE sight.source_market = @market AND IFNULL(sight.route, '') != 'youtube/videos/trending'
-    AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d),
+  SELECT post_id FROM sourced_posts),
 -- Distinct creators of the item's local posts: located in the market (the market_scope.sql rule) or sourced
 -- above and not located in another market by that rule, by a creator not on the suppression list. Rank only: it is
 -- not selected, so nothing downstream reads it.
