@@ -815,26 +815,3 @@ def test_video_clips_marks_the_clusters_whose_item_is_eligible_in_their_markets_
     eligible = {r[names.index("cluster_id")]: r[names.index("eligible")] for r in rows}
     assert eligible == {"c-za-elig": True, "c-za-not": False, "c-ng-elig": True, "c-pan": True, "c-stale": False,
                         "c-new": False}
-
-
-def test_read_clip_keeps_the_vendor_transcript_it_paid_for_in_the_notes(gemini):
-    # 22 Oct 2026: the vendor transcript was fetched and paid for, given to the model, then dropped. It is now kept
-    # in video_notes (no new column), cut as the prompt cuts it and age scanned as every other free-text value.
-    read = video.read_clip(clip("a"), FakeModel(), FakeSC(), fetch_bytes=jpeg)
-    notes = json.loads(read["row"]["video_notes"])
-    assert notes["transcript"] == "[0s] light the coals\n[3.2s] now the wors"
-    assert read["age_dropped"] == 0
-    long = [{"text": "w" * 50, "start": float(i)} for i in range(400)]
-    sc = FakeSC(by_route={"tiktok/post/transcript": ("ok", long)})
-    notes = json.loads(video.read_clip(clip("b"), FakeModel(), sc, fetch_bytes=jpeg)["row"]["video_notes"])
-    assert len(notes["transcript"]) == video.MAX_TRANSCRIPT_CHARS
-
-
-def test_read_clip_copies_no_stored_transcript_and_keeps_none_that_fails_the_age_scan(gemini):
-    read = video.read_clip(clip("a", transcript="stored words"), FakeModel(), FakeSC(), fetch_bytes=jpeg)
-    assert "transcript" not in json.loads(read["row"]["video_notes"])
-    sc = FakeSC(by_route={"tiktok/post/transcript": ("ok", [{"text": "a dance for the kids", "start": 0}])})
-    read = video.read_clip(clip("b"), FakeModel(), sc, fetch_bytes=jpeg)
-    assert "transcript" not in json.loads(read["row"]["video_notes"]) and read["age_dropped"] == 1
-    read = video.read_clip(clip("c"), FakeModel(), FakeSC(status="empty", items=[]), fetch_bytes=jpeg)
-    assert "transcript" not in json.loads(read["row"]["video_notes"])

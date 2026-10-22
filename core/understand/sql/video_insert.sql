@@ -1,6 +1,5 @@
 -- Append video reading's rows to post_enrichment (BUILD.md 2.6, DATA.md). Parameter: @rows, STRING, a JSON array of
--- objects written by video.read_clip, one per clip: post_id, screen_text and video_notes (a JSON string, which also
--- holds the vendor transcript the read paid for, under transcript).
+-- objects written by video.read_clip, one per clip: post_id, screen_text and video_notes (a JSON string).
 -- post_enrichment is append-only: this adds rows and changes none. Every other column is left NULL, so the embed
 -- and enrich rows of the same post are untouched and no reader of tone or embedding sees this row. A post that
 -- already has a video_notes row is not written again, which keeps a rerun from adding a second copy.
