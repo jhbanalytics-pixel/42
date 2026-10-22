@@ -2,7 +2,7 @@
 
 Every release takes its own new semantic version number, jobs-only releases included. History before 2.4.0 stays as it is: 2.0.0 is Release A, 2.1.0 is Release B, 2.2.0 is Release C, and 2.3.0 is D0, with the jobs update of 12 October 2026 under it.
 
-Major goes up for a breaking change to stored data or a removed page. Minor goes up for new features anywhere people see results: the website, Ask, or the jobs that make the cards. Patch goes up for fixes only. A release with any new feature is minor.
+Major goes up for a breaking change to stored data, a removed page or a new generation of the product: the full Gamma release is 3.0.0. Minor goes up for new features anywhere people see results: the website, Ask, or the jobs that make the cards. Patch goes up for fixes only. A release with any new feature is at least minor.
 
 The newest release comes first, and VERSION at the root of the repository holds its number. Each release has its own heading with its version and, in brackets, the date it went live, then one line naming the release with its release id and whether it is jobs only, then one plain line per change.
 
