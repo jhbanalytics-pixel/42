@@ -727,3 +727,90 @@ def test_gather_reads_an_empty_youtube_transcript_as_nothing_and_never_reads_a_f
     assert out["transcript"] == ""
     out = video.gather(post, BodySC({"youtube/video/transcript": YOUTUBE_TRANSCRIPT}, status="error"))
     assert out["transcript"] == "" and out["reasons"] == {"transcript": "error"}
+
+
+def _clusters_of_three_markets(per_market=40):
+    rows = []
+    for market in ("KE", "NG", "ZA"):
+        for t in range(per_market):  # cluster ids as cluster.py names them: YYYYMMDD-{market}-{nnn}
+            cid = f"20261022-{market}-{t:03d}"
+            for k in range(2):
+                rows.append({"cluster_id": cid, "market": market, "post_id": f"{cid}-{k}", "platform": "tiktok",
+                             "engagement": 100 - k, "velocity": 1.0, "duration_s": 10})
+    for t in range(per_market):
+        cid = f"20261022-pan-{t:03d}"
+        rows.append({"cluster_id": cid, "market": "pan", "post_id": f"{cid}-0", "platform": "tiktok",
+                     "engagement": 100, "velocity": 1.0, "duration_s": 10})
+    return rows
+
+
+def _by_market(picked):
+    markets = {}
+    for p in picked:
+        markets[p["market"]] = markets.get(p["market"], 0) + 1
+    return markets
+
+
+def test_the_daily_clips_are_shared_across_markets_not_given_in_cluster_id_order():
+    # EVIDENCE V3 (22 Oct 2026): in sorted cluster id order the 60 clips _run keeps went KE 40, NG 20, ZA 0. With the
+    # markets interleaved every market gets its turn; the cap is the same 60.
+    rows = _clusters_of_three_markets()
+    picked = video.pick_clips(rows, video.clusters_of(rows))[:60]
+    assert _by_market(picked) == {"KE": 15, "NG": 15, "ZA": 15, "pan": 15}
+    assert [p["market"] for p in picked[:4]] == ["KE", "NG", "ZA", "pan"]
+    assert len({p["post_id"] for p in picked}) == 60
+
+
+def test_clusters_of_eligible_items_get_their_clips_first():
+    # V3: a cluster whose item detect holds eligible gets its clips (both of them) before any other cluster's, the
+    # eligible clusters with the markets interleaved too; the rest follow in turns as before.
+    rows = _clusters_of_three_markets(per_market=5)
+    eligible = {"20261022-ZA-004", "20261022-NG-003", "20261022-ZA-001"}
+    for row in rows:
+        row["eligible"] = row["cluster_id"] in eligible
+    picked = video.pick_clips(rows, video.clusters_of(rows))
+    assert [p["post_id"] for p in picked[:6]] == [
+        "20261022-NG-003-0", "20261022-ZA-001-0", "20261022-ZA-004-0",
+        "20261022-NG-003-1", "20261022-ZA-001-1", "20261022-ZA-004-1"]
+    assert [p["post_id"] for p in picked[6:10]] == [
+        "20261022-KE-000-0", "20261022-NG-000-0", "20261022-ZA-000-0", "20261022-pan-000-0"]
+    assert len(picked) == len({p["post_id"] for p in picked}) == len(rows)
+
+
+def test_video_clips_marks_the_clusters_whose_item_is_eligible_in_their_markets_newest_state():
+    import duckdb
+
+    db = '"ogilvy-trends-v2"'
+    core = f"{db}.intelligence_42_core"
+    con = duckdb.connect()
+    con.execute(f"ATTACH ':memory:' AS {db}")
+    con.execute(f"CREATE SCHEMA {core}")
+    con.execute(f"CREATE TABLE {core}.clusters (cluster_date DATE, cluster_id VARCHAR, market VARCHAR, "
+                "item_id VARCHAR)")
+    con.execute(f"CREATE TABLE {core}.cluster_members (cluster_id VARCHAR, post_id VARCHAR)")
+    con.execute(f"CREATE TABLE {core}.post_observations (post_id VARCHAR, observed_date DATE, "
+                "observed_at TIMESTAMP)")
+    con.execute(f"CREATE TABLE {core}.post_enrichment (post_id VARCHAR, video_notes VARCHAR)")
+    con.execute(f"CREATE TABLE {core}.posts (post_id VARCHAR, platform VARCHAR, url VARCHAR, thumbnail_url VARCHAR, "
+                "duration_s DOUBLE, text VARCHAR, transcript VARCHAR, hashtags VARCHAR[], sound_id VARCHAR, "
+                "engagement DOUBLE, published_at TIMESTAMP, post_date DATE, creator_id VARCHAR)")
+    con.execute(f"CREATE TABLE {core}.v_suppressed_creators (creator_id VARCHAR)")
+    con.execute(f"CREATE TABLE {core}.v_item_state_current (metric_date DATE, market VARCHAR, item_id VARCHAR, "
+                "eligible BOOLEAN)")
+    day, before = date(2026, 10, 22), date(2026, 10, 21)
+    clusters = [("c-za-elig", "za", "i_za"), ("c-za-not", "za", "i_ng"), ("c-ng-elig", "ng", "i_ng"),
+                ("c-pan", "pan", "i_za"), ("c-stale", "za", "i_stale"), ("c-new", "ke", "i_new")]
+    for cid, market, item in clusters:
+        con.execute(f"INSERT INTO {core}.clusters VALUES (?, ?, ?, ?)", [day, cid, market, item])
+        con.execute(f"INSERT INTO {core}.cluster_members VALUES (?, ?)", [cid, f"{cid}-p"])
+        con.execute(f"INSERT INTO {core}.posts VALUES (?, 'tiktok', 'u', NULL, 10, 't', NULL, [], NULL, 5, NULL, ?, "
+                    "'c1')", [f"{cid}-p", day])
+    con.executemany(f"INSERT INTO {core}.v_item_state_current VALUES (?, ?, ?, ?)", [
+        (before, "ZA", "i_za", True), (before, "NG", "i_ng", True), (before, "ZA", "i_ng", False),
+        (date(2026, 10, 19), "ZA", "i_stale", True)])  # ZA's newest state is the 21st, so the 19th's is not read
+    text = sqlglot.transpile(sql("video_clips"), read="bigquery", write="duckdb")[0]
+    rows = con.execute(text, {"run_date": day}).fetchall()
+    names = [d[0] for d in con.description]
+    eligible = {r[names.index("cluster_id")]: r[names.index("eligible")] for r in rows}
+    assert eligible == {"c-za-elig": True, "c-za-not": False, "c-ng-elig": True, "c-pan": True, "c-stale": False,
+                        "c-new": False}

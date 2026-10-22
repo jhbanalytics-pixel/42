@@ -2,8 +2,10 @@
 
 The clips that matter are the top clips by engagement, then velocity, in each of today's clusters (pick_clips, on the
 rows video_clips.sql returns: members of clusters written for run_date, on TikTok, YouTube and Instagram, never a post
-already read or one by a suppressed creator). Clusters take turns, so every cluster's top clip comes before any
-cluster's second.
+already read or one by a suppressed creator). The clusters whose item detect holds eligible go first, then the rest;
+within each, clusters take turns with the markets interleaved, so every cluster's top clip comes before any
+cluster's second and the daily clip cap is shared across markets (22 Oct 2026: in cluster id order the 60 clips went
+to KE and NG and ZA got none).
 
 read_clip reads one clip. It takes the post's stored transcript, or else the vendor transcript (the route map is
 core/agent/tools/enrich_tools.TRANSCRIPT_ROUTES), and on TikTok the vendor's screen text (tiktok/video/screen-text),
@@ -188,23 +190,47 @@ def _number(value) -> float:
     return number if math.isfinite(number) else 0.0  # NaN and infinity read as nothing
 
 
+def cluster_turns(posts, clusters) -> list:
+    """The clusters' turns: [eligible cluster ids, the rest], each list with the markets interleaved (every market's
+    first cluster, then every market's second, markets in name order) and each market's clusters in id order, so the
+    daily clip cap is shared across markets instead of going to the market whose ids sort first. A cluster is
+    eligible when video_clips.sql marks its item eligible."""
+    meta = {}
+    for post in posts:
+        cluster_id = post.get("cluster_id")
+        if cluster_id in clusters:
+            market, eligible = meta.get(cluster_id, (str(post.get("market") or ""), False))
+            meta[cluster_id] = (market, eligible or post.get("eligible") is True)
+    groups, turn = ([], []), {}
+    for cluster_id in sorted(clusters):
+        market, eligible = meta.get(cluster_id, ("", False))
+        rank = turn[(eligible, market)] = turn.get((eligible, market), -1) + 1
+        groups[0 if eligible else 1].append((rank, market, cluster_id))
+    return [[cluster_id for _, _, cluster_id in sorted(group)] for group in groups]
+
+
 def pick_clips(posts, clusters, k: int = CLIPS_PER_CLUSTER) -> list:
-    """The top k clips of each cluster by engagement, then velocity, then post id, clusters in id order taking turns,
-    so every cluster's best clip comes before any cluster's second. A post in two clusters is picked once."""
+    """The top k clips of each cluster by engagement, then velocity, then post id. The clusters whose item is
+    eligible go first, then the rest; within each, clusters take turns in cluster_turns' order (markets
+    interleaved), so every cluster's best clip comes before any cluster's second. A post in two clusters is picked
+    once."""
     by_id = {}
     for post in posts:
         by_id.setdefault(post["post_id"], post)
-    ranked = []
-    for cluster_id in sorted(clusters):
-        clips = [by_id[pid] for pid in dict.fromkeys(clusters[cluster_id]) if pid in by_id and is_clip(by_id[pid])]
-        clips.sort(key=lambda p: (-_number(p.get("engagement")), -_number(p.get("velocity")), str(p["post_id"])))
-        ranked.append(clips[:k])
     picked, seen = [], set()
-    for rank in range(k):
-        for clips in ranked:
-            if rank < len(clips) and clips[rank]["post_id"] not in seen:
-                seen.add(clips[rank]["post_id"])
-                picked.append(clips[rank])
+    for group in cluster_turns(posts, clusters):
+        ranked = []
+        for cluster_id in group:
+            clips = [by_id[pid] for pid in dict.fromkeys(clusters[cluster_id])
+                     if pid in by_id and is_clip(by_id[pid])]
+            clips.sort(key=lambda p: (-_number(p.get("engagement")), -_number(p.get("velocity")),
+                                      str(p["post_id"])))
+            ranked.append(clips[:k])
+        for rank in range(k):
+            for clips in ranked:
+                if rank < len(clips) and clips[rank]["post_id"] not in seen:
+                    seen.add(clips[rank]["post_id"])
+                    picked.append(clips[rank])
     return picked
 
 
