@@ -14,8 +14,9 @@ cultural_map with no runs row of their own; a failure there is logged and carrie
 stops detect. Those four builds (spread, agent_views, news, item_centroids) have no runs row of their own, so the
 detect runs row names each one that failed, with its error, under view_failures in its counts ({} when none failed)
 and the job logs one line naming them; the detect run still reads 'ok'. Before aggregating the run
-date, any of the three days before it that has collection_health rows but no ok aggregate run is aggregated
-first, each with its own runs row; stats, coaction and state run for the run date only.
+date, any of the three days before it that has collection_health rows but no ok aggregate run, or whose clusters
+landed after its aggregate started, is aggregated first and then series tested, each with its own runs row, so
+Rising reads tests of the recovered counts; coaction and state run for the run date only.
 A day whose understand run is partial with cluster_stack_failed (its clusterer produced nothing) still runs: state
 judges no topic items that day, the detect counts carry topics_failed with the plain-words data_issue, and
 every other item is judged as usual.
@@ -435,13 +436,19 @@ def run(client, d, *, chain, rule_version=RULE_VERSION, core=sqlrun.CORE, agent=
         late_clusters = sqlrun.query(client, LATE_CLUSTER_DAYS_SQL,
                                      {"d": d, "n": CATCH_UP_DAYS}, core=core, agent=agent)
         counts["catch_up"] = {}
-        for m in sorted({r["day"] for r in missed} | {r["day"] for r in late_clusters}):
+        recovered = sorted({r["day"] for r in missed} | {r["day"] for r in late_clusters})
+        for m in recovered:
             counts["catch_up"][m.isoformat()] = _step(
                 client, "aggregate", m, agent,
                 lambda rid, m=m: aggregate.run_aggregate(client, m, rid, rule_version, core, agent))
         counts["aggregate"] = _step(client, "aggregate", d, agent,
                                     lambda rid: aggregate.run_aggregate(client, d, rid, rule_version, core, agent))
         counts["item_centroids"] = run_centroids_step(client, d, core, agent)
+        # Rising reads the series tests of the days before d (state.sql sig_days3), so each recovered day is tested
+        # again from its recovered counts, oldest first, before d is.
+        counts["catch_up_series_test"] = {m.isoformat(): _step(client, "stats", m, agent, lambda rid, m=m: {
+            "series_test": stats.run_stats(client, m, rid, rule_version, core=core, agent=agent)})["series_test"]
+            for m in recovered}
         counts["series_test"] = _step(client, "stats", d, agent, lambda rid: {
             "series_test": stats.run_stats(client, d, rid, rule_version, core=core, agent=agent)})["series_test"]
         counts["coaction"] = run_coaction_step(client, d, rule_version, core, agent)

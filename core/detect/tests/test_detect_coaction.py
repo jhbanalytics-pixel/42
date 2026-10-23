@@ -740,7 +740,9 @@ def test_job_runs_coaction_before_state_under_its_own_run(con):
     assert json.loads(rows[0]["counts"]) == {**counts["coaction"], "model_usd": 0.0}
     # the runs rows only: the locality step also streams its verification rows into item_locality_verified
     stages = [r["stage"] for table, rs in client.inserted if table.endswith(".runs") for r in rs]
-    assert stages == ["aggregate"] * 4 + ["stats", "coaction", "locality", "breakout", "watch", "seeds", "forecast"]  # 3 catch-up days, then d
+    # 3 catch-up days, then d, each aggregated and then series tested
+    assert stages == (["aggregate"] * 4 + ["stats"] * 4
+                      + ["coaction", "locality", "breakout", "watch", "seeds", "forecast"])
     posts_at = client.sql.index(sqlrun.render(coaction.posts_sql(), "core", "agent"))
     state_at = next(i for i, s in enumerate(client.sql) if "INSERT INTO" in s and "item_state" in s)
     assert posts_at < state_at
