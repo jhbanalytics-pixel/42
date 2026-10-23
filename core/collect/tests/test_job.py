@@ -140,9 +140,17 @@ class FakeTable:
 
 
 def stronger_geo(stored, row):
-    """The posts MERGE's geo rule (writers.FILLS_GEO): a known reading fills an empty geo or replaces a weaker one."""
-    return row["geo_market"] is not None and (
-        stored["geo_market"] is None or row["geo_confidence"] > (stored["geo_confidence"] or 0))
+    """The posts MERGE's geo rule (writers.FILLS_GEO): a known reading fills an empty geo or replaces a weaker one, and
+    an equal one naming another market, or a conflict (no geo_market, a confidence) at least as strong, clears it."""
+    if (row["geo_confidence"] or 0) < writers.GEO_KNOWN or (stored["geo_market"] is None and row["geo_market"] is None):
+        return False
+    return stored["geo_market"] is None or row["geo_confidence"] > (stored["geo_confidence"] or 0) or (
+        row["geo_confidence"] == stored["geo_confidence"] and row["geo_market"] != stored["geo_market"])
+
+
+def written_geo(row):
+    """The geo a MERGE writes from a source row (writers.SETS_GEO): a conflict's confidence is never stored."""
+    return {k: None if row["geo_market"] is None else row[k] for k in writers.GEO}
 
 
 class FakeBQ:
@@ -216,7 +224,7 @@ class FakeBQ:
             for row in (s.struct_values for s in params["rows"].values):  # the backfill's geo fill
                 post = self.posts.get(row["post_id"])
                 if post is not None and stronger_geo(post, row):
-                    post.update({k: row[k] for k in writers.GEO})
+                    post.update(written_geo(row))
             return FakeJob()
         if sql.lstrip().upper().startswith("MERGE"):
             rows = [s.struct_values for s in params["rows"].values]
@@ -224,13 +232,13 @@ class FakeBQ:
             assert len(ids) == len(set(ids)), "a MERGE source may hold each post_id once"
             for row in rows:
                 if row["post_id"] not in self.posts:
-                    self.posts[row["post_id"]] = dict(row)
+                    self.posts[row["post_id"]] = dict(row, **written_geo(row))
                 else:
                     post = self.posts[row["post_id"]]
                     if any(row[k] is not None for k in ("views", "likes", "comments", "shares")):
                         post.update({k: row[k] for k in writers.METRICS})
                     if stronger_geo(post, row):
-                        post.update({k: row[k] for k in writers.GEO})
+                        post.update(written_geo(row))
             return FakeJob()
         if "MAX(c.pull_seq)" in sql:
             return FakeJob(self.pulls)

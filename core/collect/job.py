@@ -2047,9 +2047,9 @@ def print_backfill_plan(since, until):
     else:
         print("  creators write is off (writers.CREATORS_WRITE) until lane L2's readers join creators on platform "
               "too: creators are parsed and counted, not written")
-    print("  write: the posts geo fill MERGE (geo_market, geo_confidence, geo_source only where the stored "
-          f"geo_market is NULL and the new geo_confidence is at least {writers.GEO_KNOWN}; no INSERT, nothing "
-          "removed)")
+    print("  write: the posts geo fill MERGE (geo_market, geo_confidence, geo_source only where the new "
+          f"geo_confidence is at least {writers.GEO_KNOWN} and the stored geo_market is NULL or weaker, or as strong "
+          "and another market, which leaves it unknown; no INSERT, nothing removed)")
     print("plan only: no network, no BigQuery, no SocialCrawl call")
 
 

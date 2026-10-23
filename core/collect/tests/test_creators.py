@@ -376,6 +376,74 @@ def test_later_direct_region_upgrades_a_profile_location_in_either_order():
     assert geo_of(bq.posts["p"]) == region
 
 
+class DuckBQ:
+    """Runs the posts MERGE and the geo fill exactly as writers builds them, on DuckDB, with their @rows parameter."""
+
+    def __init__(self):
+        self.con = posts_con()
+
+    def query(self, sql, job_config):
+        [param] = job_config.query_parameters
+        types = writers.POST_TYPES if "WHEN NOT MATCHED" in sql else writers.GEO_TYPES
+        rows = [{k: getattr(v, "values", v) for k, v in s.struct_values.items()} for s in param.values]
+        duck_merge(self.con, sql, "posts", types, rows)
+        return type("Job", (), {"result": lambda self: []})()
+
+
+KE, NG, ZA = ("KE", 0.8, "home_market"), ("NG", 0.8, "home_market"), ("ZA", 0.9, "ext_region")
+UNKNOWN = (None, None, None)
+
+
+def test_equal_readings_that_disagree_leave_a_post_unknown_in_either_order():
+    for first, second in ((KE, NG), (NG, KE)):
+        [row] = writers.dedupe_posts([post("p", first, views=1), post("p", second)])
+        assert geo_of(row) == UNKNOWN
+        for stored, later in (([first], [second]), ([first], [first, second]), ([second], [first, second])):
+            bq = DuckBQ()
+            writers.merge_posts(bq, [post("p", g, views=1) for g in stored])
+            writers.merge_posts(bq, [post("p", g) for g in later])
+            assert posts_table(bq.con) == {"p": UNKNOWN + (1,)}
+            bq = DuckBQ()
+            writers.merge_posts(bq, [post("p", g, views=1) for g in stored])
+            writers.fill_geo(bq, [post("p", g) for g in later])
+            assert posts_table(bq.con) == {"p": UNKNOWN + (1,)}
+    bq = DuckBQ()
+    writers.merge_posts(bq, [post("new", KE, views=1), post("new", NG)])
+    assert posts_table(bq.con) == {"new": UNKNOWN + (1,)}
+
+
+def test_equal_readings_that_agree_keep_the_location():
+    [row] = writers.dedupe_posts([post("p", KE, views=1), post("p", KE)])
+    assert geo_of(row) == KE
+    bq = DuckBQ()
+    writers.merge_posts(bq, [post("p", KE, views=1)])
+    writers.merge_posts(bq, [post("p", KE)])
+    writers.fill_geo(bq, [post("p", KE), post("p", KE)])
+    assert posts_table(bq.con) == {"p": KE + (1,)}
+
+
+def test_a_stronger_reading_wins_over_a_conflict_and_a_weaker_one_does_not():
+    weaker = ("ZA", 0.7, "place_mention")
+    for rows in ([KE, NG, ZA], [ZA, KE, NG], [KE, ZA, NG]):
+        [row] = writers.dedupe_posts([post("p", g, views=1) for g in rows])
+        assert geo_of(row) == ZA
+    [row] = writers.dedupe_posts([post("p", g, views=1) for g in (KE, NG, weaker)])
+    assert geo_of(row) == UNKNOWN
+    for write in (writers.merge_posts, writers.fill_geo):
+        bq = DuckBQ()
+        writers.merge_posts(bq, [post("p", KE, views=1)])
+        write(bq, [post("p", NG), post("p", weaker)])
+        assert posts_table(bq.con) == {"p": UNKNOWN + (1,)}
+        write(bq, [post("p", ZA)])
+        assert posts_table(bq.con) == {"p": ZA + (1,)}
+        write(bq, [post("p", KE), post("p", NG)])
+        assert posts_table(bq.con) == {"p": ZA + (1,)}
+    bq = DuckBQ()
+    writers.merge_posts(bq, [post("p", ("ZA", 0.7, "place_mention"), views=1)])
+    writers.merge_posts(bq, [post("p", KE), post("p", NG)])
+    assert posts_table(bq.con) == {"p": UNKNOWN + (1,)}
+
+
 def sighting(pid, **kw):
     row = post(pid, views=kw.pop("views", None))
     row.update({"post_date": "2026-09-28", **kw})
