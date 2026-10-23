@@ -413,10 +413,65 @@ test('a waiting entry uses its own label first, then the watch list, then A watc
   await mount([...standard().slice(0, 3), ['/api/alerts', reply(200, waiting)]]);
   const rows = [...host.querySelectorAll('.a42-waiting li')].map((li) => text(li));
   expect(rows).toEqual([
-    'Own words for amapiano: Waiting for tone detection',
-    '@fixture.creator: Waiting for tone detection',
+    'Own words for amapiano (South Africa): Waiting for tone detection',
+    '@fixture.creator (Nigeria): Waiting for tone detection',
     'A watch: Waiting for creator views detection',
   ]);
+});
+
+/* Audit W22-03: a waiting watch in another market showed under the picked
+   market, with no market named. */
+const SPLIT_WAIT = {date: '2026-09-30', alerts: [], waiting: [
+  {watch_id: 'w_1', label: '#amapiano', market: 'ZA', waiting: 'Waiting for a second detect run to compare against'},
+  {watch_id: 'w_3', label: '@fixture.creator', market: 'NG', waiting: 'Waiting for creator views detection'},
+]};
+
+test('waiting entries follow the picked market, and All names each market', async () => {
+  await mount([...standard().slice(0, 3), ['/api/alerts', reply(200, SPLIT_WAIT)]], {region: 'ZA'});
+  let rows = [...host.querySelectorAll('.a42-waiting li')].map((li) => text(li));
+  expect(rows).toEqual(['#amapiano: Waiting for a second detect run to compare against']);
+  flushSync(() => root.render(<AlertsPage42 region="ALL" />));
+  await settle();
+  rows = [...host.querySelectorAll('.a42-waiting li')].map((li) => text(li));
+  expect(rows).toEqual([
+    '#amapiano (South Africa): Waiting for a second detect run to compare against',
+    '@fixture.creator (Nigeria): Waiting for creator views detection',
+  ]);
+});
+
+test('a waiting entry without its own market takes its watch market', async () => {
+  await mount(standard(), {region: 'ZA'});
+  expect(host.querySelector('.a42-waiting')).toBeNull();
+  expect(text(host.querySelector('[data-section="alerts"]'))).not.toContain('Waiting for creator views detection');
+});
+
+/* Audit W22-04: pausing, resuming or adding a watch left today's alerts as
+   they were read before the change. */
+test('a confirmed pause, resume or new watch reads the alerts again', async () => {
+  let answer = reply(200, ALERTS);
+  await mount([...standard().slice(0, 3), ['/api/alerts', () => answer]]);
+  const alertReads = () => calls.filter((c) => c.url === '/api/alerts').length;
+  expect(alertReads()).toBe(1);
+  answer = reply(200, {date: '2026-09-30', alerts: []});
+  click(button(row('w_1'), 'Pause'));
+  await settle();
+  expect(alertReads()).toBe(2);
+  expect(text(host.querySelector('[data-section="alerts"]'))).toContain('No alerts today.');
+  click(button(row('w_2'), 'Resume'));
+  await settle();
+  expect(alertReads()).toBe(3);
+  const form = host.querySelector('[data-section="add"] form');
+  typeInto(form.querySelector('input[name="value"]'), '#newwatch');
+  click(button(form, 'Watch'));
+  await settle();
+  expect(alertReads()).toBe(4);
+});
+
+test('a pause that is not confirmed does not read the alerts again', async () => {
+  await mount([['/api/watches/w_1/pause', reply(500, {error: 'internal', message: 'The watch could not be saved; try again.'})], ...standard().slice(1)]);
+  click(button(row('w_1'), 'Pause'));
+  await settle();
+  expect(calls.filter((c) => c.url === '/api/alerts')).toHaveLength(1);
 });
 
 test('a 401 from both reads hands the reader to the passcode flow once', async () => {

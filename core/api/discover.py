@@ -703,7 +703,7 @@ def build_alerts(store, watches, date=None):
     """Alerts for the latest good detect run on or before `date`, against the good run before it (contract 10.5).
 
     Each alert carries the item's Discover card with watch_id set; rules whose data does not exist yet are
-    listed under waiting with the watch's label."""
+    listed under waiting with the watch's label and market."""
     run = _run(store, until=date)
     cards, _ = _cards(store, run, "all")
     before = store.latest_detect_run(
@@ -715,7 +715,8 @@ def build_alerts(store, watches, date=None):
     out, waiting = [], []
     for a in fired:
         if "waiting" in a:
-            waiting.append({"watch_id": a["watch_id"], "label": labels.get(a["watch_id"]), "waiting": a["waiting"]})
+            waiting.append({"watch_id": a["watch_id"], "label": labels.get(a["watch_id"]), "market": a.get("market"),
+                            "waiting": a["waiting"]})
         else:
             card = dict(by_item[(a["item_id"], a["market"])], watch_id=a["watch_id"])
             label = alerts._written_title(card, run["run_date"], a["market"]) or a["label"]
