@@ -65,3 +65,16 @@ test('a day whose record was read shows no Try again', () => {
   flushSync(() => root.unmount());
   host.remove();
 });
+
+/* Audit W26-02: an earlier day's roster is read from today's settings, and
+   the page says so above the roster. */
+test('an earlier day says its roster is today\'s collection settings', () => {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  const note = 'This roster is the collection settings as they stand today.';
+  flushSync(() => root.render(<FieldworkPage payload={{...clone(days.ready), plan_note: note}} />));
+  expect(host.querySelector('[data-plan-note]')?.textContent).toBe(note);
+  flushSync(() => root.unmount());
+  host.remove();
+});

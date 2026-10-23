@@ -146,6 +146,9 @@ function FieldworkBody({view, onDate, onRetry}){
     <>
       <DaySummary data={data} onDate={onDate} />
       {data.health_note && <p className="fieldwork-state__note fieldwork-state__note--notice" role="note">{data.health_note}</p>}
+      {view.state === 'ready' && typeof data.plan_note === 'string' && data.plan_note && (
+        <p className="fieldwork-state__note fieldwork-state__note--notice" role="note" data-plan-note="">{data.plan_note}</p>
+      )}
       {/* The roster stands without the day's record, which a second read may still bring. */}
       {view.state === 'ready' && data.health_state === 'unavailable' && onRetry && (
         <button type="button" className="fieldwork-button" onClick={onRetry}>Try again</button>

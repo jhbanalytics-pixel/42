@@ -368,3 +368,11 @@ def test_old_shape_is_read_from_the_accounts_planned_so_a_failed_rotation_does_n
     for code, (detail, calls, credits) in OLD_SHAPE_AT_3580ECF.items():
         row = source(out, code, DESK)
         assert (row["name"], row["detail"], row["planned_calls"]) == (OLD_NAME, detail, calls)
+
+
+def test_an_earlier_day_says_its_roster_is_todays_settings(out):
+    # Audit W26-02: no plan is kept per collection run, so an earlier day's roster is today's settings and says so.
+    assert out["date"] < out["today"]
+    assert out["plan_note"] == fieldwork.PLAN_IS_CURRENT
+    same_day = fieldwork.build_fieldwork(FixtureStore(), "2026-10-02", now=NOW)
+    assert same_day["plan_note"] is None
