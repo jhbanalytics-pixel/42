@@ -20,6 +20,7 @@ import {DESK_FAILURE} from './fixtures/42-capability-routes/_desk.js';
 import {ENDPOINT as QUESTION_ENDPOINT, ROUTE as QUESTION_ROUTE} from './fixtures/42-capability-routes/_question.js';
 import {ARTIFACT_TITLE, THIN_GAP} from './fixtures/42-capability-routes/investigation_build_review.js';
 import {installFixtures, readManifest, shellFixtures} from './support/capability-harness.mjs';
+import {FAILED_MESSAGE as TODAY_FAILED_MESSAGE, THIN_BANNER as TODAY_THIN_BANNER} from './fixtures/42-capability-routes/today_briefing.js';
 
 /* Quiet register, 23 Sept 2026: the run window 2026-08-18 to 2026-08-24 as
    package 2.0.20 writes it for a reader. */
@@ -99,46 +100,44 @@ const desk = {
 };
 
 const CASES = {
+  /* Today on the 42 API (audit W28-03): the matrix reads /api/today and the
+     page's own frames, not the retired desk briefing. */
   today_briefing: {
     async populated(main){
-      await expect(main.locator('.instrument-briefing[data-briefing-state="ready"]')).toBeVisible();
-      /* Quiet register, 23 Sept 2026: package 2.0.21 names the receipts
-         chapter plainly, "Key evidence" where it said "Decisive receipts",
-         and drops the "ready to review" mark; the ready state is still read
-         off data-briefing-state above. */
-      await expect(main).toContainText('Key evidence');
-      await expect(main).not.toContainText('Decisive receipts');
-      await expect(main).not.toContainText(/ready to review/i);
-      await expect(main.locator(`[data-run-date="${RUN.signal_date}"]`)).toHaveCount(1);
-      /* Quiet register, 23 Sept 2026: the run date is read, so it is written
-         as a reader says it; the ISO date stays on data-run-date above. */
-      await expect(main).toContainText('Run 12 Sept 2026.');
-      await expect(main).not.toContainText(`Run ${RUN.signal_date}`);
-      await desk.populatedChart(main, async () => {
-        await expect(main.getByRole('button', {name: /^Compare /}).first()).toBeVisible();
-      });
-      const open = main.getByRole('link', {name: /^Open Balcony mix/});
-      await expect(open).toBeVisible();
-      await expect(open).toHaveAttribute('href', /^#\/topic\/sig_/);
+      await expect(main.locator('h1[data-today-loaded]')).toBeVisible();
+      const titles = main.locator('[data-card] a.tc-title-link');
+      expect(await titles.count()).toBeGreaterThan(0);
+      await expect(titles.first()).toHaveAttribute('href', /^#\/t\/[^?]+\?market=ZA&date=2026-09-30$/);
+      await expect(main).not.toContainText('Today could not load');
     },
-    /* Quiet register, 23 Sept 2026: package 2.0.21 names the receipts chapter
-       "Key evidence", so its absence is read under that name. */
-    async loading(main){ await desk.loading(main); await expect(main).not.toContainText('Key evidence'); },
-    async empty(main){ await desk.empty(main, 'Open Discover'); },
+    async loading(main){
+      await expect(main.getByText('Loading Today')).toBeVisible();
+      await expect(main.locator('[data-card]')).toHaveCount(0);
+    },
+    async empty(main){
+      await expect(main.locator('h1[data-today-loaded]')).toBeVisible();
+      await expect(main.locator('[data-card]')).toHaveCount(0);
+      await expect(main).toContainText('No trend cleared our checks in South Africa');
+      await expect(main).not.toContainText('Today could not load');
+    },
     async thin(main){
-      await expect(main).toContainText(/thin evidence, hypothesis only/i);
-      await expect(main).toContainText(DESK_THIN_FLOOR);
-      await expect(main).toContainText('A response is withheld until the evidence is ready.');
+      await expect(main.locator('h1[data-today-loaded]')).toBeVisible();
+      await expect(main).toContainText(TODAY_THIN_BANNER);
     },
-    async stale(main){ await desk.stale(main); },
-    async failed(main){ await desk.failed(main); await expect(main.getByRole('link', {name: /^Open /})).toHaveCount(0); },
+    async stale(main){
+      await expect(main.locator('[data-today-earlier]')).toContainText('Earlier brief: 30 September 2026. This is not today');
+    },
+    async failed(main){
+      await expect(main.getByRole('heading', {name: 'Today could not load'})).toBeVisible();
+      await expect(main).toContainText(TODAY_FAILED_MESSAGE);
+      await expect(main.getByRole('button', {name: 'Try again'})).toBeVisible();
+      await expect(main.locator('[data-card]')).toHaveCount(0);
+    },
     async held(main){
-      await expectStateFrame(main, {title: 'Held until the evidence authority is checked', reason: 'evidence_authority_unchecked'});
-      await expect(main).toContainText('Source independence has not been checked by the engine.');
-      /* Quiet register, 23 Sept 2026: package 2.0.21 names the receipts
-         chapter "Key evidence", so its absence is read under that name. */
-      await expect(main).not.toContainText('Key evidence');
-      await expect(main.getByRole('link', {name: /^Open Balcony mix/})).toHaveCount(0);
+      await expect(main.locator('h1[data-today-loaded]')).toBeVisible();
+      await expect(main.locator('[data-card]')).toHaveCount(0);
+      await expect(main).toContainText(/are held back|is held back/);
+      await expect(main.locator('details').filter({hasText: 'Held back'}).first()).toBeVisible();
     },
   },
   discovery_exploration: {
