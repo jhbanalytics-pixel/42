@@ -150,19 +150,30 @@ CLUSTER_MARKETS = ("za", "ng", "ke", "pan")  # core.understand.job.CLUSTER_MARKE
 
 def degraded_writes(counts):
     """The writes an understand run failed soft on, from its counts: "embed" when it has embed_error (it embedded
-    nothing), "enrich" when it has enrich_error, then "cluster:<market>" for each market whose cluster counts carry
-    an error. Empty for a clean run."""
+    nothing), "embed_rows:<n>" when the embedding model failed on n rows (failed; those posts have no vector),
+    "enrich" when it has enrich_error, then "cluster:<market>" for each market whose cluster counts carry an error and
+    "label_net:<market>:<net_error>" for each market whose label net fell back to neutral labels. Empty for a clean
+    run."""
     counts = counts if isinstance(counts, dict) else {}
     cluster = counts.get("cluster") if isinstance(counts.get("cluster"), dict) else {}
-    return (["embed"] if counts.get("embed_error") else []) + (["enrich"] if counts.get("enrich_error") else []) + [
-        f"cluster:{m}" for m in CLUSTER_MARKETS if isinstance(cluster.get(m), dict) and cluster[m].get("error")]
+    failed = counts.get("failed")
+    rows = int(failed) if isinstance(failed, (int, float)) and not isinstance(failed, bool) and failed > 0 else 0
+    return ((["embed"] if counts.get("embed_error") else []) + ([f"embed_rows:{rows}"] if rows else [])
+            + (["enrich"] if counts.get("enrich_error") else [])
+            + [f"cluster:{m}" for m in CLUSTER_MARKETS if isinstance(cluster.get(m), dict) and cluster[m].get("error")]
+            + [f"label_net:{m}:{cluster[m].get('net_error') or 'unknown'}" for m in CLUSTER_MARKETS
+               if isinstance(cluster.get(m), dict) and cluster[m].get("net_failed") is True])
 
 
 # degraded_writes in SQL, over the latest runs row's counts; WITH OFFSET keeps the order above.
+_FAILED_ROWS = "SAFE_CAST(JSON_VALUE(r.counts, '$.failed') AS INT64)"
 DEGRADED_SQL = "ARRAY(SELECT w FROM UNNEST([{}]) AS w WITH OFFSET o WHERE w IS NOT NULL ORDER BY o)".format(", ".join(
     ["IF(JSON_VALUE(r.counts, '$.embed_error') IS NOT NULL, 'embed', NULL)",
+     f"IF({_FAILED_ROWS} > 0, CONCAT('embed_rows:', CAST({_FAILED_ROWS} AS STRING)), NULL)",
      "IF(JSON_VALUE(r.counts, '$.enrich_error') IS NOT NULL, 'enrich', NULL)"]
-    + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.error') IS NOT NULL, 'cluster:{m}', NULL)" for m in CLUSTER_MARKETS]))
+    + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.error') IS NOT NULL, 'cluster:{m}', NULL)" for m in CLUSTER_MARKETS]
+    + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.net_failed') = 'true', CONCAT('label_net:{m}:', "
+       f"IFNULL(JSON_VALUE(r.counts, '$.cluster.{m}.net_error'), 'unknown')), NULL)" for m in CLUSTER_MARKETS]))
 
 
 def viewer_record(record):

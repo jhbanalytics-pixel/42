@@ -58,7 +58,9 @@ and enrichment writes such rows) is recorded in counts only: embed gives index "
 in index_unindexable_rows. The run stays ok and is not partial, and nothing is printed, since nothing reads the index
 (tvf_search_posts scores exact cosine).
 
-An ok run with enrich_error, or with any other error under a market in cluster, is a degraded run: Coverage reads those
+An ok run with enrich_error, with any other error under a market in cluster, with rows the embedding model failed on
+(failed; those posts get no vector) or with a market whose label net fell back to neutral labels (net_failed, with
+net_error), is a degraded run: Coverage reads those
 counts and shows the understand stage as degraded with what failed (core/api/store.py, runs_of_day), while the
 status stays ok and detect still starts, so the morning brief is never held for it. A run whose embed step sent
 no window (retry_capped or spend_unknown, with nothing embedded) says so in embed_error, so the day with no
@@ -207,16 +209,24 @@ def embed_not_run(counts) -> str | None:
 def degraded_reasons(counts) -> dict:
     """The steps a run failed soft on, each with its error text, read back from the run's own counts: "embed" when it
     has embed_error, "enrich" when it has enrich_error, then "cluster:<market>" for each market whose counts carry an
-    error. The names are the ones core/api/store.py degraded_writes uses for enrich and cluster."""
+    error, then "label_net:<market>" with its net_error for each market whose label net fell back to neutral labels.
+    "embed_rows" names the rows the embedding model failed on (failed), which get no vector. The names are the ones
+    core/api/store.py degraded_writes uses, which also carries the row count and the net_error in its codes."""
     out = {}
     if counts.get("embed_error"):
         out["embed"] = counts["embed_error"]
+    failed = counts.get("failed")
+    if isinstance(failed, (int, float)) and not isinstance(failed, bool) and failed > 0:
+        out["embed_rows"] = f"{int(failed)} post{'' if failed == 1 else 's'} not embedded"
     if counts.get("enrich_error"):
         out["enrich"] = counts["enrich_error"]
     cluster = counts.get("cluster") if isinstance(counts.get("cluster"), dict) else {}
     for market in CLUSTER_MARKETS:
         if isinstance(cluster.get(market), dict) and cluster[market].get("error"):
             out[f"cluster:{market}"] = cluster[market]["error"]
+    for market in CLUSTER_MARKETS:
+        if isinstance(cluster.get(market), dict) and cluster[market].get("net_failed") is True:
+            out[f"label_net:{market}"] = cluster[market].get("net_error") or "unknown"
     return out
 
 

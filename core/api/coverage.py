@@ -44,6 +44,11 @@ SCORECARD = {
 MARKET_ORDER = ("ZA", "NG", "KE")
 # What a run that finished ok could not write (store.degraded_writes, from the understand row's counts).
 DEGRADED_WORDS = {"embed": "Embedding", "enrich": "Enrichment"}
+# Why a market's label net fell back to neutral labels (core/understand/cluster.py label_net's net_error); any other
+# value is the exception's class name and is shown as it is.
+NET_ERROR_WORDS = {"cap": "the daily model cap was reached", "malformed": "the label check's answer was malformed",
+                   "spend_unknown": "the day's model spend could not be read",
+                   "day_changed": "the day changed before the label check"}
 CLUSTER_WORDS = {"pan": "the three markets pooled"}
 
 
@@ -307,12 +312,20 @@ def _model_spend(runs, has_column, cap):
 
 
 def _degraded(codes):
-    """counts.degraded in words ("Enrichment", "Clustering for Nigeria"), or None when nothing failed."""
+    """counts.degraded in words ("Enrichment", "Clustering for Nigeria", "Embedding: 2 posts not embedded",
+    "Topic labels for Kenya: neutral labels used (...)"), or None when nothing failed."""
     out = []
     for code in codes if isinstance(codes, (list, tuple)) else []:
         step, _, market = str(code).partition(":")
         if step == "cluster" and market:
             out.append(f"Clustering for {CLUSTER_WORDS.get(market) or _label(market.upper())}")
+        elif step == "embed_rows" and market.isdigit():
+            n = int(market)
+            out.append(f"Embedding: {n} post{'' if n == 1 else 's'} not embedded")
+        elif step == "label_net" and market:
+            market, _, why = market.partition(":")
+            out.append(f"Topic labels for {CLUSTER_WORDS.get(market) or _label(market.upper())}: neutral labels used "
+                       f"({NET_ERROR_WORDS.get(why) or redact(why or 'unknown')})")
         else:
             out.append(DEGRADED_WORDS.get(code) or str(code))
     return out or None
