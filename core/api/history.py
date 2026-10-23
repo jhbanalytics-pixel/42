@@ -14,6 +14,7 @@ information. Every body is read through the suppression list as Today reads it (
 """
 import datetime as dt
 import json
+import re
 
 from core.api import fast, privacy
 from core.api.discover import BadRequest, NotReady, _run, figure
@@ -167,22 +168,32 @@ def build_history_search(store, q, market=None):
         for i in items]}, privacy.read_hidden(store))
 
 
+ASK_CURSOR_ID = re.compile(r"[A-Za-z0-9_-]{1,80}")
+
+
 def build_history_asks(store, limit=20, before=None, market=None):
     """market (ZA, NG or KE) keeps the asks about that market, as the header's market picker asks; None keeps all."""
     market = _market(market, optional=True)
     if not 1 <= limit <= MAX_ASKS:
         raise BadRequest(f"limit must be 1 to {MAX_ASKS}.")
     if before is not None:
+        # The cursor is the last listed ask's time and id ("<time>|<ask_id>"), since two asks can start in the same
+        # instant (audit W03-02); a cursor of a time alone, as pages before 23 October 2026 sent, still reads.
+        text, _, before_id = before.partition("|")
+        if before_id and not ASK_CURSOR_ID.fullmatch(before_id):
+            raise BadRequest("before must be a cursor this list returned.")
         try:
-            at = dt.datetime.fromisoformat(before)
+            at = dt.datetime.fromisoformat(text)
         except ValueError as exc:
             raise BadRequest("before must be an ISO date and time.") from exc
-        before = (at if at.tzinfo else at.replace(tzinfo=SAST)).isoformat()
+        at = (at if at.tzinfo else at.replace(tzinfo=SAST)).isoformat()
+        before = (at, before_id) if before_id else at
     rows = store.ask_history(limit, before, market) if market else store.ask_history(limit, before)
+    last = rows[-1] if len(rows) == limit else None
     asks = [{"ask_id": r["ask_id"], "question": r.get("question"), "at": str(r["asked_at"]), "status": r.get("status"),
              "answer_status": r.get("answer_status"), "market": r.get("market")} for r in rows]
     asks = without_hidden(asks, privacy.read_hidden(store))  # a question can name a hidden person (core/api/privacy.py)
-    return {"asks": asks, "next_before": asks[-1]["at"] if len(asks) == limit else None}
+    return {"asks": asks, "next_before": f"{last['asked_at']}|{last['ask_id']}" if last else None}
 
 
 def build_history_briefs(store, limit=30, before=None, market=None):
