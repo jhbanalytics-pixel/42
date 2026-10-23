@@ -416,7 +416,7 @@ Series: `posts a day` per subject for each day of the window, by first-sighting 
 
 ## 12. Version 4: creators, communities and history (added 29 September 2026)
 
-Read only on f42-api, 2 GB bytes cap, every number a Figure. Communities are defined by shared interests and interaction only; nothing here infers age. Where trust and coverage conflict, 42 publishes less (TRUST.md), so the rules below keep named people apart from sensitive topics and from coordination or payment signals. Text search never calls a model from f42-api: it matches cultural_map labels and aliases in SQL.
+Read only on f42-api, 2 GB bytes cap, every number a Figure. Communities are defined by shared topics only (each pair shares three or more items, five or more creators to a group); interaction is not measured yet; nothing here infers age. Where trust and coverage conflict, 42 publishes less (TRUST.md), so the rules below keep named people apart from sensitive topics and from coordination or payment signals. Text search never calls a model from f42-api: it matches cultural_map labels and aliases in SQL.
 
 ### 12.1 Three rules for anything that names a person
 
