@@ -28,6 +28,7 @@ const TALLY = [
   ['delivered', 'delivered'],
   ['no_record', 'with no record'],
   ['waiting', 'not recorded yet'],
+  ['unavailable', 'could not be read'],
   ['off', 'off'],
 ];
 const MEMBERS_SHOWN = 6;
@@ -145,6 +146,10 @@ function FieldworkBody({view, onDate, onRetry}){
     <>
       <DaySummary data={data} onDate={onDate} />
       {data.health_note && <p className="fieldwork-state__note fieldwork-state__note--notice" role="note">{data.health_note}</p>}
+      {/* The roster stands without the day's record, which a second read may still bring. */}
+      {view.state === 'ready' && data.health_state === 'unavailable' && onRetry && (
+        <button type="button" className="fieldwork-button" onClick={onRetry}>Try again</button>
+      )}
       {view.state === 'unavailable'
         ? <div className="fieldwork-problem">
             <p className="fieldwork-state__note" role="alert">{view.message}</p>
@@ -253,9 +258,9 @@ function CreditWords({credits}){
 
 /* Charts, 3 October 2026: every source in every market as one square,
    grouped by how it did on the day, so trouble shows before any table. */
-const STATE_TONES = {delivered: 'ink', partial: 'soft', failed: 'alert', no_record: 'open', waiting: 'open', off: 'open'};
+const STATE_TONES = {delivered: 'ink', partial: 'soft', failed: 'alert', no_record: 'open', waiting: 'open', unavailable: 'open', off: 'open'};
 function SourceStates({markets}){
-  const order = ['delivered', 'partial', 'failed', 'no_record', 'waiting', 'off'];
+  const order = ['delivered', 'partial', 'failed', 'no_record', 'waiting', 'unavailable', 'off'];
   const words = Object.fromEntries(TALLY);
   return (
     <UnitRows title="How every source did" data="data-fieldwork-states" unit="sources"

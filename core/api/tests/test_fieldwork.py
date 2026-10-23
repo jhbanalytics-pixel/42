@@ -89,6 +89,10 @@ def test_an_unreadable_health_view_is_unavailable_not_a_500():
     assert out["date"] == "2026-10-02"
     assert out["credits"]["state"] == "unavailable" and out["credits"]["spent"] is None
     assert all(s["status"] in ("unavailable", "off", "waiting") for m in out["markets"] for s in m["sources"])
+    # Audit W26-04: the tally counts the sources whose record could not be read.
+    for m in out["markets"]:
+        assert m["counts"]["unavailable"] == sum(1 for s in m["sources"] if s["status"] == "unavailable")
+    assert any(m["counts"]["unavailable"] > 0 for m in out["markets"])
 
 
 def test_a_health_series_the_plan_does_not_name_still_shows():

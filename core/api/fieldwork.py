@@ -525,7 +525,7 @@ def build_fieldwork(store, date=None, *, now=None):
             rank = {g: i for i, (g, _) in enumerate(GROUPS)}
             sources.sort(key=lambda s: rank.get(s["group"], len(rank)))
             counts = {k: sum(1 for s in sources if s["status"] == k)
-                      for k in ("delivered", "partial", "failed", "no_record", "waiting", "off")}
+                      for k in ("delivered", "partial", "failed", "no_record", "waiting", "off", "unavailable")}
             markets.append({"market": m, "label": _label(m), "sources": sources, "counts": counts,
                             "planned_credits": sum(s["planned_credits"] for s in sources)})
         plan_hold = sum(r["credits"] for r in plan["rows"] if r.get("priced", True)) + plan["trends"]["credits"]
