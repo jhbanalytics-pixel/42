@@ -5,7 +5,8 @@ parameter. A new post is inserted with the fields of its first sighting; a known
 creator_id, text, hashtags and published_at where the stored row has none (FILLS_FIELDS), and
 takes the latest metric reading (a reading with no metric at all changes nothing), and takes the new geo
 while its stored geo_market is NULL or when the new geo is stronger evidence (a higher geo_confidence, the
-order core.detect.geo.geo_for_post ranks its sources in). The MERGE has no matched-row removal clause.
+order core.detect.geo.geo_for_post ranks its sources in); a reading as strong as the stored one that names another
+market leaves the post unknown. The MERGE has no matched-row removal clause.
 
 creators: one MERGE on (platform, creator_id) per batch: a new creator is inserted; a known one moves handle,
 display_name, followers, verified, profile_location and last_seen, never first_seen (CREATORS_MERGE_SQL).
@@ -129,9 +130,15 @@ DATES_POST = ("T.published_at IS NULL AND S.published_at IS NOT NULL AND "
 HAS_METRIC = "NOT (S.views IS NULL AND S.likes IS NULL AND S.comments IS NULL AND S.shares IS NULL)"
 # Geo is written only at core.detect.geo.KNOWN (0.7, what is_known and the A5 and G6 local_share count), so a
 # language guess at 0.3 never takes the empty slot a later known location would fill. A stored geo gives way only to
-# stronger evidence, a higher confidence in geo_for_post's order; an equal or weaker reading leaves it.
-FILLS_GEO = (f"S.geo_market IS NOT NULL AND S.geo_confidence >= {GEO_KNOWN}"
-             " AND (T.geo_market IS NULL OR S.geo_confidence > IFNULL(T.geo_confidence, 0))")
+# stronger evidence, a higher confidence in geo_for_post's order; a weaker reading leaves it, and so does an equal one
+# that agrees, while an equal one naming another market makes the post unknown. A source row with no geo_market and a
+# geo_confidence is such a conflict found within the batch (_settle_geo); its confidence is never written.
+FILLS_GEO = (f"S.geo_confidence >= {GEO_KNOWN} AND (T.geo_market IS NOT NULL OR S.geo_market IS NOT NULL)"
+             " AND (T.geo_market IS NULL OR S.geo_confidence > IFNULL(T.geo_confidence, 0)"
+             " OR (S.geo_confidence = T.geo_confidence AND IFNULL(S.geo_market != T.geo_market, TRUE)))")
+TAKES_GEO = "S.geo_market IS NOT NULL AND (T.geo_market IS NULL OR S.geo_confidence > IFNULL(T.geo_confidence, 0))"
+SETS_GEO = {g: f"IF({TAKES_GEO}, S.{g}, NULL)" for g in GEO}
+INSERTS_GEO = {"geo_confidence": "IF(S.geo_market IS NULL, NULL, S.geo_confidence)"}
 MERGE_SQL = (
     "MERGE `{table}` T\n"
     "USING (SELECT * FROM UNNEST(@rows)) S\n"
@@ -141,9 +148,9 @@ MERGE_SQL = (
     f"  post_date = IF({DATES_POST}, {_DAYS[0]}, T.post_date),\n"
     "  " + ", ".join("hashtags = IF(IFNULL(ARRAY_LENGTH(T.hashtags), 0) = 0, S.hashtags, T.hashtags)"
                      if n == "hashtags" else f"{n} = IFNULL(T.{n}, S.{n})" for n in FILLED) + ",\n"
-    "  " + ", ".join(f"{g} = IF({FILLS_GEO}, S.{g}, T.{g})" for g in GEO) + "\n"
+    "  " + ", ".join(f"{g} = IF({FILLS_GEO}, {SETS_GEO[g]}, T.{g})" for g in GEO) + "\n"
     "WHEN NOT MATCHED THEN INSERT (" + ", ".join(POST_TYPES) + ")\n"
-    "  VALUES (" + ", ".join(_source(n) for n in POST_TYPES) + ")"
+    "  VALUES (" + ", ".join(INSERTS_GEO.get(n) or _source(n) for n in POST_TYPES) + ")"
 )
 PUBLIC_FEED_COLUMNS = tuple(name for name in POST_TYPES if name != "post_id")
 PUBLIC_FEED_MERGE_SQL = (
@@ -165,7 +172,7 @@ GEO_FILL_SQL = (
     "USING (SELECT * FROM UNNEST(@rows)) S\n"
     "ON T.post_id = S.post_id\n"
     f"WHEN MATCHED AND {FILLS_GEO} THEN\n"
-    "  UPDATE SET " + ", ".join(f"{g} = S.{g}" for g in GEO)
+    "  UPDATE SET " + ", ".join(f"{g} = {SETS_GEO[g]}" for g in GEO)
 )
 
 # creators: keyed (platform, creator_id). A new creator is inserted; a known one takes each of CREATOR_UPDATES
@@ -276,10 +283,20 @@ def insert_post_items(bq, rows, batch=BATCH):
 
 def dedupe_posts(rows, markets=None):
     """One row per post_id: the first sighting's fields, the FILLED ones a later sighting supplies where the first had
-    none, each metric from the latest reading that has it, and the strongest known sighting's geo, the earliest among
-    equals. Geo below GEO_KNOWN is not written. markets maps a post_id to its first sighting's market: a published_at
-    found later sets post_date in that market (the day the first sighting would have given it), and without one only
-    where every market reads the same day; otherwise the first sighting's fallback day stays."""
+    none, each metric from the latest reading that has it, and the strongest known sighting's geo, or no geo when the
+    strongest sightings name different markets. Geo below GEO_KNOWN is not written. markets maps a post_id to its first
+    sighting's market: a published_at found later sets post_date in that market (the day the first sighting would have
+    given it), and without one only where every market reads the same day; otherwise the first sighting's fallback day
+    stays."""
+    out = _dedupe_posts(rows, markets)
+    for row in out:
+        if row["geo_market"] is None:
+            row["geo_confidence"] = None
+    return out
+
+
+def _dedupe_posts(rows, markets):
+    """dedupe_posts with a conflict's strength kept as geo_confidence, for the posts MERGE's FILLS_GEO."""
     markets = markets or {}
     out = {}
     for row in rows:
@@ -293,12 +310,20 @@ def dedupe_posts(rows, markets=None):
             # A sparser reading (a route that reports views only) updates what it read and keeps the rest.
             kept.update({m: row[m] for m in METRICS if row.get(m) is not None})
         _fill(kept, row, markets.get(row["post_id"]))
-        if row.get("geo_market") is not None and (
-                kept.get("geo_market") is None or row["geo_confidence"] > (kept.get("geo_confidence") or 0)):
-            # Stronger evidence wins whatever order it arrived in: a TikTok region (0.9) over a profile country
-            # (0.8) over a place in the text (0.7). An equal reading keeps the first one.
-            kept.update({g: row.get(g) for g in GEO})
+        if row.get("geo_market") is not None:
+            _settle_geo(kept, row)
     return list(out.values())
+
+
+def _settle_geo(kept, row):
+    """Take the known reading row into kept's geo. Stronger evidence wins whatever order it arrived in: a TikTok region
+    (0.9) over a profile country (0.8) over a place in the text (0.7). An equal reading that names another market
+    leaves no geo_market and keeps the confidence as the conflict's strength, so only stronger evidence settles it."""
+    strength = kept.get("geo_confidence")
+    if strength is None or row["geo_confidence"] > strength:
+        kept.update({g: row.get(g) for g in GEO})
+    elif row["geo_confidence"] == strength and row["geo_market"] != kept.get("geo_market"):
+        kept.update(geo_market=None, geo_source=None)
 
 
 def _fill(kept, row, market):
@@ -370,7 +395,7 @@ def _merge(bq, sql, rows, types, batch):
 
 def merge_posts(bq, rows, batch=BATCH, markets=None):
     """MERGE rows into posts, batch rows a statement. markets is dedupe_posts'. Returns the number of statements run."""
-    return _merge(bq, MERGE_SQL.format(table=table("posts")), dedupe_posts(rows, markets), POST_TYPES, batch)
+    return _merge(bq, MERGE_SQL.format(table=table("posts")), _dedupe_posts(rows, markets), POST_TYPES, batch)
 
 
 def dedupe_public_feed_posts(rows):
@@ -431,13 +456,13 @@ def _merge_public_feed_batches(bq, rows, batch, budget_bytes):
 
 
 def fill_geo(bq, rows, batch=BATCH):
-    """The backfill's geo fill on posts already stored: one row per post_id (the strongest known one, the first
-    among equals), and only posts whose stored geo_market is NULL or weaker change. Returns the statements run."""
+    """The backfill's geo fill on posts already stored: one row per post_id (the strongest known reading, or a
+    conflict when the strongest name different markets), and only posts whose stored geo_market is NULL, weaker, or
+    as strong and another market change. Returns the statements run."""
     located = {}
     for row in rows:
-        kept = located.get(row["post_id"])
-        if _known(row) and (kept is None or row["geo_confidence"] > kept["geo_confidence"]):
-            located[row["post_id"]] = {g: row.get(g) for g in GEO_TYPES}
+        if _known(row):
+            _settle_geo(located.setdefault(row["post_id"], {"post_id": row["post_id"]}), row)
     return _merge(bq, GEO_FILL_SQL.format(table=table("posts")), list(located.values()), GEO_TYPES, batch)
 
 
