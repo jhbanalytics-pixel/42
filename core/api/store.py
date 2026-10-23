@@ -1653,14 +1653,27 @@ or None."""
                 f"{among}"
                 "  GROUP BY po.post_id")
 
+    def _market_links(self, links):
+        """The post_items links @market sees at @end, as tvf_post_items (core/detect/sql/counted_links.sql) scopes
+        them: a link written for another market's clustering run is not the market's, a link counts from its
+        linked_on, and a link ended in post_item_end on or before @end no longer counts. A row with neither field,
+        written before links carried them, is read as always."""
+        ends = self._find("post_item_end")
+        ended = ("\n    AND NOT EXISTS (SELECT 1 FROM " + ends + " e WHERE e.post_id = l.post_id AND e.item_id = l.item_id"
+                 " AND e.ended_on <= @end)") if ends else ""
+        return (f"(SELECT l.post_id, l.item_id FROM {links} l\n"
+                "  WHERE (l.link_market IS NULL OR l.link_market = @market)\n"
+                f"    AND (l.linked_on IS NULL OR l.linked_on <= @end){ended})")
+
     def window_posts(self, creator_ids, market, start, end):
         """Posts of these creators first sighted in the market inside the window, the first sighting taken over
-        all of post_observations (legacy and agent_live aside), as Compare counts."""
+        all of post_observations (legacy and agent_live aside), as Compare counts, with the links the market sees."""
         posts, obs, links = self._find("posts"), self._find("post_observations"), self._find("post_items")
         if posts is None or obs is None or links is None:
             return None
         sql = self._post_select(
-            posts, links, "p.creator_id IN UNNEST(@creator_ids) AND sg.first_day BETWEEN @start AND @end",
+            posts, self._market_links(links),
+            "p.creator_id IN UNNEST(@creator_ids) AND sg.first_day BETWEEN @start AND @end",
             extra_with=f",\nsight AS ({self._sight(obs)})",
             extra_join="JOIN sight sg ON sg.post_id = p.post_id\n", extra_cols=", sg.first_day")
         return self._query(sql, creator_ids=("ARRAY<STRING>", list(creator_ids)), market=("STRING", market),
@@ -1668,7 +1681,8 @@ or None."""
 
     def community_edges(self, market, start, end, excluded):
         """Pairs of creators (a < b) sharing three or more items outside `excluded`, each over posts first sighted
-        in the market inside the window. Only creators with three or more such items can have an edge."""
+        in the market inside the window and the links the market sees (_market_links). Only creators with three or
+        more such items can have an edge."""
         posts, obs, links = self._find("posts"), self._find("post_observations"), self._find("post_items")
         if posts is None or obs is None or links is None:
             return None
@@ -1681,7 +1695,7 @@ or None."""
             "  SELECT DISTINCT p.creator_id, pit.item_id\n"
             "  FROM sight sg\n"
             f"  JOIN {posts} p ON p.post_id = sg.post_id\n"
-            f"  JOIN {links} pit ON pit.post_id = sg.post_id\n"
+            f"  JOIN {self._market_links(links)} pit ON pit.post_id = sg.post_id\n"
             "  WHERE sg.first_day BETWEEN @start AND @end AND p.creator_id IS NOT NULL\n"
             "    AND pit.item_id NOT IN UNNEST(@excluded)),\n"
             "many AS (SELECT ci.creator_id FROM ci GROUP BY ci.creator_id HAVING COUNT(*) >= 3),\n"

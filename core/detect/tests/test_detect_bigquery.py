@@ -72,6 +72,9 @@ def test_aggregate_reads_and_writes(client):
     dry_run(client, sqlrun.render(aggregate.FIRST_SIGHTED_SQL), {"d": D})
     dry_run(client, sqlrun.render(aggregate.POST_ITEMS_INSERT_SQL),
             arrays=[aggregate._struct_array("rows", post_items, aggregate.POST_ITEM_FIELDS)])
+    links = [{"post_id": "p1", "item_id": "t1", "via": "cluster", "linked_on": D, "link_market": "ZA"}]
+    dry_run(client, sqlrun.render(aggregate.CLUSTER_LINKS_INSERT_SQL),
+            arrays=[aggregate._struct_array("rows", links, aggregate.CLUSTER_LINK_FIELDS)])
     dry_run(client, sqlrun.render(aggregate.cultural_map_merge_sql()),
             arrays=[aggregate._struct_array("items", items, aggregate.ITEM_FIELDS)])
 

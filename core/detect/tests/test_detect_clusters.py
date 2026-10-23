@@ -67,16 +67,59 @@ def test_l3_topic_ids_are_the_detect_item_id_of_their_key():
 def test_items_rows_links_each_cluster_item_once_and_leaves_the_map_to_understand():
     posts = [
         {"post_id": "p1", "platform": "tiktok", "hashtags": ["#Amapiano"], "sound_id": None, "creator_id": None,
-         "market": "ZA", "first_day": D, "cluster_items": [TOPIC, TOPIC]},
+         "market": "ZA", "first_day": D, "cluster_links": [{"item_id": TOPIC, "run_market": "za"}] * 2},
         {"post_id": "p1", "platform": "tiktok", "hashtags": ["#Amapiano"], "sound_id": None, "creator_id": None,
-         "market": "NG", "first_day": D, "cluster_items": [TOPIC]},
+         "market": "NG", "first_day": D, "cluster_links": [{"item_id": TOPIC, "run_market": "za"}]},
         {"post_id": "p2", "platform": "tiktok", "hashtags": [], "sound_id": None, "creator_id": None,
-         "market": "ZA", "first_day": D, "cluster_items": None},
+         "market": "ZA", "first_day": D, "cluster_links": None},
     ]
     post_items, items = aggregate.items_rows(posts)
     assert sorted((r["post_id"], r["item_id"], r["via"]) for r in post_items) == sorted([
         ("p1", AMAPIANO, "hashtag"), ("p1", TOPIC, "cluster")])
     assert [r["item_id"] for r in items] == [AMAPIANO]
+
+
+def test_cluster_scopes_keep_the_market_run_and_mark_the_pooled_run():
+    links = [{"item_id": "zt", "run_market": "za"}, {"item_id": "nt", "run_market": "ng"},
+             {"item_id": "pt", "run_market": "pan"}, {"item_id": "both", "run_market": "za"},
+             {"item_id": "both", "run_market": "pan"}, {"item_id": "two", "run_market": "za"},
+             {"item_id": "two", "run_market": "ke"}]
+    assert aggregate.cluster_scopes(links) == [
+        ("both", "cluster", None), ("nt", "cluster", "NG"), ("pt", "cluster_pan", None), ("two", "cluster", None),
+        ("zt", "cluster", "ZA")]
+    assert aggregate.cluster_scopes(None) == []
+
+
+ZA_TOPIC, NG_TOPIC, PAN_TOPIC = topic_id("20260920-za-005"), topic_id("20260920-ng-005"), topic_id("20260920-pan-005")
+
+
+def test_a_post_in_two_markets_links_each_market_run_topic_to_its_own_market(con):
+    """W14-01: one post sighted in ZA and NG on D, put in a different topic by each market run and in a third by the
+    pooled run. Each link carries its market and date, so each market counts only its own run's topic, and the
+    pooled topic counts in both only where no market run topic outranks it."""
+    duck.load(con, "core.posts", [post(p, f"c{p}", D, hashtags=[]) for p in ("m1", "m2")])
+    duck.load(con, "core.post_observations", [obs("m1", D, "unbiased_rank", "sweep", market=m) for m in ("ZA", "NG")]
+              + [obs("m2", D, "unbiased_rank", "sweep", market="ZA")])
+    duck.load(con, "core.creators", [creator(f"c{p}") for p in ("m1", "m2")])
+    duck.load(con, "core.cultural_map", topic_rows(ZA_TOPIC) + topic_rows(NG_TOPIC) + topic_rows(PAN_TOPIC))
+    duck.load(con, "core.clusters", [cluster("20260920-za-005", D, ZA_TOPIC), cluster("20260920-ng-005", D, NG_TOPIC,
+                                                                                      market="ng"),
+                                     cluster("20260920-pan-005", D, PAN_TOPIC, market="pan")])
+    duck.load(con, "core.cluster_members", members("20260920-za-005", "m1") + members("20260920-ng-005", "m1")
+              + members("20260920-pan-005", "m1", "m2"))
+    aggregate.run_aggregate(duck.Client(con), D, "agg", "r1", core="core", agent="agent")
+    links = duck.query(con, "SELECT p.post_id, p.item_id, p.via, p.linked_on, p.link_market FROM {core}.post_items p "
+                            "WHERE p.via LIKE 'cluster%'")
+    assert sorted((r["post_id"], r["item_id"], r["via"], r["linked_on"], r["link_market"]) for r in links) == sorted([
+        ("m1", ZA_TOPIC, "cluster", D, "ZA"), ("m1", NG_TOPIC, "cluster", D, "NG"),
+        ("m1", PAN_TOPIC, "cluster_pan", D, None), ("m2", PAN_TOPIC, "cluster_pan", D, None)])
+    counted = duck.query(con, "SELECT post_id, item_id, market FROM {core}.tvf_post_items(@d) WHERE via = 'topic'",
+                         {"d": D})
+    assert sorted((r["post_id"], r["item_id"], r["market"]) for r in counted) == sorted([
+        ("m1", ZA_TOPIC, "ZA"), ("m1", NG_TOPIC, "NG"), ("m2", PAN_TOPIC, "ZA")])
+    assert daily(con, ZA_TOPIC) == {(D, "ZA", "unbiased_rank", "tiktok"): 1, (D, "ZA", "_any", "_all"): 1}
+    assert daily(con, NG_TOPIC) == {(D, "NG", "unbiased_rank", "tiktok"): 1, (D, "NG", "_any", "_all"): 1}
+    assert daily(con, PAN_TOPIC) == {(D, "ZA", "unbiased_rank", "tiktok"): 1, (D, "ZA", "_any", "_all"): 1}
 
 
 def world(con):
@@ -120,10 +163,12 @@ def test_cluster_item_gets_item_daily_once_per_post_beside_its_hashtag(con):
         (day(1), "ZA", "unbiased_rank", "tiktok"): 1, (day(1), "ZA", "_any", "_all"): 1,
         (D, "ZA", "unbiased_rank", "tiktok"): 4, (D, "ZA", "_any", "_all"): 4}             # p1, p2, p3, p5
     assert daily(con, GONE) == {}
-    links = duck.query(con, "SELECT p.post_id, p.via FROM {core}.post_items p WHERE p.item_id = @it "
-                            "ORDER BY p.post_id", {"it": TOPIC})
-    assert links == [{"post_id": "p1", "via": "cluster"}, {"post_id": "p2", "via": "cluster"},
-                     {"post_id": "p4", "via": "cluster"}]
+    links = duck.query(con, "SELECT p.post_id, p.via, p.linked_on, p.link_market FROM {core}.post_items p "
+                            "WHERE p.item_id = @it ORDER BY p.post_id", {"it": TOPIC})
+    # p1's topic came from the ZA run and the pooled run, so its one link has no market; p2's and p4's from ZA's
+    assert links == [{"post_id": "p1", "via": "cluster", "linked_on": D, "link_market": None},
+                     {"post_id": "p2", "via": "cluster", "linked_on": D, "link_market": "ZA"},
+                     {"post_id": "p4", "via": "cluster", "linked_on": day(1), "link_market": "ZA"}]
     assert duck.query(con, "SELECT COUNT(*) n FROM {core}.post_items p WHERE p.item_id = @it", {"it": GONE}) == [
         {"n": 0}]
     # the topic rows are understand's: detect adds none, closes none, reopens none
