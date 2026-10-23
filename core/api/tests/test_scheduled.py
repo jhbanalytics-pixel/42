@@ -609,3 +609,35 @@ def test_main_exits_1_when_an_ask_failed(job, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "1 failed" in out and "failed s_main (T1)" in out
     assert "asked s_main" not in out
+
+
+def test_a_schedule_paused_while_an_earlier_one_is_asked_is_not_started(job, monkeypatch):
+    caps, asked = job
+    caps.write_text("SCHEDULED_DAILY: 120\n", encoding="utf-8")
+    agent_app.SCHEDULES.append(agent_app.schedule_row(schedule("s_later", tier="T0",
+                                                               created_at="2026-09-21T08:00:00+02:00")))
+
+    def ask_then_pause(s, run_id):
+        asked.append((s["schedule_id"], run_id))
+        if s["schedule_id"] == "s_main":
+            agent_app.pause_schedule("s_later")
+
+    monkeypatch.setattr(scheduled, "live_ask", ask_then_pause)
+    assert scheduled.main(["--live"]) == 0
+    day = scheduled.today().isoformat()
+    assert asked == [("s_main", f"sched-{day}-s_main")]
+    later = [(r["stage"], r["status"], r["outcome"]) for r in agent_app.SINK
+             if r["run_id"] == f"sched-{day}-s_later"]
+    assert later == [("scheduled", "skipped", scheduled.PAUSED)]
+
+
+def test_a_schedule_whose_status_cannot_be_reread_is_not_asked():
+    ask, record_skip, record_start, writes = journal()
+
+    def unreadable(schedule_id):
+        raise RuntimeError("schedules read failed")
+
+    out = scheduled.run([schedule("s_a", tier="T0")], TUESDAY, Ledger().read, ask, record_skip, 120,
+                        record_start=record_start, current=unreadable)
+    assert writes == [("skipped", "s_a", "sched-2026-09-29-s_a")]
+    assert out[0]["status"] == "skipped" and out[0]["reason"] == scheduled.STATUS_UNKNOWN

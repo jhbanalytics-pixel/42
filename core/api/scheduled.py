@@ -34,6 +34,8 @@ ALREADY_ASKED = "Already asked today"
 STARTED = "Ask started"
 START_UNRECORDED = "The ask's start could not be recorded"
 ASK_FAILED = "The ask failed"
+PAUSED = "Paused before its turn"
+STATUS_UNKNOWN = "The schedule's status could not be read"
 NO_RESERVATION = {"credits": 0, "model_usd": 0.0}
 
 
@@ -79,7 +81,8 @@ def _created(schedule):
     return (datetime.fromisoformat(at) if isinstance(at, str) else at, schedule["schedule_id"])
 
 
-def run(schedules, day, spend_reader, ask, record_skip, share, dry=False, asked=frozenset(), record_start=None):
+def run(schedules, day, spend_reader, ask, record_skip, share, dry=False, asked=frozenset(), record_start=None,
+        current=None):
     """Ask each due schedule, oldest first, one at a time. Returns one outcome per due schedule.
 
     ask(schedule, run_id) runs one ask and may return its Ask record: a record with status failed (agent_app.execute
@@ -88,7 +91,9 @@ def run(schedules, day, spend_reader, ask, record_skip, share, dry=False, asked=
     record_start(schedule, run_id) writes the started row just before each ask, so a job killed mid-ask still leaves
     a row, and when that write fails the schedule is not asked. A dry run (or a missing share) reads spend but asks
     and records nothing. `asked` holds the sched- run_ids already asked or started today, so a retried job never asks
-    a schedule twice; None means they could not be read, and nothing is asked."""
+    a schedule twice; None means they could not be read, and nothing is asked. current(schedule_id) rereads the
+    schedule's latest state just before its started row, so a schedule paused while an earlier one was being asked
+    is skipped; when that read fails the schedule is not asked."""
     dry = dry or share is None
     out = []
     for schedule in sorted(due(schedules, day), key=_created):
@@ -103,6 +108,8 @@ def run(schedules, day, spend_reader, ask, record_skip, share, dry=False, asked=
             log.warning("reading today's spend failed (%s)", type(exc).__name__)
             spent = None
         reason = RUNS_UNKNOWN if asked is None else precheck(schedule["tier"], spent, share)
+        if not dry and not reason and current is not None:
+            reason = _still_active(current, schedule)
         status = ("would_skip" if reason else "would_ask") if dry else ("skipped" if reason else "asked")
         if not dry and reason:
             _record(record_skip, schedule, rid, reason, "skipped")
@@ -129,6 +136,22 @@ def run(schedules, day, spend_reader, ask, record_skip, share, dry=False, asked=
         out.append({"schedule_id": schedule["schedule_id"], "run_id": rid, "tier": schedule["tier"],
                     "question": schedule["question"], "status": status, "reason": reason})
     return out
+
+
+def _still_active(current, schedule):
+    """None when the schedule is still active now, else why it is not asked."""
+    try:
+        latest = current(schedule["schedule_id"])
+    except Exception as exc:
+        log.warning("rereading schedule %s failed (%s)", schedule["schedule_id"], type(exc).__name__)
+        return STATUS_UNKNOWN
+    return None if latest and latest.get("status") == "active" else PAUSED
+
+
+def current_schedule(schedule_id):
+    """The schedule's latest row, or None when it is no longer held."""
+    held = agent_app.current_schedules(schedule_id)
+    return held[0] if held else None
 
 
 def _record(record_skip, schedule, rid, reason, status):
@@ -272,7 +295,7 @@ def main(argv=None):
         print("SCHEDULED_DAILY is not set in core/config/caps.yaml, so this is a dry run.")
     day = today()
     outcomes = run(agent_app.current_schedules(), day, read_spend, live_ask, record_skip, share, dry=not live,
-                   asked=asked_today(day.isoformat()), record_start=record_start)
+                   asked=asked_today(day.isoformat()), record_start=record_start, current=current_schedule)
     failed = sum(o["status"] == "failed" for o in outcomes)
     print(f"{'Live run' if live else 'Dry run'} for {day.isoformat()}: {len(outcomes)} schedules due"
           + (f", {failed} failed." if failed else "."))
