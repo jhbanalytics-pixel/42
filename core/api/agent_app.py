@@ -1065,6 +1065,34 @@ def no_skin(skin_id):
     return error(404, "not_found", f"No skin {skin_id} is held here.")
 
 
+# A skin saved while a person was visible keeps their handle in its stored row (contract 15.1 and 16). Every read
+# masks it with the list read now and never changes the row; a write or a report plan that would name someone hidden
+# now is refused, and so is one made while the list cannot be read.
+SKIN_WORDS = ("skin_key", "name", "terms", "hashtags", "accounts")
+NAMES_HIDDEN = "A skin cannot name a person 42 hides; take them out and save again."
+HIDDEN_UNREAD = "42 could not check its hidden-people list just now; try again shortly."
+
+
+def _hidden_now():
+    from core.api.store import get_store
+    return privacy.read_hidden(privacy.LazyStore(get_store))
+
+
+def shown_skins(value):
+    """value (a skin or a list of them) as a reader sees it: every hidden person's handle masked."""
+    return privacy.mask(value, _hidden_now())
+
+
+def skin_names_hidden(skin, status=400, code="bad_request"):
+    """None when the skin's words name nobody hidden now, else the refusal: status and code when they do, 503 when
+    the list cannot be read (fail closed)."""
+    hidden = _hidden_now()
+    if hidden is None:
+        return error(503, "people_unavailable", HIDDEN_UNREAD)
+    words = {key: skin.get(key) for key in SKIN_WORDS}
+    return error(status, code, NAMES_HIDDEN) if privacy.mask(words, hidden) != words else None
+
+
 def save_skin(skin_id, body):
     """A new skin (skin_id None) or a new row holding an existing skin's full body; its words checked first."""
     try:
@@ -1095,6 +1123,9 @@ def save_skin(skin_id, body):
         return error(503, "agent_unavailable", str(exc))
     if why:
         return error(400, "bad_request", why)
+    refused = skin_names_hidden(clean)
+    if refused is not None:
+        return refused
     at = status_time(clean["markets"][0])
     skin = {"skin_id": held["skin_id"] if held else f"sk_{secrets.token_hex(6)}", "skin_key": clean["skin_key"],
             "created_at": held["created_at"] if held else at, "status_at": at, "who": "passcode",
@@ -1129,22 +1160,22 @@ def archive_skin(skin_id: str):
         return no_skin(skin_id)
     skin = held[0]
     if skin["status"] == "archived":
-        return JSONResponse(skin)
+        return JSONResponse(shown_skins(skin))
     skin.update(status="archived", status_at=status_time(skin["markets"][0]))
     if not append("skins", SKINS, skin_row(skin)):
         return not_saved("skin")
-    return JSONResponse(skin)
+    return JSONResponse(shown_skins(skin))
 
 
 @app.get("/api/skins")
 def list_skins():
-    return {"skins": current_skins()}
+    return {"skins": shown_skins(current_skins())}
 
 
 @app.get("/api/skins/{skin_id}")
 def read_skin(skin_id: str):
     held = current_skins(skin_id)
-    return JSONResponse(held[0]) if held else no_skin(skin_id)
+    return JSONResponse(shown_skins(held[0])) if held else no_skin(skin_id)
 
 
 def skin_people(skin_id, record=None):
@@ -2001,6 +2032,10 @@ def draft_investigation(body):
         if not held:
             return no_skin(body["skin_id"])
         skin = held[0]
+        # A report plan carries the skin's words to the model and the reader: none may name someone hidden now.
+        refused = skin_names_hidden(skin, 409, "conflict")
+        if refused is not None:
+            return refused
     investigation_id = f"i_{secrets.token_hex(6)}"
     held = "plan:" + investigation_id
     planner_run_id = f"r_plan_{investigation_id[2:]}"

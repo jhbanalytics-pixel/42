@@ -568,6 +568,15 @@ def test_the_list_shows_the_current_row_per_id_newest_first(api):
     assert listed[1]["creator_id"] == "c_ng_macro" and listed[1]["reason"] == REASON
 
 
+def test_the_list_is_never_kept_by_a_cache(api):
+    # W22-02: the only route that returns hidden handles, reasons and staff names says no-store.
+    api.post("/api/suppressions", json={"platform": "tiktok", "handle": "@fixture_hidden", "reason": REASON,
+                                        "who": "Jo"}, headers=GOOD)
+    r = api.get("/api/suppressions", headers=GOOD)
+    assert r.status_code == 200 and r.json()["suppressions"][0]["handle"] == "@fixture_hidden"
+    assert r.headers.get("cache-control") == "no-store"
+
+
 def test_fixture_list_order_matches_the_view():
     row = {"creator_id": "c_ng_mid", "platform": None, "handle": None, "reason": REASON, "who": "Albert"}
     store_mod.SUPPRESSIONS.extend([

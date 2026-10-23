@@ -71,6 +71,13 @@ CREATOR_POST_COLUMNS = ("p.post_id, p.platform, p.url, p.creator_id, COALESCE(c.
                         "p.engagement, p.geo_source, c.home_market, o.source_sightings")
 POSTS_JOIN = ("FROM intelligence_42_core.posts p "
               "LEFT JOIN intelligence_42_core.creators c ON c.platform = p.platform AND c.creator_id = p.creator_id ")
+# A stored post whose creator is hidden now never reaches the research model (C5 v2 section 16): search_posts and
+# fetch_posts leave out every post whose creator_id is in L1's v_suppressed_creators, the same predicate
+# discover_creators reads. The view holds the ids named by a suppression row and the ids of every creators row whose
+# handle a handle-only row names. The read goes through internal_read, so a view that cannot be read fails the query
+# and no post is stored (fail closed).
+NOT_SUPPRESSED = ("NOT EXISTS (SELECT 1 FROM intelligence_42_core.v_suppressed_creators sup "
+                  "WHERE sup.creator_id = {a}.creator_id)")
 CREATOR_INTENT = re.compile(r"\b(?:creators?|djs?|influencers?)\b", re.I)
 CREATOR_MARKETS = (("KE", r"\bkenya\w*\b"), ("NG", r"\bnigeria\w*\b"),
                    ("ZA", r"\b(?:south\s+africa\w*|za)\b"))
@@ -625,6 +632,7 @@ def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=No
 
     limit = max(1, min(int(limit), MAX_POSTS))
     filters, shared = _search_filters(platforms, author, min_engagement)
+    filters.append(NOT_SUPPRESSED)
 
     lists, query_ids, note, failed = [], [], {}, {}
     curated, tags = _widen(ctx, warehouse, query, since, until, platforms)
@@ -635,7 +643,7 @@ def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=No
     try:
         sql, params = _keyword_sql(ctx, query + "".join(f" OR #{w}" for w in curated), since, until, shared, filters,
                                    sort, limit, tag_terms=tags)
-        result = sql_query(ctx, warehouse, sql, purpose=f"search_posts: {query}", params=params)
+        result = internal_read("search_posts", ctx, warehouse, sql, purpose=f"search_posts: {query}", params=params)
     except Exception as e:
         _emit_retrieval_trace(ctx, "keyword", error=e)
         failed["keyword"] = _reason(e)
@@ -649,7 +657,8 @@ def search_posts(ctx: RunContext, warehouse: Warehouse, query: str, platforms=No
     # Semantic search catches posts that say the same thing in other words or languages (isiZulu, Pidgin, Sheng).
     try:
         sem_sql, sem_params = _semantic_sql(ctx, query, since, until, shared, filters, limit * 2)
-        semantic = sql_query(ctx, warehouse, sem_sql, purpose=f"search_posts semantic: {query}", params=sem_params)
+        semantic = internal_read("search_posts", ctx, warehouse, sem_sql, purpose=f"search_posts semantic: {query}",
+                                 params=sem_params)
     except Exception as e:  # no embeddings yet, the function missing, or the byte cap
         _emit_retrieval_trace(ctx, "semantic", error=e)
         failed["semantic"] = _reason(e)
@@ -750,7 +759,8 @@ def _inside(row, window) -> bool:
 def fetch_posts(ctx: RunContext, warehouse: Warehouse, ids, window: tuple[dt.date, dt.date]) -> dict:
     """Store the posts behind ids the researcher only saw in sql_query rows, so a claim citing them resolves (K1).
     At most MAX_POSTS ids, each once, one named parameter per id. Only posts published inside the ask's window become
-    evidence; the query record counts the rest in skipped_outside_window and lists them in skipped_ids."""
+    evidence; the query record counts the rest in skipped_outside_window and lists them in skipped_ids. A post whose
+    creator is hidden now is not read at all (NOT_SUPPRESSED)."""
     wanted = list(dict.fromkeys(str(i) for i in ids if i))[:MAX_POSTS]
     if not wanted:
         return {"evidence": [], "query_id": None}
@@ -758,9 +768,10 @@ def fetch_posts(ctx: RunContext, warehouse: Warehouse, ids, window: tuple[dt.dat
     params = {**post_params, "source_since": window[0], "source_until": window[1]}
     ids = ", ".join("@" + name for name in post_params)
     sql = (f"SELECT {POST_COLUMNS} {POSTS_JOIN}"
-           f"{_source_sightings_join('p', 'source_since', 'source_until')}WHERE p.post_id IN ({ids})")
-    result = sql_query(ctx, warehouse, sql, purpose=f"fetch_posts: {len(wanted)} posts listed in query rows",
-                       params=params)
+           f"{_source_sightings_join('p', 'source_since', 'source_until')}WHERE p.post_id IN ({ids}) "
+           f"AND {NOT_SUPPRESSED.format(a='p')}")
+    result = internal_read("fetch_posts", ctx, warehouse, sql,
+                           purpose=f"fetch_posts: {len(wanted)} posts listed in query rows", params=params)
     inside, skipped = [], []
     for row in result["rows"]:
         if _inside(row, window):
