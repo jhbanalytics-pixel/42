@@ -1470,3 +1470,14 @@ def test_the_answer_export_is_not_stored_by_caches(ctx):
     ctx.store.records["a_done"] = record
     r = ctx.client.get("/api/ask/a_done/export?format=html", headers=GOOD)
     assert r.status_code == 200 and r.headers.get("cache-control") == "no-store"
+
+
+def test_a_tripped_rate_limit_is_logged_without_the_caller_address(ctx, caplog):
+    # W02-02: the address keys the window in memory but never reaches the log.
+    guesser = {"X-Forwarded-For": "198.51.100.77"}
+    with caplog.at_level("WARNING", logger="f42.api"):
+        for _ in range(11):
+            r = ctx.client.post("/api/auth/verify", json={"passcode": "nope"}, headers=guesser)
+    assert r.status_code == 429 and r.json()["error"] == "rate_limited"
+    assert "rate limit" in caplog.text
+    assert "198.51.100.77" not in caplog.text
