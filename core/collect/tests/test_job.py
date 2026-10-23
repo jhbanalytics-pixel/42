@@ -1622,6 +1622,13 @@ def test_plan_prints_the_seeds_and_the_expansion_shares(capsys):
                           r"exploration \d+%, largest cluster \d+%$", out, re.M)) == 3
 
 
+def test_plan_names_only_the_google_sources_that_seed_row_14(capsys):
+    assert job.main(["--plan", "--run-date", "2026-09-29"], env={}, bq=object(), runs=object(), jobs=object()) == 0
+    [line] = [line for line in capsys.readouterr().out.splitlines() if "Google search terms as row 14" in line]
+    named = set(re.findall(r"\bgoogle_(?:bq|rss|trending)\b", line))
+    assert named == set(job.google_trends.SEED_SOURCES) and "rising" not in line
+
+
 @pytest.mark.parametrize("template,kind,query,item_id,route,params", [
     ("search/multi", "topic", "Cyril Ramaphosa", "topic|cyril", "search/multi",
      {"query": "Cyril Ramaphosa", "platforms": job.MULTI_PLATFORMS, "since": "2026-09-27"}),

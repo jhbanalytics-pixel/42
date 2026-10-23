@@ -3,6 +3,8 @@ google_search_signals, scoped to the market and dated, in the five-field shape t
 Never posts or cards, and a missing table or a failed read gives an empty list, never a failed page."""
 import datetime as dt
 import logging
+import re
+from pathlib import Path
 
 import pytest
 
@@ -193,6 +195,14 @@ def test_the_status_tells_an_empty_store_from_an_unread_one():
     none = discover.build_discover(Patched(search_signals=lambda s, e, m: []), "ZA", now=NOW)
     assert (none["searching_now"], none["searching_now_status"]) == ([], "empty")
     assert discover.build_discover(Patched(search_signals=boom), "ZA", now=NOW)["searching_now_status"] == "unavailable"
+
+
+def test_the_contract_lists_the_sources_the_strip_is_sent():
+    contract = (Path(__file__).resolve().parents[1] / "contract.md").read_text(encoding="utf-8")
+    section = contract.split("## 21. Searching now", 1)[1].split("\n## ", 1)[0]
+    [rule] = [line for line in section.splitlines() if line.startswith("- Each row is exactly")]
+    sent = rule.split("`source`", 1)[1].split("`rank`", 1)[0]
+    assert set(re.findall(r"google_[a-z]+", sent)) == set(searching.SOURCES)
 
 
 # Today and Discover.

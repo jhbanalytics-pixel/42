@@ -2184,8 +2184,9 @@ def print_plan(day, *, x_trends=False, share_cap=None, only_routes=None):
     for market in google_rss.MARKETS:
         print(f"  {google_rss.URL.format(market)}")
     print(f"Google search terms as row 14 queries: at most {google_trends.GOOGLE_SEEDS_PER_MARKET} a market from the "
-          "feed and the day before's google_search_signals rows (trending, feed, public tables' rising), taking "
-          "existing row 14 slots (the placeholders above); query triage only, never evidence")
+          f"day before's google_search_signals rows of {', '.join(google_trends.SEED_SOURCES)} (the public tables' "
+          "terms are search interest only and never seed), taking existing row 14 slots (the placeholders above); "
+          "query triage only, never evidence")
     from core.public_feeds.catalog import confirmed_feeds
 
     feeds = confirmed_feeds()
