@@ -118,6 +118,18 @@ export function createSSEParser(onMessage){
   };
 }
 
+/* The agent sends a keepalive at least every 15 seconds, so a stream that
+   stays open and silent three times as long is treated as broken (audit
+   W20-02): the read is given up and the record is polled instead. */
+export const STREAM_IDLE_MS = 45000;
+
+/* The next chunk of a stream, or {idle: true} once ms pass without one. */
+export function readWithin(reader, ms){
+  let timer = null;
+  const idle = new Promise((resolve) => { timer = setTimeout(() => resolve({idle: true}), ms); });
+  return Promise.race([reader.read(), idle]).finally(() => clearTimeout(timer));
+}
+
 const wait = (ms, signal) => new Promise((resolve, reject) => {
   const timer = setTimeout(resolve, ms);
   if (signal) signal.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason || new Error('aborted')); }, {once: true});
@@ -128,7 +140,7 @@ const wait = (ms, signal) => new Promise((resolve, reject) => {
    or breaks, it polls the record instead, passing on the steps it had not
    seen, and resolves with {status, record}. A 401 is thrown, never polled. */
 export async function streamAsk(askId, onEvent, options = {}){
-  const {signal, pollMs = POLL_MS} = options;
+  const {signal, pollMs = POLL_MS, streamIdleMs = STREAM_IDLE_MS} = options;
   let lastEventId = options.lastEventId != null ? String(options.lastEventId) : null;
   let lastSeq = lastEventId != null && Number.isFinite(Number(lastEventId)) ? Number(lastEventId) : 0;
   let done = null;
@@ -155,9 +167,13 @@ export async function streamAsk(askId, onEvent, options = {}){
       });
       try {
         while (!done){
-          const {value, done: ended} = await reader.read();
-          if (ended) break;
-          parser.push(decoder.decode(value, {stream: true}));
+          const chunk = await readWithin(reader, streamIdleMs);
+          if (chunk.idle){
+            if (reader.cancel) reader.cancel().catch(() => {});
+            break;
+          }
+          if (chunk.done) break;
+          parser.push(decoder.decode(chunk.value, {stream: true}));
         }
       } finally {
         if (done && reader.cancel) reader.cancel().catch(() => {});

@@ -380,6 +380,46 @@ test('a stream that drops mid-way falls back to polling from where it got to', a
   expect(seqs).toEqual(completeRecord.steps.map((step) => step.seq));
 });
 
+/* Audit W20-02: a response that stays open and sends nothing must not hold
+   the page on reader.read() for ever; a keepalive keeps the stream alive. */
+test('a stream left open with no chunks is given up for the record', async () => {
+  const server = serve([clone(completeRecord)]);
+  const id = completeRecord.ask_id;
+  const result = await transport.streamAsk(id, () => {}, {pollMs: 1, streamIdleMs: 20});
+  expect(result.status).toBe('complete');
+  expect(calls.some((entry) => entry.path === `/api/ask/${id}`)).toBe(true);
+  expect(server.stream(id)).toBeDefined();
+});
+
+test('keepalive comments keep a quiet stream open past the idle limit', async () => {
+  const server = serve([clone(completeRecord)]);
+  const id = completeRecord.ask_id;
+  const stream = server.stream(id);
+  const running = transport.streamAsk(id, () => {}, {pollMs: 1, streamIdleMs: 40});
+  for (let i = 0; i < 6; i += 1){
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    stream.push(': keepalive\n\n');
+  }
+  stream.push(frame(12, 'done', {seq: 12, status: 'complete', url: `/api/ask/${id}`}));
+  expect((await running).status).toBe('complete');
+  expect(calls.some((entry) => entry.path === `/api/ask/${id}`)).toBe(false);
+});
+
+test('an investigation stream left open with no chunks is given up for the record', async () => {
+  const {streamInvestigation} = await import('../../api42.js');
+  const silent = sseBody();
+  const stub = async (url, init = {}) => {
+    const path = String(url);
+    calls.push({path, method: init.method || 'GET', headers: init.headers || {}});
+    if (path.endsWith('/events')) return {ok: true, status: 200, headers: {get: () => 'text/event-stream'}, body: silent.body};
+    return json(200, {investigation_id: 'i_0123456789ab', status: 'complete', record: {steps: []}});
+  };
+  globalThis.fetch = stub;
+  window.fetch = stub;
+  const result = await streamInvestigation('i_0123456789ab', () => {}, {pollMs: 1, streamIdleMs: 20});
+  expect(result.status).toBe('complete');
+});
+
 /* Audit W20-03: Stop works while the start is still on its way, by the
    start's request key, and the ask the start made then ends stopped. */
 test('Stop pressed before the start answers stops the ask by its request key', async () => {

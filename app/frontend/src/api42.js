@@ -4,7 +4,7 @@
    passcode screen, and the claims a refused dossier freeze names are kept
    as .claims. */
 import {credential} from './api.js';
-import {createSSEParser} from './askTransport42.js';
+import {STREAM_IDLE_MS, createSSEParser, readWithin} from './askTransport42.js';
 
 async function request(path, options){
   return (await send(path, options)).json();
@@ -406,7 +406,7 @@ const pause = (ms, signal) => new Promise((resolve, reject) => {
    agent any more (it restarted), so the poll ends with a 'lost' error
    instead of asking for ever. */
 export async function streamInvestigation(investigationId, onEvent, options = {}){
-  const {signal, pollMs = POLL_MS, maxPollMs = POLL_MAX_MS, idleMs = IDLE_LIMIT_MS} = options;
+  const {signal, pollMs = POLL_MS, maxPollMs = POLL_MAX_MS, idleMs = IDLE_LIMIT_MS, streamIdleMs = STREAM_IDLE_MS} = options;
   let lastEventId = options.lastEventId != null ? String(options.lastEventId) : null;
   let lastSeq = lastEventId != null && Number.isFinite(Number(lastEventId)) ? Number(lastEventId) : 0;
   let done = null;
@@ -433,9 +433,14 @@ export async function streamInvestigation(investigationId, onEvent, options = {}
       });
       try {
         while (!done){
-          const {value, done: ended} = await reader.read();
-          if (ended) break;
-          parser.push(decoder.decode(value, {stream: true}));
+          /* A stream left open and silent is given up for the poll below. */
+          const chunk = await readWithin(reader, streamIdleMs);
+          if (chunk.idle){
+            if (reader.cancel) reader.cancel().catch(() => {});
+            break;
+          }
+          if (chunk.done) break;
+          parser.push(decoder.decode(chunk.value, {stream: true}));
         }
       } finally {
         if (done && reader.cancel) reader.cancel().catch(() => {});
