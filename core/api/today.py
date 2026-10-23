@@ -11,7 +11,7 @@ from collections import Counter
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from core.api.held_words import plain_reason as _plain_reason
-from core.api.searching import searching_now
+from core.api.searching import searching_now_status
 from core.api.store import canon_platform, creator_key
 from core.brief.explain import _one_step_lower, _place_fault, _sentence_fault, _source_evidence
 from core.brief.payload import NOT_ASSESSED_REASONS
@@ -1672,6 +1672,7 @@ def build_today(store, date=None, now=None):
     headline = _headline(markets)
     receipt = _run_receipt(collect_runs, rows, markets)
     published = [dt.datetime.fromisoformat(r["published_at"]) for r in rows.values() if r.get("published_at")]
+    searching, searching_status = searching_now_status(store, MARKETS, search_day, store._hidden)
     return {
         "date": date,
         "status": _overall(rows, collect_ok),
@@ -1681,7 +1682,7 @@ def build_today(store, date=None, now=None):
         "warmup": warmup,
         "first_morning": all(m["dropped"]["first_morning"] for m in markets),
         "markets": markets,
-        "searching_now": searching_now(store, MARKETS, search_day, store._hidden),
+        "searching_now": searching, "searching_now_status": searching_status,
         **({"run_receipt": receipt} if receipt else {}),
     }
 

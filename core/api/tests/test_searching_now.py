@@ -175,6 +175,26 @@ def test_a_missing_table_or_failed_read_gives_an_empty_list_and_a_warning(caplog
     assert "RuntimeError" in caplog.text and "Not found" not in caplog.text
 
 
+def test_the_status_tells_an_empty_store_from_an_unread_one():
+    def boom(start, end, markets):
+        raise RuntimeError("table gone")
+
+    def status(store, hidden=NONE_HIDDEN, markets=("ZA",)):
+        return searching.searching_now_status(store, list(markets), "2026-09-30", hidden)
+
+    assert status(FixtureStore(), markets=("ZA", "NG")) == (ZA_ROWS + NG_ROWS, "ok")
+    assert status(Patched(search_signals=lambda s, e, m: [])) == ([], "empty")
+    assert status(Patched(search_signals=lambda s, e, m: None)) == ([], "unavailable")
+    assert status(Patched(search_signals=boom)) == ([], "unavailable")
+    assert status(FixtureStore(), hidden=None) == ([], "suppressed")
+    unread = today.build_today(Patched(search_signals=boom), now=NOW)
+    assert (unread["searching_now"], unread["searching_now_status"]) == ([], "unavailable")
+    assert today.build_today(FixtureStore(), now=NOW)["searching_now_status"] == "ok"
+    none = discover.build_discover(Patched(search_signals=lambda s, e, m: []), "ZA", now=NOW)
+    assert (none["searching_now"], none["searching_now_status"]) == ([], "empty")
+    assert discover.build_discover(Patched(search_signals=boom), "ZA", now=NOW)["searching_now_status"] == "unavailable"
+
+
 # Today and Discover.
 
 def test_today_carries_every_market_as_of_today():
@@ -205,8 +225,8 @@ def test_today_is_unchanged_apart_from_the_field_when_the_read_fails():
     good = today.build_today(FixtureStore(), now=NOW)
     bad = today.build_today(Patched(search_signals=boom), now=NOW)
     assert bad["searching_now"] == []
-    assert {k: v for k, v in bad.items() if k != "searching_now"} == {
-        k: v for k, v in good.items() if k != "searching_now"}
+    field = ("searching_now", "searching_now_status")
+    assert {k: v for k, v in bad.items() if k not in field} == {k: v for k, v in good.items() if k not in field}
 
 
 def test_discover_carries_only_its_market():
