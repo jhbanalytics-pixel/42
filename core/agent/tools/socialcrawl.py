@@ -337,9 +337,12 @@ def socialcrawl_call(ctx: RunContext, client: SocialCrawlClient, platform: str, 
         raise Refused(f"{route} costs {quote} credits, over max_credits {max_credits}")
     if quote > ctx.credits_left():
         raise Refused(f"{route} costs {quote} credits, over the {ctx.credits_left()} left in this question's budget")
+    left = ctx.search_credits_left()
+    if quote > left:
+        raise Refused(f"{route} costs {quote} credits, over the {left:g} left for live searches; the rest of this "
+                      "researcher's credits are for comments and transcripts")
 
-    result = client.call(route, params, lane="agent_live", run_id=ctx.run_id,
-                         max_credits=min(max_credits, ctx.credits_left()))
+    result = client.call(route, params, lane="agent_live", run_id=ctx.run_id, max_credits=min(max_credits, left))
     status = result.get("status")
     ctx.calls_made += 1
     ctx.emit("socialcrawl", route=route, status=status, credits=0.0)

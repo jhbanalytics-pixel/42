@@ -194,8 +194,12 @@ def read_article(ctx: RunContext, client, evidence_id: str, robots=None) -> dict
     quote = client.quote(ARTICLE_ROUTE, params)
     if quote > ctx.credits_left():
         raise Refused(f"{ARTICLE_ROUTE} costs {quote} credits, over the {ctx.credits_left()} left in this question")
+    left = ctx.search_credits_left()
+    if quote > left:
+        raise Refused(f"{ARTICLE_ROUTE} costs {quote} credits, over the {left:g} left for live searches; the rest of "
+                      "this researcher's credits are for comments and transcripts")
     result = client.call(ARTICLE_ROUTE, params, lane="agent_live", run_id=ctx.run_id,
-                         max_credits=min(float(quote), ctx.credits_left()))
+                         max_credits=min(float(quote), left))
     from core.agent.tools.socialcrawl import _fence, read_credits
 
     status = result.get("status")

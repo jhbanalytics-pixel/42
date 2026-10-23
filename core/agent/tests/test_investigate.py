@@ -457,6 +457,8 @@ def test_each_researcher_takes_its_own_angle_and_only_its_platforms():
         [lane] = [c for c in first if f"Your angle: {sub['text']}\n" in c["prompt"]]
         assert lane["routes"] == sorted({r for g in sub["platforms"] for r in ask.group_routes(g)})
         assert lane["budget"]["credits"] == pytest.approx(sub["credits"])
+        # live searches keep to the 80% the angle's instruction names, so enrichment keeps its 20%
+        assert lane["budget"]["search_cap"] == pytest.approx(0.8 * sub["credits"])
     # every researcher loop, the gap researcher's included, fits the research share of the plan's dollars
     lanes_usd = sum(c["budget"]["max_budget_usd"] for c in h.research.calls)
     assert lanes_usd + ask.gate_usd(ask.MODEL, 2) <= plan["max_model_usd"] + 1e-9

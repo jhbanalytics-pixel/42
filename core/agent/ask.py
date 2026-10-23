@@ -1078,7 +1078,8 @@ def _first_round(deps: Deps, ctx: RunContext, client: _Counted, setup: ResearchS
     """T2's first round: one researcher per platform group, all at once. Each lane gets a fair slice of the tier's
     credits, capped at the slice less the gap reserve (the 55% first round plus the 20% enrichment share, which
     enrich_tools holds at 20% of the slice), a fair share of the calls less the same reserve, the tier's turns and
-    researcher_usd. The 55% for live searches is in each researcher's instruction; the cap and the reserve are code."""
+    researcher_usd. The 55% for live searches is in each researcher's instruction and is held in code too
+    (search_cap), so live searches cannot spend the enrichment share."""
     requested_groups = list(dict.fromkeys("reddit_threads" if platform in {"reddit", "threads"} else platform
                                           for platform in requested_platforms or []))
     groups = platform_groups(markets, requested_platforms=requested_groups)
@@ -1095,7 +1096,8 @@ def _first_round(deps: Deps, ctx: RunContext, client: _Counted, setup: ResearchS
     share = tier["credits"] / len(groups)
     round_share = FIRST_ROUND_SHARE + ENRICH_SHARE
     limits = {"credits": share, "calls": int(tier["calls"] * round_share / len(groups)),
-              "max_turns": tier["max_turns"], "max_budget_usd": researcher_usd(), "credit_cap": share * round_share}
+              "max_turns": tier["max_turns"], "max_budget_usd": researcher_usd(), "credit_cap": share * round_share,
+              "search_cap": share * FIRST_ROUND_SHARE}
     progress.step("plan", f"Sending {len(groups)} researchers out at once: "
                           + ", ".join(GROUP_LABELS[g] for g in groups))
     jobs = [(ctx.lane(dict(limits)), _lane_prompt(prompt, g, len(groups), FIRST_ROUND_SHARE * share),
@@ -1127,7 +1129,7 @@ def _plan_round(deps: Deps, ctx: RunContext, client: _Counted, setup: ResearchSe
         routes = sorted({r for group in sub["platforms"] for r in group_routes(group)})
         credits = sub["credits"] * scale
         lane = ctx.lane({"credits": credits, "calls": calls, "max_turns": TIERS["T3"]["max_turns"],
-                         "max_budget_usd": lane_usd})
+                         "max_budget_usd": lane_usd, "search_cap": (1 - ENRICH_SHARE) * credits})
         jobs.append((lane, _angle_prompt(prompt, sub, len(subs), routes, credits),
                      _Counted(client.client, routes, client.lock)))
     return _research_lanes(deps, jobs, setup, progress, should_stop, ctx, client)
