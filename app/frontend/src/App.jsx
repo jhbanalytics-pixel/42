@@ -97,6 +97,10 @@ function SignInWait(){
   );
 }
 
+/* How long the startup health and identity checks may take before the page
+   stops waiting and offers sign-in recovery. */
+export const AUTH_PROBE_MS = 15000;
+
 function SignInUnavailable(){
   return (
     <div className="page route-wait-enter">
@@ -285,12 +289,17 @@ export function parseAskQuery(hashText){
 }
 
 /* History opens a past brief at #/today?date=YYYY-MM-DD; anything else in
-   date= is ignored and Today opens on its latest brief. */
+   date= is ignored and Today opens on its latest brief. A day the calendar
+   does not have, such as 30 February, is anything else too: the API would
+   refuse it, and retrying would only ask for it again. */
 export function todayDateFromHash(hashText){
   const text = String(hashText || '');
   const at = text.indexOf('?');
   const date = new URLSearchParams(at >= 0 ? text.slice(at + 1) : '').get('date') || '';
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const [y, m, d] = date.split('-').map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d));
+  return day.getUTCFullYear() === y && day.getUTCMonth() === m - 1 && day.getUTCDate() === d ? date : null;
 }
 
 /* A 42 topic page is #/t/<item_id>?market=ZA. A market outside the three
@@ -704,6 +713,7 @@ export default function App(){
   const [authMode, setAuthMode] = useState(null);
   const [authUnavailable, setAuthUnavailable] = useState(false);
   const [authReady, setAuthReady] = useState(null);
+  const authDeadline = useRef(null);
   const [health, setHealth] = useState(null);
   const onAuth = useCallback(() => {
     if (authMode === 'iap_readonly'){
@@ -741,13 +751,27 @@ export default function App(){
 
   useEffect(() => {
     let live = true;
+    const probe = new AbortController();
+    /* A startup check that never answers would hold every route on the wait
+       frame. At the deadline the page stops listening, so a late answer
+       cannot open the shell, and shows sign-in recovery with Reload. */
+    const deadline = setTimeout(() => {
+      if (!live) return;
+      live = false;
+      probe.abort();
+      setAuthMode('unavailable');
+      setAuthUnavailable(true);
+      setNeedPass(false);
+      setAuthReady(false);
+    }, AUTH_PROBE_MS);
+    authDeadline.current = deadline;
     /* With a stored key the page waits, sends one verify, and starts no gated
        read until it answers 200. */
     const openWithStoredKey = () => {
       if (!credential.key()){ setNeedPass(true); setAuthReady(false); return; }
       credential.verifyStored().then((result) => { if (live) applyStoredCheck(result); });
     };
-    fetch('/api/health')
+    fetch('/api/health', {signal: probe.signal})
       .then((r) => {
         if (r && r.ok === false) throw new Error('health_unavailable');
         return r.json();
@@ -765,6 +789,7 @@ export default function App(){
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               body: '{}',
+              signal: probe.signal,
             })
               .then((r) => {
                 if (r && r.ok === false) throw new Error('sign_in_unavailable');
@@ -817,8 +842,16 @@ export default function App(){
           setAuthReady(false);
         }
       });
-    return () => { live = false; };
+    return () => { live = false; clearTimeout(deadline); };
   }, [applyStoredCheck]);
+
+  /* The deadline ends once the gate has an answer either way. */
+  useEffect(() => {
+    if ((authReady !== null || authUnavailable) && authDeadline.current !== null){
+      clearTimeout(authDeadline.current);
+      authDeadline.current = null;
+    }
+  }, [authReady, authUnavailable]);
 
   const retryStored = useCallback(() => {
     if (retryingNow.current) return;
@@ -1106,7 +1139,7 @@ export default function App(){
         )}
         <Suspense fallback={<RouteWait />}>
           {route === 'explore' && <Discover42 region={region} onRegionChange={setRegion} onAuth={onAuth} onCreateWatch={createWatch} />}
-          {route === 'topic42' && <TopicPage42 key={hash.param + ':' + topic42Market(window.location.hash, region)} itemId={hash.param} market={topic42Market(window.location.hash, region)} onAuth={onAuth} onCreateWatch={createWatch} />}
+          {route === 'topic42' && <TopicPage42 key={hash.param + ':' + topic42Market(window.location.hash, region)} itemId={hash.param} market={topic42Market(window.location.hash, region)} date={todayDateFromHash(window.location.hash)} onAuth={onAuth} onCreateWatch={createWatch} />}
           {route === 'coverage' && <CoveragePage42 onAuth={onAuth} />}
           {route === 'alerts' && <AlertsPage42 region={region} onAuth={onAuth} />}
           {route === 'console' && consoleShowsBuild(window.location.hash) && <Build42 region={region} onAuth={onAuth} />}

@@ -32,7 +32,8 @@ from core.agent.tools.warehouse import search_view
 TOOL_NAMES = ["sql_query", "search_posts", "socialcrawl_call", "rising_topics", "recall_findings", "save_finding",
               "budget_status", "resolve_dates", "get_comments", "get_transcript", "watch_video", "read_article",
               "log_forecast", "query_rows", "history", "analogues"]
-# A SocialCrawl failure can carry a URL with a key, so these tools report only the exception type.
+# A SocialCrawl failure can carry a URL with a key, so these tools report only the exception type. They are also every
+# tool that spends credits, so T0 refuses them all.
 SOCIALCRAWL_TOOLS = ("socialcrawl_call", "get_comments", "get_transcript", "watch_video", "read_article")
 _ERROR_CHARS = 300
 # Rule 9: a URL or query string in an exception can carry a key, so neither reaches the model.
@@ -248,6 +249,10 @@ def build_functions(ctx: RunContext, warehouse, client, writer) -> dict:
 
 def guard(ctx: RunContext, name: str, args: dict) -> None:
     """The checks a tool call passes before its function runs. Raises Refused."""
+    # T0 reads the warehouse only (Albert, 23 October), so no live tool runs there whatever its route or quote.
+    if ctx.tier == "T0" and name in SOCIALCRAWL_TOOLS:
+        raise Refused(f"{name} is not available at T0, which reads the warehouse only. Answer from stored posts and "
+                      f"name what a live search would add as a gap.")
     if name == "sql_query":
         try:
             check_sql(args.get("sql") or "")

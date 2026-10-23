@@ -97,6 +97,8 @@ const fieldwork = JSON.parse(readFileSync(new URL('../../../../tests/fixtures/wo
 
 function api(pathname){
   if (pathname === '/api/health') return {passcode: false};
+  /* An empty brief that is still a brief: a 200 body without its markets list is shown as a fault (audit W19-01). */
+  if (pathname === '/api/today') return {date: '2026-09-30', markets: []};
   if (pathname.startsWith('/api/desk')) return desk;
   if (pathname.startsWith('/api/voices')) return {creators: [], market_label: 'South Africa'};
   if (pathname.startsWith('/api/internal/v2/fieldwork/read')) return fieldwork;

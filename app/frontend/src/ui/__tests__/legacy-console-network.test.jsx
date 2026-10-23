@@ -121,3 +121,21 @@ test('console Ask draft links retain their question and market after a warm hash
     writeFileSync(join(evidence, 'draft.json'), JSON.stringify({hash: await host.page.evaluate(() => location.hash), requests: host.requests}, null, 2));
   } finally { await host.context.close(); }
 }, 30000);
+
+/* Audit W03-01: a research or brief link must land on a current page and
+   must not ask the API for the retired research, v2 or internal v2 reads. */
+test('cold research and brief links land on Build without retired reads', async () => {
+  const results = [];
+  for (const link of ['#/research', '#/console?work=brief', '#/research?artifact=ra_old', '#/console?work=brief&artifact=ra_old']){
+    const host = await fixture();
+    try {
+      host.phase('case');
+      await host.page.goto(base + '/' + link);
+      await settled(host.page, '#/console', '.b42');
+      const retired = host.requests.filter((request) => /^\/api\/(research\/|v2\/|internal\/v2\/)/.test(request.path));
+      results.push({link, requests: host.requests, retired});
+      expect([link, retired]).toEqual([link, []]);
+    } finally { await host.context.close(); }
+  }
+  writeFileSync(join(evidence, 'research-links.json'), JSON.stringify(results, null, 2));
+}, 60000);

@@ -11,7 +11,7 @@ GlobalRegistrator.register();
 
 const {createRoot} = await import('react-dom/client');
 const {flushSync} = await import('react-dom');
-const {listSchedules, createSchedule, pauseSchedule, resumeSchedule, askSpike} = await import('../../api42.js');
+const {listSchedules, createSchedule, pauseSchedule, resumeSchedule, cancelSchedule, askSpike} = await import('../../api42.js');
 const {SchedulesPage42, runWords} = await import('../../schedules42.jsx');
 const {resolveHostRoute, parseAskQuery} = await import('../../App.jsx');
 
@@ -107,6 +107,7 @@ const form = () => host.querySelector('[data-section="add"] form');
 const standard = () => [
   ['/api/schedules/s_000000000001/pause', reply(200, {...S1, status: 'paused', last_run: undefined, skip_reason: undefined})],
   ['/api/schedules/s_000000000002/resume', reply(200, {...S2, status: 'active', last_run: undefined, skip_reason: undefined})],
+  ['/api/schedules/s_000000000001/cancel', reply(200, {...S1, status: 'cancelled', last_run: undefined, skip_reason: undefined})],
   ['/api/schedules', (url, init) => (init && init.method === 'POST'
     ? reply(201, {schedule_id: 's_new000000001', created_at: '2026-09-30T09:00:00+02:00', status_at: '2026-09-30T09:00:00+02:00', who: 'passcode', ...JSON.parse(init.body), status: 'active'})
     : reply(200, SCHEDULES))],
@@ -124,6 +125,7 @@ test('the schedule and spike calls build the contract paths, methods and bodies'
   await createSchedule({question: 'What is new in amapiano?', market: 'ZA', tier: 'T1', cadence: 'weekly_monday', deliver: ['in_app']});
   await pauseSchedule('s 1');
   await resumeSchedule('s_1');
+  await cancelSchedule('s_1');
   await askSpike({item_id: 'item_a', market: 'ZA', date: '2026-09-25', series: 'feed_tiktok'});
   await askSpike({item_id: 'item_a', market: 'ZA', date: '2026-09-25'});
   expect(calls.map((c) => [c.init.method || 'GET', c.url])).toEqual([
@@ -131,12 +133,13 @@ test('the schedule and spike calls build the contract paths, methods and bodies'
     ['POST', '/api/schedules'],
     ['POST', '/api/schedules/s%201/pause'],
     ['POST', '/api/schedules/s_1/resume'],
+    ['POST', '/api/schedules/s_1/cancel'],
     ['POST', '/api/spikes'],
     ['POST', '/api/spikes'],
   ]);
   expect(bodyOf(calls[1])).toEqual({question: 'What is new in amapiano?', market: 'ZA', tier: 'T1', cadence: 'weekly_monday', deliver: ['in_app']});
-  expect(bodyOf(calls[4])).toEqual({item_id: 'item_a', market: 'ZA', date: '2026-09-25', series: 'feed_tiktok'});
-  expect(bodyOf(calls[5])).toEqual({item_id: 'item_a', market: 'ZA', date: '2026-09-25'});
+  expect(bodyOf(calls[5])).toEqual({item_id: 'item_a', market: 'ZA', date: '2026-09-25', series: 'feed_tiktok'});
+  expect(bodyOf(calls[6])).toEqual({item_id: 'item_a', market: 'ZA', date: '2026-09-25'});
   for (const call of calls) expect(call.init.headers['X-Passcode']).toBe('test-pass');
 });
 
@@ -208,6 +211,38 @@ test('Pause and Resume append a row through the API and the list shows the new s
   await settle();
   expect(posted('/api/schedules/s_000000000002/resume')).toHaveLength(1);
   expect(text(row('s_000000000002'))).toContain('Active');
+});
+
+/* Albert, 23 October 2026: a schedule can be cancelled for good. Cancel asks
+   first; once confirmed the row stays listed as Cancelled with its last run,
+   and offers no Pause or Resume. */
+test('Cancel asks for confirmation, then shows the schedule as Cancelled with no Pause or Resume', async () => {
+  await mount();
+  const first = () => row('s_000000000001');
+  click(button(first(), 'Cancel'));
+  await settle();
+  expect(posted('/api/schedules/s_000000000001/cancel')).toHaveLength(0);
+  expect(text(first())).toContain('cannot be resumed');
+  click(button(first(), 'Keep it'));
+  await settle();
+  expect(posted('/api/schedules/s_000000000001/cancel')).toHaveLength(0);
+  expect(button(first(), 'Pause')).toBeDefined();
+
+  click(button(first(), 'Cancel'));
+  click(button(first(), 'Cancel schedule'));
+  await settle();
+  expect(posted('/api/schedules/s_000000000001/cancel')).toHaveLength(1);
+  expect(first().querySelector('.a42-state').textContent).toBe('Cancelled');
+  expect(text(first())).toContain('Last run 28 September 2026: Answered');
+  for (const label of ['Pause', 'Resume', 'Cancel', 'Cancel schedule']) expect(button(first(), label)).toBeUndefined();
+});
+
+test('a schedule listed as cancelled shows Cancelled and offers no controls', async () => {
+  await mount([['/api/schedules', reply(200, {schedules: [{...S2, status: 'cancelled'}]})]]);
+  const cancelled = row('s_000000000002');
+  expect(cancelled.querySelector('.a42-state').textContent).toBe('Cancelled');
+  expect(text(cancelled)).toContain('Last run 29 September 2026: Skipped, Scheduled share spent');
+  expect(cancelled.querySelector('button')).toBeNull();
 });
 
 test('a failed pause shows the API message on its row', async () => {

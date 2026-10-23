@@ -8,8 +8,10 @@ Rules, all for today in SAST (RUN_DATE overrides the day):
   collection_missing  from 04:00, no ok collect runs row
   zero_rows           an ok collect, and a market with no post_observations
   brief_late          from 06:30, a market with no published briefs row
-  model_spend         model spend booked in runs over 80% of MODEL_DAILY_USD: counts.model_usd on every stage's
-                      runs plus record.run.model_usd on ask runs, once per run_id
+  model_spend         model spend booked in runs over 80% of MODEL_DAILY_USD, read as the API's spend reader
+                      reads it: once per run_id, the model_usd column, else record.run.model_usd, else
+                      counts.model_usd. A finished run of a stage that always records its spend (MODEL_STAGES)
+                      with none of the three leaves the day's spend unknown, which fires too.
   schema_drift        a route whose successful raw_responses today lack a top-level key every response of the last
                       7 days carried, or carry a key with a JSON value type (object, array, string, number,
                       boolean) the key never had in those 7 days. A key turning null, or a null key gaining a value,
@@ -74,6 +76,8 @@ LOG_ONLY = ("brief_empty", "brief_all_held", "brief_data_issue", "stage_dead", "
 SEVERITY = {"brief_all_held": "INFO", "schema_added": "NOTICE"}
 NEEDS_NOW = ("model_spend", "stage_dead", "watchdog_gap")
 SPEND_SHARE = 0.8
+# Stages whose runs always record their model spend, as Coverage reads them (core/api/coverage.py MODEL_STAGES).
+MODEL_STAGES = ("understand", "understand_spend", "detect", "brief", "ask", "learn", "investigation")
 COLLECT_BY = time(4, 0)
 BRIEF_BY = time(6, 30)
 DRIFT_AT, DRIFT_WINDOW = time(7, 0), timedelta(minutes=15)
@@ -83,10 +87,15 @@ WATCHDOG_MAX_GAP = timedelta(minutes=90)
 # The degraded writes of an understand run, spelled exactly as core/api/store.py DEGRADED_SQL reads them for
 # Coverage (a test holds the two together); copied here so the job image does not import the API's store.
 _CLUSTER_MARKETS = ("za", "ng", "ke", "pan")
+_FAILED_ROWS = "SAFE_CAST(JSON_VALUE(r.counts, '$.failed') AS INT64)"
 UNDERSTAND_DEGRADED = "ARRAY(SELECT w FROM UNNEST([{}]) AS w WITH OFFSET o WHERE w IS NOT NULL ORDER BY o)".format(
     ", ".join(["IF(JSON_VALUE(r.counts, '$.embed_error') IS NOT NULL, 'embed', NULL)",
+               f"IF({_FAILED_ROWS} > 0, CONCAT('embed_rows:', CAST({_FAILED_ROWS} AS STRING)), NULL)",
                "IF(JSON_VALUE(r.counts, '$.enrich_error') IS NOT NULL, 'enrich', NULL)"]
               + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.error') IS NOT NULL, 'cluster:{m}', NULL)"
+                 for m in _CLUSTER_MARKETS]
+              + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.net_failed') = 'true', CONCAT('label_net:{m}:', "
+                 f"IFNULL(JSON_VALUE(r.counts, '$.cluster.{m}.net_error'), 'unknown')), NULL)"
                  for m in _CLUSTER_MARKETS]))
 
 # For deploy_jobs.py and schedule.py (task 2.10 leaves those files to their owner): the job, and its two
@@ -136,6 +145,11 @@ def _model_spend(store, d, clock, now):
     cap = model_daily_usd(now=now)
     if usd > SPEND_SHARE * cap:
         return f"model spend for {d} is USD {usd:.2f}, over {SPEND_SHARE:.0%} of MODEL_DAILY_USD {cap:.0f}"
+    uncosted = store.model_uncosted(d)
+    if uncosted:
+        runs = "1 finished model run has" if uncosted == 1 else f"{uncosted} finished model runs have"
+        return (f"model spend for {d} is unknown: {runs} no recorded cost, beside USD {usd:.2f} recorded "
+                f"against MODEL_DAILY_USD {cap:.0f}")
 
 
 def _key_changes(store, d, clock):
@@ -247,6 +261,11 @@ def _short(text):
 def _step_words(step):
     if step.startswith("cluster:"):
         return f"topic clusters for {step.split(':', 1)[1].upper()}"
+    if step.startswith("embed_rows:"):
+        return f"embeddings for {step.split(':', 1)[1]} posts"
+    if step.startswith("label_net:"):
+        _, market, reason = step.split(":", 2)
+        return f"checked topic labels for {market.upper()} (neutral labels used, {reason})"
     return STEP_WORDS.get(step, step)
 
 
@@ -414,11 +433,14 @@ WHERE run_date = @d AND stage = 'collect' AND status = 'ok'""",
 WHERE observed_date = @d GROUP BY market""",
     "published_markets": f"""SELECT DISTINCT market FROM `{AGENT}.briefs`
 WHERE brief_date = @d AND published_at IS NOT NULL""",
-    # A run appends several rows and only the finished one carries the figure, so MAX once per run_id.
-    "model_usd": f"""SELECT IFNULL(SUM(u.usd), 0) usd FROM (
-  SELECT r.run_id,
-    IFNULL(MAX(CAST(JSON_VALUE(r.counts, '$.model_usd') AS FLOAT64)), 0)
-    + IFNULL(MAX(IF(r.stage = 'ask', CAST(JSON_VALUE(r.record, '$.run.model_usd') AS FLOAT64), NULL)), 0) usd
+    # A run appends several rows and only the finished one carries the figure, so MAX once per run_id, of the
+    # coalesce the API's spend reader takes (core/api/investigations.py _runs_usd), so Coverage and this alert
+    # count the same dollars. uncosted counts the finished runs of MODEL_STAGES that recorded no figure at all.
+    "model_usd": f"""SELECT IFNULL(SUM(u.usd), 0) usd,
+  COUNTIF(u.usd IS NULL AND u.model_stage AND u.status NOT IN ('running', '{chain.SKIPPED}')) uncosted FROM (
+  SELECT r.run_id, LOGICAL_OR(r.stage IN ({', '.join(repr(s) for s in MODEL_STAGES)})) model_stage, {_LATEST} status,
+    MAX(COALESCE(r.model_usd, SAFE_CAST(JSON_VALUE(r.record, '$.run.model_usd') AS FLOAT64),
+                 SAFE_CAST(JSON_VALUE(r.counts, '$.model_usd') AS FLOAT64))) usd
   FROM `{AGENT}.runs` r
   WHERE r.run_date = @d
   GROUP BY r.run_id) u""",
@@ -483,6 +505,7 @@ class BigQueryStore:
 
     def __init__(self, client):
         self._client = client
+        self._spent = {}
 
     def _rows(self, name, d):
         from google.cloud import bigquery
@@ -499,8 +522,16 @@ class BigQueryStore:
     def published_markets(self, d):
         return {r["market"] for r in self._rows("published_markets", d)}
 
+    def _spend(self, d):
+        if d not in self._spent:
+            self._spent[d] = self._rows("model_usd", d)[0]
+        return self._spent[d]
+
     def model_usd(self, d):
-        return float(self._rows("model_usd", d)[0]["usd"] or 0)
+        return float(self._spend(d)["usd"] or 0)
+
+    def model_uncosted(self, d):
+        return int(self._spend(d).get("uncosted") or 0)
 
     def route_keys(self, d):
         return self._rows("route_keys", d)

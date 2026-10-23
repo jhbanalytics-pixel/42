@@ -94,7 +94,7 @@ Topic pages and creator pages open from any card. Click a jump in a topic's char
 4. The answer ends with what it means for a brand, what to watch, what 42 does not know and up to three follow-ups that keep the context.
 5. You can add it to a dossier, save the checked claims as findings, export it or have it asked again every Monday.
 
-Each question has a depth and a budget. A quick lookup spends up to 10 credits, the default scan up to 60 and a deep read up to 300, where several researchers work by platform group and a critic follows. An investigation can spend up to 600, after you approve its plan. When the day's budget runs short, Ask answers from the warehouse and says so.
+Each question has a depth and a budget. A quick lookup reads the warehouse only and spends no credits, the default scan up to 60 and a deep read up to 300, where several researchers work by platform group and a critic follows. An investigation can spend up to 600, after you approve its plan. When the day's budget runs short, Ask answers from the warehouse and says so.
 
 Ask runs on Gemini on Vertex AI through function calling, and the model can reach only 42's own fourteen tools: read-only SQL on allowlisted datasets, warehouse search, the capped supplier client, comments, transcripts, video reading, rising topics, saved findings, forecasts, history, analogues, the budget and date resolution. Scraped text always reaches the model fenced as untrusted data, never as instructions.
 

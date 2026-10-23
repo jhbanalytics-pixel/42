@@ -24,7 +24,7 @@ import pytest
 
 from core.understand import cluster, embed, job
 from core.understand.tests.test_cluster import CORE, DAY, NetModel, core_db, duck_execute, synthetic_clusters
-from core.understand.tests.test_embed import FakeWarehouse, fake_chain, finished_run, sql
+from core.understand.tests.test_embed import CLEAN_EMBED, FakeWarehouse, fake_chain, finished_run, sql
 
 SQL_DIR = cluster.SQL_DIR
 RAGGED_MESSAGE = ("400 GET https://bigquery.googleapis.com/bigquery/v2/projects/ogilvy-trends-v2/queries/job_x"
@@ -65,7 +65,7 @@ class StoredEmbeddings(FakeWarehouse):
     and the index build refuses a column whose arrays are not all one length, with BigQuery's own message."""
 
     def __init__(self, lengths):
-        super().__init__(shape="job", stored=sum(1 for n in lengths if n))
+        super().__init__(counts=dict(CLEAN_EMBED), shape="job", stored=sum(1 for n in lengths if n))
         self.lengths = lengths
 
     def __call__(self, text, params, max_bytes=None):
@@ -428,6 +428,6 @@ def test_the_9_oct_cluster_errors_make_the_run_partial_at_this_head(monkeypatch,
     assert finished_run(log)[2] == "ok"
     assert counts["partial"] is True and counts["partial_reason"] == "cluster_stack_failed"
     assert "cannot round-trip through string representation" in counts["partial_error"]
-    assert set(job.degraded_steps(counts)) == {"cluster:ke", "cluster:ng", "cluster:pan"}
+    assert set(job.degraded_steps(counts)) == {"embed_rows", "cluster:ke", "cluster:ng", "cluster:pan"}
     err = capsys.readouterr().err
     assert "understand partial: cluster_stack_failed" in err and "understand degraded:" in err

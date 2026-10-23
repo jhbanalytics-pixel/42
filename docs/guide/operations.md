@@ -80,9 +80,18 @@ Every release is a reviewed commit, built once, deployed by image digest. The co
 py -3.13 core/setup/deploy_jobs.py
 py -3.13 core/setup/deploy_jobs.py --build --apply
 
-# Services: build, deploy f42-agent and f42-api, run the health check
+# Services that follow LATEST only: build, deploy f42-agent and f42-api, run the health check
 bash core/api/deploy.sh
 ```
+
+`deploy.sh` is only for services whose traffic follows LATEST. A new revision of such a service takes traffic as soon as it is deployed, before the health check runs. It refuses, with exit 65 and before building, any service pinned to a revision by name or carrying a tag.
+
+A service release once traffic is pinned goes through the candidate flow in `core/setup/release/SERVICES-PASTE.ps1`, one action per run (`-Action Candidate`, `Promote`, `Rollback` or `Retire`, with its lock, review, bindings and receipt):
+
+1. **Candidate** builds the bound commit, freezes the manifest and its image digest, pins both services to their recorded serving revisions, deploys the frozen image with `core/api/deploy_candidate.sh` as a tagged revision of each service that takes no traffic, and smokes the API candidate on its tag URL. Every step has its readback.
+2. **Promote**, after the smoke readback and a quiet-window check, moves 100% of traffic to the named revision `f42-agent-<release id>`, reads it back, then does the same for `f42-api-<release id>`. The API never moves before the agent's readback passes.
+3. **Rollback** restores 100% of traffic to the serving revisions recorded in the bound baseline, f42-api first and then f42-agent, and reads both back. It asks for nothing, so it never waits.
+4. **Retire** removes the release tag from both services. It runs only after a rollback, or with proof that traffic never moved.
 
 `deploy_jobs.py` refuses to build or deploy while `core/` has uncommitted changes, so an image tag always names exactly what is inside it. Nothing in these scripts removes a resource or starts a job. GitHub Actions workflows for staging and production are written and kept in `.github/parked-workflows/` until keyless deploys are switched on.
 

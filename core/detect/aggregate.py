@@ -16,29 +16,42 @@ AGGREGATE_SQL = Path(__file__).parent / "sql" / "aggregate.sql"
 # Rows per post_items INSERT or cultural_map MERGE, so no one request nears BigQuery's 10 MB limit.
 CHUNK = 5000
 
-# Posts whose first sighting in a market is @d, with the raw fields items_for_post reads, and cluster_items: the
-# items of @d's clusters the post is a member of (BUILD.md 2.2), each with an open cultural_map row.
+# Posts whose first sighting in a market is @d, with the raw fields items_for_post reads, and cluster_links: the
+# items of @d's clusters the post is a member of (BUILD.md 2.2), each with an open cultural_map row, once per item and
+# clustering run market ('za', 'ng', 'ke' for a market run, 'pan' for the pooled run), so the link keeps its scope.
 FIRST_SIGHTED_SQL = """
 SELECT ps.post_id, ps.platform, ps.hashtags, ps.sound_id, ps.creator_id, cr.display_name AS creator_name, fs.market,
-       fs.first_day, cl.cluster_items
+       fs.first_day, cl.cluster_links
 FROM (SELECT po.post_id, po.market, MIN(po.observed_date) first_day
       FROM {core}.post_observations po WHERE po.observed_date <= @d
       GROUP BY po.post_id, po.market) fs
 JOIN {core}.posts ps ON ps.post_id = fs.post_id
 LEFT JOIN {core}.creators cr ON cr.creator_id = ps.creator_id AND cr.platform = ps.platform
-LEFT JOIN (SELECT mb.post_id, ARRAY_AGG(DISTINCT k.item_id ORDER BY k.item_id) cluster_items
-           FROM {core}.cluster_members mb
-           JOIN {core}.clusters k ON k.cluster_id = mb.cluster_id
-           JOIN (SELECT DISTINCT m.item_id FROM {core}.cultural_map m WHERE m.valid_to IS NULL) op
-             ON op.item_id = k.item_id
-           WHERE k.cluster_date = @d
-           GROUP BY mb.post_id) cl ON cl.post_id = ps.post_id
+LEFT JOIN (SELECT ck.post_id, ARRAY_AGG(STRUCT(ck.item_id AS item_id, ck.run_market AS run_market)
+                                        ORDER BY ck.item_id, ck.run_market) cluster_links
+           FROM (SELECT DISTINCT mb.post_id, k.item_id, LOWER(k.market) run_market
+                 FROM {core}.cluster_members mb
+                 JOIN {core}.clusters k ON k.cluster_id = mb.cluster_id
+                 JOIN (SELECT DISTINCT m.item_id FROM {core}.cultural_map m WHERE m.valid_to IS NULL) op
+                   ON op.item_id = k.item_id
+                 WHERE k.cluster_date = @d) ck
+           GROUP BY ck.post_id) cl ON cl.post_id = ps.post_id
 WHERE fs.first_day = @d
 """
 
 POST_ITEMS_INSERT_SQL = """
 INSERT INTO {core}.post_items (post_id, item_id, via)
 SELECT DISTINCT n.post_id, n.item_id, n.via FROM UNNEST(@rows) n
+WHERE NOT EXISTS (SELECT 1 FROM {core}.post_items p WHERE p.post_id = n.post_id AND p.item_id = n.item_id)
+"""
+
+# The dated, market-aware cluster links tvf_post_items counts (counted_links.sql): the same one row per post and item
+# as POST_ITEMS_INSERT_SQL, with linked_on and link_market. A post and item already linked, a legacy row with neither
+# field among them, is left as it is, so a rerun of a day aggregated before links carried their scope never adds a
+# second row beside the legacy one.
+CLUSTER_LINKS_INSERT_SQL = """
+INSERT INTO {core}.post_items (post_id, item_id, via, linked_on, link_market)
+SELECT DISTINCT n.post_id, n.item_id, n.via, n.linked_on, n.link_market FROM UNNEST(@rows) n
 WHERE NOT EXISTS (SELECT 1 FROM {core}.post_items p WHERE p.post_id = n.post_id AND p.item_id = n.item_id)
 """
 
@@ -63,6 +76,8 @@ WHEN NOT MATCHED THEN
 """
 
 POST_ITEM_FIELDS = (("post_id", "STRING"), ("item_id", "STRING"), ("via", "STRING"))
+CLUSTER_LINK_FIELDS = POST_ITEM_FIELDS + (("linked_on", "DATE"), ("link_market", "STRING"))
+CLUSTER_VIAS = ("cluster", "cluster_pan")
 ITEM_FIELDS = (("item_id", "STRING"), ("kind", "STRING"), ("canonical_key", "STRING"), ("label", "STRING"),
                ("first_seen", "DATE"), ("first_seen_market", "STRING"), ("first_seen_platform", "STRING"),
                ("last_seen", "DATE"), ("status", "STRING"))
@@ -70,10 +85,11 @@ ITEM_FIELDS = (("item_id", "STRING"), ("kind", "STRING"), ("canonical_key", "STR
 
 def items_rows(posts):
     """(post_items rows, cultural_map rows) for posts carrying post_id, platform, hashtags, sound_id,
-    creator_id, market and first_day, and optionally cluster_items. One post_items row per post and item;
+    creator_id, market and first_day, and optionally cluster_links. One post_items row per post and item;
     one cultural_map row per item, first seen on its earliest post (ties by market, platform, post_id), last
     seen on its latest, with status 'generic' when items.is_generic holds and 'active' otherwise. A cluster
-    item gets a post_items row with via 'cluster' and no cultural_map row, since understand writes its row.
+    item gets a post_items row dated first_day (the clusters' date) with the via and link_market of
+    cluster_scopes, and no cultural_map row, since understand writes its row.
     An item of any kind whose label gdelt.blocked() flags (rule 1), a hashtag, a creator handle or a sound id,
     keeps its post_items row and gets no cultural_map row, as collect's cultural_map_rows leaves it out, so it
     is never named. A creator is also refused by its display name (post["creator_name"]), the text collect checks;
@@ -82,10 +98,11 @@ def items_rows(posts):
     post_items, items, seen, refused = [], {}, set(), set()
     order = sorted(posts, key=lambda p: (p["first_day"], p["market"], p["platform"] or "", p["post_id"]))
     for post in order:
-        for cluster_item in post.get("cluster_items") or []:
+        for cluster_item, via, link_market in cluster_scopes(post.get("cluster_links")):
             if (post["post_id"], cluster_item) not in seen:
                 seen.add((post["post_id"], cluster_item))
-                post_items.append({"post_id": post["post_id"], "item_id": cluster_item, "via": "cluster"})
+                post_items.append({"post_id": post["post_id"], "item_id": cluster_item, "via": via,
+                                   "linked_on": post["first_day"], "link_market": link_market})
         for it in items_for_post(post):
             if (post["post_id"], it["item_id"]) not in seen:
                 seen.add((post["post_id"], it["item_id"]))
@@ -105,6 +122,25 @@ def items_rows(posts):
             else:
                 row["last_seen"] = max(row["last_seen"], post["first_day"])
     return post_items, list(items.values())
+
+
+def cluster_scopes(links):
+    """[(item_id, via, link_market)], one per item, from a post's cluster_links ({item_id, run_market}). An item only a
+    market run gave the post is a local link of that market (via 'cluster', link_market upper case as
+    post_observations holds it); an item only the pooled run gave it is a pooled link (via 'cluster_pan', no market).
+    post_items keeps one row per post and item, so an item two runs gave the post (a market run and the pooled run, or
+    two market runs) is one link with no market, counted in every market the post is sighted in, as the pooled run
+    counts it; via stays 'cluster' when a market run is among them, so it keeps the market run's precedence."""
+    runs = {}
+    for link in links or []:
+        runs.setdefault(link["item_id"], set()).add(str(link["run_market"]).lower())
+    out = []
+    for item in sorted(runs):
+        markets = runs[item] - {"pan"}
+        via = "cluster" if markets else "cluster_pan"
+        market = next(iter(markets)).upper() if len(markets) == 1 and "pan" not in runs[item] else None
+        out.append((item, via, market))
+    return out
 
 
 def blocked_item(it, post):
@@ -153,9 +189,11 @@ def run_aggregate(client, d, run_id, rule_version, core=CORE, agent=AGENT):
     day = bigquery.ScalarQueryParameter("d", "DATE", d)
     posts = _run(client, FIRST_SIGHTED_SQL, [day], core, agent)
     post_items, items = items_rows(posts)
-    for i in range(0, len(post_items), CHUNK):
-        _run(client, POST_ITEMS_INSERT_SQL, [_struct_array("rows", post_items[i:i + CHUNK], POST_ITEM_FIELDS)],
-             core, agent)
+    for sql, fields, rows in (
+            (POST_ITEMS_INSERT_SQL, POST_ITEM_FIELDS, [r for r in post_items if r["via"] not in CLUSTER_VIAS]),
+            (CLUSTER_LINKS_INSERT_SQL, CLUSTER_LINK_FIELDS, [r for r in post_items if r["via"] in CLUSTER_VIAS])):
+        for i in range(0, len(rows), CHUNK):
+            _run(client, sql, [_struct_array("rows", rows[i:i + CHUNK], fields)], core, agent)
     for i in range(0, len(items), CHUNK):
         _run(client, cultural_map_merge_sql(), [_struct_array("items", items[i:i + CHUNK], ITEM_FIELDS)],
              core, agent)

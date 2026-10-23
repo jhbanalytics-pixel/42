@@ -9,7 +9,7 @@ import {readerFigure} from './api.js';
 import {plainUnit, unitFor} from './readerUnits.js';
 import {validateAnswer} from './answerContract.js';
 import {createDossier, fetchDiscover, saveFinding} from './api42.js';
-import {downloadExport, getAsk, startAsk, stopAsk, streamAsk} from './askTransport42.js';
+import {downloadExport, getAsk, requestKey, startAsk, stopAsk, stopAskRequest, streamAsk} from './askTransport42.js';
 import {go} from './router.js';
 import {marketToSend} from './askMarkets.js';
 import {costWords, itemsWords} from './costWords.js';
@@ -50,7 +50,8 @@ const CONFIDENCE = {
 
 /* The most an ask may spend at each tier (AGENT.md). With no tier the agent
    picks T0 or T1, so the higher ceiling is the one to name. */
-const CEILING = {T0: 10, T1: 60};
+const CEILING = {T0: 0, T1: 60};  // T0 reads stored posts only and spends no credits.
+const ceilingTier = (tier) => (Object.hasOwn(CEILING, tier || '') ? tier : null);
 /* The tier in words, as the skill confirms name it. */
 const TIER_WORDS = {T0: 'Quick lookup', T1: 'Quick scan', T2: 'Deep read'};
 
@@ -388,6 +389,9 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
   const [exportError, setExportError] = useState('');
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
+  /* One key per dossier this answer starts: a retry after an unclear failure
+     sends it again, so the server returns the draft it may already have made. */
+  const dossierRequest = useRef(null);
   const [findingSave, setFindingSave] = useState({askId, phase: 'idle', error: ''});
   const findingSaveRequest = useRef(null);
   const findingSaveState = findingSave.askId === askId ? findingSave : {phase: 'idle', error: ''};
@@ -433,7 +437,11 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
     setAdding(true);
     setAddError('');
     try {
-      const made = await createDossier(record.ask_id);
+      if (!dossierRequest.current || dossierRequest.current.askId !== record.ask_id){
+        dossierRequest.current = {askId: record.ask_id, key: requestKey()};
+      }
+      const made = await createDossier(record.ask_id, {requestId: dossierRequest.current.key});
+      dossierRequest.current = null;
       go('/dossiers/' + encodeURIComponent(made.dossier_id));
     } catch (error){
       setAddError(peopleWords(error, 'The dossier could not be started.'));
@@ -713,7 +721,7 @@ function Running({run, onStop}){
   const elsewhere = run.evidence.filter((record) => !inMarket(record, market));
   const gathered = counted.slice(0, GATHERED_LIMIT);
   const moreGathered = counted.length - gathered.length;
-  const stopButton = <button type="button" className="ask42-quiet ask42-stop" onClick={onStop} disabled={run.stopping || !run.askId}>{run.stopping ? 'Stopping' : 'Stop'}</button>;
+  const stopButton = <button type="button" className="ask42-quiet ask42-stop" onClick={onStop} disabled={run.stopping || !(run.askId || (run.request && run.request.key))}>{run.stopping ? 'Stopping' : 'Stop'}</button>;
   return (
     <div className="ask42-running">
       <h2 className="ask42-question" aria-label={question}>{question}</h2>
@@ -834,21 +842,30 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
 
   useEffect(() => () => { if (control.current) control.current.abort(); }, []);
 
-  async function ask(text, mkt, extra = {}){
+  /* Each start carries a request key (audit W04-04, W20-03). Asking again
+     after a start that failed before it named its ask sends the same key, so
+     an ask the agent did accept is followed, not started twice; Stop works on
+     the key until the ask's id is known. */
+  async function ask(text, mkt, extra = {}, key = requestKey()){
     const words = String(text || '').trim();
     if (words.length < 3) return;
     if (control.current) control.current.abort();
     const ctrl = new AbortController();
     control.current = ctrl;
     const requestHash = typeof window === 'undefined' ? '' : window.location.hash;
-    const request = {text: words, mkt, extra};
+    const request = {text: words, mkt, extra, key};
     setRun({...EMPTY_RUN, phase: 'running', startedAt: Date.now(), request});
-    const body = {question: words, market: mkt || null, parent_id: extra.parent_id || null};
+    const body = {question: words, market: mkt || null, parent_id: extra.parent_id || null, request_id: key};
     if (extra.from_card) body.from_card = extra.from_card;
     if (extra.tier) body.tier = extra.tier;
     try {
       const started = await startAsk(body);
-      if (ctrl.signal.aborted) return;
+      if (ctrl.signal.aborted){
+        /* The page let this ask go before it learnt its id, so nothing here
+           could show or stop it: it is stopped rather than left running. */
+        stopAskRequest(key).catch(() => {});
+        return;
+      }
       setRun((current) => ({...current, askId: started.ask_id}));
       if (
         typeof window !== 'undefined' &&
@@ -943,9 +960,10 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   }
 
   async function stop(){
-    if (!run.askId) return;
+    const key = run.request && run.request.key;
+    if (!run.askId && !key) return;
     setRun((current) => ({...current, stopping: true}));
-    try { await stopAsk(run.askId); }
+    try { await (run.askId ? stopAsk(run.askId) : stopAskRequest(key)); }
     catch (error){
       setRun((current) => ({...current, stopping: false, stopError: error && error.message}));
       needPasscode(error);
@@ -973,7 +991,12 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
     if (run.phase === 'error' && (followed || run.askId)){ follow(followed || run.askId); return; }
     if (!followed){
       const extra = run.request.extra || {};
-      setRetry({tier: CEILING[extra.tier] ? extra.tier : null, extra});
+      /* A start that failed before naming its ask may still have been
+         accepted: the same key finds that ask. One stopped on its key is
+         asked again under a new one. */
+      const stopped = run.phase === 'error' && run.error && run.error.code === 'stopped';
+      const key = run.phase === 'error' && !stopped ? run.request.key : null;
+      setRetry({tier: ceilingTier(extra.tier), extra, key});
       return;
     }
     const spike = record && record.spike;
@@ -986,14 +1009,15 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
     }
     if (record && record.schedule_id){ go('/schedules'); return; }
     const tier = record && ((record.run && record.run.tier) || record.tier);
-    setRetry({tier: CEILING[tier] ? tier : null});
+    setRetry({tier: ceilingTier(tier)});
   }
 
   function askAgain(){
     const tier = retry && retry.tier;
     const extra = retry && retry.extra;
+    const key = (retry && retry.key) || undefined;
     setRetry(null);
-    ask(run.request.text, run.request.mkt, extra || (tier ? {tier} : {}));
+    ask(run.request.text, run.request.mkt, extra || (tier ? {tier} : {}), key);
   }
 
   const record = run.record;
@@ -1099,7 +1123,8 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
         <CostConfirm
           title="Ask this question again?"
           where={run.request.text}
-          line={'Asking again spends up to ' + CEILING[retry.tier || 'T1'] + ' credits.'}
+          line={retry.tier === 'T0' ? 'Asking again reads stored posts only and spends no credits.'
+            : 'Asking again spends up to ' + CEILING[retry.tier || 'T1'] + ' credits.'}
           does="42 starts this question over and reads the posts again."
           get="A new answer on this page, with the posts behind each point."
           confirmWord="Ask again"

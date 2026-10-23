@@ -484,3 +484,19 @@ test('a matched card with a checked written title names the subject by it', asyn
   expect([...host.querySelectorAll('.c42-subject')].map((node) => node.textContent)[0]).toBe('Step dance craze in Soweto');
   expect(text()).not.toContain(RAW_ID);
 });
+
+/* Audit W23-03: a creator subject the API resolves to a creator offers its
+   creator page beside its item page; a topic subject keeps the item link only. */
+test('a creator subject links to its creator page as well as its item page', async () => {
+  const body = clone(itemsFixture);
+  body.subjects[0].creator_id = null;
+  body.subjects[1] = {...body.subjects[1], creator_id: 'c_fixture_visible'};
+  await mount(SHARED, standard(body));
+  const heads = [...section('table').querySelectorAll('thead th')].slice(1);
+  const hrefs = (th) => [...th.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('href')]);
+  expect(hrefs(heads[1])).toEqual([
+    [body.subjects[1].label, '#/t/' + encodeURIComponent(body.subjects[1].item_id) + '?market=' + body.subjects[1].market],
+    ['Creator page', '#/creators/c_fixture_visible?market=' + body.subjects[1].market],
+  ]);
+  expect(hrefs(heads[0]).map(([, href]) => href)).toEqual(['#/t/' + encodeURIComponent(body.subjects[0].item_id) + '?market=' + body.subjects[0].market]);
+});

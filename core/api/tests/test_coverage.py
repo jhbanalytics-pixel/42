@@ -827,3 +827,61 @@ def test_degraded_shows_embed_in_python_and_sql_and_a_cluster_stack_failure_per_
                           "ke": {"error": "ImportError: stack"}, "pan": {"error": "ImportError: stack"}}}
     assert store_mod.degraded_writes(counts) == ["embed", "cluster:za", "cluster:ng", "cluster:ke", "cluster:pan"]
     assert store_mod.DEGRADED_SQL.index("$.embed_error") < store_mod.DEGRADED_SQL.index("$.cluster.za.error")
+
+
+# W14-02: rows the embedding model failed on, and a market whose label net fell back to neutral labels, are degraded.
+def test_degraded_writes_name_failed_embedding_rows_and_label_net_fallbacks_with_their_count_and_reason():
+    counts = {"embedded": 40, "failed": 2, "cluster": {
+        "za": {"clusters": 3, "net_failed": False},
+        "ng": {"clusters": 4, "net_failed": True, "net_error": "malformed"},
+        "pan": {"clusters": 1, "net_failed": True, "net_error": "cap"}}}
+    assert store_mod.degraded_writes(counts) == ["embed_rows:2", "label_net:ng:malformed", "label_net:pan:cap"]
+    assert store_mod.degraded_writes({"failed": 0, "cluster": {"za": {"net_failed": False}}}) == []
+    sql = store_mod.DEGRADED_SQL
+    assert "JSON_VALUE(r.counts, '$.failed')" in sql
+    assert "JSON_VALUE(r.counts, '$.cluster.ng.net_failed')" in sql
+    assert "JSON_VALUE(r.counts, '$.cluster.ng.net_error')" in sql
+    assert sql.index("$.embed_error") < sql.index("$.failed") < sql.index("$.enrich_error")
+    assert sql.index("$.cluster.pan.error") < sql.index("$.cluster.za.net_failed")
+
+
+def test_coverage_words_failed_embedding_rows_and_a_label_net_fallback():
+    assert coverage._degraded(["embed_rows:1", "embed_rows:5", "label_net:ng:malformed", "label_net:pan:cap",
+                               "label_net:ke:TimeoutError"]) == [
+        "Embedding: 1 post not embedded", "Embedding: 5 posts not embedded",
+        "Topic labels for Nigeria: neutral labels used (the label check's answer was malformed)",
+        "Topic labels for the three markets pooled: neutral labels used (the daily model cap was reached)",
+        "Topic labels for Kenya: neutral labels used (TimeoutError)"]
+
+
+def test_coverage_shows_an_ok_understand_run_with_failed_rows_and_a_label_net_fallback_as_degraded(fx):
+    def runs_all():
+        rows = FixtureStore._runs_all(fx)
+        extra = {"failed": 2, "cluster": {"za": {"clusters": 3, "net_failed": True, "net_error": "cap"}}}
+        return [dict(r, counts=json.dumps({**(r.get("counts") or {}), **extra}))
+                if r["run_id"] == "r_understand_20260930_01" and r.get("finished_at") else r for r in rows]
+
+    runs = coverage.build_coverage(Patched(_runs_all=runs_all), D30)["runs"]
+    understand = next(r for r in runs if r["stage"] == "understand")
+    assert understand["status"] == "ok"
+    assert understand["degraded"] == ["Embedding: 2 posts not embedded",
+                                      "Topic labels for South Africa: neutral labels used (the daily model cap was reached)"]
+
+
+def test_coverage_scorecard_carries_the_expansion_concentration_measures():
+    """Audit W26-03: the learn job stores cluster, platform and language concentration; Coverage passes all three on,
+    the unmeasured language one with its reason."""
+    fig = lambda value, unit, reason=None: {"value": value, "unit": unit, "query_id": "q_scorecard_expansion_share",
+                                            "run_id": "r1", "result_hash": "h", "n": 4, "reason": reason}
+    row = {"week_start": "2026-09-21", "week_end": "2026-09-27", "market": "ZA", "run_id": "r1", "rule_version": "v",
+           "expansion_cluster_share": fig(0.45, "largest share of expansion credits held by one cluster (target 0.25 "
+                                                "or less)"),
+           "expansion_platform_share": fig(0.40, "largest share of expansion credits held by one platform (target "
+                                                 "0.25 or less)"),
+           "expansion_language_share": fig(None, "largest share of expansion credits held by one language",
+                                           "not yet measured: credit_ledger and seed_queue rows carry no language")}
+    za = coverage._scorecard([row])["markets"][0]
+    assert za["expansion_cluster_share"]["value"] == 0.45 and "0.25" in za["expansion_cluster_share"]["unit"]
+    assert za["expansion_platform_share"]["value"] == 0.40
+    assert za["expansion_language_share"]["value"] is None
+    assert za["reasons"]["expansion_language_share"].endswith("carry no language")

@@ -55,6 +55,13 @@ export const RAIL_MORE_GROUPS = Object.freeze([
 
 export const RAIL_MORE = Object.freeze(RAIL_MORE_GROUPS.flatMap((group) => group.items));
 
+/* Pages the menu leaves out but All pages still lists, by the menu group
+   they belong with. Build repeats Ask, Investigations and Dossiers, so it
+   stays off the rail, but a reader looking for it can find it there. */
+export const MAP_ONLY = Object.freeze([
+  {label: 'Build', href: '#/console', routes: ['console'], group: 'work'},
+]);
+
 /* Every page the menu names, in reading order. */
 export const RAIL_ALL = Object.freeze([...RAIL_TOP, ...RAIL_WORK, ...RAIL_MORE]);
 

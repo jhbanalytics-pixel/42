@@ -193,7 +193,8 @@ def test_t2_entrypoint_prioritizes_requested_platforms_without_more_lanes(questi
         assert len(matching) == 1, group
         call = matching[0]
         assert call["budget"] == {"credits": 75.0, "calls": 11, "max_turns": 40,
-                                  "max_budget_usd": ask.researcher_usd(), "credit_cap": 56.25}
+                                  "max_budget_usd": ask.researcher_usd(), "credit_cap": 56.25,
+                                  "search_cap": 41.25}
         assert call["ran"] == (["tiktok"] if group == "tiktok" else
                                ["threads"] if group == "reddit_threads" else [])
     markets = ["KE"] if "Kenya" in question else ["ZA"]
@@ -277,7 +278,8 @@ def test_t2_runs_one_researcher_per_group_concurrently_on_scoped_budgets():
     slice_ = 300 / 4
     for call in first:
         assert call["budget"] == {"credits": slice_, "calls": 11, "max_turns": 40,
-                                  "max_budget_usd": ask.researcher_usd(), "credit_cap": 0.75 * slice_}
+                                  "max_budget_usd": ask.researcher_usd(), "credit_cap": 0.75 * slice_,
+                                  "search_cap": 0.55 * slice_}
         assert call["credits_left"] == pytest.approx(0.75 * slice_)  # the lane's 25% stays for the gap round
         assert call["calls_left"] == 11
         assert call["ctx"].queries is first[0]["ctx"].queries  # query ids stay unique across researchers

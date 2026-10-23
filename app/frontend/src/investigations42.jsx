@@ -19,7 +19,7 @@ import {answerStatusWords, noShortAnswer} from './ask42.jsx';
 import {stoppedEarly, summaryNotice} from './answerMeta.js';
 import {peopleWords, privacyNotice} from './privacyNotice.js';
 import {createInvestigation, createInvestigationDossier, getInvestigation, listInvestigations, startInvestigation, stopInvestigation, streamInvestigation, updateInvestigationPlan} from './api42.js';
-import {downloadExport} from './askTransport42.js';
+import {downloadExport, requestKey} from './askTransport42.js';
 import {go} from './router.js';
 import {EvidenceChip, monthName, postDay} from './ui/EvidenceChip.jsx';
 import {FigureLine} from './ui/FigureLine.jsx';
@@ -490,6 +490,8 @@ function EstimateView({estimate, budget}){
       {budget
         ? <p className="inv42-line">{'Left today: ' + plural(budget.credits ?? 0, 'credit') + ' and ' + usdDown(budget.model_usd) + '. Both are checked again when you start.'}</p>
         : <p className="inv42-line">What is left today is checked again when you start.</p>}
+      {/* The minutes come from fixed figures per pass, not from timed runs. */}
+      <p className="inv42-line">The time is a planning guess: 42 has not yet measured how long investigations take.</p>
     </section>
   );
 }
@@ -502,12 +504,22 @@ function toCredits(raw){
   return text !== '' && Number.isFinite(value) ? Math.round(value * 100) / 100 : null;
 }
 
+const MAX_SUB_QUESTIONS = 8;
+
 function PlanEditor({plan, onSave, onCancel, onAuth}){
   const [subs, setSubs] = useState(() => plan.sub_questions.map((sub) => ({...sub, platforms: asGroups(sub.platforms), credits: String(sub.credits)})));
   const [gapRound, setGapRound] = useState(Boolean(plan.gap_round));
   const [state, setState] = useState({busy: false, error: null});
 
   const change = (id, patch) => setSubs((current) => current.map((sub) => (sub.id === id ? {...sub, ...patch} : sub)));
+  /* The service takes 1 to 8 sub-questions, ids q1 to q99, and prices the plan again when it is saved. */
+  const remove = (id) => setSubs((current) => (current.length > 1 ? current.filter((sub) => sub.id !== id) : current));
+  const add = () => setSubs((current) => {
+    if (current.length >= MAX_SUB_QUESTIONS) return current;
+    /* A new id follows the highest, so a removed question's id is never reused. */
+    const n = Math.max(0, ...current.map((sub) => Number(String(sub.id).slice(1)) || 0)) + 1;
+    return n > 99 ? current : [...current, {id: 'q' + n, text: '', platforms: [], credits: '0'}];
+  });
   const toggle = (sub, platform) => change(sub.id, {platforms: sub.platforms.includes(platform) ? sub.platforms.filter((p) => p !== platform) : [...sub.platforms, platform]});
 
   async function submit(event){
@@ -553,8 +565,12 @@ function PlanEditor({plan, onSave, onCancel, onAuth}){
           </fieldset>
           <label className="ask42-label" htmlFor={'inv42-credits-' + sub.id}>Credits</label>
           <input id={'inv42-credits-' + sub.id} className="ask42-input inv42-number" type="number" min={0} step={0.01} inputMode="decimal" value={sub.credits} onChange={(event) => change(sub.id, {credits: event.target.value})} />
+          {subs.length > 1 && <button type="button" className="ask42-quiet" onClick={() => remove(sub.id)}>Remove this sub-question</button>}
         </fieldset>
       ))}
+      {subs.length < MAX_SUB_QUESTIONS && (
+        <button type="button" className="ask42-quiet" onClick={add} disabled={state.busy}>Add a sub-question</button>
+      )}
       <div className="ask42-form-row">
         <p className="inv42-line">{plural(subs.length, 'researcher')}, one per sub-question</p>
         <label className="inv42-check">
@@ -710,6 +726,8 @@ function InvestigationAnswer({record, investigationId, onFailure}){
   const [exportError, setExportError] = useState('');
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState('');
+  /* One key per dossier this investigation starts, sent again on a retry (see Ask's answer). */
+  const dossierRequest = useRef(null);
   const records = new Map(withParents(answer.evidence).map((item) => [item.id, item]));
   const figures = (answer.claims || []).flatMap((claim) => claim.numbers || []).slice(0, 4);
   const notices = Array.isArray(run.notices) ? run.notices : [];
@@ -734,7 +752,11 @@ function InvestigationAnswer({record, investigationId, onFailure}){
     setOpening(true);
     setOpenError('');
     try {
-      const made = await createInvestigationDossier(investigationId);
+      if (!dossierRequest.current || dossierRequest.current.investigationId !== investigationId){
+        dossierRequest.current = {investigationId, key: requestKey()};
+      }
+      const made = await createInvestigationDossier(investigationId, {requestId: dossierRequest.current.key});
+      dossierRequest.current = null;
       go('/dossiers/' + encodeURIComponent(made.dossier_id));
     } catch (error){
       setOpenError(error && error.message ? error.message : 'The dossier could not be started.');

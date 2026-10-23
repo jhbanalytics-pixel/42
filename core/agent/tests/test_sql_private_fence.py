@@ -338,8 +338,10 @@ def test_b23_calendar_analogues_and_media_stay_readable():
 # B20. INTERNAL_ALLOW lists exactly the functions that read a denied object, and only those functions use it.
 def test_b20_internal_allow_lists_exactly_the_functions_that_read_denied_objects():
     registry = module.INTERNAL_ALLOW
-    assert set(registry) == {"discover_creators", "recall_findings", "get_trending_fallback_snapshot", "log_forecast"}
-    assert set(registry["discover_creators"]) == {f"{CORE}.v_suppressed_creators", f"{CORE}.suppressions"}
+    assert set(registry) == {"discover_creators", "search_posts", "fetch_posts", "topic_sweep", "recall_findings",
+                             "get_trending_fallback_snapshot", "log_forecast"}
+    for name in ("discover_creators", "search_posts", "fetch_posts"):  # each leaves out the creators hidden now
+        assert set(registry[name]) == {f"{CORE}.v_suppressed_creators", f"{CORE}.suppressions"}
     assert set(registry["recall_findings"]) == {f"{AGENT}.v_prior_findings", f"{AGENT}.findings"}
     assert set(registry["get_trending_fallback_snapshot"]) == {f"{AGENT}.v_briefs_current", f"{AGENT}.briefs"}
     assert set(registry["log_forecast"]) == {f"{AGENT}.forecasts"}
@@ -362,7 +364,7 @@ def test_b20_only_internal_read_passes_hidden_ok_and_only_for_registered_functio
 
 def test_b20_an_unregistered_function_cannot_read_a_denied_object(ctx):
     with pytest.raises(KeyError):
-        module.internal_read("search_posts", ctx, FakeWarehouse(), f"SELECT * FROM {CORE}.suppressions", purpose="x")
+        module.internal_read("rising_topics", ctx, FakeWarehouse(), f"SELECT * FROM {CORE}.suppressions", purpose="x")
 
 
 def test_b20_an_internal_read_reaches_only_its_own_objects(ctx):

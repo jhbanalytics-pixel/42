@@ -167,6 +167,8 @@ def test_the_today_payload_is_byte_identical_to_the_one_the_api_lane_built():
         assert item["explanation_claim_ids"] == []
         for field in ("claims", "explanation", "explanation_claim_ids"):
             item.pop(field)
+    # Searching Now's read state (audit W13-06) is a key the API added after that lane, not one the early signal wrote.
+    assert payload.pop("searching_now_status") in ("ok", "empty", "unavailable", "suppressed")
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=ident._plain).encode("utf-8")
     assert ident.digest(blob) == LANE_TODAY_HELD_PROJECTION_DIGEST
 

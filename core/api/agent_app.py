@@ -1,6 +1,7 @@
 """f42-agent: runs Ask, streams its steps and records the finished run (core/api/contract.md sections 6 and 7)."""
 
 import copy
+import hashlib
 import importlib
 import json
 import logging
@@ -149,7 +150,17 @@ MAX_SINK = 500
 
 ASKS = {}
 SINK = []
+# A start may carry a request_id the page chose (audit W04-04, W20-03). REQUESTS maps it to its ask while the ask is
+# held, so a start sent again after a lost reply gets that ask back instead of a second one. STOPPED_REQUESTS holds the
+# request ids a stop came for, so a start that arrives after its own stop is refused rather than run unseen.
+ASK_REQUEST_ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
+REQUESTS = {}
+STOPPED_REQUESTS = {}
 _PLANNER_READBACK_HOLDS = {}
+# Holds rebuilt after a restart, by investigation, with the SAST day they were rebuilt on. They stand for spend a dead
+# owner may have made without recording it, which can only fall on or before that day, so money_snapshot drops them
+# once the day ends (a run still open by then has no owner left to spend).
+_RECOVERED_HOLDS = {}
 
 @asynccontextmanager
 async def investigation_lifespan(app):
@@ -433,6 +444,12 @@ def prune():
     drop = [a for a in finished if a.ended < cutoff] + fresh[:max(0, len(fresh) - MAX_FINISHED)]
     for a in drop:
         ASKS.pop(a.request["ask_id"], None)
+    for request_id, ask_id in list(REQUESTS.items()):
+        if ask_id not in ASKS:
+            del REQUESTS[request_id]
+    for request_id, at in list(STOPPED_REQUESTS.items()):
+        if at < cutoff:
+            del STOPPED_REQUESTS[request_id]
 
 
 def project():
@@ -530,6 +547,9 @@ def validate(body):
         return "parent_id must be an ask id or null."
     if not isinstance(body.get("from_card"), (dict, type(None))):
         return "from_card must be an object or null."
+    request_id = body.get("request_id")
+    if not (request_id is None or (isinstance(request_id, str) and ASK_REQUEST_ID.fullmatch(request_id))):
+        return "request_id must be 8 to 64 letters, digits, - or _, or left out."
     if body.get("spike") is not None:
         from core.api.spike import check_spike
         try:
@@ -588,20 +608,67 @@ async def start(request: Request):
     ask = Ask(req)
     if "spike" in req:
         ask.record["spike"] = req["spike"]  # so Try again on a followed spike goes back to its topic page
+    request_id = body.get("request_id")
+    busy = False
     with _lock:
         prune()
-        busy = sum(1 for a in ASKS.values() if a.ended is None) >= MAX_RUNNING
-        if not busy:
-            ASKS[req["ask_id"]] = ask
+        held = ASKS.get(REQUESTS.get(request_id)) if request_id else None
+        stopped = held is None and request_id in STOPPED_REQUESTS
+        if held is None and not stopped:
+            busy = sum(1 for a in ASKS.values() if a.ended is None) >= MAX_RUNNING
+            if not busy:
+                ASKS[req["ask_id"]] = ask
+                if request_id:
+                    REQUESTS[request_id] = req["ask_id"]
+    if held is not None:
+        return await repeated(held, req["wait"])
+    if stopped:
+        return error(409, "stopped", "This ask was stopped before it started.")
     if busy:
         return error(429, "rate_limited",
                      f"{MAX_RUNNING} asks are already running; try again when one finishes.")
-    threading.Thread(target=execute, args=(ask, run_ask), daemon=True, name=req["ask_id"]).start()
+    try:
+        threading.Thread(target=execute, args=(ask, run_ask), daemon=True, name=req["ask_id"]).start()
+    except Exception as exc:
+        # No worker will ever end this ask, so it gives its running slot back before the refusal (audit W04-01).
+        log.error("ask %s: its worker did not start: %s", req["ask_id"], type(exc).__name__)
+        with _lock:
+            ASKS.pop(req["ask_id"], None)
+            REQUESTS.pop(request_id, None)
+        return error(503, "agent_unavailable", "The Ask agent could not start this ask; try again.")
     if req["wait"]:
         await run_in_threadpool(ask.finished.wait)
         return view_response(await run_in_threadpool(readable, ask.snapshot()))
     url = f"/api/ask/{req['ask_id']}"
     return JSONResponse({"ask_id": req["ask_id"], "status": "running", "events_url": url + "/events", "url": url},
+                        status_code=202)
+
+
+async def repeated(held, wait):
+    """The answer to a start sent again with the request_id of an ask held here: that ask, never a second one. Its
+    reply says repeat, so f42-api does not count the start as another of the day's questions."""
+    ask_id = held.request["ask_id"]
+    if wait:
+        await run_in_threadpool(held.finished.wait)
+        return view_response(await run_in_threadpool(readable, held.snapshot()))
+    url = f"/api/ask/{ask_id}"
+    return JSONResponse({"ask_id": ask_id, "status": held.snapshot()["status"], "events_url": url + "/events",
+                         "url": url, "repeat": True}, status_code=202)
+
+
+@app.post("/api/ask/requests/{request_id}/stop")
+def stop_request(request_id: str):
+    """Stop the ask a start with this request_id made, or the one it will make: the page can ask for a stop before its
+    start has answered (audit W20-03). The reply names the ask when one is held, so the page can follow it."""
+    if not ASK_REQUEST_ID.fullmatch(request_id):
+        return error(400, "bad_request", "That is not a request id.")
+    with _lock:
+        STOPPED_REQUESTS[request_id] = time.monotonic()
+        held = ASKS.get(REQUESTS.get(request_id))
+    if held is None:
+        return JSONResponse({"request_id": request_id, "ask_id": None, "status": "stopped"}, status_code=202)
+    held.stop = True
+    return JSONResponse({"request_id": request_id, "ask_id": held.request["ask_id"], "status": "stopping"},
                         status_code=202)
 
 
@@ -991,6 +1058,9 @@ def set_schedule_status(schedule_id, status):
     schedule = held[0]
     if schedule["status"] == status:
         return JSONResponse(schedule)
+    # Cancel is final: a cancelled schedule keeps its rows and stays listed, but is never paused or resumed again.
+    if schedule["status"] == "cancelled":
+        return error(409, "cancelled", f"Schedule {schedule_id} was cancelled, so it cannot be paused or resumed.")
     schedule.update(status=status, status_at=status_time(schedule["market"]))
     if not append("schedules", SCHEDULES, schedule_row(schedule)):
         return not_saved("schedule")
@@ -1005,6 +1075,11 @@ def pause_schedule(schedule_id: str):
 @app.post("/api/schedules/{schedule_id}/resume")
 def resume_schedule(schedule_id: str):
     return set_schedule_status(schedule_id, "active")
+
+
+@app.post("/api/schedules/{schedule_id}/cancel")
+def cancel_schedule(schedule_id: str):
+    return set_schedule_status(schedule_id, "cancelled")
 
 
 @app.get("/api/schedules")
@@ -1065,6 +1140,34 @@ def no_skin(skin_id):
     return error(404, "not_found", f"No skin {skin_id} is held here.")
 
 
+# A skin saved while a person was visible keeps their handle in its stored row (contract 15.1 and 16). Every read
+# masks it with the list read now and never changes the row; a write or a report plan that would name someone hidden
+# now is refused, and so is one made while the list cannot be read.
+SKIN_WORDS = ("skin_key", "name", "terms", "hashtags", "accounts")
+NAMES_HIDDEN = "A skin cannot name a person 42 hides; take them out and save again."
+HIDDEN_UNREAD = "42 could not check its hidden-people list just now; try again shortly."
+
+
+def _hidden_now():
+    from core.api.store import get_store
+    return privacy.read_hidden(privacy.LazyStore(get_store))
+
+
+def shown_skins(value):
+    """value (a skin or a list of them) as a reader sees it: every hidden person's handle masked."""
+    return privacy.mask(value, _hidden_now())
+
+
+def skin_names_hidden(skin, status=400, code="bad_request"):
+    """None when the skin's words name nobody hidden now, else the refusal: status and code when they do, 503 when
+    the list cannot be read (fail closed)."""
+    hidden = _hidden_now()
+    if hidden is None:
+        return error(503, "people_unavailable", HIDDEN_UNREAD)
+    words = {key: skin.get(key) for key in SKIN_WORDS}
+    return error(status, code, NAMES_HIDDEN) if privacy.mask(words, hidden) != words else None
+
+
 def save_skin(skin_id, body):
     """A new skin (skin_id None) or a new row holding an existing skin's full body; its words checked first."""
     try:
@@ -1095,6 +1198,9 @@ def save_skin(skin_id, body):
         return error(503, "agent_unavailable", str(exc))
     if why:
         return error(400, "bad_request", why)
+    refused = skin_names_hidden(clean)
+    if refused is not None:
+        return refused
     at = status_time(clean["markets"][0])
     skin = {"skin_id": held["skin_id"] if held else f"sk_{secrets.token_hex(6)}", "skin_key": clean["skin_key"],
             "created_at": held["created_at"] if held else at, "status_at": at, "who": "passcode",
@@ -1129,22 +1235,22 @@ def archive_skin(skin_id: str):
         return no_skin(skin_id)
     skin = held[0]
     if skin["status"] == "archived":
-        return JSONResponse(skin)
+        return JSONResponse(shown_skins(skin))
     skin.update(status="archived", status_at=status_time(skin["markets"][0]))
     if not append("skins", SKINS, skin_row(skin)):
         return not_saved("skin")
-    return JSONResponse(skin)
+    return JSONResponse(shown_skins(skin))
 
 
 @app.get("/api/skins")
 def list_skins():
-    return {"skins": current_skins()}
+    return {"skins": shown_skins(current_skins())}
 
 
 @app.get("/api/skins/{skin_id}")
 def read_skin(skin_id: str):
     held = current_skins(skin_id)
-    return JSONResponse(held[0]) if held else no_skin(skin_id)
+    return JSONResponse(shown_skins(held[0])) if held else no_skin(skin_id)
 
 
 def skin_people(skin_id, record=None):
@@ -1356,17 +1462,41 @@ def save_version(body, ticks, status):
     row = {"dossier_id": body["dossier_id"], "version": body["version"], "created_at": body["created_at"],
            "who": body["who"], "state": body["state"], "body": json.dumps(body),
            "source_ask_id": body["source_ask_id"], "content_hash": dossiers.content_hash(body)}
-    if not append("dossier_versions", DOSSIER_VERSIONS, row):
+    try:
+        saved = append("dossier_versions", DOSSIER_VERSIONS, row)
+    except Exception as exc:
+        # The insert may have landed with its reply lost: the exact row read back decides (audit W21-02).
+        log.warning("dossier %s v%s: the insert raised %s; reading it back", body["dossier_id"], body["version"],
+                    type(exc).__name__)
+        try:
+            saved = any(held["version"] == row["version"] and held["content_hash"] == row["content_hash"]
+                        for held in dossier_versions(body["dossier_id"]))
+        except Exception:
+            saved = False
+        if not saved:
+            return error(503, "save_unconfirmed", "The dossier could not be confirmed as saved; try again.")
+    if not saved:
         return not_saved("dossier")
     return view_response(dossier_view({"body": body, "content_hash": row["content_hash"]}, ticks), status)
 
 
-def create_dossier_from(ask_id, change):
+DOSSIER_REQUEST_ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
+
+
+def requested_dossier_id(origin, request_id):
+    """The dossier id one create request names: the same source and request id always give the same id, so a retry of
+    a create whose reply was lost finds the dossier it made instead of starting a second draft (audit W21-02)."""
+    (kind, source_id), = origin.items()
+    digest = hashlib.sha256(f"{kind}:{source_id.strip()}:{request_id}".encode("utf-8")).hexdigest()
+    return f"d_{digest[:12]}"
+
+
+def create_dossier_from(ask_id, change, dossier_id=None):
     record = source_record(ask_id)
     if record is None:
         return error(404, "not_found", f"No ask {ask_id} is held here or stored.")
     people = skin_people(record["skin_id"], record) if record.get("skin_id") else None
-    return first_version(record, change, {"ask_id": ask_id}, people)
+    return first_version(record, change, {"ask_id": ask_id}, people, dossier_id)
 
 
 def keepable(record, learned=None):
@@ -1436,7 +1566,22 @@ def not_keepable(ids):
                                    "42 no longer shows.")
 
 
-def first_version(record, change, source, people=None):
+def first_version(record, change, source, people=None, dossier_id=None):
+    if NOT_RECORDED in ((record.get("run") or {}).get("notices") or []):
+        # Its runs row was never written, so once this process lets the answer go no edit or freeze could read it
+        # again (audit W21-01).
+        return error(409, "not_recorded", "This answer could not be recorded, so a dossier cannot be made from it. "
+                                          "Ask the question again to make one.")
+    if dossier_id is None:
+        return new_first_version(record, change, source, people, f"d_{secrets.token_hex(6)}")
+    with _dossier_lock:
+        versions = dossier_versions(dossier_id)
+        if versions:
+            return view_response(dossier_view(versions[-1], dossier_ticks(dossier_id)))
+        return new_first_version(record, change, source, people, dossier_id)
+
+
+def new_first_version(record, change, source, people, dossier_id):
     learned = set()
     ok = keepable(record, learned)
     if ok is None:
@@ -1450,12 +1595,12 @@ def first_version(record, change, source, people=None):
         sel = dossiers.selection(change, record, None)
     except dossiers.Refused as exc:
         return refused(exc)
-    body = dossiers.build(record, sel, dossier_id=f"d_{secrets.token_hex(6)}", version=1,
+    body = dossiers.build(record, sel, dossier_id=dossier_id, version=1,
                           created_at=status_time(record.get("market")), source=source, people=people, withheld=learned)
     return save_version(body, {}, 201)
 
 
-def create_dossier_from_investigation(investigation_id, change):
+def create_dossier_from_investigation(investigation_id, change, dossier_id=None):
     """Version 1 from a finished investigation's answer; its ask_id comes from memory, else the investigations table."""
     with _lock:
         running = RUNNING_INVESTIGATIONS.get(investigation_id)
@@ -1477,7 +1622,7 @@ def create_dossier_from_investigation(investigation_id, change):
         return error(409, "not_ready", f"Investigation {investigation_id} is running and has not finished; "
                                        "only a finished investigation can become a dossier.")
     people = skin_people(skin_id, record) if skin_id else None
-    return first_version(record, change, {"investigation_id": investigation_id}, people)
+    return first_version(record, change, {"investigation_id": investigation_id}, people, dossier_id)
 
 
 @app.post("/api/dossiers")
@@ -1489,11 +1634,15 @@ async def create_dossier(request: Request):
     if not (isinstance(origin, dict) and len(origin) == 1
             and any(_text(origin.get(key)) for key in ("ask_id", "investigation_id"))):
         return error(400, "bad_request", "from must hold one ask_id or one investigation_id.")
+    request_id = body.get("request_id")
+    if not (request_id is None or (isinstance(request_id, str) and DOSSIER_REQUEST_ID.fullmatch(request_id))):
+        return error(400, "bad_request", "request_id must be 8 to 64 letters, digits, - or _, or left out.")
+    dossier_id = requested_dossier_id(origin, request_id) if request_id else None
     change = {"title": body["title"]} if "title" in body else {}
     if "investigation_id" in origin:
         return await run_in_threadpool(in_one_read, create_dossier_from_investigation,
-                                       origin["investigation_id"].strip(), change)
-    return await run_in_threadpool(in_one_read, create_dossier_from, origin["ask_id"].strip(), change)
+                                       origin["investigation_id"].strip(), change, dossier_id)
+    return await run_in_threadpool(in_one_read, create_dossier_from, origin["ask_id"].strip(), change, dossier_id)
 
 
 @app.post("/api/findings")
@@ -1825,6 +1974,10 @@ def money_snapshot(run_date=None):
     day = run_date or now().date().isoformat()
     if now().date().isoformat() != day:
         return {"credits": None, "model_usd": None}, None, False
+    if _RECOVERY_FAILED:
+        # A running investigation the last scan could not read may hold ceilings that are not in RESERVED, so
+        # nothing proves any budget is left until a scan succeeds (recover_investigations).
+        return {"credits": None, "model_usd": None}, None, False
     try:
         spent = spent_today()
     except Exception as exc:
@@ -1832,6 +1985,10 @@ def money_snapshot(run_date=None):
         spent = {"credits": None, "model_usd": None}
     if now().date().isoformat() != day:
         return spent, None, False
+    for key, rebuilt_on in list(_RECOVERED_HOLDS.items()):
+        if rebuilt_on != day:
+            investigations.RESERVED.release(key)
+            _RECOVERED_HOLDS.pop(key, None)
     for key, hold in list(_PLANNER_READBACK_HOLDS.items()):
         if hold["run_date"] != day:
             investigations.RESERVED.release(key)
@@ -2001,6 +2158,10 @@ def draft_investigation(body):
         if not held:
             return no_skin(body["skin_id"])
         skin = held[0]
+        # A report plan carries the skin's words to the model and the reader: none may name someone hidden now.
+        refused = skin_names_hidden(skin, 409, "conflict")
+        if refused is not None:
+            return refused
     investigation_id = f"i_{secrets.token_hex(6)}"
     held = "plan:" + investigation_id
     planner_run_id = f"r_plan_{investigation_id[2:]}"
@@ -2274,6 +2435,8 @@ def stored_investigation_record(ask_id):
 # f42-agent runs as a single instance (max-instances 1), so a run no thread here holds and no stored record ends,
 # once it is older than the longest it may take, belongs to a process that has died (L3).
 ORPHAN_AFTER_SECONDS = 3600
+# True while the last recover_investigations scan failed: a running row it could not reconcile may hold ceilings.
+_RECOVERY_FAILED = False
 
 
 def _utcnow():
@@ -2303,6 +2466,13 @@ def reconcile_investigation(investigation_id):
             active = RUNNING_INVESTIGATIONS.get(investigation_id)
         if active is not None and not active.finished.is_set():
             return rows
+        if active is None:
+            # No thread here owns the run (after a restart, its owner died with the reservation it granted), so
+            # hold the stored plan's ceilings, which are never less than the granted ones, until the run ends.
+            plan = investigations.view(current)["plan"]
+            investigations.RESERVED.keep(investigation_id, {"credits": plan["max_credits"],
+                                                            "model_usd": plan["max_model_usd"]})
+            _RECOVERED_HOLDS.setdefault(investigation_id, now().date().isoformat())
         try:
             record = stored_investigation_record(current["ask_id"])
             if (not record or record.get("ask_id") != current["ask_id"]
@@ -2316,7 +2486,7 @@ def reconcile_investigation(investigation_id):
                     investigation_id, current["version"] + 1, status_time(current["market"]), "failed",
                     current["question"], current["market"], investigations.view(current)["plan"],
                     investigations.view(current)["estimate"], current["ask_id"], current["run_id"])
-                # The hold stays: releasing it changes a hold, which waits for the shared reservation gate (N34).
+                # The hold stays for the day it was rebuilt on (N34), and money_snapshot drops it after that day.
                 if append("investigations", INVESTIGATIONS, row):
                     return [*rows, row]
                 log.error("investigation %s: its lost-run row was not written", investigation_id)
@@ -2327,6 +2497,10 @@ def reconcile_investigation(investigation_id):
                 investigations.view(current)["estimate"], current["ask_id"],
                 (record.get("run") or {}).get("run_id") or current["run_id"])
             if append("investigations", INVESTIGATIONS, row):
+                # The Ask's runs row holds what the run spent, so its reservation ends here, as finish_investigation
+                # ends it for a run this process saw through.
+                investigations.RESERVED.release(investigation_id)
+                _RECOVERED_HOLDS.pop(investigation_id, None)
                 return [*rows, row]
             log.error("investigation %s: its recovered finish row was not written", investigation_id)
         except Exception as exc:
@@ -2336,7 +2510,10 @@ def reconcile_investigation(investigation_id):
 
 
 def recover_investigations():
-    """Reconcile stored running rows at startup. Missing local state alone never proves a dead owner."""
+    """Reconcile stored running rows at startup. Missing local state alone never proves a dead owner. A scan that
+    cannot read or reconcile every running row leaves the budget unknown (money_snapshot) until one can."""
+    global _RECOVERY_FAILED
+    failed = False
     try:
         if os.environ.get("F42_DATA") == "bigquery":
             rows = _stored("investigations",
@@ -2356,10 +2533,13 @@ def recover_investigations():
             try:
                 reconcile_investigation(row["investigation_id"])
             except Exception as exc:
+                failed = True
                 log.error("investigation %s: startup recovery failed (exception_type=%s)",
                           row["investigation_id"], type(exc).__name__)
     except Exception as exc:
+        failed = True
         log.error("investigation startup scan failed (exception_type=%s)", type(exc).__name__)
+    _RECOVERY_FAILED = failed
 
 
 def shown_investigations(rows):

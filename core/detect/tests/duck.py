@@ -322,7 +322,8 @@ def _value(param):
     if hasattr(param, "struct_values"):
         return dict(param.struct_values)
     if hasattr(param, "values"):
-        return [_value(v) for v in param.values]
+        # A struct array holds parameters, a scalar array its plain values.
+        return [_value(v) if hasattr(v, "struct_values") or hasattr(v, "value") else v for v in param.values]
     return param.value
 
 

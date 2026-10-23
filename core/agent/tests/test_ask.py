@@ -1,4 +1,5 @@
 import copy
+import inspect
 import json
 import re
 import subprocess
@@ -270,7 +271,7 @@ def make_research(stop_flag=None, live=True, seen=None):
             return {"note": "", "tokens": {"input": 400, "output": 50}, "usd": 0.004}
         sql_query(ctx, options.warehouse, COUNT_SQL, purpose="posts, authors and platforms for amapiano",
                   params={"term": "amapiano"})
-        if live:
+        if live and ctx.tier != "T0":  # T0 reads the warehouse only, as the real research loop's guard holds it
             emit.step("search", "Searching Threads live", platform="threads")
             socialcrawl_call(ctx, options.client, "threads", "search", {"query": "amapiano"}, max_credits=5)
         return {"note": "Reading: amapiano, South Africa, this week.", "tokens": {"input": 1000, "output": 300},
@@ -293,6 +294,8 @@ class Harness:
             self.clients.append(client)
             return client
 
+        if spent is not None and not inspect.signature(spent).parameters:
+            spent = (lambda read: lambda at: read())(spent)  # most tests' readers ignore the accounting moment
         self.deps = ask.Deps(warehouse=self.warehouse, socialcrawl=socialcrawl, tables=self.tables, model=self.model,
                              research=research or make_research(), now=lambda: NOW if now is None else now, check=check,
                              spent_today_usd=spent)
@@ -1575,10 +1578,10 @@ def test_default_deps_wire_a_spend_reader_on_the_default_warehouse():
     assert callable(deps.spent_today_usd)
     wh = SpendWarehouse(usd=7.0)
     deps.warehouse.run = wh.run  # no cloud: the reader must go through this warehouse's run path
-    assert deps.spent_today_usd() == 7.0
+    assert deps.spent_today_usd(NOW) == 7.0
     ((sql, params, _),) = wh.runs
     assert sql == ask.SPEND_SQL and "stage" not in params
-    assert params["day"] == datetime.now(ask.SAST).date()
+    assert params["day"] == NOW.astimezone(ask.SAST).date()  # the day of the moment run_ask passes, not the clock's
 
 
 def test_model_spend_under_the_cap_keeps_the_tier_and_the_main_model(cheaper_fast_model):
@@ -3685,6 +3688,27 @@ def test_follow_up_prompt_carries_the_parents_findings_as_context():
 
 
 # Audit F7D-ASK-004: one SAST accounting day from the cap decision to the runs row
+
+def test_the_spend_read_cap_hold_and_runs_row_take_one_sast_day_across_midnight(monkeypatch):
+    # The worker starts its spend read just before SAST midnight and the read ends just after it: the read, the cap,
+    # the hold and the runs row's day are all the one accounting moment, taken before the read.
+    read_at, cap_at = [], []
+    real_cap = ask.model_daily_usd
+    monkeypatch.setattr(ask, "model_daily_usd", lambda *, now=None: cap_at.append(now) or real_cap(now=now))
+
+    def spent(at):
+        read_at.append(at)
+        return 0.0
+
+    h = Harness(spent=spent)
+    h.deps.now = lambda: datetime(2026, 9, 29, 0, 0, 1, tzinfo=SAST) if read_at else datetime(2026, 9, 28, 23, 59, 59,
+                                                                                               tzinfo=SAST)
+    h.run(ask_id="a_20260928_edge")
+    assert [a.astimezone(SAST).date() for a in read_at] == [date(2026, 9, 28)]
+    assert cap_at[0].date() == date(2026, 9, 28)
+    assert ask.spend_day("a_20260928_edge") == date(2026, 9, 28)
+    ask.recorded("a_20260928_edge")
+
 
 def test_an_unrecorded_ask_names_the_sast_day_its_spend_was_held_against():
     after_midnight = datetime(2026, 9, 29, 0, 0, 1, tzinfo=SAST)

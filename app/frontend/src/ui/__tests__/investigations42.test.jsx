@@ -809,7 +809,7 @@ test('Open as dossier creates a draft dossier from the investigation and opens i
   await until(() => button('Open as dossier'), 'the button');
   await press('Open as dossier');
   await until(() => window.location.hash === '#/dossiers/d_inv01', 'the dossier to open');
-  expect(calls.find((c) => c.method === 'POST').body).toEqual({from: {investigation_id: ID}});
+  expect(calls.find((c) => c.method === 'POST').body).toEqual({from: {investigation_id: ID}, request_id: expect.any(String)});
 });
 
 test('a 401 anywhere hands the reader to the passcode flow', async () => {
@@ -1031,4 +1031,51 @@ test('the investigation page shows a lost run in plain words with Read again, no
   await until(() => host.querySelector('[role="alert"]'), 'the lost notice');
   expect(plain(host.querySelector('[role="alert"]').textContent)).toContain('restart');
   expect(plain(host.querySelector('[role="alert"]').textContent)).toContain('Read again');
+});
+
+/* Audit W20-04: the editor removes and adds sub-questions inside the API's 1
+   to 8, and the count of researchers follows the list. */
+test('Edit plan removes a sub-question and adds one, and saves the new list through PUT', async () => {
+  const saved = draft({version: 2, estimate: {credits: 200, model_usd: 1.2, minutes: 5}});
+  await openDraft(draft(), [['PUT', '/api/investigations/' + ID + '/plan', json(200, saved)]]);
+  await press('Edit plan');
+  const q2 = host.querySelector('[data-edit-sub="q2"]');
+  await act(async () => { [...q2.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Remove this sub-question').click(); });
+  expect(host.querySelector('[data-edit-sub="q2"]')).toBeNull();
+  expect(text()).toContain('2 researchers, one per sub-question');
+  await press('Add a sub-question');
+  const added = host.querySelector('[data-edit-sub="q4"]');
+  expect(added).not.toBeNull();
+  expect(text()).toContain('3 researchers, one per sub-question');
+  await act(async () => typeInto(added.querySelector('textarea'), 'Which brands joined in?'));
+  await act(async () => { added.querySelector('input[type="checkbox"][value="instagram"]').click(); });
+  await act(async () => typeInto(added.querySelector('input[type="number"]'), '40'));
+  await press('Save plan');
+  await until(() => text().includes('About 200 credits'), 'the fresh estimate');
+  const put = calls.find((c) => c.method === 'PUT');
+  expect(put.body.plan.sub_questions).toEqual([
+    PLAN.sub_questions[0], PLAN.sub_questions[2],
+    {id: 'q4', text: 'Which brands joined in?', platforms: ['instagram'], credits: 40},
+  ]);
+});
+
+test('Edit plan offers no Remove on a single sub-question and no Add at eight', async () => {
+  const one = {...clone(PLAN), sub_questions: [clone(PLAN.sub_questions[0])], researchers: 1};
+  await openDraft(draft({plan: one}));
+  await press('Edit plan');
+  expect([...host.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Remove this sub-question')).toBe(false);
+  expect(button('Add a sub-question')).toBeDefined();
+  await act(async () => root.unmount());
+  root = createRoot(host);
+  const eight = {...clone(PLAN), sub_questions: Array.from({length: 8}, (_, i) => ({...clone(PLAN.sub_questions[0]), id: 'q' + (i + 1)})), researchers: 8};
+  await openDraft(draft({plan: eight}));
+  await press('Edit plan');
+  expect(button('Add a sub-question')).toBeUndefined();
+});
+
+/* Audit W20-05: the minutes are labelled as a guess, not a measured time. */
+test('the estimate says its time is a planning guess, not measured', async () => {
+  await openDraft();
+  await until(() => text().includes('The estimate'), 'the estimate');
+  expect(text()).toContain('The time is a planning guess: 42 has not yet measured how long investigations take.');
 });

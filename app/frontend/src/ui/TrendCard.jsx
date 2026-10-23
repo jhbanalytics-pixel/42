@@ -77,8 +77,11 @@ export function proseDates(text, now = Date.now()){
   });
 }
 
-export function topicHref(itemId, market){
-  return '#/t/' + encodeURIComponent(itemId) + '?market=' + encodeURIComponent(market);
+/* A card opened from a dated brief carries that date, so the topic page can
+   still show the brief's card when the latest run no longer holds it. */
+export function topicHref(itemId, market, date = null){
+  return '#/t/' + encodeURIComponent(itemId) + '?market=' + encodeURIComponent(market)
+    + (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? '&date=' + date : '');
 }
 
 export function askHref(card, market, date, question){

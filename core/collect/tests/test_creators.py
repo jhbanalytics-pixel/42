@@ -188,8 +188,10 @@ DUCK = {"STRING": "VARCHAR", "INT64": "BIGINT", "FLOAT64": "DOUBLE", "BOOL": "BO
 
 
 def duck_sql(sql, name, source):
-    return (sql.replace(f"MERGE `{writers.table(name)}`", f"MERGE INTO {name}").replace("UNNEST(@rows)", source)
-            .replace("SAFE.PARSE_JSON(S.vendor_labels)", "S.vendor_labels"))
+    sql = (sql.replace(f"MERGE `{writers.table(name)}`", f"MERGE INTO {name}").replace("UNNEST(@rows)", source)
+            .replace("SAFE.PARSE_JSON(S.vendor_labels)", "S.vendor_labels")
+            .replace("ARRAY_LENGTH(", "LEN("))
+    return re.sub(r"DATE\((S\.published_at), '([^']+)'\)", r"CAST(timezone('\2', \1) AS DATE)", sql)
 
 
 def duck_merge(con, sql, name, types, rows):
@@ -355,6 +357,130 @@ def test_dedupe_posts_takes_geo_from_a_later_sighting_when_the_first_had_none():
     assert geo_of(row) == ("ZA", 0.7, "place_mention") and row["views"] == 1
     [kept] = writers.dedupe_posts([post("q", ("NG", 0.9, "ext_region")), post("q", ("ZA", 0.7, "place_mention"))])
     assert kept["geo_market"] == "NG"
+
+
+def test_later_direct_region_upgrades_a_profile_location_in_either_order():
+    profile, region = ("KE", 0.8, "home_market"), ("NG", 0.9, "ext_region")
+    for rows in ([post("p", profile, views=1), post("p", region)], [post("p", region, views=1), post("p", profile)]):
+        [row] = writers.dedupe_posts(rows)
+        assert geo_of(row) == region
+    con = posts_con()
+    sql = writers.MERGE_SQL.format(table=writers.table("posts"))
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [post("p", profile, views=1), post("q", region, views=1)])
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [post("p", region), post("q", profile)])
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [post("p", ("ZA", 0.7, "place_mention"))])
+    assert posts_table(con) == {"p": ("NG", 0.9, "ext_region", 1), "q": ("NG", 0.9, "ext_region", 1)}
+    bq = FakeBQ()
+    writers.merge_posts(bq, [post("p", profile, views=1)])
+    writers.merge_posts(bq, [post("p", region)])
+    assert geo_of(bq.posts["p"]) == region
+
+
+class DuckBQ:
+    """Runs the posts MERGE and the geo fill exactly as writers builds them, on DuckDB, with their @rows parameter."""
+
+    def __init__(self):
+        self.con = posts_con()
+
+    def query(self, sql, job_config):
+        [param] = job_config.query_parameters
+        types = writers.POST_TYPES if "WHEN NOT MATCHED" in sql else writers.GEO_TYPES
+        rows = [{k: getattr(v, "values", v) for k, v in s.struct_values.items()} for s in param.values]
+        duck_merge(self.con, sql, "posts", types, rows)
+        return type("Job", (), {"result": lambda self: []})()
+
+
+KE, NG, ZA = ("KE", 0.8, "home_market"), ("NG", 0.8, "home_market"), ("ZA", 0.9, "ext_region")
+UNKNOWN = (None, None, None)
+
+
+def test_equal_readings_that_disagree_leave_a_post_unknown_in_either_order():
+    for first, second in ((KE, NG), (NG, KE)):
+        [row] = writers.dedupe_posts([post("p", first, views=1), post("p", second)])
+        assert geo_of(row) == UNKNOWN
+        for stored, later in (([first], [second]), ([first], [first, second]), ([second], [first, second])):
+            bq = DuckBQ()
+            writers.merge_posts(bq, [post("p", g, views=1) for g in stored])
+            writers.merge_posts(bq, [post("p", g) for g in later])
+            assert posts_table(bq.con) == {"p": UNKNOWN + (1,)}
+            bq = DuckBQ()
+            writers.merge_posts(bq, [post("p", g, views=1) for g in stored])
+            writers.fill_geo(bq, [post("p", g) for g in later])
+            assert posts_table(bq.con) == {"p": UNKNOWN + (1,)}
+    bq = DuckBQ()
+    writers.merge_posts(bq, [post("new", KE, views=1), post("new", NG)])
+    assert posts_table(bq.con) == {"new": UNKNOWN + (1,)}
+
+
+def test_equal_readings_that_agree_keep_the_location():
+    [row] = writers.dedupe_posts([post("p", KE, views=1), post("p", KE)])
+    assert geo_of(row) == KE
+    bq = DuckBQ()
+    writers.merge_posts(bq, [post("p", KE, views=1)])
+    writers.merge_posts(bq, [post("p", KE)])
+    writers.fill_geo(bq, [post("p", KE), post("p", KE)])
+    assert posts_table(bq.con) == {"p": KE + (1,)}
+
+
+def test_a_stronger_reading_wins_over_a_conflict_and_a_weaker_one_does_not():
+    weaker = ("ZA", 0.7, "place_mention")
+    for rows in ([KE, NG, ZA], [ZA, KE, NG], [KE, ZA, NG]):
+        [row] = writers.dedupe_posts([post("p", g, views=1) for g in rows])
+        assert geo_of(row) == ZA
+    [row] = writers.dedupe_posts([post("p", g, views=1) for g in (KE, NG, weaker)])
+    assert geo_of(row) == UNKNOWN
+    for write in (writers.merge_posts, writers.fill_geo):
+        bq = DuckBQ()
+        writers.merge_posts(bq, [post("p", KE, views=1)])
+        write(bq, [post("p", NG), post("p", weaker)])
+        assert posts_table(bq.con) == {"p": UNKNOWN + (1,)}
+        write(bq, [post("p", ZA)])
+        assert posts_table(bq.con) == {"p": ZA + (1,)}
+        write(bq, [post("p", KE), post("p", NG)])
+        assert posts_table(bq.con) == {"p": ZA + (1,)}
+    bq = DuckBQ()
+    writers.merge_posts(bq, [post("p", ("ZA", 0.7, "place_mention"), views=1)])
+    writers.merge_posts(bq, [post("p", KE), post("p", NG)])
+    assert posts_table(bq.con) == {"p": UNKNOWN + (1,)}
+
+
+def sighting(pid, **kw):
+    row = post(pid, views=kw.pop("views", None))
+    row.update({"post_date": "2026-09-28", **kw})
+    return row
+
+
+def stored_fields(con):
+    rows = con.execute("SELECT post_id, text, hashtags, creator_id, published_at, post_date FROM posts "
+                       "ORDER BY post_id")
+    return {r[0]: r[1:] for r in rows.fetchall()}
+
+
+def test_a_later_complete_sighting_fills_what_the_first_lacked_and_keeps_what_it_had():
+    # 21:30 UTC on 27 September is 22:30 in Lagos and 00:30 on the 28th in Nairobi: only the first market decides it.
+    late = "2026-09-27T21:30:00+00:00"
+    complete = dict(text="Full caption #durbanjuly", hashtags=["durbanjuly"], creator_id="kasi.keys", published_at=late)
+    [row] = writers.dedupe_posts([sighting("p", views=1), sighting("p", **complete)],
+                                 markets={"p": "NG"})
+    assert (row["text"], row["hashtags"], row["creator_id"]) == (
+        "Full caption #durbanjuly", ["durbanjuly"], "kasi.keys")
+    assert row["published_at"] == late and row["post_date"] == "2026-09-27"
+    [kept] = writers.dedupe_posts([sighting("q", text="first", views=1), sighting("q", **complete)])
+    assert kept["text"] == "first" and kept["hashtags"] == ["durbanjuly"]
+    assert kept["post_date"] == "2026-09-28"  # no first market and the markets disagree on the day: the fallback stays
+    con = posts_con()
+    sql = writers.MERGE_SQL.format(table=writers.table("posts"))
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [
+        sighting("a", views=1), sighting("b", text="kept", views=1), sighting("c", views=1)])
+    noon = "2026-09-26T10:00:00+00:00"
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [
+        sighting("a", **dict(complete, published_at=noon)), sighting("b", **dict(complete, published_at=noon)),
+        sighting("c", **complete)])
+    table = stored_fields(con)
+    assert table["a"][:3] == ("Full caption #durbanjuly", ["durbanjuly"], "kasi.keys")
+    assert str(table["a"][4]) == "2026-09-26"  # every market agrees on the day, so it is the first market's too
+    assert table["b"][0] == "kept" and str(table["b"][4]) == "2026-09-26"
+    assert table["c"][3] is not None and str(table["c"][4]) == "2026-09-28"  # the markets disagree: fallback kept
 
 
 # The collect run

@@ -54,7 +54,7 @@ def test_cancel_during_seven_second_spend_read_records_planning(monkeypatch):
     monkeypatch.setattr(ask.time, "monotonic", lambda: ticks[0])
     h = Harness()
 
-    def spent():
+    def spent(at):
         ticks[0] = 7
         h.stop_flag["stop"] = True
         return 0

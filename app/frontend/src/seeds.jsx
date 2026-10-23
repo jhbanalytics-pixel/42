@@ -9,7 +9,7 @@
    names a person is only ever a count, and the page refuses to show one even
    if a payload carried it. */
 import {useEffect, useState} from 'react';
-import {forgetCached, useApi, readerFigure, sentenceCase} from './api.js';
+import {forgetCached, useApi, readerFigure, sentenceCase, MENU_READ_TIMEOUT_MS} from './api.js';
 import {REGION_NAME} from './model.js';
 import {NextActions, PageHero, EmptyState} from './ui/index.js';
 import {longDate} from './ui/TrendCard.jsx';
@@ -271,7 +271,7 @@ export function SeedsPage({session, onAuth, region, setRegion}){
      morning run, so each visit drops the session's earlier Seeds reads and
      reads again, before the first read below. */
   useState(() => forgetCached('/api/seeds?'));
-  const [data, retry] = useApi('/api/seeds?market=' + market, session, onAuth);
+  const [data, retry] = useApi('/api/seeds?market=' + market, session, onAuth, undefined, MENU_READ_TIMEOUT_MS);
   const where = REGION_NAME[market] || market;
   /* Page data audit, 3 October 2026: a service without the route answers
      its "No such API route." 404. Try again could never help there, so the

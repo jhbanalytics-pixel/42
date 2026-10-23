@@ -11,7 +11,7 @@ from collections import Counter
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from core.api.held_words import plain_reason as _plain_reason
-from core.api.searching import searching_now
+from core.api.searching import searching_now_status
 from core.api.store import canon_platform, creator_key
 from core.brief.explain import _one_step_lower, _place_fault, _sentence_fault, _source_evidence
 from core.brief.payload import NOT_ASSESSED_REASONS
@@ -958,6 +958,134 @@ def brief_counts(payload):
     return {"shown": shown, "held": held}
 
 
+# A card the brief published that Today does not admit (_stored_card_fault) is held on Today; Coverage counts it here.
+TODAY_REJECTED = "failed_today_check"
+# Mornings in a row with no card on Today, across the three markets, before Coverage asks for a review of the reasons.
+# One such morning stays information: the gates are expected to hold everything on some days.
+ZERO_CARD_REPEAT = 2
+HISTORY_DAYS = 7
+OUTCOME_WORDS = {"no_brief": "No brief was published", "data_issue": "No card: the brief reports a data issue",
+                 "no_candidates": "No card: the brief had no candidates to judge"}
+
+
+def _payload_dict(payload):
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except ValueError:
+            return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _plural(n, word):
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
+def brief_outcome(market, row):
+    """One market's stored brief as an outcome Coverage can explain, counted as Today counts it (brief_counts): the
+    cards Today shows, the items held back by reason code and by rule (a card Today does not admit counts as held,
+    under TODAY_REJECTED), and the items not assessed by reason. outcome is no_brief, cards, data_issue (no card
+    and the brief reports a data issue), all_held (no card, something held), not_assessed (no card, nothing held,
+    some items not assessed) or no_candidates. No yield threshold is applied: any card is reported as it is."""
+    if row is None:
+        return {"market": market, "label": LABELS[market], "status": None, "outcome": "no_brief", "cards": 0,
+                "held": 0, "held_by_reason": {}, "held_by_rule": {}, "not_assessed": None,
+                "not_assessed_by_reason": {}, "judged_limit": None, "text": OUTCOME_WORDS["no_brief"]}
+    payload = _payload_dict(row.get("payload"))
+    counted = brief_counts(payload)
+    block = payload.get("held_back") if isinstance(payload.get("held_back"), dict) else {}
+    reasons, rules, seen = Counter(), Counter(), set()
+    for h in block.get("items") if isinstance(block.get("items"), list) else []:
+        if not isinstance(h, dict):
+            continue
+        item_id = h.get("item_id")
+        if isinstance(item_id, str) and item_id.strip():
+            if item_id in seen:
+                continue
+            seen.add(item_id)
+        reasons[h.get("reason") if isinstance(h.get("reason"), str) else "unknown"] += 1
+        rules[h.get("rule") if isinstance(h.get("rule"), str) else "unknown"] += 1
+    rejected = [i for i in counted["held"] if i is not None and i not in seen]
+    reasons[TODAY_REJECTED] += len(rejected)
+    reasons, rules = +reasons, +rules
+    block = _not_assessed(payload)
+    not_assessed = None if block is None else block["count"]
+    by_reason = dict(Counter(i["reason"] for i in block["items"])) if block else {}
+    cards, held = len(counted["shown"]), len(counted["held"])
+    status = row.get("status")
+    if cards:
+        outcome, text = "cards", f"{_plural(cards, 'card')} shown"
+    elif status == "data_issue" or payload.get("status") == "data_issue":
+        outcome, text = "data_issue", OUTCOME_WORDS["data_issue"]
+    elif held:
+        outcome = "all_held"
+        text = (f"No card: {_plural(held, 'item')} held back ("
+                + ", ".join(f"{n} {r.replace('_', ' ')}" for r, n in reasons.most_common()) + ")")
+    elif not_assessed:
+        outcome, text = "not_assessed", f"No card: nothing was judged; {not_assessed} not assessed"
+    else:
+        outcome, text = "no_candidates", OUTCOME_WORDS["no_candidates"]
+    if cards == 0 and not_assessed and outcome != "not_assessed":
+        text += f"; {not_assessed} not assessed"
+    return {"market": market, "label": LABELS[market], "status": status, "outcome": outcome, "cards": cards,
+            "held": held, "held_by_reason": dict(reasons), "held_by_rule": dict(rules),
+            "not_assessed": not_assessed, "not_assessed_by_reason": by_reason,
+            "judged_limit": block["judged_limit"] if block else None, "text": text}
+
+
+def _zero_card_history(store, date, hidden):
+    """The newest HISTORY_DAYS brief dates up to date, each with its cards and held items per market and held reasons,
+    and how many of them in a row, from date back, showed no card in any market. A run of ZERO_CARD_REPEAT or more
+    carries an action; a single morning does not."""
+    before = (dt.date.fromisoformat(date) + dt.timedelta(days=1)).isoformat()
+    by_date = {}
+    for r in store.brief_history(HISTORY_DAYS, before) or []:
+        row = dict(r, payload=without_hidden(_payload_dict(r.get("payload")), hidden))
+        if row.get("market") in MARKETS:
+            by_date.setdefault(str(r["brief_date"]), {})[r["market"]] = row
+    days = []
+    for d in sorted(by_date, reverse=True):
+        markets = [brief_outcome(m, by_date[d].get(m)) for m in MARKETS]
+        days.append({"date": d, "cards": sum(m["cards"] for m in markets), "held": sum(m["held"] for m in markets),
+                     "markets": [{k: m[k] for k in ("market", "outcome", "cards", "held", "held_by_reason")}
+                                 for m in markets]})
+    run = 0
+    if days and days[0]["date"] == date:
+        for day in days:
+            if day["cards"]:
+                break
+            run += 1
+    action = (f"No card on Today for {run} mornings in a row: review each day's held reasons below. The evidence "
+              "thresholds are not lowered for this." if run >= ZERO_CARD_REPEAT else None)
+    return {"days": days, "zero_card_days": run, "action": action}
+
+
+def _brief_status(store, rows, date):
+    if not rows:
+        return "not_ready"
+    overall = _overall(rows, _collect_ok(store, date))
+    return "data_issue" if overall == "data_issue" else "published"
+
+
+def today_value(store, date):
+    """Value readiness for date, apart from the operational status (today_status, which stays as it is): status
+    not_ready when no brief row exists, no_credible_cards when the briefs published no card Today admits in any
+    market, else cards. value_ready is true only for cards; no other yield threshold is applied, so any number of
+    cards is reported as it is. Each market's outcome (brief_outcome) keeps every hold reason, and history the run of
+    zero-card mornings (_zero_card_history). Read through the suppression list, as Today reads it."""
+    store = _WithoutHidden(store)
+    rows = {r["market"]: r for r in store.briefs(date) or [] if r.get("market") in MARKETS}
+    markets = [brief_outcome(m, rows.get(m)) for m in MARKETS]
+    cards = sum(m["cards"] for m in markets)
+    status = "not_ready" if not rows else "cards" if cards else "no_credible_cards"
+    text = {"not_ready": f"No brief for {date}",
+            "no_credible_cards": "The brief was published with no card in any market",
+            "cards": f"{_plural(cards, 'card')} on Today"}[status]
+    return {"date": date, "status": status, "value_ready": status == "cards",
+            "brief_status": _brief_status(store, rows, date), "cards": cards, "text": text, "markets": markets,
+            "history": _zero_card_history(store, date, store._hidden)}
+
+
 def _moments(calendar_rows, payload, market):
     out = [{"date": r["moment_date"], "name": r["name"], "kind": r["kind"], "source": r["source"],
             "item_ids": list(r.get("item_ids") or [])}
@@ -1672,6 +1800,7 @@ def build_today(store, date=None, now=None):
     headline = _headline(markets)
     receipt = _run_receipt(collect_runs, rows, markets)
     published = [dt.datetime.fromisoformat(r["published_at"]) for r in rows.values() if r.get("published_at")]
+    searching, searching_status = searching_now_status(store, MARKETS, search_day, store._hidden)
     return {
         "date": date,
         "status": _overall(rows, collect_ok),
@@ -1681,7 +1810,7 @@ def build_today(store, date=None, now=None):
         "warmup": warmup,
         "first_morning": all(m["dropped"]["first_morning"] for m in markets),
         "markets": markets,
-        "searching_now": searching_now(store, MARKETS, search_day, store._hidden),
+        "searching_now": searching, "searching_now_status": searching_status,
         **({"run_receipt": receipt} if receipt else {}),
     }
 
@@ -1748,8 +1877,7 @@ def build_trend(store, item_id, market, date=None):
 
 
 def today_status(store, date):
+    """The operational status: whether the briefs for date exist and the day is not a data issue. It does not count
+    cards; today_value is the separate value readiness."""
     rows = store.briefs(date)
-    if not rows:
-        return "not_ready"
-    overall = _overall({r["market"]: r for r in rows}, _collect_ok(store, date))
-    return "data_issue" if overall == "data_issue" else "published"
+    return _brief_status(store, {r["market"]: r for r in rows or []}, date)

@@ -222,6 +222,20 @@ function todaySpecificityView(card){
   };
 }
 
+/* A read that answered 200 must still be a brief: an object whose markets
+   is a list of markets, each naming itself and carrying its cards as a list
+   (contract section 4). Anything else is a fault in the service, shown as
+   one with Try again, never as an empty brief or a market left out of it.
+   A brief whose lists are empty is a real empty brief and passes. */
+export function todayBodyReadable(body){
+  if (!body || typeof body !== 'object' || Array.isArray(body) || !Array.isArray(body.markets)) return false;
+  return body.markets.every((market) => market && typeof market === 'object' && !Array.isArray(market)
+    && typeof market.market === 'string' && market.market.trim() !== '' && Array.isArray(market.cards)
+    && (market.more === undefined || market.more === null || Array.isArray(market.more)));
+}
+
+const UNREADABLE_BRIEF = 'The 42 service answered, but not with a brief this page can read.';
+
 function prepareTodayMarket(market){
   /* A published card whose counted creators is 0 is never drawn. */
   const published = (Array.isArray(market.cards) ? market.cards : [])
@@ -318,7 +332,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
         clearSlowTimer();
         if (!ctrl.signal.aborted) {
           setSlowRead(false);
-          setLoad({state: 'ready', data});
+          setLoad(todayBodyReadable(data) ? {state: 'ready', data} : {state: 'error', message: UNREADABLE_BRIEF});
         }
       })
       .catch((error) => {
@@ -498,6 +512,8 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
           <>
             <h2 className="t42-heading">Today is not published yet</h2>
             <p className="t42-status">There is no brief for {longDate(date || sastToday())} yet.</p>
+            {/* The reader asks again by hand; the page never polls. */}
+            <button type="button" className="t42-button" onClick={() => setTick((t) => t + 1)}>Try again</button>
           </>
         )}
         {load.state === 'error' && (

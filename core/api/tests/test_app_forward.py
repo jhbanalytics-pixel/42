@@ -397,6 +397,7 @@ SCHEDULE_ROUTES = [
     ("POST", "/api/schedules", SCHEDULE, "/api/schedules", {}, 201),
     ("POST", "/api/schedules/s_1/pause", None, "/api/schedules/s_1/pause", {}, 201),
     ("POST", "/api/schedules/s_1/resume", None, "/api/schedules/s_1/resume", {}, 201),
+    ("POST", "/api/schedules/s_1/cancel", None, "/api/schedules/s_1/cancel", {}, 201),
 ]
 
 
@@ -409,7 +410,7 @@ def test_schedule_routes_forward_to_the_agent(ctx, method, path, body, agent_pat
     assert ctx.seen["calls"] == [(method, agent_path, query, body)]
 
 
-@pytest.mark.parametrize("action", ["pause", "resume"])
+@pytest.mark.parametrize("action", ["pause", "resume", "cancel"])
 @pytest.mark.parametrize("bad", BAD_IDS)
 def test_schedule_ids_are_checked_before_forwarding(ctx, action, bad):
     r = ctx.client.post(f"/api/schedules/{bad}/{action}", headers=GOOD)
@@ -762,6 +763,21 @@ def test_skin_today_is_today_narrowed_to_the_skin_with_its_alerts(skin_ctx, monk
     assert body["alerts"]["alerts"][0]["fired_because"].startswith("Entered")
     assert skin_ctx.client.get("/api/skins/sk_0123456789ab/today", params={"date": "2026-09-29"},
                                headers=GOOD).json()["date"] == "2026-09-29"
+
+
+def test_skin_today_reads_alerts_for_the_brief_date_when_no_date_is_given(skin_ctx, monkeypatch):
+    # Audit W22-05: the latest brief is a day behind the latest detect run, so the alert panel read a later day.
+    from core.api import store
+    from core.api.tests.test_today import FixtureStore
+
+    class LateBriefStore(FixtureStore):
+        def latest_brief_date(self):
+            return "2026-09-29"
+
+    monkeypatch.setattr(store, "get_store", lambda: LateBriefStore())
+    body = skin_ctx.client.get("/api/skins/sk_0123456789ab/today", headers=GOOD).json()
+    assert body["date"] == "2026-09-29"
+    assert body["alerts"]["date"] == "2026-09-29"
 
 
 def test_skin_today_errors(skin_ctx):

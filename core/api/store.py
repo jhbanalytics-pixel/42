@@ -150,19 +150,30 @@ CLUSTER_MARKETS = ("za", "ng", "ke", "pan")  # core.understand.job.CLUSTER_MARKE
 
 def degraded_writes(counts):
     """The writes an understand run failed soft on, from its counts: "embed" when it has embed_error (it embedded
-    nothing), "enrich" when it has enrich_error, then "cluster:<market>" for each market whose cluster counts carry
-    an error. Empty for a clean run."""
+    nothing), "embed_rows:<n>" when the embedding model failed on n rows (failed; those posts have no vector),
+    "enrich" when it has enrich_error, then "cluster:<market>" for each market whose cluster counts carry an error and
+    "label_net:<market>:<net_error>" for each market whose label net fell back to neutral labels. Empty for a clean
+    run."""
     counts = counts if isinstance(counts, dict) else {}
     cluster = counts.get("cluster") if isinstance(counts.get("cluster"), dict) else {}
-    return (["embed"] if counts.get("embed_error") else []) + (["enrich"] if counts.get("enrich_error") else []) + [
-        f"cluster:{m}" for m in CLUSTER_MARKETS if isinstance(cluster.get(m), dict) and cluster[m].get("error")]
+    failed = counts.get("failed")
+    rows = int(failed) if isinstance(failed, (int, float)) and not isinstance(failed, bool) and failed > 0 else 0
+    return ((["embed"] if counts.get("embed_error") else []) + ([f"embed_rows:{rows}"] if rows else [])
+            + (["enrich"] if counts.get("enrich_error") else [])
+            + [f"cluster:{m}" for m in CLUSTER_MARKETS if isinstance(cluster.get(m), dict) and cluster[m].get("error")]
+            + [f"label_net:{m}:{cluster[m].get('net_error') or 'unknown'}" for m in CLUSTER_MARKETS
+               if isinstance(cluster.get(m), dict) and cluster[m].get("net_failed") is True])
 
 
 # degraded_writes in SQL, over the latest runs row's counts; WITH OFFSET keeps the order above.
+_FAILED_ROWS = "SAFE_CAST(JSON_VALUE(r.counts, '$.failed') AS INT64)"
 DEGRADED_SQL = "ARRAY(SELECT w FROM UNNEST([{}]) AS w WITH OFFSET o WHERE w IS NOT NULL ORDER BY o)".format(", ".join(
     ["IF(JSON_VALUE(r.counts, '$.embed_error') IS NOT NULL, 'embed', NULL)",
+     f"IF({_FAILED_ROWS} > 0, CONCAT('embed_rows:', CAST({_FAILED_ROWS} AS STRING)), NULL)",
      "IF(JSON_VALUE(r.counts, '$.enrich_error') IS NOT NULL, 'enrich', NULL)"]
-    + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.error') IS NOT NULL, 'cluster:{m}', NULL)" for m in CLUSTER_MARKETS]))
+    + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.error') IS NOT NULL, 'cluster:{m}', NULL)" for m in CLUSTER_MARKETS]
+    + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.net_failed') = 'true', CONCAT('label_net:{m}:', "
+       f"IFNULL(JSON_VALUE(r.counts, '$.cluster.{m}.net_error'), 'unknown')), NULL)" for m in CLUSTER_MARKETS]))
 
 
 def viewer_record(record):
@@ -815,6 +826,9 @@ default day and Coverage's way back from an empty day)."""
         return sorted(out.values(), key=lambda r: (-r["posts_window"], r["label"] or "", r["item_id"]))[:limit]
 
     def ask_history(self, limit, before, market=None):
+        """before is a time, or a (time, ask_id) pair that also keeps the asks of that instant listed after it."""
+        at, before_id = before if isinstance(before, tuple) else (before, None)
+        cut = (dt.datetime.fromisoformat(at), before_id or "") if at else None
         rows = []
         for r in self._runs_all() + (self._optional("history_runs") or []):
             record = r.get("record") or {}
@@ -822,12 +836,12 @@ default day and Coverage's way back from an empty day)."""
                 continue
             if market and record.get("market") != market:
                 continue
-            if before and dt.datetime.fromisoformat(r["started_at"]) >= dt.datetime.fromisoformat(before):
+            if cut and (dt.datetime.fromisoformat(r["started_at"]), record["ask_id"]) >= cut:
                 continue
             rows.append({"ask_id": record["ask_id"], "question": record.get("question") or r.get("question"),
                          "asked_at": r["started_at"], "status": record.get("status"),
                          "answer_status": (record.get("answer") or {}).get("status"), "market": record.get("market")})
-        return sorted(rows, key=lambda r: dt.datetime.fromisoformat(r["asked_at"]), reverse=True)[:limit]
+        return sorted(rows, key=lambda r: (dt.datetime.fromisoformat(r["asked_at"]), r["ask_id"]), reverse=True)[:limit]
 
     def brief_history(self, limit, before, market=None):
         rows = [r for r in self._load("briefs") if (before is None or r["brief_date"] < before)
@@ -1653,14 +1667,28 @@ or None."""
                 f"{among}"
                 "  GROUP BY po.post_id")
 
+    def _market_links(self, links):
+        """The post_items links @market sees at @end, as tvf_post_items (core/detect/sql/counted_links.sql) scopes
+        them: a link written for another market's clustering run is not the market's, a link counts from its
+        linked_on, and a link ended in post_item_end on or before @end no longer counts. A row with neither field,
+        written before links carried them, is read as always. Unlike counted_links.sql it adds no lineage links and
+        does not keep one winning item per post and market, so a post linked to two items counts toward both."""
+        ends = self._find("post_item_end")
+        ended = ("\n    AND NOT EXISTS (SELECT 1 FROM " + ends + " e WHERE e.post_id = l.post_id AND e.item_id = l.item_id"
+                 " AND e.ended_on <= @end)") if ends else ""
+        return (f"(SELECT l.post_id, l.item_id FROM {links} l\n"
+                "  WHERE (l.link_market IS NULL OR l.link_market = @market)\n"
+                f"    AND (l.linked_on IS NULL OR l.linked_on <= @end){ended})")
+
     def window_posts(self, creator_ids, market, start, end):
         """Posts of these creators first sighted in the market inside the window, the first sighting taken over
-        all of post_observations (legacy and agent_live aside), as Compare counts."""
+        all of post_observations (legacy and agent_live aside), as Compare counts, with the links the market sees."""
         posts, obs, links = self._find("posts"), self._find("post_observations"), self._find("post_items")
         if posts is None or obs is None or links is None:
             return None
         sql = self._post_select(
-            posts, links, "p.creator_id IN UNNEST(@creator_ids) AND sg.first_day BETWEEN @start AND @end",
+            posts, self._market_links(links),
+            "p.creator_id IN UNNEST(@creator_ids) AND sg.first_day BETWEEN @start AND @end",
             extra_with=f",\nsight AS ({self._sight(obs)})",
             extra_join="JOIN sight sg ON sg.post_id = p.post_id\n", extra_cols=", sg.first_day")
         return self._query(sql, creator_ids=("ARRAY<STRING>", list(creator_ids)), market=("STRING", market),
@@ -1668,7 +1696,8 @@ or None."""
 
     def community_edges(self, market, start, end, excluded):
         """Pairs of creators (a < b) sharing three or more items outside `excluded`, each over posts first sighted
-        in the market inside the window. Only creators with three or more such items can have an edge."""
+        in the market inside the window and the links the market sees (_market_links). Only creators with three or
+        more such items can have an edge."""
         posts, obs, links = self._find("posts"), self._find("post_observations"), self._find("post_items")
         if posts is None or obs is None or links is None:
             return None
@@ -1681,7 +1710,7 @@ or None."""
             "  SELECT DISTINCT p.creator_id, pit.item_id\n"
             "  FROM sight sg\n"
             f"  JOIN {posts} p ON p.post_id = sg.post_id\n"
-            f"  JOIN {links} pit ON pit.post_id = sg.post_id\n"
+            f"  JOIN {self._market_links(links)} pit ON pit.post_id = sg.post_id\n"
             "  WHERE sg.first_day BETWEEN @start AND @end AND p.creator_id IS NOT NULL\n"
             "    AND pit.item_id NOT IN UNNEST(@excluded)),\n"
             "many AS (SELECT ci.creator_id FROM ci GROUP BY ci.creator_id HAVING COUNT(*) >= 3),\n"
@@ -1914,18 +1943,22 @@ or None."""
             limit=("INT64", limit))
 
     def ask_history(self, limit, before, market=None):
+        """before is a time, or a (time, ask_id) pair that also keeps the asks of that instant listed after it."""
+        at, before_id = before if isinstance(before, tuple) else (before, None)
         return self._query(
             "SELECT JSON_VALUE(r.record, '$.ask_id') AS ask_id, JSON_VALUE(r.record, '$.market') AS market,\n"
             "  IFNULL(JSON_VALUE(r.record, '$.question'), r.question) AS question, r.started_at AS asked_at,\n"
             "  JSON_VALUE(r.record, '$.status') AS status, JSON_VALUE(r.record, '$.answer.status') AS answer_status\n"
             f"FROM {self._t(AGENT + '.runs')} r\n"
             "WHERE r.stage = 'ask' AND JSON_VALUE(r.record, '$.ask_id') IS NOT NULL\n"
-            "  AND (@before IS NULL OR r.started_at < @before)\n"
+            "  AND (@before IS NULL OR r.started_at < @before\n"
+            "    OR (r.started_at = @before AND JSON_VALUE(r.record, '$.ask_id') < @before_id))\n"
             "  AND (@market IS NULL OR JSON_VALUE(r.record, '$.market') = @market)\n"
             "QUALIFY ROW_NUMBER() OVER (PARTITION BY JSON_VALUE(r.record, '$.ask_id')\n"
             "  ORDER BY r.finished_at DESC) = 1\n"
-            "ORDER BY r.started_at DESC LIMIT @limit",
-            before=("TIMESTAMP", before), limit=("INT64", limit), market=("STRING", market))
+            "ORDER BY r.started_at DESC, ask_id DESC LIMIT @limit",
+            before=("TIMESTAMP", at), before_id=("STRING", before_id), limit=("INT64", limit),
+            market=("STRING", market))
 
     def brief_history(self, limit, before, market=None):
         """Every market row of the newest `limit` brief dates, whatever its status (a brief that held every item

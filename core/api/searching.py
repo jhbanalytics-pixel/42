@@ -157,17 +157,28 @@ def searching_now(store, markets, as_of, hidden):
     days ending on as_of (YYYY-MM-DD): one row a term in a market, at its best reported rank, ranked rows first,
     markets in ZA, NG, KE order. hidden is the suppression list as today.hidden_people gives it; a term naming a
     suppressed person is left out, and while the list cannot be read (None) no term is sent. [] when there is
-    nothing, the table does not exist yet or the read fails."""
+    nothing, the table does not exist yet or the read fails; searching_now_status says which."""
+    return searching_now_status(store, markets, as_of, hidden)[0]
+
+
+def searching_now_status(store, markets, as_of, hidden):
+    """(searching_now's rows, status): ok with rows; empty when the read found nothing to show; unavailable when the
+    table does not exist yet or the read failed, so nothing was checked; suppressed while the suppression list
+    cannot be read and no term may be sent."""
     if hidden is None:
-        return []
+        return [], "suppressed"
     markets = [m for m in MARKETS if m in markets]
+    if not markets:
+        return [], "empty"
     end = dt.date.fromisoformat(as_of)
     start = (end - dt.timedelta(days=SEARCH_DAYS - 1)).isoformat()
     end = end.isoformat()
     try:
-        rows = store.search_signals(start, end, markets) if markets else None
+        rows = store.search_signals(start, end, markets)
+        if rows is None:
+            return [], "unavailable"
         if not rows:
-            return []
+            return [], "empty"
         from core.collect.gdelt import blocked  # rule 1: no term with an age lens leaves the API, whatever wrote it
         picked = [(r["fetch_day"], s) for r in rows
                   if (s := _signal(r, markets, start, end)) and not _names_hidden(s["term"], hidden)
@@ -187,8 +198,8 @@ def searching_now(store, markets, as_of, hidden):
     except Exception as exc:  # noqa: BLE001 - the strip is extra; Today and Discover must not fail on it
         log.warning("searching now: the search signal read failed (%s); the page is shown without it",
                     type(exc).__name__)
-        return []
+        return [], "unavailable"
     out = []
     for market in markets:  # the cap applies after fixtures are left out, so the next terms fill the strip
         out += sorted((s for (m, _), s in best.items() if m == market), key=_order)[:PER_MARKET]
-    return out
+    return out, "ok" if out else "empty"

@@ -277,6 +277,22 @@ def test_headlines_from_rss_and_atom_keep_the_last_two_days():
     assert ke[0] == "Harambee Stars coach names squad for Nations Cup qualifier" and len(ke) == 4
 
 
+def test_only_a_headline_dated_inside_the_window_seeds_a_search():
+    def item(title, when=None):
+        return f"<item><title>{title}</title>" + (f"<pubDate>{when}</pubDate>" if when is not None else "") + "</item>"
+    feed = "<rss><channel>" + "".join([
+        item("Kasi Fest tickets sell out"), item("Kasi Fest moves to Soweto"),
+        item("Braai Cup final set", "soon"), item("Fans pack the Braai Cup final", "not a date"),
+        item("Taxi Rank Awards return", "Thu, 01 Oct 2026 07:00:00 +0100"),
+        item("Taxi Rank Awards nominees", "Thu, 01 Oct 2026 08:00:00 +0100"),
+        item("Gqom Night lineup", "Tue, 06 Oct 2026 09:00:00 +0100"),
+        item("Gqom Night sells out", "Tue, 06 Oct 2026 10:00:00 +0100"),
+        item("Jozi Derby kicks off", "Sun, 04 Oct 2026 18:00:00 +0100"),
+        item("Jozi Derby ends level", "Sun, 04 Oct 2026 20:00:00 +0100")]) + "</channel></rss>"
+    assert ls.headlines(feed, NOW) == ["Jozi Derby kicks off", "Jozi Derby ends level"]
+    assert {s["query"] for s in ls.news_seeds("ZA", ls.headlines(feed, NOW), MONDAY, fake_item_id)} == {"Jozi Derby"}
+
+
 def test_news_seeds_need_two_headlines_and_drop_rule_one_phrases():
     ng = ls.news_seeds("NG", ls.headlines(RSS, NOW), MONDAY, fake_item_id)
     assert {s["query"] for s in ng} == {"Super Eagles", "Ade Bright"}

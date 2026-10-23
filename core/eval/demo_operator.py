@@ -464,7 +464,7 @@ class _ProductionRuntime:
             raise OperatorRefused("anchor_window_mismatch")
         start, end = windows[0]
         deps = self.wiring.ask_deps()
-        warehouse = ask_r2.ReadOnlyWarehouse(deps.warehouse, self.modules.sql.check_sql)
+        warehouse = ask_r2.ReadOnlyWarehouse(deps.warehouse, self.modules.sql.check_sql_harness)
         from core.agent.context import RunContext
 
         ids = list(dict.fromkeys(source_id for q in demo_pairs.DEMO_QUESTIONS for source_id in q.source_ids))

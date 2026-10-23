@@ -443,7 +443,7 @@ def _fixture(tmp_path, monkeypatch, *, native_change=False, retry_marker=False, 
                             model_spend_today=model_spend_today,
                             model_daily_usd=lambda now: native.daily_cap_usd,
                             BUDGET_SPENT="budget spent", _IN_FLIGHT={}, _SPEND_LOCK=threading.RLock()),
-        sql=SimpleNamespace(MAX_BYTES_BILLED=1000, check_sql=lambda sql: None),
+        sql=SimpleNamespace(MAX_BYTES_BILLED=1000, check_sql=lambda sql: None, check_sql_harness=lambda sql: None),
         embed=SimpleNamespace(
             SPEND_ROW_SQL="SPEND_INSERT",
             book_spend=lambda execute, *, run_id, run_date, usd, what, credit=False: _book(

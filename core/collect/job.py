@@ -404,9 +404,14 @@ def volume(cap=None):
     return Volume(SEARCH_TOP + spare // SEARCH_PAGES, SEARCH_PAGES, MULTI_TOP + spare // MULTI_CREDITS)
 
 
+def seen_id(market, day):
+    """The one seen id a market's TikTok searches carry on day, so the vendor skips posts 42 already has. The brief's
+    confirm searches read it from here too, so collection and confirmation share it."""
+    return f"f42-{market.lower()}-{day.isoformat()}"
+
+
 def _search_params(query, market, day, pages):
-    params = {"query": query, "country": market, "publish_time": "this-week",
-              "seen": f"f42-{market.lower()}-{day.isoformat()}"}
+    params = {"query": query, "country": market, "publish_time": "this-week", "seen": seen_id(market, day)}
     return {**params, "max_pages": pages} if pages > 1 else params
 
 
@@ -2042,9 +2047,9 @@ def print_backfill_plan(since, until):
     else:
         print("  creators write is off (writers.CREATORS_WRITE) until lane L2's readers join creators on platform "
               "too: creators are parsed and counted, not written")
-    print("  write: the posts geo fill MERGE (geo_market, geo_confidence, geo_source only where the stored "
-          f"geo_market is NULL and the new geo_confidence is at least {writers.GEO_KNOWN}; no INSERT, nothing "
-          "removed)")
+    print("  write: the posts geo fill MERGE (geo_market, geo_confidence, geo_source only where the new "
+          f"geo_confidence is at least {writers.GEO_KNOWN} and the stored geo_market is NULL or weaker, or as strong "
+          "and another market, which leaves it unknown; no INSERT, nothing removed)")
     print("plan only: no network, no BigQuery, no SocialCrawl call")
 
 
@@ -2184,8 +2189,9 @@ def print_plan(day, *, x_trends=False, share_cap=None, only_routes=None):
     for market in google_rss.MARKETS:
         print(f"  {google_rss.URL.format(market)}")
     print(f"Google search terms as row 14 queries: at most {google_trends.GOOGLE_SEEDS_PER_MARKET} a market from the "
-          "feed and the day before's google_search_signals rows (trending, feed, public tables' rising), taking "
-          "existing row 14 slots (the placeholders above); query triage only, never evidence")
+          f"day before's google_search_signals rows of {', '.join(google_trends.SEED_SOURCES)} (the public tables' "
+          "terms are search interest only and never seed), taking existing row 14 slots (the placeholders above); "
+          "query triage only, never evidence")
     from core.public_feeds.catalog import confirmed_feeds
 
     feeds = confirmed_feeds()

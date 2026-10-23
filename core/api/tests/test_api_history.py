@@ -472,3 +472,40 @@ def test_bigquery_history_lists_filter_by_market_as_a_parameter():
     asks, briefs = [s for s, _ in client.calls if "INFORMATION_SCHEMA" not in s][-2:]
     assert "JSON_VALUE(r.record, '$.market') = @market" in asks and "'NG'" not in asks
     assert "b.market = @market" in briefs and "d.market = @market" in briefs and "'NG'" not in briefs
+
+
+# Audit W03-02: two asks started in the same instant must both be listed when a page ends between them. The cursor
+# carries the ask id beside the time, and both stores sort and cut on the pair.
+class TwoAsksInOneInstant(FixtureStore):
+    def _runs_all(self):
+        tied = [{"run_id": f"r_{a}", "stage": "ask", "status": "complete", "started_at": "2026-10-23T10:00:00+02:00",
+                 "finished_at": "2026-10-23T10:01:00+02:00", "record": {"ask_id": a, "question": "Tied?",
+                                                                        "status": "complete", "market": "ZA"}}
+                for a in ("a_20261023_aaaa0001", "a_20261023_bbbb0002")]
+        return super()._runs_all() + tied
+
+
+def test_asks_sharing_a_page_boundary_time_are_each_listed_once():
+    store, seen, before = TwoAsksInOneInstant(), [], None
+    for _ in range(10):
+        page = history.build_history_asks(store, limit=1, before=before)
+        seen += [a["ask_id"] for a in page["asks"]]
+        before = page["next_before"]
+        if before is None:
+            break
+    assert seen[:2] == ["a_20261023_bbbb0002", "a_20261023_aaaa0001"]
+    assert len(seen) == len(set(seen)) == len(history.build_history_asks(store, limit=100)["asks"])
+
+
+def test_an_old_time_only_cursor_still_reads_the_next_page(fx):
+    more = history.build_history_asks(fx, limit=2, before="2026-09-30T08:00:00+02:00")
+    assert [a["ask_id"] for a in more["asks"]] == ["a_20260929_h1"]
+
+
+def test_bigquery_ask_history_cuts_on_the_time_and_ask_id_pair():
+    client = FakeClient(catalog(), rows=[])
+    BigQueryStore(client=client).ask_history(1, ("2026-10-23T10:00:00+02:00", "a_20261023_bbbb0002"))
+    sql, cfg = [c for c in client.calls if "INFORMATION_SCHEMA" not in c[0]][-1]
+    assert "r.started_at = @before AND JSON_VALUE(r.record, '$.ask_id') < @before_id" in sql
+    assert "ORDER BY r.started_at DESC, ask_id DESC" in sql and "bbbb0002" not in sql
+    assert {p.name: p.value for p in cfg.query_parameters}["before_id"] == "a_20261023_bbbb0002"

@@ -282,7 +282,8 @@ class SlidingWindow:
                 if not hits:
                     del self.hits[key]
             if len(self.hits.get(ip, ())) >= self.limit:
-                logger.warning("rate limit tripped by client %s", ip)
+                # The address keys the window in memory only; the log names the event, never the caller.
+                logger.warning("rate limit tripped: %s", self.message)
                 raise ApiError(429, "rate_limited", self.message)
             if count:
                 self.hits.setdefault(ip, deque()).append(now)

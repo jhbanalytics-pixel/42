@@ -1,5 +1,5 @@
 import {defineConfig} from '@playwright/test';
-import {mkdtempSync} from 'node:fs';
+import {mkdtempSync, readFileSync, readdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {isAbsolute, join} from 'node:path';
 import {resolveChrome} from './src/ui/__tests__/task4-proof-helpers.js';
@@ -20,9 +20,19 @@ export function configureCertificationEvidenceDirectory(environment = process.en
 
 configureCertificationEvidenceDirectory();
 
+/* A spec with a config of its own (playwright.<name>.config.mjs) pins that
+   config's origin and refuses every other one, so the aggregate run at 4176
+   leaves it out; run it under its own config. */
+export function dedicatedSpecs(directory = new URL('.', import.meta.url)){
+  return readdirSync(directory)
+    .filter((name) => /^playwright\..+\.config\.mjs$/.test(name))
+    .flatMap((name) => [...readFileSync(new URL(name, directory), 'utf8').matchAll(/testMatch:\s*'([^']+)'/g)].map((match) => match[1]));
+}
+
 export default defineConfig({
   testDir: './tests/browser',
   testMatch: '**/*.pw.mjs',
+  testIgnore: dedicatedSpecs(),
   workers: 1,
   fullyParallel: false,
   timeout: 30000,

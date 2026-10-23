@@ -75,6 +75,7 @@ from core.brief.same_event import near as same_event_near, reason as same_event_
 from core.brief.same_event import fixture_anchor, fixture_reason
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_local_posts, showable_posts
 from core.collect import chain as collect_chain
+from core.collect import job as collect_job
 from core.config.caps import model_daily_usd
 from core.detect import sqlrun
 from core.detect.job import PROJECT, RULE_VERSION as DETECT_RULE_VERSION
@@ -187,7 +188,10 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # both billed (_retry_admits, _after_retry), adopted-first the explanations of pattern bucket 0 candidates of every
 # market run before the rest (_in_rank_order), genre-formats-skipped a genre format (skit, tutorial, slideshow,
 # meme_image, duet, stitch) counts toward no adopted format in the pattern bucket, the pattern line the writer and the
-# critic read or the count behind an inferred why-now, from one list (core/brief/pattern_formats.py; 23 Oct 2026).
+# critic read or the count behind an inferred why-now, from one list (core/brief/pattern_formats.py; 23 Oct 2026),
+# refill-once a market that publishes no card after its judged round judges up to REFILL more candidates once, the next
+# eligible ones in the same order, through the same explanation and gates, inside the same cap, deadline and time limit
+# (_refill; Albert, 23 Oct 2026).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
@@ -201,7 +205,8 @@ RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8
                 "+critic-pattern-citable+critic-detection-facts+pack-lane-member-marks+critic-patterns-recorded"
                 "+redraft-critic-rival+critic-rival-flags"
                 "+writer-crowd-handles+sentence-numeral-resting+board-line-feed-wording+writer-numbered-names+writer-rival-post-text+not-run-reason+pattern-line-not-pack-numbers"
-                "+why-now-inferred-adoption+model-error-retry+adopted-first+genre-formats-skipped")
+                "+why-now-inferred-adoption+model-error-retry+adopted-first+genre-formats-skipped"
+                "+refill-once")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -213,6 +218,9 @@ CANDIDATES = 10  # per market: candidates judged that G1 does not hold
 # (test_brief_job pins the two). 90 leaves room for 10 judged when G1 holds most of the top: on 3 Oct staging held
 # about 27 youtube-led items per market. Rows are prepared only as needed (_candidates), so judged work stays 10.
 POOL = 90
+# per market: the most candidates one refill round judges when every candidate the market judged was held and it
+# publishes no card (_refill; Albert, 23 Oct 2026). One round only, and CANDIDATES stays the normal judged limit.
+REFILL = 5
 INSERT_BATCH = 500
 SAST = timezone(timedelta(hours=2), "SAST")
 SQL = Path(__file__).parent / "sql" / "brief.sql"
@@ -220,6 +228,8 @@ BOARD_WORDS = {"board_tiktok_hashtag": "TikTok hashtag board", "board_youtube": 
                "board_apple_music": "Apple Music chart"}
 NO_CONFIRM = {"kind": "thin_coverage",
               "text": "Cross-platform confirmation did not run today: cards rest on 42's own collection only"}
+CONFIRM_FAILED = "Cross-platform confirmation failed today"
+CONFIRM_PARTIAL = "Cross-platform confirmation was partial today"
 NO_COUNTED_DAYS = "No creator posted about it in the last 3 days"
 PACK_MAX, PER_CREATOR = 12, 2  # core/brief/sql/evidence.sql: at most 12 posts in a pack and 2 per creator
 # Leave this reserve for the boards, moments, claim_checks, briefs and chain.finish. Each model dispatch reads the
@@ -874,7 +884,7 @@ def _locality_audit_inputs(client, d, market, rows, core, agent):
 
 
 def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, core, agent, hidden=None, chain=None,
-                clock=None, started=None, calendar=None, selection_audits=None):
+                clock=None, started=None, calendar=None, selection_audits=None, selection_state=None):
     """{market: candidates in rank order}, packs and contexts built PACK_WORKERS at a time across the markets.
 
     Each market judges up to CANDIDATES candidates that G1 does not hold and that do not fold into a higher card
@@ -886,7 +896,8 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
     hidden: what read_hidden returned, read here when not given. With chain and clock, no round after the first
     starts past the deadline (_brief_deadline) or the time limit (_out_of_time from started); a market then judges
     fewer than CANDIDATES, and its G1 holds stay in held_back. Creator rows are named first (creator_names), in one
-    read. calendar: {market: moments()} for the packs' day lines, none when not given."""
+    read. calendar: {market: moments()} for the packs' day lines, none when not given. selection_state, when given,
+    gets each market's pool, what was prepared from it and the snapshot and receipt, for a refill (_refill)."""
     calendar = calendar or {}
     hidden = read_hidden(client, core=core, agent=agent) if hidden is None else hidden
     pools, snapshots, receipts, unread = {}, {}, {}, {}
@@ -940,6 +951,11 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
                                                     taken[m], cutoff, observed)
             selection_audits[m]["locality_audit_inputs"] = _locality_audit_inputs(client, d, m, pools[m], core, agent)
             selection_audits[m]["candidate_read"] = unread.get(m)
+    if selection_state is not None:
+        for m in MARKETS:
+            selection_state[m] = {"snapshot": snapshots[m], "receipt": receipts[m], "ranked": ranked[m],
+                                  "prepared": list(by_market[m]), "taken": taken[m], "rounds": rounds,
+                                  "cutoff": cutoff, "observed": observed}
     return by_market
 
 
@@ -1858,18 +1874,45 @@ def _open_ingest(client, sc):
     return ingest, "ok" if ingest is not None else "unavailable"
 
 
-def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chain, clock, started=None):
+def _confirm_routes(found):
+    """A market's confirm searches by outcome: ok, empty and cached completed; a halting status stopped the lane and
+    is reported as such; every other status (error, forbidden, refunded, not_in_replay) failed."""
+    statuses = Counter(call.get("status") for r in found.values() for call in r.get("calls") or [])
+    failed = {s: n for s, n in sorted(statuses.items(), key=lambda kv: str(kv[0]))
+              if s not in confirm_lane.INGEST_STATUSES and s not in confirm_lane.HALT}
+    completed = sum(n for s, n in statuses.items() if s in confirm_lane.INGEST_STATUSES)
+    return {"searches": sum(statuses.values()), "completed": completed, "failed": failed}
+
+
+def _confirm_banner(routes):
+    """The banner for a market some of whose confirm searches failed, or None when none failed. The cards keep their
+    own decisions: a failed search only means presence elsewhere was not checked."""
+    failed = (routes or {}).get("failed") or {}
+    if not failed:
+        return None
+    n = sum(failed.values())
+    text = (f"{CONFIRM_PARTIAL if routes['completed'] else CONFIRM_FAILED}: {n} of {routes['searches']} searches did "
+            f"not complete ({', '.join(str(s) for s in failed)})")
+    if not routes["completed"]:
+        text += "; cards rest on 42's own collection only"
+    return {"kind": "thin_coverage", "text": text}
+
+
+def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chain, clock, started=None, routes=None):
     """Confirm the Today-bound candidates of each market inside one confirm share, then the candidates held only by
     the post floors (_floor_held), so the share goes to Today-bound ones first. Other held items are skipped: a
     search on them would spend credits without changing any decision, since presence never lifts a hold. Each
     item's platforms_found goes into its pack facts as a presence line, never as evidence, so it cannot count
-    towards a corroboration label. When ingest is given, the confirm results also go into posts and
+    towards a corroboration label. Every candidate of a market searches with that market's daily seen id, the one
+    collection's TikTok searches carry (core/collect/job.py seen_id), so the vendor skips posts 42 already has. When ingest is given, the confirm results also go into posts and
     post_observations; the evidence packs were built before confirm and are not read again in this run, so those
     posts become citable only from the next evidence read. ingested gets {market: {posts, observations, errors}}.
     No market and no search starts past the deadline or the time limit (_out_of_time from started), and a market
     stopped that way is not confirmed, so a slow vendor cannot push explanations past 06:15 or the task timeout; a confirm call that raises, or a market whose
     searches the lane stopped (its share used, or the client's cap_reached, balance_floor or insufficient_credits),
     stops confirming for the rest of the run, leaves that market unconfirmed and keeps the credits already recorded.
+    A market's searches are tallied by outcome into routes ({market: _confirm_routes}) when it is given; a market
+    where searches ran and none completed (each answered error, forbidden or the like) is not confirmed.
     Returns ({market: {item_id: platforms_found}} for the items found anywhere, the set of markets confirmed, and
     why confirming stopped or None)."""
     found_by_market, confirmed, why = {}, set(), {}
@@ -1894,7 +1937,7 @@ def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chai
             continue
         try:
             found = confirm([c["row"] for c in cands], sc=sc, market=m, d=d, share_used=spend["credits"],
-                            seen=None, client=client, ingest=ingest, clock=clock, stop=stop)
+                            seen=collect_job.seen_id(m, d), client=client, ingest=ingest, clock=clock, stop=stop)
         except Exception as e:
             return found_by_market, confirmed, f"stopped in {m} ({type(e).__name__}: {e})"
         spend["credits"] += sum(r["credits"] for r in found.values())
@@ -1914,6 +1957,9 @@ def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chai
                 since = c["row"].get("first_seen") or d - timedelta(days=confirm_lane.SINCE_DAYS)
                 c["pack"]["facts"].append(f"Also found by search since {since.isoformat()}: {', '.join(platforms)}")
                 found_by_market.setdefault(m, {})[c["row"]["item_id"]] = list(platforms)
+        tally = _confirm_routes(found)
+        if routes is not None:
+            routes[m] = tally
         stopped = [r for r in found.values() if r.get("status") == "stopped"]
         if stopped:
             if "note" in why:
@@ -1921,6 +1967,8 @@ def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chai
             halts = [call["status"] for r in stopped for call in r.get("calls") or []
                      if call.get("status") in confirm_lane.HALT]
             return found_by_market, confirmed, f"stopped in {m} ({halts[0] if halts else 'confirm share used'})"
+        if tally["failed"] and not tally["completed"]:
+            continue
         confirmed.add(m)
     return found_by_market, confirmed, None
 
@@ -1957,22 +2005,31 @@ def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags,
             grown.append({"market": m, "item_id": cand["row"]["item_id"],
                           "posts_before": len(cand["pack"]["evidence"]), "posts_after": len(new["pack"]["evidence"]),
                           "held": not _for_today(new)})
-        kept = [c for c in by_market[m] if _for_today(c) and "also" in c]
-        claimed = set().union(*(c["posts"] for c in kept))
-        for cand in sorted((c for c in by_market[m] if _for_today(c) and "also" not in c),
-                           key=lambda c: (c.get("_round", 0), c.get("_rank", 0), _worth(c["row"]))):
-            posts = cand["posts"]
-            best = max(((len(posts & k["posts"]), -j) for j, k in enumerate(kept)), default=(0, 0))
-            if best[0] > 0 and (len(posts - claimed) < MIN_EVIDENCE or best[0] * 2 >= len(posts)):
-                into = kept[-best[1]]
-                _absorb(into, cand)
-                merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"]})
-                by_market[m] = [c for c in by_market[m] if c is not cand]
-            else:
-                cand["also"] = []
-                kept.append(cand)
-            claimed |= posts
+        merged += _merge_late(by_market, m)
     return grown, merged
+
+
+def _merge_late(by_market, m):
+    """Merge the market's Today-bound candidates that are not a card yet (no "also": regrown or refilled) as _merge
+    does, into the kept card they share most posts with when they add fewer than MIN_EVIDENCE new posts or half or
+    more of their posts are on that card, in pool rank order before worth. Returns the merges."""
+    merged = []
+    kept = [c for c in by_market[m] if _for_today(c) and "also" in c]
+    claimed = set().union(*(c["posts"] for c in kept))
+    for cand in sorted((c for c in by_market[m] if _for_today(c) and "also" not in c),
+                       key=lambda c: (c.get("_round", 0), c.get("_rank", 0), _worth(c["row"]))):
+        posts = cand["posts"]
+        best = max(((len(posts & k["posts"]), -j) for j, k in enumerate(kept)), default=(0, 0))
+        if best[0] > 0 and (len(posts - claimed) < MIN_EVIDENCE or best[0] * 2 >= len(posts)):
+            into = kept[-best[1]]
+            _absorb(into, cand)
+            merged.append({"market": m, "into": into["row"]["item_id"], "item_id": cand["row"]["item_id"]})
+            by_market[m] = [c for c in by_market[m] if c is not cand]
+        else:
+            cand["also"] = []
+            kept.append(cand)
+        claimed |= posts
+    return merged
 
 
 def _resume_after_429(tasks, results, busy, *, model, base_usd, spend, clock, chain, d, workers, started, sleep,
@@ -2022,6 +2079,159 @@ def _resume_after_429(tasks, results, busy, *, model, base_usd, spend, clock, ch
                                     "tripped_again": bool(unavailable)}
 
 
+def _has_card(market, d, cands, results):
+    """True when the market's candidates, gated with their explanations as the brief gates them before it writes
+    (_gate, then _market_payload's G10 and specificity holds), make at least one card. Copies are gated, so nothing
+    the brief writes changes. A market with no explanation that passed its checks has no card."""
+    if not any(_for_today(c) and (results.get(id(c)) or {"reason": "not_run"})["reason"] is None for c in cands):
+        return False
+    copies, got = [], {}
+    for c in cands:
+        copy = dict(c)
+        if _for_today(copy):
+            result = results.get(id(c))
+            copy["decision"] = _gate(copy, result is not None and result["reason"] is None)
+        got[id(copy)] = results.get(id(c))
+        copies.append(copy)
+    payload = _market_payload(market, d, copies, got, banners=[], moments_=[], boards_=[], issues=())
+    return bool(payload["cards"] or payload["more"])
+
+
+def _refill_stop(now, started, d, chain, usd, unavailable):
+    """Why a refill cannot start now, or None: the breaker has tripped, the SAST day has changed, a whole model call
+    (GEMINI_TIMEOUT_S) no longer fits before the deadline or the time limit, or the day's spend has reached the cap.
+    These are the limits an explanation and its retry already meet (_explain_all, _retry_admits); none is raised."""
+    if unavailable:
+        return "model_unavailable"
+    if d != now.astimezone(SAST).date() or _brief_deadline(now, d, chain)[0]:
+        return "deadline"
+    if _out_of_time(now, started):
+        return "task_timeout"
+    if _call_allowance(now, started, d, chain) < GEMINI_TIMEOUT_S:
+        return "deadline"
+    if usd >= model_daily_usd():
+        return "model_cap"
+    return None
+
+
+def _refill(client, d, by_market, results, tasks, state, selection_audits, *, model, base_usd, spend, clock, chain,
+            workers, started, sleep, unavailable, read_base, build_ctx, campaign_hashtags, political_terms, hidden,
+            calendar, core, agent):
+    """One refill round (Albert, 23 Oct 2026): a market that publishes no card after its judged round (_has_card)
+    judges up to REFILL more candidates, the next eligible rows of its pool in the same order, prepared and gated as
+    _candidates does (a G1 hold or a fold takes no refill slot), merged as _regrow merges (_merge_late), and explained
+    by the same pipeline under the same cap, deadline and time limit (_explain_all). Refilled candidates are not
+    confirmed: a confirm search spends supplier credits, and the refill spends none. Nothing starts when _refill_stop
+    gives a reason, and a market that has a card is never refilled. It runs once: there is no second refill. results
+    and tasks grow in place, and a refilled market's selection audit is read again over everything it prepared, so
+    the not assessed block leaves the refilled candidates out. The day's spend before this run's own is read again
+    first with read_base(), as the resume does, because other stages spend meanwhile; the higher of the two reads
+    stands, and a failed read keeps the value read at the start. Returns ({market: record}, merges, the breaker's error
+    or None); a record says whether the refill ran, how many candidates it judged and took from the pool, and why it
+    stopped."""
+    records, merged, refilled = {}, [], {m: [] for m in MARKETS}
+    empty = [m for m in MARKETS if m in state and not _has_card(m, d, by_market[m], results)]
+    if not empty:
+        return records, merged, None
+    taken = {m: state[m]["taken"] for m in empty}
+    judged = dict.fromkeys(empty, 0)
+    for m in empty:
+        # A market that prepared nothing had no candidate to judge, so there is no refill to speak of.
+        if taken[m] >= len(state[m]["ranked"]) and state[m]["prepared"]:
+            records[m] = {"ran": False, "judged": 0, "taken": 0, "stop": "pool_exhausted"}
+    if not any(taken[m] < len(state[m]["ranked"]) for m in empty):
+        return records, merged, None
+    try:
+        base_usd = max(base_usd, read_base())
+    except Exception as exc:
+        print(f"brief {d.isoformat()}: the day's spend could not be read again for the refill "
+              f"({type(exc).__name__}); the value read at the start stands", file=sys.stderr)
+    blocked = _refill_stop(clock(), started, d, chain, base_usd + spend["usd"], unavailable)
+    for m in empty:
+        if blocked and taken[m] < len(state[m]["ranked"]):
+            records[m] = {"ran": False, "judged": 0, "taken": 0, "stop": blocked}
+    live = [m for m in empty if m not in records and taken[m] < len(state[m]["ranked"])]
+    rounds = max(state[m]["rounds"] for m in empty)
+    stop = {}
+    with ThreadPoolExecutor(max_workers=PACK_WORKERS) as pool:
+        first = True
+        while live:
+            if not first:
+                halt = _refill_stop(clock(), started, d, chain, base_usd + spend["usd"], None)
+                if halt:
+                    stop.update(dict.fromkeys(live, halt))
+                    break
+            first = False
+            rounds += 1
+            rows = []
+            for m in list(live):
+                batch = state[m]["ranked"][taken[m]:taken[m] + REFILL - judged[m]]
+                taken[m] += len(batch)
+                if not batch:
+                    stop[m] = "pool_exhausted"
+                    live.remove(m)
+                rows += [(m, row) for row in batch]
+            if not rows:
+                break
+            cands = list(pool.map(lambda mr: _prepare(client, d, mr[0], mr[1], build_ctx=build_ctx,
+                                                      campaign_hashtags=campaign_hashtags,
+                                                      political_terms=political_terms[mr[0]], hidden=hidden,
+                                                      calendar=calendar.get(mr[0], ()), core=core, agent=agent),
+                                  rows))
+            for cand, (m, row) in zip(cands, rows):
+                cand["decision"] = _gate(cand, None)
+                cand["_round"] = rounds
+                cand["_rank"] = next(n for n, r in enumerate(state[m]["ranked"]) if r is row)
+                by_market[m].append(cand)
+                refilled[m].append(cand)
+            for m in list(live):
+                merged += _merge_late(by_market, m)
+                # A refilled candidate that folded into a card has left by_market and took no refill slot.
+                kept = {id(c) for c in by_market[m]}
+                judged[m] = sum(1 for c in refilled[m] if id(c) in kept and not _held_g1(c))
+                if judged[m] >= REFILL:
+                    stop[m] = "refill_limit_reached"
+                    live.remove(m)
+                elif taken[m] >= len(state[m]["ranked"]):
+                    stop[m] = "pool_exhausted"
+                    live.remove(m)
+    ran = [m for m in empty if m not in records and taken[m] > state[m]["taken"]]
+    ids = {id(c) for m in MARKETS for c in refilled[m]}
+    new_tasks = _in_rank_order({m: [c for c in by_market[m] if id(c) in ids] for m in MARKETS})
+    got, broke, explanation_stop, busy = {}, None, None, {}
+    if new_tasks:
+        got, broke, explanation_stop = _explain_all(new_tasks, model=model, base_usd=base_usd, spend=spend,
+                                                    clock=clock, chain=chain, d=d, workers=workers, started=started,
+                                                    sleep=sleep, busy=busy)
+        results.update(got)
+        tasks.extend(new_tasks)
+    for m in ran:
+        why = stop.get(m, "pool_exhausted")
+        if any(id(c) not in got for c in new_tasks if c["market"] == m):
+            # The explanations stopped before this market's refill was explained: the deadline, the time limit, the
+            # cap or the breaker, as for any explanation.
+            if broke:
+                why = "model_unavailable"
+            elif explanation_stop is not None:
+                why = explanation_stop.get("limit", "deadline")
+            else:
+                why = "model_cap"
+        records[m] = {"ran": True, "judged": judged[m], "taken": taken[m] - state[m]["taken"], "stop": why}
+        if busy:
+            records[m]["model_busy"] = busy
+        audit = selection_audits.get(m)
+        if audit is not None:
+            again = _selection_result(state[m]["snapshot"], state[m]["receipt"], state[m]["ranked"],
+                                      state[m]["prepared"] + refilled[m], taken[m], state[m]["cutoff"],
+                                      state[m]["observed"])
+            audit.update(not_assessed=again["not_assessed"], selection_receipt=again["selection_receipt"])
+    for m, record in records.items():
+        audit = selection_audits.get(m)
+        if audit is not None and audit.get("selection_receipt") is not None:
+            audit["selection_receipt"] = dict(audit["selection_receipt"], refill=record)
+    return records, merged, broke
+
+
 def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, confirm, campaign_hashtags,
            political_terms, workers, spend, core, agent, started=None, sleep=None):
     hidden = read_hidden(client, core=core, agent=agent)  # raises SuppressionUnreadable before anything is spent
@@ -2029,14 +2239,15 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     base_usd = spent_today(client, d, core, agent)
     calendar = {m: moments(client, d, m, core, agent) for m in MARKETS}
 
-    selection_audits = {}
+    selection_audits, selection_state = {}, {}
     by_market = _candidates(client, d, build_ctx=build_ctx, campaign_hashtags=campaign_hashtags,
                             political_terms=political_terms, hidden=hidden, core=core, agent=agent, chain=chain,
-                            clock=clock, started=started, calendar=calendar, selection_audits=selection_audits)
+                            clock=clock, started=started, calendar=calendar, selection_audits=selection_audits,
+                            selection_state=selection_state)
     merged = _merge(by_market)
 
     found, confirmed, note = {}, set(), sc_skipped and f"skipped: {sc_skipped}"
-    ingest_status, ingested = None, {}
+    ingest_status, ingested, confirm_routes = None, {}, {}
     if sc is not None:
         ingest, ingest_status = _open_ingest(client, sc)
         if ingest_status == "unavailable":
@@ -2044,7 +2255,7 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                   file=sys.stderr)
         found, confirmed, note = _confirm(by_market, d, client=client, sc=sc, confirm=confirm, ingest=ingest,
                                           ingested=ingested, spend=spend, chain=chain, clock=clock,
-                                          started=started)
+                                          started=started, routes=confirm_routes)
     if note:
         print(f"brief {d.isoformat()}: confirm {note}", file=sys.stderr)
     grown, late_merged = _regrow(client, d, by_market, chain=chain, clock=clock, build_ctx=build_ctx,
@@ -2062,6 +2273,14 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                                read_base=lambda: spent_today(client, d, core, agent))
     if resume is not None:
         _, unavailable, explanation_stop, resume = resume
+    refill, refill_merged, refill_broke = _refill(
+        client, d, by_market, results, tasks, selection_state, selection_audits, model=model, base_usd=base_usd,
+        spend=spend, clock=clock, chain=chain, workers=workers, started=started, sleep=sleep, unavailable=unavailable,
+        read_base=lambda: spent_today(client, d, core, agent), build_ctx=build_ctx,
+        campaign_hashtags=campaign_hashtags, political_terms=political_terms, hidden=hidden, calendar=calendar,
+        core=core, agent=agent)
+    merged += refill_merged
+    unavailable = unavailable or refill_broke
     from core.brief import title_purity
 
     title_receipts, receipt_omitted = title_purity.project_receipts(tasks, results)
@@ -2085,7 +2304,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                                    "claim_id": chk["claim_id"], "rule": chk["rule"], "verdict": chk["verdict"],
                                    "checker": chk["checker"], "run_id": run.run_id,
                                    "reason": check_reason(chk), **retained_columns(chk)})
-        banners = [b for b in (warm, None if m in confirmed else NO_CONFIRM, late_banner) if b]
+        confirm_banner = _confirm_banner(confirm_routes.get(m)) or (None if m in confirmed else NO_CONFIRM)
+        banners = [b for b in (warm, confirm_banner, late_banner) if b]
         if selection_audits.get(m, {}).get("candidate_read") in ("held", NULL_COLUMN_READ_FAILED):
             banners.append({"kind": "data_issue", "text": "Data issue: today's candidates could not be read"})
         boards_, unnamed = boards(client, d, m, core, agent, hidden=hidden)
@@ -2106,6 +2326,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
         counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
     if spend.get("model_retry"):
         counts["model_retry"] = spend["model_retry"]
+    if refill:
+        counts["refill"] = refill
     if title_receipts:
         counts["title_majority_receipts"] = title_receipts
     if receipt_omitted:
@@ -2146,6 +2368,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
             c["row"]["item_id"] for c in tasks if (results.get(id(c)) or {}).get("reason", "not_started")]}
     if note:
         counts["confirm"] = note
+    if confirm_routes:
+        counts["confirm_routes"] = confirm_routes
     if grown:
         counts["regrown"] = grown
     if ingest_status is not None:

@@ -35,6 +35,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 MARKETS = ("ZA", "NG", "KE")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 ASK_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}\Z")
+ASK_REQUEST_RE = re.compile(r"[A-Za-z0-9_-]{8,64}")  # the request_id a page sends with an Ask start
 # wait=true asks and SSE streams run up to the 3,600 second Cloud Run limit.
 ASK_TIMEOUT = httpx.Timeout(3600.0)
 HEALTH_TIMEOUT = httpx.Timeout(5.0)
@@ -590,8 +591,9 @@ async def api_suppression_create(request: Request) -> Response:
 
 
 @gated.get("/api/suppressions")
-def api_suppressions() -> dict:
-    from core.api import store
+def api_suppressions() -> Response:
+    """The hidden handles, reasons and staff names: never kept by a browser or an intermediary cache."""
+    from core.api import privacy, store
 
     try:
         rows = store.get_store().suppressions()
@@ -600,7 +602,7 @@ def api_suppressions() -> dict:
         rows = None
     if rows is None:
         raise ApiError(503, "people_unavailable", "People view unavailable.")
-    return {"suppressions": rows}
+    return JSONResponse(jsonable_encoder({"suppressions": rows}), headers=privacy.NO_STORE)
 
 
 @gated.get("/api/history/items/{item_id}")
@@ -759,6 +761,13 @@ async def api_schedule_resume(schedule_id: str, request: Request) -> Response:
     return _passthrough(await _forward("POST", f"/api/schedules/{schedule_id}/resume"))
 
 
+@gated.post("/api/schedules/{schedule_id}/cancel")
+async def api_schedule_cancel(schedule_id: str, request: Request) -> Response:
+    _check_schedule_id(schedule_id)
+    auth.ask_limiter.check(request)
+    return _passthrough(await _forward("POST", f"/api/schedules/{schedule_id}/cancel"))
+
+
 # Client skins (contract section 15.1): writes and reads forwarded to f42-agent like the schedules. A skin's Today
 # and its weekly report are built here from the skin the agent holds.
 
@@ -770,7 +779,7 @@ def _check_skin_id(skin_id: str) -> None:
 
 @gated.get("/api/skins")
 async def api_skins() -> Response:
-    return _passthrough(await _forward("GET", "/api/skins"))
+    return await _again(await _forward("GET", "/api/skins"), "masked")  # a saved word can name someone hidden since
 
 
 @gated.post("/api/skins")
@@ -782,7 +791,7 @@ async def api_skin_create(request: Request) -> Response:
 @gated.get("/api/skins/{skin_id}")
 async def api_skin(skin_id: str) -> Response:
     _check_skin_id(skin_id)
-    return _passthrough(await _forward("GET", f"/api/skins/{skin_id}"))
+    return await _again(await _forward("GET", f"/api/skins/{skin_id}"), "masked")
 
 
 @gated.put("/api/skins/{skin_id}")
@@ -796,7 +805,7 @@ async def api_skin_edit(skin_id: str, request: Request) -> Response:
 async def api_skin_archive(skin_id: str, request: Request) -> Response:
     _check_skin_id(skin_id)
     auth.ask_limiter.check(request)
-    return _passthrough(await _forward("POST", f"/api/skins/{skin_id}/archive"))
+    return await _again(await _forward("POST", f"/api/skins/{skin_id}/archive"), "masked")
 
 
 async def _skin(skin_id: str) -> dict:
@@ -835,14 +844,18 @@ async def api_skin_today(skin_id: str, date: str | None = None) -> dict:
         alerts = {"alerts": [], "waiting": []}
         if watches:
             try:
-                alerts = discover.build_alerts(held, watches, date=day)
+                # Without a date, the alerts follow the brief Today chose, not a later detect run.
+                alerts = discover.build_alerts(held, watches, date=day or resp.get("date"))
             except discover.NotReady:
                 alerts = {"alerts": [], "waiting": [], "note": "No detection run has finished yet."}
         from core.api import privacy
 
         with privacy.one_read():
-            alerts = privacy.mask(alerts, privacy.read_hidden(privacy.LazyStore(store.get_store)))
-        return skins.narrow_today(resp, skin, alerts)
+            hidden = privacy.read_hidden(privacy.LazyStore(store.get_store))
+            alerts = privacy.mask(alerts, hidden)
+        out = skins.narrow_today(resp, skin, alerts)
+        out["skin"] = privacy.mask(out["skin"], hidden)  # the skin's name can name someone hidden since it was saved
+        return out
 
     return await run_in_threadpool(build)
 
@@ -920,9 +933,18 @@ async def _ask(request: Request, body: dict) -> Response:
         if live:
             auth.daily_questions.release(ip)
         raise
-    if live and resp.status_code >= 400:
+    if live and (resp.status_code >= 400 or (resp.status_code == 202 and _repeat(resp))):
+        # A start sent again with its request_id gets the ask it already made, so it is not another question.
         auth.daily_questions.release(ip)
     return await _again(resp, "record") if resp.status_code == 200 else _passthrough(resp)
+
+
+def _repeat(resp) -> bool:
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    return isinstance(body, dict) and body.get("repeat") is True
 
 
 def _spike_facts(item_id: str, market: str, day: str, series: str | None) -> tuple[str, bool]:
@@ -1046,7 +1068,9 @@ async def _replay_stored_events(ask_id: str, last_event_id: str | None) -> Respo
     record = await _skin_masked(await _projected(record))
     after = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
     steps = record.get("steps") or []
-    done_seq = max((s.get("seq", 0) for s in steps), default=0) + 1
+    # Evidence and claim events take ids between the stored steps but are not stored themselves, so done follows the
+    # client's own last id as well as the last stored step: a resumed client never gets an id it has seen (W04-02).
+    done_seq = max(after, max((s.get("seq", 0) for s in steps), default=0)) + 1
     parts = [_sse(s["seq"], "step", s) for s in steps if s.get("seq", 0) > after]
     done = {"seq": done_seq, "status": record.get("status"), "url": f"/api/ask/{ask_id}"}
     parts.append(_sse(done_seq, "done", done))
@@ -1097,6 +1121,14 @@ async def api_ask_events(ask_id: str, request: Request) -> Response:
 async def api_ask_stop(ask_id: str) -> Response:
     _check_ask_id(ask_id)
     return _passthrough(await _forward("POST", f"/api/ask/{ask_id}/stop"))
+
+
+@gated.post("/api/ask/requests/{request_id}/stop")
+async def api_ask_request_stop(request_id: str) -> Response:
+    """Stop an ask by the request_id its start carried, before or after that start has answered (audit W20-03)."""
+    if not ASK_REQUEST_RE.fullmatch(request_id):
+        raise ApiError(400, "bad_request", "That is not a request id.")
+    return _passthrough(await _forward("POST", f"/api/ask/requests/{request_id}/stop"))
 
 
 @gated.get("/api/ask/{ask_id}/export")

@@ -1072,7 +1072,7 @@ def _prefix_queries(wiring, modules, prefix, day):
 def _preflight(wiring, modules, prefix, now, session_cap_usd=SESSION_CAP_USD):
     staging, ask = modules.staging, modules.ask
     day = now.astimezone(staging.SAST).date()
-    warehouse = ReadOnlyWarehouse(wiring.warehouse, modules.sql.check_sql)
+    warehouse = ReadOnlyWarehouse(wiring.warehouse, modules.sql.check_sql_harness)
     spent = float(ask.model_spend_today(warehouse, now))
     daily_cap = float(ask.model_daily_usd(now=now))
     if not math.isfinite(spent) or spent < 0 or not math.isfinite(daily_cap) or daily_cap <= 0:
@@ -1113,7 +1113,7 @@ def _wrap_wiring(wiring, modules, *, prefix, question_id, day, captured, budget)
 
     def ask_deps():
         base = original_factory()
-        warehouse = ReadOnlyWarehouse(base.warehouse, modules.sql.check_sql, budget=budget)
+        warehouse = ReadOnlyWarehouse(base.warehouse, modules.sql.check_sql_harness, budget=budget)
         tables = ClaimChecksOnlyWriter(base.tables, ask_id=prefix, capture_rows=captured["claim_rows"])
         return __import__("dataclasses").replace(
             base,
@@ -1121,11 +1121,12 @@ def _wrap_wiring(wiring, modules, *, prefix, question_id, day, captured, budget)
             tables=tables,
             model=model,
             socialcrawl=modules.staging.refusing_socialcrawl,
-            spent_today_usd=lambda: modules.ask.model_spend_today(warehouse, wiring.now()),
+            # The run's own clock picks the day it guards, not run_ask's accounting moment.
+            spent_today_usd=lambda at=None: modules.ask.model_spend_today(warehouse, wiring.now()),
         )
 
     wrapped.ask_deps = ask_deps
-    wrapped.warehouse = ReadOnlyWarehouse(wiring.warehouse, modules.sql.check_sql, budget=budget)
+    wrapped.warehouse = ReadOnlyWarehouse(wiring.warehouse, modules.sql.check_sql_harness, budget=budget)
     wrapped.spent_today = lambda: modules.ask.model_spend_today(wrapped.warehouse, wiring.now())
 
     def refused_part(*args, **kwargs):

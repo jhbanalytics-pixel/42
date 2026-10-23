@@ -240,6 +240,7 @@ class QuietLogOnlyRules:
     understand_latest = staticmethod(lambda d: None)
     stage_latest = staticmethod(lambda d: [])
     watchdog_last = staticmethod(lambda d: datetime(2099, 1, 1, tzinfo=timezone.utc))
+    model_uncosted = staticmethod(lambda d: 0)
 
 
 def test_a_forced_zero_rows_run_writes_the_line_the_zero_rows_policy_matches(capsys):

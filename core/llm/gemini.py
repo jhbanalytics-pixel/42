@@ -18,7 +18,7 @@ import threading
 import time
 
 from core.llm.deadline import DeadlineExpired, DeadlineRunner
-from core.llm.provider import PRIORITY_HEADER, gemini_priority, price_for, thinking_headroom
+from core.llm.provider import PRIORITY_HEADER, gemini_priority, price_for, priority_price_mult, thinking_headroom
 
 
 def prepare_schema(schema: dict) -> dict:
@@ -155,7 +155,9 @@ class GeminiModel:
                            retry_options=types.HttpRetryOptions(attempts=self.retries + 1))
             if gemini_priority():
                 # Priority PayGo (core/llm/provider.py): every request of this client, a per-call http_options
-                # included, since google-genai merges request headers over the client's.
+                # included, since google-genai merges request headers over the client's. Only at a set multiplier:
+                # PriceUnset otherwise, before any client exists to send a request.
+                priority_price_mult()
                 options["headers"] = dict(PRIORITY_HEADER)
             self._client = genai.Client(vertexai=True, project=self.project, location=self.region,
                                         http_options=types.HttpOptions(**options))
@@ -171,6 +173,7 @@ class GeminiModel:
             options = dict(httpx_async_client=http, timeout=int(self.timeout_s * 1000) if self.timeout_s else None,
                            retry_options=types.HttpRetryOptions(attempts=1))
             if gemini_priority():
+                priority_price_mult()
                 options["headers"] = dict(PRIORITY_HEADER)
             sdk = genai.Client(vertexai=True, project=self.project, location=self.region,
                                 http_options=types.HttpOptions(**options))

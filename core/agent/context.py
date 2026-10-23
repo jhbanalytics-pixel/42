@@ -9,9 +9,10 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 
 # Per-question budgets by effort tier (AGENT.md, Effort tiers). At T2 max_turns is per researcher and max_budget_usd
-# is the whole ask's research budget, which ask.py splits across the researchers (ask.researcher_usd).
+# is the whole ask's research budget, which ask.py splits across the researchers (ask.researcher_usd). T0 reads the
+# warehouse only, so it holds no live credits or calls and toolset.guard refuses its live tools.
 TIERS = {
-    "T0": {"credits": 10, "calls": 8, "max_turns": 12, "max_budget_usd": 0.50},
+    "T0": {"credits": 0, "calls": 0, "max_turns": 12, "max_budget_usd": 0.50},
     "T1": {"credits": 60, "calls": 20, "max_turns": 30, "max_budget_usd": 2.00},
     "T2": {"credits": 300, "calls": 60, "max_turns": 40, "max_budget_usd": 6.00},
     "T3": {"credits": 600, "calls": 120, "max_turns": 20, "max_budget_usd": None},
@@ -73,7 +74,9 @@ class RunContext:
     native_review_available: bool = field(default=False, repr=False)
     native_language_attempted: set = field(default_factory=set, repr=False)
     # A T2 researcher's own budget in place of its tier's (lane). An optional credit_cap in it holds credits_spent
-    # below credits, so the enrichment share stays 20% of credits while part of them waits for the gap round.
+    # below credits, so the enrichment share stays 20% of credits while part of them waits for the gap round, and an
+    # optional search_cap holds the credits spent on anything but enrichment to the live-search share, so searches
+    # cannot spend the enrichment share either.
     limits: dict | None = None
     # save_finding's rows, held until the answer's trust gate has run (warehouse.commit_findings). Lanes share it.
     pending_findings: list = field(default_factory=list, repr=False)
@@ -85,6 +88,14 @@ class RunContext:
 
     def credits_left(self) -> float:
         return max(0.0, self.budget.get("credit_cap", self.budget["credits"]) - self.credits_spent)
+
+    def search_credits_left(self) -> float:
+        """credits_left, and no more than the budget's search_cap less the credits spent outside enrichment."""
+        left = self.credits_left()
+        cap = self.budget.get("search_cap")
+        if cap is None:
+            return left
+        return max(0.0, min(left, cap - (self.credits_spent - self.enrich_credits_spent)))
 
     def calls_left(self) -> int:
         return max(0, self.budget["calls"] - self.calls_made)

@@ -11,7 +11,8 @@ coaction: two accounts co-act on an item when their posts on it fall within 10 m
     20 characters) or, when post_enrichment holds an embedding for both posts, embedding cosine 0.95. A pair of
     accounts counts only when two of its co-actions repeat: on items with none in common, or on different
     days with different shared content (CooRTweet's co-sharing of distinct objects). The same pair reposting a
-    meme's caption on the same item each day does not count. The pair must also co-act more often than
+    meme's caption on the same item each day does not count, nor does an embedding match alone on the same item,
+    since it names no content that could differ. The pair must also co-act more often than
     chance (see below). Components of 5 or more counted accounts in one market are candidate networks. A
     network writes a row for each item it co-acted on with a post in the item's 7-day window.
 same_evening_template: a burst is 5 or more accounts posting the same masked template on an item inside one
@@ -300,15 +301,24 @@ def _links(e):
     return {c for c in e["content"] if c[0] == "url"}
 
 
+def _stable(e):
+    """The content of a co-action that names what was shared: an embedding match is keyed by its post pair, which
+    differs on every co-action, so it says nothing about whether two co-actions shared the same thing."""
+    return {c for c in e["content"] if c[0] != "embedding"}
+
+
 def _repeats(e1, e2):
-    """Two co-actions of one pair repeat when they share no item; or fall on different days and share no
-    content; or fall on the same day, both sharing links, with no link in common. The same pair reposting the
-    same content on the same item is what a meme's fans do, and viewers sharing each day's one official link
-    under a fixed caption co-act once a day; a pair pushing several new links in one day is neither."""
+    """Two co-actions of one pair repeat when they share no item; or fall on different days, each sharing a link,
+    template, tag sequence or text, with none in common; or fall on the same day, both sharing links, with no link
+    in common. The same pair reposting the same content on the same item is what a meme's fans do, and viewers
+    sharing each day's one official link under a fixed caption co-act once a day; a pair pushing several new links
+    in one day is neither. On one item, a co-action matched by its embedding alone cannot show that its content
+    differs from the other's, so it does not repeat."""
     if not (e1["items"] & e2["items"]):
         return True
     if e1["day"] != e2["day"]:
-        return not (e1["content"] & e2["content"])
+        s1, s2 = _stable(e1), _stable(e2)
+        return bool(s1) and bool(s2) and not (s1 & s2)
     l1, l2 = _links(e1), _links(e2)
     return bool(l1) and bool(l2) and not (l1 & l2)
 

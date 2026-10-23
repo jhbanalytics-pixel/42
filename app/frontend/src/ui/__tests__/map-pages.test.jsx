@@ -10,9 +10,11 @@ GlobalRegistrator.register();
 afterAll(() => GlobalRegistrator.unregister());
 const {renderToStaticMarkup} = await import('react-dom/server');
 const {MapPage, MAP_GROUPS} = await import('../../map.jsx');
-const {RAIL_ALL} = await import('../../rail42.jsx');
+const {RAIL_ALL, MAP_ONLY} = await import('../../rail42.jsx');
 
-const menu = RAIL_ALL;
+/* Audit W24-03: All pages lists every page a reader can open from the menu,
+   plus the served pages kept off the menu (Build), each named once. */
+const menu = [...RAIL_ALL, ...(MAP_ONLY || [])];
 const listed = MAP_GROUPS.flatMap((group) => group.pages.map((page) => page.href));
 const html = renderToStaticMarkup(React.createElement(MapPage));
 const dom = new window.DOMParser().parseFromString(html, 'text/html');
@@ -61,4 +63,11 @@ test('the Map marks itself as the page you are on and uses no inline styles', ()
   expect(here.map((a) => a.getAttribute('href'))).toEqual(['#/map']);
   expect(dom.querySelectorAll('[style]')).toHaveLength(0);
   expect(dom.body.textContent).not.toMatch(/Entry desks|Lenses|Reading the evidence/);
+});
+
+test('All pages lists Build, which the menu leaves out, under Your work and opening the Build page', () => {
+  expect(RAIL_ALL.some((item) => item.href === '#/console')).toBe(false);
+  const work = [...dom.querySelectorAll('section.map42-group')].find((g) => g.querySelector('h2').textContent === 'Your work');
+  const build = [...work.querySelectorAll('a.map-node')].find((a) => a.querySelector('.map-node-label').textContent === 'Build');
+  expect(build?.getAttribute('href')).toBe('#/console');
 });
