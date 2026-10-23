@@ -75,6 +75,7 @@ from core.brief.same_event import near as same_event_near, reason as same_event_
 from core.brief.same_event import fixture_anchor, fixture_reason
 from core.brief.specificity import MIN_EVIDENCE, assess_specificity, counted_local_posts, showable_posts
 from core.collect import chain as collect_chain
+from core.collect import job as collect_job
 from core.config.caps import model_daily_usd
 from core.detect import sqlrun
 from core.detect.job import PROJECT, RULE_VERSION as DETECT_RULE_VERSION
@@ -1863,7 +1864,8 @@ def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chai
     the post floors (_floor_held), so the share goes to Today-bound ones first. Other held items are skipped: a
     search on them would spend credits without changing any decision, since presence never lifts a hold. Each
     item's platforms_found goes into its pack facts as a presence line, never as evidence, so it cannot count
-    towards a corroboration label. When ingest is given, the confirm results also go into posts and
+    towards a corroboration label. Every candidate of a market searches with that market's daily seen id, the one
+    collection's TikTok searches carry (core/collect/job.py seen_id), so the vendor skips posts 42 already has. When ingest is given, the confirm results also go into posts and
     post_observations; the evidence packs were built before confirm and are not read again in this run, so those
     posts become citable only from the next evidence read. ingested gets {market: {posts, observations, errors}}.
     No market and no search starts past the deadline or the time limit (_out_of_time from started), and a market
@@ -1894,7 +1896,7 @@ def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chai
             continue
         try:
             found = confirm([c["row"] for c in cands], sc=sc, market=m, d=d, share_used=spend["credits"],
-                            seen=None, client=client, ingest=ingest, clock=clock, stop=stop)
+                            seen=collect_job.seen_id(m, d), client=client, ingest=ingest, clock=clock, stop=stop)
         except Exception as e:
             return found_by_market, confirmed, f"stopped in {m} ({type(e).__name__}: {e})"
         spend["credits"] += sum(r["credits"] for r in found.values())

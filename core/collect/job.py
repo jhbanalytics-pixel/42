@@ -404,9 +404,14 @@ def volume(cap=None):
     return Volume(SEARCH_TOP + spare // SEARCH_PAGES, SEARCH_PAGES, MULTI_TOP + spare // MULTI_CREDITS)
 
 
+def seen_id(market, day):
+    """The one seen id a market's TikTok searches carry on day, so the vendor skips posts 42 already has. The brief's
+    confirm searches read it from here too, so collection and confirmation share it."""
+    return f"f42-{market.lower()}-{day.isoformat()}"
+
+
 def _search_params(query, market, day, pages):
-    params = {"query": query, "country": market, "publish_time": "this-week",
-              "seen": f"f42-{market.lower()}-{day.isoformat()}"}
+    params = {"query": query, "country": market, "publish_time": "this-week", "seen": seen_id(market, day)}
     return {**params, "max_pages": pages} if pages > 1 else params
 
 
