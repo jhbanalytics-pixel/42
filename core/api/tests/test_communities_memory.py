@@ -5,7 +5,11 @@ few broad items: 1,000 such creators are about 500,000 pairs. The page used to h
 and a cached copy of them. These tests run the route's reads at that shape, with BigQuery's rows handed over one at a
 time as its pages arrive, check what the page keeps, and check the one-pass grouping against the old pairwise one.
 """
+import json
+from pathlib import Path
 import random
+import subprocess
+import sys
 import tracemalloc
 
 import pytest
@@ -14,6 +18,7 @@ from core.api import fast, people
 from core.api import store as store_mod
 from core.api.store import BigQueryStore, FixtureStore, community_components
 
+ROOT = Path(__file__).resolve().parents[3]
 START, END = "2026-09-03", "2026-09-30"
 BROAD = [f"{10 ** 6 + i:064x}" for i in range(4)]  # four items every creator in the block posts
 BLOCK = [f"c_block_{i:04d}" for i in range(300)]  # 44,850 pairs
@@ -57,10 +62,9 @@ class PagedClient:
         return Job(post_rows(params.get("creator_ids") or []))
 
 
-@pytest.fixture
-def block(monkeypatch):
+def block_store():
     """The fixture store, its community and post reads answered by BigQueryStore over the block."""
-    monkeypatch.setattr(store_mod, "_CATALOG", {})
+    store_mod._CATALOG.clear()
     bq = BigQueryStore(client=PagedClient())
     store = FixtureStore()
     for name in ("community_edges", "community_groups", "window_posts"):
@@ -69,17 +73,32 @@ def block(monkeypatch):
     return store
 
 
-def test_the_communities_route_keeps_no_list_of_creator_pairs(block):
+def measure():
+    """[creators of each community] and the peak traced memory of one Communities page over the block."""
+    store = block_store()
     tracemalloc.start()
     try:
-        body = people.build_communities(fast.prefetch(block, fast.communities_plan, "NG"), "NG")
+        body = people.build_communities(fast.prefetch(store, fast.communities_plan, "NG"), "NG")
         _, peak = tracemalloc.get_traced_memory()
     finally:
         tracemalloc.stop()
-    assert [c["creators"]["value"] for c in body["communities"]] == [len(BLOCK)]
-    # Holding the 44,850 pairs and their cached copy took about 35 MiB here, and about 350 MiB at 1,000 creators.
-    # Streamed, the page keeps the members, their items and their posts.
-    assert peak < 12 * 2 ** 20, f"peak {peak / 2 ** 20:.1f} MiB"
+    return [c["creators"]["value"] for c in body["communities"]], peak
+
+
+def test_the_communities_route_keeps_no_list_of_creator_pairs():
+    # Measured in an interpreter of its own: tracemalloc counts every allocation in the process, from any thread, so
+    # in the shared test process the peak can take in work that is not the page's (CI run 221 read 16.9 MiB there; the
+    # page alone peaks at about 2.5 MiB).
+    done = subprocess.run([sys.executable, "-B", "-c", "from core.api.tests.test_communities_memory import measure; "
+                           "import json; print(json.dumps(measure()))"], cwd=ROOT, capture_output=True,
+                          encoding="utf-8", timeout=300)
+    assert done.returncode == 0, done.stderr[-4000:]
+    sizes, peak = json.loads(done.stdout.splitlines()[-1])
+    assert sizes == [len(BLOCK)]
+    # Holding the 44,850 pairs and their cached copy took about 35 MiB here, and about 350 MiB at 1,000 creators; the
+    # list alone, with no cached copy, about 12.5 MiB. Streamed, the page keeps the members, their items and their
+    # posts, about 2.5 MiB.
+    assert peak < 6 * 2 ** 20, f"peak {peak / 2 ** 20:.1f} MiB"
 
 
 def reference_components(edges):
