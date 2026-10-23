@@ -25,10 +25,17 @@ RERUN_WORKERS = 6
 RULES = ("K1", "K2", "K3", "K5", "K6", "K8", "K9", "K10")
 FORECAST_NO_LOG_REASON = "forecast has no matching current-run log; publication held pending persistence proof"
 FORECAST_LOGGED_REASON = "forecast recorded in this run; publication held pending persistence proof"
+# A modal or expectation, then a verb of where a measure goes next. Since 23 October 2026 (audit W06-02) it also reads
+# "could", "might", "may", "is going to" and "we expect X to", and the common verbs of a sudden rise or a fall; "should"
+# stays out, since it gives advice ("brands should hold their posts") more often than it forecasts.
 FUTURE_ASSERTION = re.compile(
-    r"\b(?:will|would|is likely to|are likely to|is expected to|are expected to|is set to|looks set to|is forecast to)\s+"
+    r"\b(?:will|would|could|might|may|is likely to|are likely to|is expected to|are expected to|is set to|"
+    r"are set to|looks set to|look set to|is forecast to|are forecast to|is going to|are going to|is poised to|"
+    r"are poised to|expects?\s+(?:[\w#@'’-]+\s+){1,6}?to)\s+"
     r"(?:(?:keep|continue(?:\s+to)?)\s+)?(?:rise|rising|grow|growing|increase|increasing|climb|climbing|"
-    r"spread|spreading|persist|persisting|remain|remains|stay|stays|hold|holding)\b", re.I)
+    r"spread|spreading|persist|persisting|remain|remains|stay|stays|hold|holding|surge|surging|soar|soaring|"
+    r"spike|spiking|jump|jumping|take\s+off|taking\s+off|blow\s+up|blowing\s+up|explode|exploding|boom|booming|"
+    r"peak|peaking|go\s+viral|going\s+viral|fall|falling|drop|dropping|decline|declining|fade|fading)\b", re.I)
 CONDITIONAL_WATCH = re.compile(r"^\s*(?:watch|track|monitor|observe|check)\s+(?:whether|if)\b", re.I)
 LABEL_RANK = {"inferred": 0, "single_source": 1, "observed": 2, "corroborated": 3}
 TOLERANCE = 0.02  # ratios and other floats; counts are exact

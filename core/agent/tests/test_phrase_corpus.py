@@ -75,7 +75,9 @@ CORPUS = [
     ("Posts in tt_99 led the week.", [], "cut"),
     # periods
     ("Plate posts rose in Q3 2026.", [], "pass"),
-    ("Plate posts may keep rising into Q1 2028.", [], "pass"),
+    # A hedged forecast is still a forecast (K9, audit W06-02); the future period alone stays clean.
+    ("Plate posts may keep rising into Q1 2028.", [], "cut"),
+    ("Plate posts are booked for a Q1 2028 campaign.", [], "pass"),
     ("Plate posts will rise in Q1 2031.", [], "cut"),
     ("Plate posts held up through H1 2026.", [], "pass"),
     ("Plate posts in FY2026 beat the prior year.", [], "pass"),

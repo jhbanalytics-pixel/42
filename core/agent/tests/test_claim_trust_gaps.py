@@ -48,3 +48,42 @@ def test_k2_ratios_keep_their_two_percent_tolerance(ratio, expected):
     ctx = make_ctx(rows=rows)
     _, verdicts = run(make_draft(ctx), ctx, FakeWarehouse(rows))
     assert verdict(verdicts, "c1", "K2")["verdict"] == expected
+
+
+@pytest.mark.parametrize("future", [
+    "We expect plate ratings to take off next week.",
+    "Plate ratings could surge next week.",
+    "Plate ratings might explode before Heritage Day.",
+    "Plate ratings are going to blow up on Sunday.",
+    "Plate ratings may fade next week.",
+])
+def test_k9_cuts_common_unlogged_forecast_wording(future):
+    ctx = make_ctx()
+    draft = make_draft(ctx)
+    draft["claims"][2]["text"] = future
+    answer, verdicts = run(draft, ctx, FakeWarehouse(make_ctx().queries["q_1"]["rows"]))
+    assert verdict(verdicts, "c3", "K9")["verdict"] == "cut"
+    assert future not in str(answer)
+
+
+@pytest.mark.parametrize("text", [
+    "Watch whether plate ratings return.",
+    "Watch whether plate ratings could surge again.",
+])
+def test_k9_keeps_a_neutral_watch_condition(text):
+    ctx = make_ctx()
+    draft = make_draft(ctx)
+    draft["watch_next"][0]["text"] = text
+    answer, verdicts = run(draft, ctx, FakeWarehouse(make_ctx().queries["q_1"]["rows"]))
+    assert answer["watch_next"] == draft["watch_next"]
+    assert not any(v["claim_id"] == "watch_next/0" and v["rule"] == "K9" for v in verdicts)
+
+
+@pytest.mark.parametrize("past", [
+    "Plate ratings surged on 27 September.",
+    "Creators expected a quieter Sunday, but posts rose on 27 September.",
+    "Brands should hold their plate posts until the evening.",
+])
+def test_k9_leaves_past_and_advice_wording_to_the_other_checks(past):
+    from core.agent import checks
+    assert not checks.FUTURE_ASSERTION.search(past)
