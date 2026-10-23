@@ -4,8 +4,9 @@ Row 4 is platform-wide and runs once first. Then the markets ZA, NG and KE run i
 in four phases: the harvest (rows 1 to 8, the cheap unbiased lists first: the TikTok local feed, YouTube
 trending, Reddit, Apple Music, then the ZA hashtag board and the Facebook hub pages; row 5 only when
 Instagram location ids are configured); candidates scored from each market's harvest (hashtags by frequency
-across rows and platforms; sounds by adoption, distinct creators over the harvest and the market's stored
-TikTok search and trending posts of the day before, writers.read_sound_adoption) feeding rows 11, 12, 14 and
+across rows and platforms; sounds by local adoption, distinct local creators and their posting days over the harvest
+and the market's stored TikTok posts of the 7 days before, writers.read_sound_adoption, local by the brief's
+pattern_posts rule) feeding rows 11, 12, 14 and
 16, where core/collect/seeds.py shares the slots of rows 14
 and 16 between those candidates, live seed_queue seeds and rotated research terms (an anchor slice of at most
 15% of expansion credits, about 15% of row 14 as exploration by Thompson sampling, no cluster above 25% of
@@ -129,7 +130,16 @@ NEWS_PLATFORMS = "twitter,threads,reddit"
 # The Telegram phase's route (core/collect/telegram_collect.py ROUTE): its records stay out of the job's own
 # call counts.
 TELEGRAM_ROUTE = "telegram_preview"
-SONG_VIDEOS, COUNT_SOUNDS, COUNT_TAGS = 6, 5, 5
+# Row 11 reads the videos of a market's SONG_VIDEOS most locally adopted sounds; row 12 counts COUNT_SOUNDS sounds and
+# COUNT_TAGS hashtags a market. Row 12 counted 5 and 5 until 23 Oct 2026, which left the sixth row 11 sound without a
+# count: on 23 Oct the strongest adoption by local creators the brief found was in sounds (KE: one sound used by 7
+# local creators on 4 days, another by 3 on 2), while the topic items with an adopted format were cut by the critic as
+# routine, serialised or disparate. Hashtags keep row 14's country searches. Same 10 reads a market, so the credits
+# do not move.
+SONG_VIDEOS, COUNT_SOUNDS, COUNT_TAGS = 6, 6, 4
+# A sound is locally adopted when at least this many distinct local creators used it on at least this many posting
+# days (the brief's card rule wants 3 on 2; a sound at 2 on 2 is worth watching before it gets there).
+LOCAL_CREATORS, LOCAL_DAYS = 2, 2
 # Row 12 reads counts for 30 watched items a run (SOURCES.md). The Alerts watches take those slots first,
 # as the watchlist lane's row 12 reads in GLOBAL, and the candidates share what is left per market.
 COUNT_CALLS = len(MARKETS) * (COUNT_SOUNDS + COUNT_TAGS)
@@ -572,9 +582,12 @@ def cut_record(call, why):
 
 
 def count_slots(watched):
-    """Row 12's (sounds, hashtags) per market once the watches have taken their reads."""
+    """Row 12's (sounds, hashtags) per market once the watches have taken their reads, shared as COUNT_SOUNDS is to
+    COUNT_TAGS, an odd read going to sounds."""
     left = (COUNT_CALLS - watched) // len(MARKETS)
-    return (left + 1) // 2, left // 2
+    each = COUNT_SOUNDS + COUNT_TAGS
+    sounds = (left * COUNT_SOUNDS + each - 1) // each
+    return sounds, left - sounds
 
 
 def _watch_key(w):
@@ -695,23 +708,31 @@ def _instant(value):
 
 
 def rank_sounds(keys, adoption=(), songs=None):
-    """Sound ids for rows 11 and 12, most adopted first. keys are the harvest's sound ids; adoption holds one row
-    per post ({sound_id, creator_id, post_id, newest}): the harvest's TikTok posts and yesterday's stored search
-    and trending posts in the market. Sounds group by the vendor's matched song (songs maps a sound id to its
-    ext.matched_song_id) when known, else by their own id. Groups rank by distinct creators, then distinct posts,
-    then the newest post, then the key; each group is read through its most adopted sound id by the same order,
-    as a clip id is what the routes take. A sound id rule 1 (gdelt.blocked) refuses is never a candidate."""
+    """Sound ids for rows 11 and 12, most locally adopted first. keys are the harvest's sound ids; adoption holds one
+    row per post ({sound_id, creator_id, post_id, newest, day, local}): the harvest's TikTok posts and the market's
+    stored TikTok posts of the 7 days before (writers.read_sound_adoption), day being the post's posting day and local
+    whether it counts as local by the brief's pattern_posts rule (adoption_rows; a row without local is not local).
+    Sounds group by the vendor's matched song (songs maps a sound id to its ext.matched_song_id) when known, else by
+    their own id. Groups adopted by LOCAL_CREATORS or more distinct local creators on LOCAL_DAYS or more posting days
+    come first; then groups rank by distinct local creators (a creator-less post counts as its own creator, as the
+    brief counts it), their posting days, then distinct creators anywhere, distinct posts, the newest post and the
+    key. Each group is read through its most adopted sound id by the same order, as a clip id is what the routes take.
+    A sound id rule 1 (gdelt.blocked) refuses is never a candidate."""
     from core.collect.gdelt import blocked
 
     songs, members = songs or {}, {}
+
+    def blank():
+        return [set(), set(), None, set(), set()]
+
     for key in keys:
         if key not in (None, ""):
-            members.setdefault(str(key), [set(), set(), None])
+            members.setdefault(str(key), blank())
     for row in adoption:
         sound = row.get("sound_id")
         if sound in (None, ""):
             continue
-        entry = members.setdefault(str(sound), [set(), set(), None])
+        entry = members.setdefault(str(sound), blank())
         if row.get("creator_id") not in (None, ""):
             entry[0].add(str(row["creator_id"]))
         if row.get("post_id") not in (None, ""):
@@ -719,36 +740,78 @@ def rank_sounds(keys, adoption=(), songs=None):
         moment = _instant(row.get("newest"))
         if moment is not None and (entry[2] is None or moment > entry[2]):
             entry[2] = moment
+        if row.get("local") is True:
+            who = row.get("creator_id") if row.get("creator_id") not in (None, "") else row.get("post_id")
+            if who not in (None, ""):
+                entry[3].add(str(who))
+            if row.get("day") not in (None, ""):
+                entry[4].add(str(row["day"])[:10])
 
-    def order(creators, posts, newest, key):
-        return -len(creators), -len(posts), -newest if newest is not None else math.inf, key
+    def order(creators, posts, newest, local, days, key):
+        adopted = len(local) >= LOCAL_CREATORS and len(days) >= LOCAL_DAYS
+        return (not adopted, -len(local), -len(days), -len(creators), -len(posts),
+                -newest if newest is not None else math.inf, key)
 
     groups = {}
-    for sound, (creators, posts, newest) in members.items():
+    for sound, (creators, posts, newest, local, days) in members.items():
         if blocked(sound):
             continue
         song = songs.get(sound)
-        group = groups.setdefault(("song", str(song)) if song not in (None, "") else ("sound", sound),
-                                  [set(), set(), None, []])
+        group = groups.setdefault(("song", str(song)) if song not in (None, "") else ("sound", sound), blank() + [[]])
         group[0] |= creators
         group[1] |= posts
         if newest is not None and (group[2] is None or newest > group[2]):
             group[2] = newest
-        group[3].append(sound)
-    ranked = sorted(groups.items(), key=lambda kv: order(kv[1][0], kv[1][1], kv[1][2], kv[0]))
-    return [min(sounds, key=lambda sound: order(*members[sound], sound)) for _, (_, _, _, sounds) in ranked]
+        group[3] |= local
+        group[4] |= days
+        group[5].append(sound)
+    ranked = sorted(groups.items(), key=lambda kv: order(*kv[1][:5], kv[0]))
+    return [min(group[5], key=lambda sound: order(*members[sound], sound)) for _, group in ranked]
+
+
+def _local_post(post, market, sourced):
+    """Whether a harvest post counts as local to market by the brief's pattern_posts rule (core/brief/sql/brief.sql
+    is_local): located in market from a known source (TikTok's ext.region, the creator's home market or a place
+    mention) at writers.GEO_KNOWN or more, or seen in the market's own feeds (sourced: an observation in market with
+    source_market market, on any route but YouTube's regional chart) and not located in another market from a known
+    source."""
+    known = post.get("geo_source") in writers.KNOWN_GEO and (post.get("geo_confidence") or 0) >= writers.GEO_KNOWN
+    if known and post.get("geo_market") == market:
+        return True
+    return sourced and not (known and post.get("geo_market") not in (None, market))
+
+
+def _within_days(day, observed, days=7):
+    """True when the posting day day (YYYY-MM-DD) is on observed or one of the days-1 days before it."""
+    try:
+        gap = (date.fromisoformat(str(observed)[:10]) - date.fromisoformat(str(day)[:10])).days
+    except ValueError:
+        return False
+    return 0 <= gap < days
 
 
 def adoption_rows(done):
     """(adoption rows, songs) from a market's calls so far: one row per TikTok post with a sound
-    ({sound_id, creator_id, post_id, newest}, newest its publish time), and sound id -> ext.matched_song_id for
-    every response row that carries both."""
+    ({sound_id, creator_id, post_id, newest, day, local}, newest its publish time, day its posting day, local
+    whether it counts as local to the call's market by the brief's rule (_local_post) and was posted in the 7 days
+    to its observation), and sound id -> ext.matched_song_id for every response row that carries both."""
     rows, songs = [], {}
-    for _, result, parsed in done:
+    for call, result, parsed in done:
+        market = getattr(call, "market", None)
+        observed, sourced = {}, set()
+        for obs in (parsed or {}).get("observations", []):
+            if obs.get("market") != market or obs.get("post_id") is None:
+                continue
+            observed.setdefault(obs["post_id"], obs.get("observed_date"))
+            if obs.get("source_market") == market and obs.get("route") != "youtube/videos/trending":
+                sourced.add(obs["post_id"])
         for post in (parsed or {}).get("posts", []):
             if post.get("platform") == "tiktok" and post.get("sound_id"):
+                pid, day = post.get("post_id"), post.get("post_date")
+                local = market in MARKETS and pid in observed and day is not None \
+                    and _within_days(day, observed[pid]) and _local_post(post, market, pid in sourced)
                 rows.append({"sound_id": post["sound_id"], "creator_id": post.get("creator_id"),
-                             "post_id": post.get("post_id"), "newest": post.get("published_at")})
+                             "post_id": pid, "newest": post.get("published_at"), "day": day, "local": local})
         data = _dict(getattr(result, "body", None)).get("data")
         for row in _rows(data):
             node = _dict(row.get("post")) or row
@@ -1712,7 +1775,8 @@ def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None,
     share_cap is the overridden collect cap (None without an override); last_pulls maps (market, series,
     protocol) to the last pull number already stored; seeds holds the seed_queue rows seeds.read gave;
     watches the current watches writers.read_watches gave; sound_adoption the stored posts
-    writers.read_sound_adoption gave per market, which rank the row 11 and 12 sounds with the harvest's (rank_sounds).
+    writers.read_sound_adoption gave per market (7 days, local flagged), which rank the row 11 and 12 sounds with the
+    harvest's by local adoption (rank_sounds).
     run.seed_rows gets one yield row per seed used,
     and run.items names every item the run made an id for (named_items). With local_get, the free getter
     (local_sources.http_get live), the local sources phase runs last on the same client. With search_signals,

@@ -27,6 +27,7 @@ Services release of the website and Ask, not jobs only, release id written in at
 - Ask's video reads count against the research share of the question's budget, so a researcher stops reading videos once that share is spent.
 - An Ask asked just before midnight South African time counts its spending on the day it was held against.
 - History, and the Ask and dossier exports, tell browsers and caches not to keep a copy.
+- The morning collection follows the TikTok sounds most used by local creators on the most days over the last 7 days, where before it followed the sounds most used by creators anywhere on one day, and counts all 6 of them where it counted 5, with 4 hashtag counts a market where it had 5. The credits are unchanged.
 
 ## 2.6.0 (22 October 2026)
 
