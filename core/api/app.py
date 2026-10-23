@@ -1046,7 +1046,9 @@ async def _replay_stored_events(ask_id: str, last_event_id: str | None) -> Respo
     record = await _skin_masked(await _projected(record))
     after = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
     steps = record.get("steps") or []
-    done_seq = max((s.get("seq", 0) for s in steps), default=0) + 1
+    # Evidence and claim events take ids between the stored steps but are not stored themselves, so done follows the
+    # client's own last id as well as the last stored step: a resumed client never gets an id it has seen (W04-02).
+    done_seq = max(after, max((s.get("seq", 0) for s in steps), default=0)) + 1
     parts = [_sse(s["seq"], "step", s) for s in steps if s.get("seq", 0) > after]
     done = {"seq": done_seq, "status": record.get("status"), "url": f"/api/ask/{ask_id}"}
     parts.append(_sse(done_seq, "done", done))

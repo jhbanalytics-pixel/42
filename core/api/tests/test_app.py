@@ -583,6 +583,18 @@ def test_ask_events_replay_stored_record_when_agent_no_longer_holds_it(ctx):
     assert r.status_code == 404 and r.json()["error"] == "not_found"
 
 
+def test_ask_events_stored_replay_never_reuses_a_seen_id(ctx):
+    """W04-02: evidence and claim events share the numbering but are not stored, so a client that saw step 1,
+    evidence 2 and claim 3 resumes past every stored step and gets done as 4, never an id it has seen."""
+    ctx.store.records["a_gap"] = {"ask_id": "a_gap", "status": "complete", "answer": {"status": "complete"},
+                                  "steps": [{"seq": 1, "kind": "plan", "text": "Planning"}]}
+    r = ctx.client.get("/api/ask/a_gap/events", headers={**GOOD, "Last-Event-ID": "3"})
+    assert r.status_code == 200
+    ids = [int(b.split("\n", 1)[0][len("id: "):]) for b in r.text.split("\n\n") if b.strip()]
+    assert ids == [4]
+    assert '"seq": 4' in r.text and "event: done" in r.text
+
+
 def test_ask_get_forwarded_and_falls_back_to_store(ctx):
     r = ctx.client.get("/api/ask/a_1", headers=GOOD)
     assert r.status_code == 200 and r.json()["status"] == "running"
