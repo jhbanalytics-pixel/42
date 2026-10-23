@@ -9,9 +9,10 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 
 # Per-question budgets by effort tier (AGENT.md, Effort tiers). At T2 max_turns is per researcher and max_budget_usd
-# is the whole ask's research budget, which ask.py splits across the researchers (ask.researcher_usd).
+# is the whole ask's research budget, which ask.py splits across the researchers (ask.researcher_usd). T0 reads the
+# warehouse only, so it holds no live credits or calls and toolset.guard refuses its live tools.
 TIERS = {
-    "T0": {"credits": 10, "calls": 8, "max_turns": 12, "max_budget_usd": 0.50},
+    "T0": {"credits": 0, "calls": 0, "max_turns": 12, "max_budget_usd": 0.50},
     "T1": {"credits": 60, "calls": 20, "max_turns": 30, "max_budget_usd": 2.00},
     "T2": {"credits": 300, "calls": 60, "max_turns": 40, "max_budget_usd": 6.00},
     "T3": {"credits": 600, "calls": 120, "max_turns": 20, "max_budget_usd": None},

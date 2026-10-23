@@ -13,7 +13,7 @@ import './styles/alerts42.css';
 
 const MARKETS = ['ZA', 'NG', 'KE'];
 const TIERS = [
-  {id: 'T0', label: 'Lookup', cost: 'the lightest read, up to 10 credits each time it runs'},
+  {id: 'T0', label: 'Lookup', cost: 'the lightest read, stored posts only, with no credits spent'},
   {id: 'T1', label: 'Quick scan', cost: 'a wider read of fresh posts, up to 60 credits each time it runs'},
 ];
 const CADENCES = [

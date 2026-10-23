@@ -171,13 +171,13 @@ def test_get_comments_refuses_over_max_credits_before_calling():
 
 
 def test_get_comments_refuses_over_the_enrichment_share():
-    # T0 has 10 credits, so enrichment may spend 2; a 5-credit Instagram page is refused.
-    c = make_ctx("T0")
+    # T1 has 60 credits, so enrichment may spend 12; a 15-credit Instagram page is refused.
+    c = make_ctx("T1")
     c.evidence["instagram_1"] = {**c.evidence["tiktok_7412"], "id": "instagram_1", "platform": "instagram",
                                  "url": "https://instagram.com/p/1"}
-    client = FakeClient(quote=5.0)
+    client = FakeClient(quote=15.0)
     with pytest.raises(Refused, match="enrichment"):
-        get_comments(c, client, "instagram_1", limit=5, max_credits=10)
+        get_comments(c, client, "instagram_1", limit=5, max_credits=20)
     assert client.calls == [] and c.credits_spent == 0
     assert ENRICH_SHARE == 0.2
 
@@ -324,7 +324,7 @@ def test_get_transcript_refuses_unknown_ids_and_platforms_without_transcripts(ev
 
 
 def test_get_transcript_refuses_over_budget_and_caches_nothing():
-    c, client = make_ctx("T0"), FakeClient(quote=10.0, items=SEGMENTS)
+    c, client = make_ctx("T1"), FakeClient(quote=70.0, items=SEGMENTS)
     with pytest.raises(Refused):
         get_transcript(c, client, "tiktok_7412")
     assert client.calls == [] and "tiktok_7412" not in c.transcripts
