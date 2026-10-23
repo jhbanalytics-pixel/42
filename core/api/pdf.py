@@ -18,6 +18,7 @@ from __future__ import annotations
 import io
 import os
 import threading
+import unicodedata
 from html.parser import HTMLParser
 from urllib.parse import urlsplit
 
@@ -114,7 +115,16 @@ def _text(value):
     return "".join(value.translate(_LIGATURES).split())
 
 
+def _letters(value):
+    """The plain letters and digits of value, lower case, with accents and ligatures taken apart. The readback compares
+    these alone: a PDF's text layer can drop or garble an emoji, a mark or a dot the page shows, never a word."""
+    folded = unicodedata.normalize("NFKD", value.translate(_LIGATURES).casefold())
+    return "".join(ch for ch in folded if ch.isascii() and ch.isalnum())
+
+
 def _check(data, expected):
+    """data must be a readable PDF whose text holds every visible text run of the page (expected), so a render that
+    lost a later page or block is refused, not only one that lost its header."""
     from pypdf import PdfReader
 
     if not isinstance(data, bytes) or not data.startswith(b"%PDF-"):
@@ -125,10 +135,10 @@ def _check(data, expected):
         reader = PdfReader(io.BytesIO(data), strict=True)
         if reader.is_encrypted or not reader.pages:
             raise ValueError()
-        text = _text("".join(page.extract_text() or "" for page in reader.pages))
+        text = _letters("".join(page.extract_text() or "" for page in reader.pages))
     except Exception:
         raise PdfError("pdf_output_invalid") from None
-    if _text(expected) not in text:
+    if any(_letters(run) not in text for run in expected):
         raise PdfError("pdf_text_missing")
 
 
@@ -145,8 +155,8 @@ def render_pdf(html: str) -> bytes:
         if not audit.text:
             raise PdfError("pdf_text_missing")
         data = _render(html)
-        # The first lines of the page must come back out of the PDF; whitespace is where layout differs.
-        _check(data, "".join(" ".join(audit.text[:3]).split()))
+        # Every line of the page must come back out of the PDF, not only its first ones (audit W21-04).
+        _check(data, audit.text)
         return data
     finally:
         _PERMIT.release()
