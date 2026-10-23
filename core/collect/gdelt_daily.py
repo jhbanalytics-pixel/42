@@ -16,10 +16,13 @@ actually present in the table, so a day never aggregated is not read as zero, an
 of them. Score = (mentions + 1) / (baseline mean + 1), with gdelt.py's count floor and ratio; the top TOP_N
 per market come back with their numbers, the query and its parameters (rule 5).
 
-bridge(day) looks for those entities in 42's own posts seen 1 to 3 days after the news day in the same
-market: the phrase as whole words in the post text, or the words joined as a hashtag. It reports posts,
-creators, platforms, the first day seen and up to five evidence post ids. An entity with nothing is news
-that did not cross over yet. Read only. GDELT is presence only, never evidence.
+bridge(day) looks for those entities in 42's own social posts seen 1 to 3 days after the news day in the same
+market: the phrase as whole words in the post text, or the words joined as a hashtag. Public news headlines
+(series news_rss, platform news) are seeds and coverage, never social posts, so the bridge leaves them out. It
+reports posts, creators, platforms, the observation lag (first day 42 saw a post, after the news day), the
+publication lag (first post_date of a post with a known publication time; unknown when none has one) and up to
+five evidence post ids. An entity with nothing is news that did not cross over yet. Read only. GDELT is presence
+only, never evidence.
 
 Every query is dry-run first through gdelt._checked and refused above gdelt.MAX_BYTES.
 
@@ -110,21 +113,23 @@ o AS (
   SELECT po.market, po.post_id, MIN(po.observed_date) first_day
   FROM `{OBS_TABLE}` po
   WHERE po.observed_date BETWEEN DATE_ADD(@day, INTERVAL {BRIDGE_DAYS[0]} DAY) AND DATE_ADD(@day, INTERVAL {BRIDGE_DAYS[1]} DAY)
-    AND po.lane_class != 'legacy'
+    AND po.lane_class != 'legacy' AND IFNULL(po.series, '') != 'news_rss' AND IFNULL(po.platform, '') != 'news'
   GROUP BY po.market, po.post_id),
 m AS (
   SELECT o.market, o.post_id, o.first_day, ps.platform, ps.creator_id,
+    IF(ps.published_at IS NOT NULL, ps.post_date, NULL) posted_day,
     CONCAT(' ', TRIM(REGEXP_REPLACE(LOWER(IFNULL(ps.text, '')), r'[^\\p{{L}}\\p{{N}}]+', ' ')), ' ') words,
     ARRAY(SELECT REGEXP_REPLACE(LOWER(h), r'[^\\p{{L}}\\p{{N}}]+', '') FROM UNNEST(ps.hashtags) h) tags
   FROM o JOIN `{POSTS_TABLE}` ps ON ps.post_id = o.post_id
-  WHERE ps.post_date BETWEEN @day AND DATE_ADD(@day, INTERVAL {BRIDGE_DAYS[1]} DAY)),
+  WHERE ps.post_date BETWEEN @day AND DATE_ADD(@day, INTERVAL {BRIDGE_DAYS[1]} DAY)
+    AND IFNULL(ps.platform, '') != 'news'),
 hits AS (
-  SELECT e.market, e.entity_kind, e.phrase, m.post_id, m.first_day, m.platform, m.creator_id
+  SELECT e.market, e.entity_kind, e.phrase, m.post_id, m.first_day, m.posted_day, m.platform, m.creator_id
   FROM e JOIN m ON m.market = e.market
   WHERE STRPOS(m.words, CONCAT(' ', e.phrase, ' ')) > 0 OR e.tag IN UNNEST(m.tags))
 SELECT e.market, e.entity_kind, e.phrase,
   COUNT(DISTINCT h.post_id) posts, COUNT(DISTINCT h.creator_id) creators, COUNT(DISTINCT h.platform) platforms,
-  MIN(h.first_day) first_day,
+  MIN(h.first_day) first_day, MIN(h.posted_day) first_posted_day,
   ARRAY_AGG(DISTINCT h.post_id IGNORE NULLS ORDER BY h.post_id LIMIT {EVIDENCE_IDS}) evidence_post_ids
 FROM e LEFT JOIN hits h ON h.market = e.market AND h.entity_kind = e.entity_kind AND h.phrase = e.phrase
 GROUP BY e.market, e.entity_kind, e.phrase
@@ -272,10 +277,12 @@ def bridge(client, day, found=None):
         for e in entries:
             r = counts.get((e["market"], e["entity_kind"], e["phrase"]))
             first = r["first_day"] if r else None
+            posted = r.get("first_posted_day") if r else None
             linked.append({**e, "follow": {
                 "posts": r["posts"] if r else 0, "creators": r["creators"] if r else 0,
                 "platforms": r["platforms"] if r else 0,
-                "lag_days": (first - day).days if first else None,
+                "observation_lag_days": (first - day).days if first else None,
+                "publication_lag_days": (posted - day).days if posted else None,
                 "evidence_post_ids": list(r["evidence_post_ids"] or []) if r else []}})
         result["markets"][market] = linked
     return result
@@ -308,6 +315,10 @@ def print_plan(day):
           f"refused above {gdelt.MAX_BYTES:,} bytes")
 
 
+def _days(n):
+    return f"{n} day{'' if n == 1 else 's'}"
+
+
 def print_report(found, linked):
     params = ", ".join(f"{k}={v[1]}" for k, v in found["params"].items())
     print(f"rising {found['day'].isoformat()}: query {_query_id(RISING_SQL)} ({params}), "
@@ -319,8 +330,10 @@ def print_report(found, linked):
         print(f"{market}: {len(entries)} rising")
         for e in entries:
             f = e["follow"]
-            lag = f["lag_days"]
-            when = "no follow-through yet" if lag is None else f"lag {lag} day{'' if lag == 1 else 's'}"
+            seen, posted = f["observation_lag_days"], f["publication_lag_days"]
+            when = "no follow-through yet" if seen is None else \
+                f"first seen {_days(seen)} later, " + \
+                ("publication day unknown" if posted is None else f"first posted {_days(posted)} after the news day")
             print(f"  {e['entity_kind']} {e['label']}: {e['today']} mentions against a mean of "
                   f"{e['baseline_mean']:.1f} over {e['baseline_days']} days, score {e['score']:.2f}; social "
                   f"{f['posts']} posts, {f['creators']} creators, {f['platforms']} platforms, {when}; "
