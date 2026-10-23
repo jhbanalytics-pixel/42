@@ -15,7 +15,7 @@ from core.agent import toolset
 from core.agent.context import Refused, RunContext
 from core.agent.tests.test_history import DuckWarehouse
 from core.agent.tools.sql_query import INTERNAL_ALLOW, check_sql
-from core.agent.tools.warehouse import fetch_posts
+from core.agent.tools.warehouse import fetch_posts, topic_sweep
 
 CORE_SQL = Path(__file__).resolve().parents[2] / "schema" / "core.sql"
 WINDOW = (date(2026, 9, 21), date(2026, 9, 28))
@@ -127,3 +127,21 @@ def test_a_list_that_cannot_be_read_stores_no_post(ctx, con):
     with pytest.raises(RuntimeError):
         fetch_posts(ctx, down, ["p_by_id", "p_peer"], WINDOW)
     assert ctx.evidence == {}
+
+
+def test_the_topic_sweep_never_stores_a_hidden_creator_post(ctx, con):
+    """The depth sweep stores its fused rows as evidence too, so its keyword and semantic reads carry the same
+    predicate through the internal fence, and a list that cannot be read fails each leg."""
+    warehouse = DuckWarehouse(con)
+    topic_sweep(ctx, warehouse, ["braai"], platforms=None)
+    assert not set(ctx.evidence) & {"p_by_id", "p_by_handle"}
+    assert not leaks(recorded(ctx))
+    for sql, _ in warehouse.runs:
+        if "intelligence_42_core.posts" in sql or "tvf_search_posts" in sql:
+            assert "intelligence_42_core.v_suppressed_creators" in sql
+            check_sql(sql, INTERNAL_ALLOW["topic_sweep"])
+    down = DuckWarehouse(con, fail={"intelligence_42_core.v_suppressed_creators": RuntimeError("Access Denied")})
+    other = RunContext(run_id="run_test_2", tier="T0", as_of=datetime(2026, 9, 28, 6, 0), market="ZA")
+    other.window_start, other.window_end = WINDOW
+    topic_sweep(other, down, ["braai"], platforms=None)
+    assert other.evidence == {}

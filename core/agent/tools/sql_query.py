@@ -90,6 +90,7 @@ INTERNAL_ALLOW = {
     "discover_creators": (_SUPPRESSED_VIEW, _SUPPRESSIONS),
     "search_posts": (_SUPPRESSED_VIEW, _SUPPRESSIONS),
     "fetch_posts": (_SUPPRESSED_VIEW, _SUPPRESSIONS),
+    "topic_sweep": (_SUPPRESSED_VIEW, _SUPPRESSIONS),
     "recall_findings": (f"{_AGENT}.v_prior_findings", f"{_AGENT}.findings"),
     "get_trending_fallback_snapshot": (f"{_AGENT}.v_briefs_current", _BRIEFS),
     "log_forecast": (f"{_AGENT}.forecasts",),
