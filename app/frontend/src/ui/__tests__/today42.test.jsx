@@ -1514,7 +1514,27 @@ test('a 409 says Today is not published yet, with the date', async () => {
   await settle();
   expect(text()).toContain('Today is not published yet');
   expect(text()).toContain('30 September 2026');
-  expect(button(host, 'Try again')).toBeUndefined();
+});
+
+/* Audit W19-04: a brief published while the reader waits is one press away,
+   and the page never asks again on its own. */
+test('a not-published brief offers Try again, which reads once more and shows the brief', async () => {
+  standOnFixtureDay();
+  let answer = reply(409, {error: 'not_ready', message: 'Today is not published yet for 2026-09-30.'});
+  serve([['/api/today', () => answer], ['/api/trends/', reply(200, trendFixture)]]);
+  flushSync(() => root.render(<TodayPage42 region="ZA" date="2026-09-30" />));
+  await settle();
+  expect(text()).toContain('Today is not published yet');
+  const reads = () => calls.filter((call) => call.url.startsWith('/api/today')).length;
+  expect(reads()).toBe(1);
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  expect(reads()).toBe(1);
+  answer = reply(200, todayFixture);
+  click(button(host, 'Try again'));
+  await settle();
+  expect(reads()).toBe(2);
+  expect(text()).not.toContain('Today is not published yet');
+  expect(cards().length).toBeGreaterThan(0);
 });
 
 /* Audit W19-01: a 200 whose body is not a brief is a service fault, never an

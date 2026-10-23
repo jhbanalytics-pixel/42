@@ -512,6 +512,8 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
           <>
             <h2 className="t42-heading">Today is not published yet</h2>
             <p className="t42-status">There is no brief for {longDate(date || sastToday())} yet.</p>
+            {/* The reader asks again by hand; the page never polls. */}
+            <button type="button" className="t42-button" onClick={() => setTick((t) => t + 1)}>Try again</button>
           </>
         )}
         {load.state === 'error' && (
