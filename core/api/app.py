@@ -35,6 +35,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 MARKETS = ("ZA", "NG", "KE")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 ASK_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}\Z")
+ASK_REQUEST_RE = re.compile(r"[A-Za-z0-9_-]{8,64}")  # the request_id a page sends with an Ask start
 # wait=true asks and SSE streams run up to the 3,600 second Cloud Run limit.
 ASK_TIMEOUT = httpx.Timeout(3600.0)
 HEALTH_TIMEOUT = httpx.Timeout(5.0)
@@ -925,9 +926,18 @@ async def _ask(request: Request, body: dict) -> Response:
         if live:
             auth.daily_questions.release(ip)
         raise
-    if live and resp.status_code >= 400:
+    if live and (resp.status_code >= 400 or (resp.status_code == 202 and _repeat(resp))):
+        # A start sent again with its request_id gets the ask it already made, so it is not another question.
         auth.daily_questions.release(ip)
     return await _again(resp, "record") if resp.status_code == 200 else _passthrough(resp)
+
+
+def _repeat(resp) -> bool:
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    return isinstance(body, dict) and body.get("repeat") is True
 
 
 def _spike_facts(item_id: str, market: str, day: str, series: str | None) -> tuple[str, bool]:
@@ -1051,7 +1061,9 @@ async def _replay_stored_events(ask_id: str, last_event_id: str | None) -> Respo
     record = await _skin_masked(await _projected(record))
     after = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
     steps = record.get("steps") or []
-    done_seq = max((s.get("seq", 0) for s in steps), default=0) + 1
+    # Evidence and claim events take ids between the stored steps but are not stored themselves, so done follows the
+    # client's own last id as well as the last stored step: a resumed client never gets an id it has seen (W04-02).
+    done_seq = max(after, max((s.get("seq", 0) for s in steps), default=0)) + 1
     parts = [_sse(s["seq"], "step", s) for s in steps if s.get("seq", 0) > after]
     done = {"seq": done_seq, "status": record.get("status"), "url": f"/api/ask/{ask_id}"}
     parts.append(_sse(done_seq, "done", done))
@@ -1102,6 +1114,14 @@ async def api_ask_events(ask_id: str, request: Request) -> Response:
 async def api_ask_stop(ask_id: str) -> Response:
     _check_ask_id(ask_id)
     return _passthrough(await _forward("POST", f"/api/ask/{ask_id}/stop"))
+
+
+@gated.post("/api/ask/requests/{request_id}/stop")
+async def api_ask_request_stop(request_id: str) -> Response:
+    """Stop an ask by the request_id its start carried, before or after that start has answered (audit W20-03)."""
+    if not ASK_REQUEST_RE.fullmatch(request_id):
+        raise ApiError(400, "bad_request", "That is not a request id.")
+    return _passthrough(await _forward("POST", f"/api/ask/requests/{request_id}/stop"))
 
 
 @gated.get("/api/ask/{ask_id}/export")

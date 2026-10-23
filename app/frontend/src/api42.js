@@ -4,7 +4,7 @@
    passcode screen, and the claims a refused dossier freeze names are kept
    as .claims. */
 import {credential} from './api.js';
-import {createSSEParser} from './askTransport42.js';
+import {STREAM_IDLE_MS, createSSEParser, readWithin} from './askTransport42.js';
 
 async function request(path, options){
   return (await send(path, options)).json();
@@ -173,8 +173,10 @@ export function sendFeedback(body, options){
 /* Contract section 13.2. The server owns every claim, so an edit sends only
    which claims to keep, their order, the title and the notes; anything else
    it is handed stays here. */
-export function createDossier(askId, options){
-  return postJson('/api/dossiers', {from: {ask_id: askId}}, options);
+export function createDossier(askId, options = {}){
+  const body = {from: {ask_id: askId}};
+  if (options.requestId) body.request_id = options.requestId;
+  return postJson('/api/dossiers', body, options);
 }
 
 export function saveFinding(askId, options){
@@ -273,8 +275,10 @@ export function listInvestigations({status} = {}, options){
   return getJson('/api/investigations' + (status ? '?status=' + encodeURIComponent(status) : ''), options);
 }
 
-export function createInvestigationDossier(investigationId, options){
-  return postJson('/api/dossiers', {from: {investigation_id: investigationId}}, options);
+export function createInvestigationDossier(investigationId, options = {}){
+  const body = {from: {investigation_id: investigationId}};
+  if (options.requestId) body.request_id = options.requestId;
+  return postJson('/api/dossiers', body, options);
 }
 
 /* Contract section 14.2. The writes go to f42-agent through f42-api; each
@@ -402,7 +406,7 @@ const pause = (ms, signal) => new Promise((resolve, reject) => {
    agent any more (it restarted), so the poll ends with a 'lost' error
    instead of asking for ever. */
 export async function streamInvestigation(investigationId, onEvent, options = {}){
-  const {signal, pollMs = POLL_MS, maxPollMs = POLL_MAX_MS, idleMs = IDLE_LIMIT_MS} = options;
+  const {signal, pollMs = POLL_MS, maxPollMs = POLL_MAX_MS, idleMs = IDLE_LIMIT_MS, streamIdleMs = STREAM_IDLE_MS} = options;
   let lastEventId = options.lastEventId != null ? String(options.lastEventId) : null;
   let lastSeq = lastEventId != null && Number.isFinite(Number(lastEventId)) ? Number(lastEventId) : 0;
   let done = null;
@@ -429,9 +433,14 @@ export async function streamInvestigation(investigationId, onEvent, options = {}
       });
       try {
         while (!done){
-          const {value, done: ended} = await reader.read();
-          if (ended) break;
-          parser.push(decoder.decode(value, {stream: true}));
+          /* A stream left open and silent is given up for the poll below. */
+          const chunk = await readWithin(reader, streamIdleMs);
+          if (chunk.idle){
+            if (reader.cancel) reader.cancel().catch(() => {});
+            break;
+          }
+          if (chunk.done) break;
+          parser.push(decoder.decode(chunk.value, {stream: true}));
         }
       } finally {
         if (done && reader.cancel) reader.cancel().catch(() => {});

@@ -809,7 +809,7 @@ test('Open as dossier creates a draft dossier from the investigation and opens i
   await until(() => button('Open as dossier'), 'the button');
   await press('Open as dossier');
   await until(() => window.location.hash === '#/dossiers/d_inv01', 'the dossier to open');
-  expect(calls.find((c) => c.method === 'POST').body).toEqual({from: {investigation_id: ID}});
+  expect(calls.find((c) => c.method === 'POST').body).toEqual({from: {investigation_id: ID}, request_id: expect.any(String)});
 });
 
 test('a 401 anywhere hands the reader to the passcode flow', async () => {

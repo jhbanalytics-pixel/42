@@ -815,6 +815,9 @@ default day and Coverage's way back from an empty day)."""
         return sorted(out.values(), key=lambda r: (-r["posts_window"], r["label"] or "", r["item_id"]))[:limit]
 
     def ask_history(self, limit, before, market=None):
+        """before is a time, or a (time, ask_id) pair that also keeps the asks of that instant listed after it."""
+        at, before_id = before if isinstance(before, tuple) else (before, None)
+        cut = (dt.datetime.fromisoformat(at), before_id or "") if at else None
         rows = []
         for r in self._runs_all() + (self._optional("history_runs") or []):
             record = r.get("record") or {}
@@ -822,12 +825,12 @@ default day and Coverage's way back from an empty day)."""
                 continue
             if market and record.get("market") != market:
                 continue
-            if before and dt.datetime.fromisoformat(r["started_at"]) >= dt.datetime.fromisoformat(before):
+            if cut and (dt.datetime.fromisoformat(r["started_at"]), record["ask_id"]) >= cut:
                 continue
             rows.append({"ask_id": record["ask_id"], "question": record.get("question") or r.get("question"),
                          "asked_at": r["started_at"], "status": record.get("status"),
                          "answer_status": (record.get("answer") or {}).get("status"), "market": record.get("market")})
-        return sorted(rows, key=lambda r: dt.datetime.fromisoformat(r["asked_at"]), reverse=True)[:limit]
+        return sorted(rows, key=lambda r: (dt.datetime.fromisoformat(r["asked_at"]), r["ask_id"]), reverse=True)[:limit]
 
     def brief_history(self, limit, before, market=None):
         rows = [r for r in self._load("briefs") if (before is None or r["brief_date"] < before)
@@ -1914,18 +1917,22 @@ or None."""
             limit=("INT64", limit))
 
     def ask_history(self, limit, before, market=None):
+        """before is a time, or a (time, ask_id) pair that also keeps the asks of that instant listed after it."""
+        at, before_id = before if isinstance(before, tuple) else (before, None)
         return self._query(
             "SELECT JSON_VALUE(r.record, '$.ask_id') AS ask_id, JSON_VALUE(r.record, '$.market') AS market,\n"
             "  IFNULL(JSON_VALUE(r.record, '$.question'), r.question) AS question, r.started_at AS asked_at,\n"
             "  JSON_VALUE(r.record, '$.status') AS status, JSON_VALUE(r.record, '$.answer.status') AS answer_status\n"
             f"FROM {self._t(AGENT + '.runs')} r\n"
             "WHERE r.stage = 'ask' AND JSON_VALUE(r.record, '$.ask_id') IS NOT NULL\n"
-            "  AND (@before IS NULL OR r.started_at < @before)\n"
+            "  AND (@before IS NULL OR r.started_at < @before\n"
+            "    OR (r.started_at = @before AND JSON_VALUE(r.record, '$.ask_id') < @before_id))\n"
             "  AND (@market IS NULL OR JSON_VALUE(r.record, '$.market') = @market)\n"
             "QUALIFY ROW_NUMBER() OVER (PARTITION BY JSON_VALUE(r.record, '$.ask_id')\n"
             "  ORDER BY r.finished_at DESC) = 1\n"
-            "ORDER BY r.started_at DESC LIMIT @limit",
-            before=("TIMESTAMP", before), limit=("INT64", limit), market=("STRING", market))
+            "ORDER BY r.started_at DESC, ask_id DESC LIMIT @limit",
+            before=("TIMESTAMP", at), before_id=("STRING", before_id), limit=("INT64", limit),
+            market=("STRING", market))
 
     def brief_history(self, limit, before, market=None):
         """Every market row of the newest `limit` brief dates, whatever its status (a brief that held every item
