@@ -22,8 +22,9 @@ class FakeStore:
 
     def __init__(self, collect_ok=True, observations=None, published=("ZA", "NG", "KE"), usd=0.0, keys=None,
                  ask=(0, 0), runs=None, seeds=None, detect=None, briefs=None, understand=None, stages=None,
-                 watchdog_at=None):
+                 watchdog_at=None, uncosted=0):
         self.runs = runs
+        self._uncosted = uncosted
         self._briefs = briefs
         self._understand = understand
         self._stages = stages or []
@@ -53,6 +54,10 @@ class FakeStore:
     def model_usd(self, d):
         self.asked.append(("model_usd", d))
         return self._usd
+
+    def model_uncosted(self, d):
+        self.asked.append(("model_uncosted", d))
+        return self._uncosted
 
     def route_keys(self, d):
         self.asked.append(("route_keys", d))
@@ -641,12 +646,54 @@ def test_a_route_keys_row_without_types_is_a_rule_error_and_not_a_quiet_pass():
     assert [n for n, _ in errors] == ["schema_drift", "schema_added"]
 
 
-def test_model_spend_sums_model_usd_over_every_stage_plus_ask_records():
-    sql = wd.SQL["model_usd"]
-    assert "stage IN" not in sql and "stage = 'brief'" not in sql
-    assert "JSON_VALUE(r.counts, '$.model_usd')" in sql
-    assert "r.stage = 'ask'" in sql and "JSON_VALUE(r.record, '$.run.model_usd')" in sql
-    assert "GROUP BY r.run_id" in sql
+def spend_rows(rows):
+    con = duck.connect(views=False)
+    con.execute("ALTER TABLE agent.runs ADD COLUMN model_usd DOUBLE")
+    duck.load(con, "agent.runs", [{"run_date": DAY, **row} for row in rows])
+    [row] = duck.query(con, duck_agent_sql("model_usd"), {"d": DAY})
+    return row
+
+
+def test_model_spend_reads_one_canonical_figure_per_run_from_every_writer():
+    row = spend_rows([
+        # An investigation planner: the model_usd column and its record, no counts figure.
+        {"run_id": "r_plan_1", "stage": "investigation", "status": "running", "record": '{"run": {}}'},
+        {"run_id": "r_plan_1", "stage": "investigation", "status": "ok", "model_usd": 41.0,
+         "record": '{"run": {"model_usd": 41.0}}'},
+        # An ask: its spend inside the record only.
+        {"run_id": "r_ask", "stage": "ask", "status": "complete", "record": '{"run": {"model_usd": 2.5}}'},
+        # understand_spend and brief: counts only.
+        {"run_id": "u_spend", "stage": "understand_spend", "status": "ok", "counts": '{"model_usd": 1.25}'},
+        {"run_id": "b1", "stage": "brief", "status": "ok", "counts": '{"model_usd": 0.75}'},
+        # A run carrying the same figure twice counts it once.
+        {"run_id": "both", "stage": "ask", "status": "complete", "model_usd": 0.5,
+         "record": '{"run": {"model_usd": 0.5}}', "counts": '{"model_usd": 0.5}'},
+        {"run_id": "c1", "stage": "collect", "status": "ok", "counts": '{"rows": 3}'},
+    ])
+    assert row["usd"] == pytest.approx(46.0)
+    assert row["uncosted"] == 0
+    store = FakeStore(usd=row["usd"])
+    assert "model_spend" in names(wd.check(at(12, day=date(2026, 10, 3)), store))  # USD 46 is over 80% of 50
+
+
+def test_a_finished_model_run_with_no_recorded_cost_leaves_model_spend_unknown():
+    row = spend_rows([
+        {"run_id": "b1", "stage": "brief", "status": "failed", "counts": '{"markets": 3}'},
+        {"run_id": "d_running", "stage": "detect", "status": "running"},  # still going: no figure yet
+        {"run_id": "c1", "stage": "collect", "status": "ok", "counts": '{"rows": 3}'},  # spends no model
+        {"run_id": "r_ask", "stage": "ask", "status": "complete", "record": '{"run": {"model_usd": 2.0}}'},
+    ])
+    assert row["usd"] == pytest.approx(2.0) and row["uncosted"] == 1
+    alerts = wd.check(at(12, day=date(2026, 10, 3)), FakeStore(usd=row["usd"], uncosted=row["uncosted"]))
+    [alert] = [a for a in alerts if a.name == "model_spend"]
+    assert "unknown" in alert.reason and "1 finished model run" in alert.reason
+    assert "model_spend" not in names(wd.check(at(12, day=date(2026, 10, 3)), FakeStore(usd=2.0)))
+
+
+def test_the_watchdog_model_stages_are_the_ones_coverage_reads():
+    from core.api import coverage
+
+    assert wd.MODEL_STAGES == coverage.MODEL_STAGES
 
 
 def test_bigquery_store_reads_an_empty_spend_as_zero():
