@@ -604,14 +604,14 @@ const methodItem = {fontSize: 'var(--type-body)', lineHeight: 1.55, color: 'var(
    marketing reader, with no pipeline, staging or model names. */
 const PIPELINE_STEPS = [
   {no: '01', title: 'Collect', desc: 'Each day 42 gathers public posts, searches, news and music from social platforms and the open web in South Africa, Nigeria and Kenya.'},
-  {no: '02', title: 'Organise', desc: 'Posts are grouped into topics. A topic reaches Today only once it passes 42\'s evidence checks; the rest stay in Discover, marked as not yet checked or held back with the reason.'},
+  {no: '02', title: 'Organise', desc: <>Posts are grouped into topics. A topic reaches Today only once it passes 42{'\u2019'}s evidence checks. A topic that passes but is not picked for Today stays in Discover, and a topic the checks held back is listed in Discover under Held back, with the reason. A topic the day{'\u2019'}s checks did not reach, because it fell outside the topics judged or came after the selection closed, is not assessed: Today lists it, which is not a judgement on its evidence. <a href="#/pulse">See Not assessed on Today</a>.</>},
   {no: '03', title: 'Read', desc: 'Today puts the topics that are moving most at the top, one market at a time, with the posts that show it.'},
   {no: '04', title: 'Brief', desc: 'Topics on Today come with a short brief: what changed and why it matters, with the posts behind it. Topics still being checked say No explanation yet.'},
 ];
 
 const DATA_RULES = [
   'Creators are ranked by the attention their posts earn, not by how often they post. Radar ranks topics by how many different accounts post about them.',
-  'Share of voice is a percentage within one market, adding up to 100 across that market.',
+  'Share of voice compares one brand with the competitors you name, up to four, in one market: each share is of the posts those brands drew on one platform inside the window shown, not of all conversation in the market. Post and author counts sit beside it, and a brand with fewer than 5 posts gets no share, because so few posts are too thin to read.',
   'Figures show their unit, time window and market. A figure 42 could not measure says so instead of showing 0.',
   'South Africa, Nigeria and Kenya are never added together into one figure, unless the view says it covers all markets.',
   'Momentum is movement we have seen. Anything predicted or inferred is labelled as such.',
@@ -638,7 +638,7 @@ export function MethodPage(){
         <ol className="method-steps stagger" style={methodList}>
           {PIPELINE_STEPS.map((s) => (
             <li key={s.no} style={methodItem}>
-              <strong style={{fontWeight: 600, color: 'var(--ink)'}}>{s.title + '.'}</strong>{' ' + s.desc}
+              <strong style={{fontWeight: 600, color: 'var(--ink)'}}>{s.title + '.'}</strong>{' '}{s.desc}
             </li>
           ))}
         </ol>
