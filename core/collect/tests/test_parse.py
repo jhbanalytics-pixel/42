@@ -365,6 +365,24 @@ def test_facebook_hub_panel_uses_the_page_id_and_drops_posts_before_since():
     assert out["counters"] == []
 
 
+def test_time_scoped_panel_holds_posts_without_a_usable_publication_time():
+    body = fixture("panels", "facebook_posts")
+    undated = json.loads(json.dumps(body["data"]["items"][0]))
+    undated["post"].update(id="fb_undated", url="https://www.facebook.com/eNCAnews/posts/fb_undated")
+    del undated["post"]["published_at"]
+    garbled = json.loads(json.dumps(body["data"]["items"][0]))
+    garbled["post"].update(id="fb_garbled", url="https://www.facebook.com/eNCAnews/posts/fb_garbled",
+                           published_at="soon")
+    body = {**body, "data": {"items": [*body["data"]["items"], undated, garbled]}}
+    scoped = run("facebook/profile/posts", {"pageId": "1", "since": "2026-09-27"}, "ZA", body)
+    assert [p["native_id"] for p in scoped["posts"]] == ["fb_1"]  # fb_old predates since, the rest are undated
+    assert [o["post_id"] for o in scoped["observations"]] == [scoped["posts"][0]["post_id"]]
+    # Without since= nothing can be proved out of window, so an undated post keeps the fetch day as before.
+    unscoped = run("facebook/profile/posts", {"pageId": "1"}, "ZA", body)
+    dated = {p["native_id"]: p["post_date"] for p in unscoped["posts"]}
+    assert dated["fb_undated"] == dated["fb_garbled"] == "2026-09-28"
+
+
 def test_panel_protocol_can_name_its_membership():
     out = run("facebook/profile/posts", {"pageId": "1"}, "ZA", fixture("panels", "facebook_posts"),
               protocol="panel_fb_hub:v1")

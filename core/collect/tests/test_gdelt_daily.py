@@ -395,6 +395,28 @@ def test_bridge_sql_is_read_only_and_joins_42_posts_in_the_market():
     assert "e.tag IN UNNEST(m.tags)" in sql and "STRPOS(m.words, CONCAT(' ', e.phrase, ' ')) > 0" in sql
 
 
+def test_bridge_counts_social_posts_only_never_news_headlines():
+    sql = gd.BRIDGE_SQL
+    assert "IFNULL(po.series, '') != 'news_rss'" in sql and "IFNULL(po.platform, '') != 'news'" in sql
+    assert "IFNULL(ps.platform, '') != 'news'" in sql
+
+
+def test_bridge_keeps_observation_and_publication_lag_apart():
+    sql = gd.BRIDGE_SQL
+    assert "IF(ps.published_at IS NOT NULL, ps.post_date, NULL) posted_day" in sql
+    assert "MIN(h.posted_day) first_posted_day" in sql
+    rising_rows = [rrow("ZA", "person", "Cyril Ramaphosa", 40, 56), rrow("ZA", "place", "Soweto", 12, 0)]
+    bridge_rows = [
+        {"market": "ZA", "entity_kind": "person", "phrase": "cyril ramaphosa", "posts": 2, "creators": 2,
+         "platforms": 1, "first_day": DAY + timedelta(days=1), "first_posted_day": DAY, "evidence_post_ids": ["p1"]},
+        {"market": "ZA", "entity_kind": "place", "phrase": "soweto", "posts": 1, "creators": 1, "platforms": 1,
+         "first_day": DAY + timedelta(days=3), "first_posted_day": None, "evidence_post_ids": ["p2"]}]
+    client = FakeClient(rising_rows=rising_rows, bridge_rows=bridge_rows)
+    za = {e["label"]: e["follow"] for e in gd.bridge(client, DAY)["markets"]["ZA"]}
+    assert (za["Cyril Ramaphosa"]["observation_lag_days"], za["Cyril Ramaphosa"]["publication_lag_days"]) == (1, 0)
+    assert (za["Soweto"]["observation_lag_days"], za["Soweto"]["publication_lag_days"]) == (3, None)
+
+
 def test_bridge_window_is_the_one_to_three_days_after_the_news_day():
     sql = gd.BRIDGE_SQL
     assert "po.observed_date BETWEEN DATE_ADD(@day, INTERVAL 1 DAY) AND DATE_ADD(@day, INTERVAL 3 DAY)" in sql
@@ -419,10 +441,10 @@ def test_bridge_reports_follow_through_per_entity():
     assert out["query"] == gd.BRIDGE_SQL and out["params"]["day"] == ("DATE", DAY)
     assert out["market_rule"] == gd.MARKET_RULE
     za = {e["label"]: e for e in out["markets"]["ZA"]}
-    assert za["Cyril Ramaphosa"]["follow"] == {"posts": 17, "creators": 9, "platforms": 3, "lag_days": 1,
-                                               "evidence_post_ids": ["p1", "p2"]}
-    assert za["Soweto"]["follow"]["posts"] == 0 and za["Soweto"]["follow"]["lag_days"] is None
-    assert out["markets"]["KE"][0]["follow"]["lag_days"] == 3
+    assert za["Cyril Ramaphosa"]["follow"] == {"posts": 17, "creators": 9, "platforms": 3, "observation_lag_days": 1,
+                                               "publication_lag_days": None, "evidence_post_ids": ["p1", "p2"]}
+    assert za["Soweto"]["follow"]["posts"] == 0 and za["Soweto"]["follow"]["observation_lag_days"] is None
+    assert out["markets"]["KE"][0]["follow"]["observation_lag_days"] == 3
     call = client.live(gd.BRIDGE_SQL)[0]
     assert call.params["day"].value == DAY and call.config.maximum_bytes_billed == gdelt.MAX_BYTES
     assert [s.struct_values for s in call.params["entities"].values] == gd.bridge_entities(found)
@@ -507,7 +529,8 @@ def test_apply_aggregates_then_prints_rising_and_bridge(monkeypatch, capsys):
     out = capsys.readouterr().out
     order = [c.sql for c in client.live()]
     assert order.index(gd.AGGREGATE_SQL) < order.index(gd.RISING_SQL) < order.index(gd.BRIDGE_SQL)
-    assert "Cyril Ramaphosa" in out and "17 posts" in out and "lag 2 days" in out
+    assert "Cyril Ramaphosa" in out and "17 posts" in out and "first seen 2 days later" in out
+    assert "publication day unknown" in out
     assert f"market rule {gd.MARKET_RULE}" in out and f"market_rule={gd.MARKET_RULE}" in out
 
 

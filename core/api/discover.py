@@ -11,7 +11,7 @@ import re
 
 from core.api import alerts, fast
 from core.api.held_words import plain_reason
-from core.api.searching import searching_now
+from core.api.searching import searching_now_status
 from core.api.store import canon_platform, creator_key
 from core.api.today import (FLAG_WORDS, LABELS, MARKETS, MUSIC_PLATFORMS, PLATFORM_WORDS, SAST, STATE_WORDS, NotFound,
                             NotReady, _card, _display_title, _platform_word, _series_name, _warmup, hidden_people,
@@ -454,13 +454,13 @@ def build_discover(store, market, kind=None, state=None, platform=None, sort="or
              **{k: v for k, v in c["held_back"].items() if k in ("reason_text", "reason_raw")}, "card": c}
             for r, c, h in sorted(picked, key=lambda x: (x[0]["market"], x[1]["title"])) if h]
     page = shown[start:start + limit]
+    as_of = (now or dt.datetime.now(SAST)).astimezone(SAST).date().isoformat()
+    searching, searching_status = searching_now_status(store, MARKETS if market == "all" else [market], as_of, hidden)
     return {"date": run["run_date"], "market": market, "run_id": run["run_id"],
             "items": _with_reach7(store, run, [c for _, c in page]),
             "next_cursor": str(start + limit) if start + limit < len(shown) else None,
             "held_back": {"count": len(held), "items": held}, "filters": filters,
-            "searching_now": searching_now(store, MARKETS if market == "all" else [market],
-                                           (now or dt.datetime.now(SAST)).astimezone(SAST).date().isoformat(),
-                                           hidden)}
+            "searching_now": searching, "searching_now_status": searching_status}
 
 
 def _with_reach7(store, run, cards):

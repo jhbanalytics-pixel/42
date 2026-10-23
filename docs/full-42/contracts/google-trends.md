@@ -8,7 +8,7 @@ Each row has exactly five fields:
 |---|---|---|
 | `term` | Non-empty string | Render as text. |
 | `market` | `ZA`, `NG`, or `KE` | Keep only rows matching the selected market, or group all valid markets in `ZA`, `NG`, `KE` order when the selection is `ALL`. |
-| `source` | `google_bq` or `google_trending` | Validate the source value; the strip does not infer other source details. |
+| `source` | `google_bq` or `google_trending` | Validate the source value; the strip does not infer other source details. f42-api sends only `google_trending` (core/api/searching.py SOURCES); `google_bq` stays accepted for the parked public tables. |
 | `rank` | Positive integer or `null` | Show a positive value as `Reported rank N`. Omit rank when the value is `null`. The label makes no national-ranking claim. |
 | `refreshed_at` | Calendar date `YYYY-MM-DD` or UTC ISO timestamp ending in `Z` | Render the supplied value at its supplied precision. A date-only value stays date-only. |
 

@@ -188,8 +188,10 @@ DUCK = {"STRING": "VARCHAR", "INT64": "BIGINT", "FLOAT64": "DOUBLE", "BOOL": "BO
 
 
 def duck_sql(sql, name, source):
-    return (sql.replace(f"MERGE `{writers.table(name)}`", f"MERGE INTO {name}").replace("UNNEST(@rows)", source)
-            .replace("SAFE.PARSE_JSON(S.vendor_labels)", "S.vendor_labels"))
+    sql = (sql.replace(f"MERGE `{writers.table(name)}`", f"MERGE INTO {name}").replace("UNNEST(@rows)", source)
+            .replace("SAFE.PARSE_JSON(S.vendor_labels)", "S.vendor_labels")
+            .replace("ARRAY_LENGTH(", "LEN("))
+    return re.sub(r"DATE\((S\.published_at), '([^']+)'\)", r"CAST(timezone('\2', \1) AS DATE)", sql)
 
 
 def duck_merge(con, sql, name, types, rows):
@@ -355,6 +357,62 @@ def test_dedupe_posts_takes_geo_from_a_later_sighting_when_the_first_had_none():
     assert geo_of(row) == ("ZA", 0.7, "place_mention") and row["views"] == 1
     [kept] = writers.dedupe_posts([post("q", ("NG", 0.9, "ext_region")), post("q", ("ZA", 0.7, "place_mention"))])
     assert kept["geo_market"] == "NG"
+
+
+def test_later_direct_region_upgrades_a_profile_location_in_either_order():
+    profile, region = ("KE", 0.8, "home_market"), ("NG", 0.9, "ext_region")
+    for rows in ([post("p", profile, views=1), post("p", region)], [post("p", region, views=1), post("p", profile)]):
+        [row] = writers.dedupe_posts(rows)
+        assert geo_of(row) == region
+    con = posts_con()
+    sql = writers.MERGE_SQL.format(table=writers.table("posts"))
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [post("p", profile, views=1), post("q", region, views=1)])
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [post("p", region), post("q", profile)])
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [post("p", ("ZA", 0.7, "place_mention"))])
+    assert posts_table(con) == {"p": ("NG", 0.9, "ext_region", 1), "q": ("NG", 0.9, "ext_region", 1)}
+    bq = FakeBQ()
+    writers.merge_posts(bq, [post("p", profile, views=1)])
+    writers.merge_posts(bq, [post("p", region)])
+    assert geo_of(bq.posts["p"]) == region
+
+
+def sighting(pid, **kw):
+    row = post(pid, views=kw.pop("views", None))
+    row.update({"post_date": "2026-09-28", **kw})
+    return row
+
+
+def stored_fields(con):
+    rows = con.execute("SELECT post_id, text, hashtags, creator_id, published_at, post_date FROM posts "
+                       "ORDER BY post_id")
+    return {r[0]: r[1:] for r in rows.fetchall()}
+
+
+def test_a_later_complete_sighting_fills_what_the_first_lacked_and_keeps_what_it_had():
+    # 21:30 UTC on 27 September is 22:30 in Lagos and 00:30 on the 28th in Nairobi: only the first market decides it.
+    late = "2026-09-27T21:30:00+00:00"
+    complete = dict(text="Full caption #durbanjuly", hashtags=["durbanjuly"], creator_id="kasi.keys", published_at=late)
+    [row] = writers.dedupe_posts([sighting("p", views=1), sighting("p", **complete)],
+                                 markets={"p": "NG"})
+    assert (row["text"], row["hashtags"], row["creator_id"]) == (
+        "Full caption #durbanjuly", ["durbanjuly"], "kasi.keys")
+    assert row["published_at"] == late and row["post_date"] == "2026-09-27"
+    [kept] = writers.dedupe_posts([sighting("q", text="first", views=1), sighting("q", **complete)])
+    assert kept["text"] == "first" and kept["hashtags"] == ["durbanjuly"]
+    assert kept["post_date"] == "2026-09-28"  # no first market and the markets disagree on the day: the fallback stays
+    con = posts_con()
+    sql = writers.MERGE_SQL.format(table=writers.table("posts"))
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [
+        sighting("a", views=1), sighting("b", text="kept", views=1), sighting("c", views=1)])
+    noon = "2026-09-26T10:00:00+00:00"
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [
+        sighting("a", **dict(complete, published_at=noon)), sighting("b", **dict(complete, published_at=noon)),
+        sighting("c", **complete)])
+    table = stored_fields(con)
+    assert table["a"][:3] == ("Full caption #durbanjuly", ["durbanjuly"], "kasi.keys")
+    assert str(table["a"][4]) == "2026-09-26"  # every market agrees on the day, so it is the first market's too
+    assert table["b"][0] == "kept" and str(table["b"][4]) == "2026-09-26"
+    assert table["c"][3] is not None and str(table["c"][4]) == "2026-09-28"  # the markets disagree: fallback kept
 
 
 # The collect run
