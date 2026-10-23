@@ -230,3 +230,67 @@ def test_closing_a_lost_run_keeps_its_reservation_hold(client, inv, monkeypatch)
         assert inv.RESERVED.total() == held
     gate.opened.set()
     assert ask.finished.wait(5)
+
+
+# W20-01: a restart emptied RESERVED, so a run the dead process had started stopped counting against the budget.
+def test_a_restart_holds_an_unfinished_runs_ceilings_until_its_ask_record_ends_it(client, inv, monkeypatch):
+    gate = use_gate(monkeypatch, inv)
+    inv_id = draft(client).json()["investigation_id"]
+    started = client.post(f"/api/investigations/{inv_id}/start").json()
+    ask = agent_app.get_ask(started["ask_id"])
+    plan = agent_app.INVESTIGATIONS[-1]["plan"]
+    plan = json.loads(plan) if isinstance(plan, str) else plan
+    assert inv.RESERVED.total() == {"credits": started["ceilings"]["max_credits"],
+                                    "model_usd": started["ceilings"]["max_model_usd"]}
+    # The process dies: its memory goes, and its worker never reaches the finish row here.
+    monkeypatch.setattr(agent_app, "finish_investigation", lambda *args: None)
+    with agent_app._lock:
+        agent_app.ASKS.clear()
+        agent_app.RUNNING_INVESTIGATIONS.clear()
+    inv.RESERVED.clear()
+    with TestClient(agent_app.app) as restarted:
+        # The granted ceilings are no more than the stored plan's, so the plan's are held: never less than granted.
+        held = inv.RESERVED.total()
+        assert held == {"credits": plan["max_credits"], "model_usd": plan["max_model_usd"]}
+        assert held["credits"] >= started["ceilings"]["max_credits"]
+        assert held["model_usd"] >= started["ceilings"]["max_model_usd"]
+        assert restarted.get(f"/api/investigations/{inv_id}").json()["status"] == "running"
+        assert inv.RESERVED.total() == held  # a second scan holds it once, not twice
+        # The lost run's Ask record becomes durable; reading the investigation ends the run and frees the hold.
+        gate.opened.set()
+        assert ask.finished.wait(5)
+        assert restarted.get(f"/api/investigations/{inv_id}").json()["status"] == "complete"
+        assert inv.RESERVED.total() == {"credits": 0, "model_usd": 0.0}
+        restarted.get(f"/api/investigations/{inv_id}")
+        assert inv.RESERVED.total() == {"credits": 0, "model_usd": 0.0}
+
+
+def test_a_running_run_this_process_owns_keeps_its_granted_hold(client, inv, monkeypatch):
+    gate = use_gate(monkeypatch, inv)
+    inv_id = draft(client).json()["investigation_id"]
+    started = client.post(f"/api/investigations/{inv_id}/start").json()
+    ask = agent_app.get_ask(started["ask_id"])
+    granted = {"credits": started["ceilings"]["max_credits"], "model_usd": started["ceilings"]["max_model_usd"]}
+    client.get("/api/investigations")
+    assert inv.RESERVED.total() == granted
+    gate.opened.set()
+    assert ask.finished.wait(5)
+
+
+def test_a_startup_scan_that_fails_leaves_the_budget_unknown_until_a_scan_succeeds(client, inv, monkeypatch):
+    monkeypatch.setattr(agent_app, "_RECOVERY_FAILED", False)  # put back after the test, whatever it leaves
+    original = agent_app.reconcile_investigation
+    agent_app.INVESTIGATIONS.append({"investigation_id": "i_lost00000000", "version": 2, "status": "running"})
+
+    def broken(investigation_id):
+        raise RuntimeError("read failed")
+
+    monkeypatch.setattr(agent_app, "reconcile_investigation", broken)
+    with TestClient(agent_app.app) as restarted:
+        assert agent_app.money_left() is None
+        assert restarted.post("/api/investigations", json={"question": "What is behind #fixture?",
+                                                           "market": "ZA"}).status_code == 409
+        monkeypatch.setattr(agent_app, "reconcile_investigation", original)
+        agent_app.INVESTIGATIONS.clear()
+        restarted.get("/api/investigations")
+        assert agent_app.money_left() is not None

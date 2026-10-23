@@ -161,6 +161,12 @@ class Reservations:
         with self._lock:
             self._held[key] = {"credits": ceilings.get("credits", 0), "model_usd": ceilings.get("model_usd", 0)}
 
+    def keep(self, key, ceilings):
+        """add, unless key is already held: a hold rebuilt from storage never replaces the granted one."""
+        with self._lock:
+            if key not in self._held:
+                self._held[key] = {"credits": ceilings.get("credits", 0), "model_usd": ceilings.get("model_usd", 0)}
+
     def release(self, key):
         with self._lock:
             self._held.pop(key, None)
