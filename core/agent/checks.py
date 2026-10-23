@@ -1373,11 +1373,8 @@ def _recorded_problem(n, ctx):
         return f"number {value} is not in the recorded result of {qid}"
     places = list(_number_places(value, query["rows"]))
     unit_words = re.findall(r"[a-z]+", str(n.get("unit") or "").lower())
-    unit_kind = unit_measure = None
     count_units = {word[:-1] if word.endswith("s") else word for word in COUNT_NOUNS.split("|")}
     count_units -= {"million", "billion", "thousand"}
-    ratio_units = {"ratio", "ratios", "percent", "percentage", "rate", "rates", "proportion", "proportions",
-                   "fraction", "fractions", "multiple", "multiples", "times", "x"}
     prefixes = {"a", "an", "the", "number", "count", "counts", "total", "reported", "recorded", "estimated",
                 "unique"}
     compound = re.search(r"[a-z]\s*/\s*(?:\d[\d,]*\s*)?[a-z]",
@@ -1403,20 +1400,10 @@ def _recorded_problem(n, ctx):
                 break
         if not matched_measure:
             return f"number {value}: compound unit {n.get('unit')!r} has no named measure in {qid}"
-    context = {"in", "on", "at", "of", "for", "per", "during", "across", "over", "within", "from", "the",
-               "a", "an", "this", "last", "past", "usual", "average", "daily", "weekly", "monthly", "total",
-               "unique", "distinct", "count", "counts"}
-    start = next((index for index, word in enumerate(unit_words) if word not in prefixes), len(unit_words))
-    if start < len(unit_words):
-        word = unit_words[start]
-        if word in ratio_units:
-            unit_kind = "ratio"
-        else:
-            measure = word[:-1] if word.endswith("s") else word
-            if measure in count_units:
-                unit_kind, unit_measure = "count", measure
-        if (unit_kind and start + 1 < len(unit_words) and unit_words[start + 1] not in context):
-            unit_kind = unit_measure = None
+    unit_kind, unit_measure = _unit_kind(n.get("unit"))
+    if unit_kind == "count" and not any(_exact(value, cell) for cell in _cells(query["rows"])):
+        # A float column holding a count still counts whole things: only the ratio units take TOLERANCE (W06-01).
+        return f"number {value}: a count of {unit_measure}s is not exactly in the recorded result of {qid}"
     named_places = [place for place in places if place[0] is not None
                     and any(isinstance(part, str) for part in place[0])]
     if unit_kind and named_places:
@@ -1442,6 +1429,37 @@ def _recorded_problem(n, ctx):
         if measured_places and not unknown_place and not matched:
             return f"number {value}: unit {n.get('unit')!r} does not match a recorded result column in {qid}"
     return None
+
+
+def _unit_kind(unit):
+    """("count", measure) or ("ratio", None) for a numbers entry's unit as K2 reads it, (None, None) otherwise."""
+    unit_words = re.findall(r"[a-z]+", str(unit or "").lower())
+    count_units = {word[:-1] if word.endswith("s") else word for word in COUNT_NOUNS.split("|")}
+    count_units -= {"million", "billion", "thousand"}
+    ratio_units = {"ratio", "ratios", "percent", "percentage", "rate", "rates", "proportion", "proportions",
+                   "fraction", "fractions", "multiple", "multiples", "times", "x"}
+    prefixes = {"a", "an", "the", "number", "count", "counts", "total", "reported", "recorded", "estimated",
+                "unique"}
+    context = {"in", "on", "at", "of", "for", "per", "during", "across", "over", "within", "from", "the",
+               "a", "an", "this", "last", "past", "usual", "average", "daily", "weekly", "monthly", "total",
+               "unique", "distinct", "count", "counts"}
+    unit_kind = unit_measure = None
+    start = next((index for index, word in enumerate(unit_words) if word not in prefixes), len(unit_words))
+    if start < len(unit_words):
+        word = unit_words[start]
+        if word in ratio_units:
+            unit_kind = "ratio"
+        else:
+            measure = word[:-1] if word.endswith("s") else word
+            if measure in count_units:
+                unit_kind, unit_measure = "count", measure
+        if (unit_kind and start + 1 < len(unit_words) and unit_words[start + 1] not in context):
+            unit_kind = unit_measure = None
+    return unit_kind, unit_measure
+
+
+def _exact(value, cell):
+    return float(value) == float(cell)
 
 
 def _rerun(warehouse, query, ctx):
@@ -1481,6 +1499,8 @@ def _number_problem(n, ctx, warehouse, reruns):
         return f"number {value}: re-run of {qid} failed ({type(rerun).__name__})"
     if not any(_matches(value, cell) for cell in _cells(rerun)):
         return f"number {value}: re-run of {qid} no longer returns it"
+    if _unit_kind(n.get("unit"))[0] == "count" and not any(_exact(value, cell) for cell in _cells(rerun)):
+        return f"number {value}: re-run of {qid} no longer returns this count exactly"
     places = _number_places(value, ctx.queries[qid]["rows"])
     used = set()
     if not all(_same_number_place(value, place, rerun, used) for place in places):
