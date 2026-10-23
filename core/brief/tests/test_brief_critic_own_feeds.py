@@ -146,8 +146,10 @@ def test_cultural_critic_prompt_and_unchanged_support_prompt_are_pinned():
 
     # 22 Oct 2026, critic-pattern-citable and pack-lane-member-marks: the counted line covers the posts the writer
     # may cite, and one line says what measured and market_member show about a collection or grouping artefact.
+    # 23 Oct 2026, genre-formats-skipped: the critic is told the genres show no adopted practice either, and that its
+    # counted line leaves them out (core/brief/pattern_formats.py).
     assert hashlib.sha256(explain.CRITIC_SYSTEM.encode("utf-8")).hexdigest() == (
-        "2e73d37fb313cde576f8f19449bfb19c14f29ee57a75be1ebe88aed29e1d6c2d")
+        "49db7c60799219e8369124f61d10865c9e11a942ddfc4db8007d58b9e3f76bec")
     # 22 Oct 2026, board-line-feed-wording: one paragraph says what a cited post marked board_only supports.
     assert hashlib.sha256(explain.SUPPORT_SYSTEM.encode("utf-8")).hexdigest() == (
         "2e6cef9b77ddf9e72687cdab033d5a793fb63a664d9f71958c9e6ea351b5131d")
@@ -161,7 +163,10 @@ def test_both_checks_are_told_what_formats_and_sound_mean(system):
     assert "an empty list means the post was not enriched, not that it has no format" in text
     assert "posts with the same letter on the same platform use the same audio" in text
     assert "null means 42 has no sound id for the post" in text
-    assert "talking_head, other or news_clip alone shows no adopted practice" in text
+    # The support check keeps its wording; the critic names the genres too (23 Oct 2026, genre-formats-skipped).
+    assert ("talking_head, other or news_clip alone shows no adopted practice" in text if system == "SUPPORT_SYSTEM"
+            else "talking_head, other, news_clip, skit, tutorial, slideshow, meme_image, duet or stitch, alone shows no "
+                 "adopted practice" in text)
     assert "news_clip points toward news" in text
     for name in ("talking_head", "skit", "dance", "duet", "stitch", "tutorial", "slideshow", "meme_image", "news_clip",
                  "other"):

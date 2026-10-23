@@ -255,7 +255,8 @@ def test_the_writer_leads_with_the_shared_format_sound_or_practice_and_knows_wha
             "as mere reaction to an event.") in text
     assert "an empty list means the post was not enriched, not that it has no format" in text
     assert "posts with the same letter on the same platform use the same audio" in text
-    assert "talking_head, other or news_clip alone does not" in text
+    assert ("talking_head, other, news_clip, skit, tutorial, slideshow, meme_image, duet or stitch alone does not"
+            in text)
     lines = explain.WRITER_SYSTEM.splitlines()
     assert lines.index(next(line for line in lines if line.startswith("Lead the sentence"))) > lines.index(
         next(line for line in lines if line.startswith("Put the why-now in the explanation sentence")))
@@ -293,12 +294,12 @@ def test_the_writer_is_told_the_claim_for_the_shared_pattern_cites_every_post_th
 def test_the_writer_prompt_lists_the_shared_patterns_of_the_citable_posts_with_their_post_ids():
     pack = located_pack()
     for r in pack["evidence"]:
-        r["formats"] = ["skit"] if r["id"] in ("ev_gh", "ev_a", "ev_b", "ev_ng") else []
+        r["formats"] = ["dance"] if r["id"] in ("ev_gh", "ev_a", "ev_b", "ev_ng") else []
     user = explain._writer_user(CANDIDATE, pack, "NG", W_START, W_END)
     [block] = [b for b in outside_fences(user).split("\n\n") if b.startswith("Shared sounds and formats, counted by code")]
     head, row, tail = block.split("\n")
     assert "over the 4 posts shown here" in head  # the four citable posts; ev_gh is located elsewhere and left out
-    assert json.loads(row) == {"pattern": "format skit", "post_ids": ["ev_a", "ev_b", "ev_ng"], "creators": 3, "days": 1}
+    assert json.loads(row) == {"pattern": "format dance", "post_ids": ["ev_a", "ev_b", "ev_ng"], "creators": 3, "days": 1}
     assert tail == ("When you lead the sentence with one of these, the claim it rests on for that pattern cites every "
                     "post id listed for it, and names the pattern in plain words, never by its letter. none means the "
                     "citable posts share no sound or specific format. Its creators and days are counts for your "

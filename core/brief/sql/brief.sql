@@ -14,9 +14,9 @@
 -- support check does not change. Then items with fewer than 2 creators or fewer than 3 posts in 3 days
 -- (item_state's creators3 and posts3, NULL read as 0) rank after the rest: a single-video board tag can never reach
 -- MIN_EVIDENCE, so it should not take a judged slot from an item with breadth. Then the pattern bucket (pattern_posts
--- below): 0 when 3 or more different creators used one sound, or posted one enriched adoption format, on 2 or more
--- days; 2 when the item is a creator, sits on a calendar
--- moment, has one creator with 60% or more of its 3 day posts, half or more of its posts sponsored (core/brief/rivals.py's
+-- below): 0 when 3 or more different creators used one sound, or posted one enriched adoption format (a genre
+-- such as skit never counts: core/brief/pattern_formats.py), on 2 or more days; 2 when the item is a creator, sits on
+-- a calendar moment, has one creator with 60% or more of its 3 day posts, half or more of its posts sponsored (core/brief/rivals.py's
 -- sponsored threshold), or half or more of its market posts or enriched posts are news; 1 otherwise. This only
 -- orders the pool; nothing is dropped and no threshold changes. Then non-NULL
 -- worth_raw ranks first, followed by worth_raw descending and item_id.
@@ -57,7 +57,8 @@ sourced_posts AS (
 -- code can see are an event spike, one creator or news. Per item, over the market's posts of the last 7 days (the
 -- lanes and suppression rule of local_creators below): the most different creators who used one sound (posts.sound_id)
 -- and on how many posting days, the most different creators whose enriched post has one adoption format
--- (post_enrichment.formats or the video step's video_notes format, other than other, news_clip and talking_head) and
+-- (post_enrichment.formats or the video step's video_notes format, other than the generic formats and the genres of
+-- core/brief/pattern_formats.py PATTERN_SKIP_FORMATS, which core/brief/job.py writes in for the placeholder below) and
 -- on how many days, and how many enriched posts are news clips (post_enrichment.formats only). Rank only: nothing is
 -- dropped, no gate, threshold or judged count changes.
 pattern_posts AS (
@@ -118,7 +119,7 @@ pattern_format AS (
       SELECT item_id, post_id, creator_id, post_day, post_format FROM pattern_enriched WHERE is_local
       UNION DISTINCT
       SELECT item_id, post_id, creator_id, post_day, post_format FROM pattern_video WHERE is_local) format_rows
-    WHERE post_format NOT IN ('other', 'news_clip', 'talking_head')
+    WHERE post_format NOT IN ({pattern_skip_formats})
     GROUP BY item_id, post_format)
   GROUP BY item_id),
 pattern_news AS (

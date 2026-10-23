@@ -183,11 +183,12 @@ def test_a_stop_that_is_not_a_429_does_not_resume():
 
 
 class Mixed(Refusing):
-    """Call 1 fails with a 503, which ends that explanation without a wait; the next TRIP_CALLS calls are 429s."""
+    """Calls 1 and 2 fail with a 503, which ends that explanation and its one further attempt (model-error-retry, 23 Oct
+    2026) without a wait; the next TRIP_CALLS calls are 429s."""
 
     def complete_json(self, **kw):
         n = len(self.calls) + 1
-        if n == 1:
+        if n <= 2:
             self.calls.append({"user": kw["user"], "support": False, "critic": False, "refused": True})
             raise RuntimeError("503 service unavailable")
         return super().complete_json(**kw)
@@ -195,11 +196,12 @@ class Mixed(Refusing):
 
 def test_an_explanation_that_failed_for_another_reason_is_not_retried_on_resume():
     clock = Clock(EARLY)
-    model = Mixed(lambda n: 2 <= n <= TRIP_CALLS + 1)
+    model = Mixed(lambda n: 3 <= n <= TRIP_CALLS + 2)
     r = run(world(n=2), model=model, clock=clock, sleep=clock.sleep)
     assert resumes(clock) == 1
     first = model.calls[0]["user"]
-    assert sum(1 for c in model.calls if c["user"] == first) == 1  # asked for once, never again
+    # Asked for once and made once more for its model error, never again on the resume.
+    assert sum(1 for c in model.calls if c["user"] == first) == 2
     assert r.counts["model_resume"]["retried"] == 5  # six items, one of them failed for another reason
     assert len(explained(r)) == 5
 

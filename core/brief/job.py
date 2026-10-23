@@ -64,6 +64,7 @@ from core.brief import gatectx
 from core.api.store import creator_key
 from core.api.today import _named_pattern, _today_card_fault, without_hidden
 from core.brief import pack_order
+from core.brief import pattern_formats
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
 from core.brief.explain import CHECK_INCOMPLETE, INCONSISTENT, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.locality_audit import build_locality_audit
@@ -180,7 +181,13 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # critic's simpler explanation ruled out and no local why-now a cited post states, an explanation passes when code
 # counts a format, sound or practice adopted by 3 or more independent local creators on 2 or more days among the posts
 # the writer may cite, its why-now labelled inferred on the stored card and in the app; a rival left standing still
-# holds (Albert, 22 Oct 2026; core/brief/quality.py, core/brief/explain.py adopted_pattern, core/brief/specificity.py).
+# holds (Albert, 22 Oct 2026; core/brief/quality.py, core/brief/explain.py adopted_pattern, core/brief/specificity.py),
+# model-error-retry an explanation that ended in a model error is made once more while a whole model call still fits
+# before the deadline and the time limit and the day's spend is below the cap, the card showing the second attempt and
+# both billed (_retry_admits, _after_retry), adopted-first the explanations of pattern bucket 0 candidates of every
+# market run before the rest (_in_rank_order), genre-formats-skipped a genre format (skit, tutorial, slideshow,
+# meme_image, duet, stitch) counts toward no adopted format in the pattern bucket, the pattern line the writer and the
+# critic read or the count behind an inferred why-now, from one list (core/brief/pattern_formats.py; 23 Oct 2026).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
@@ -194,7 +201,7 @@ RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8
                 "+critic-pattern-citable+critic-detection-facts+pack-lane-member-marks+critic-patterns-recorded"
                 "+redraft-critic-rival+critic-rival-flags"
                 "+writer-crowd-handles+sentence-numeral-resting+board-line-feed-wording+writer-numbered-names+writer-rival-post-text+not-run-reason+pattern-line-not-pack-numbers"
-                "+why-now-inferred-adoption")
+                "+why-now-inferred-adoption+model-error-retry+adopted-first+genre-formats-skipped")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -253,7 +260,10 @@ _PLATFORM_ID = re.compile(r"[#@]?(?:\d{8,}|user\d{6,}|t[1-6]_[a-z0-9]{4,})", re.
 _TOPIC_KEY = re.compile(r"topic:\d{8}-[a-z]{2}-\d{3,}", re.IGNORECASE)
 FAILED_CHECKS = {"breach", "failed_checks", "too_few_claims", "check_incomplete"}
 _NAME = re.compile(r"^--\s*name:\s*(\w+)\s*$", re.MULTILINE)
-QUERIES = {_NAME.search(s).group(1): s for s in sqlrun.split(SQL.read_text(encoding="utf-8"))}
+# The pattern bucket's format exclusions are written in from their one list (core/brief/pattern_formats.py).
+QUERIES = {_NAME.search(s).group(1): s
+           for s in sqlrun.split(pattern_formats.render(SQL.read_text(encoding="utf-8")))}
+assert QUERIES["candidates"].count(f"NOT IN ({pattern_formats.sql_list()})") == 1
 
 # The candidate statement reads the retained locality row through v_item_locality_current. If that read fails, the
 # statement runs again with the view replaced by an empty one of the same columns: a row on the v1 basis then orders,
@@ -1364,6 +1374,34 @@ def _call_allowance(now, started, d, chain):
     return max(0.0, (min(cutoffs) - now).total_seconds())
 
 
+def _retry_admits(result, cand, breaker, spent_usd, now, started, d, chain):
+    """True when an explanation that ended in a model error (a model call that failed or ran out of time, after any
+    further attempt its check call made) gets one more whole attempt (23 Oct 2026: KE's top bucket 0 candidate and an
+    NG candidate were held "Explanation not run" at 05:15 SAST, an hour before the deadline). The same limits as any
+    explanation's start apply, with the 504 retry's floor: no refusal (a model that blocked the request or its reply is
+    never asked again, W8-DEC-15), no busy model's doing (that is the breaker's and the resume's to wait out), a
+    breaker that has not tripped, the same SAST day, the spend so far with this attempt's own below the day's cap,
+    and a whole model call (GEMINI_TIMEOUT_S) still fitting before the deadline and the time limit
+    (_call_allowance). Nothing is raised: the cap, the call timeout and the deadline are the ones every call meets."""
+    if (result.get("reason") != "model_error" or result.get("model_refused") or cand.get("busy_reason")
+            or breaker.tripped):
+        return False
+    if d != now.astimezone(SAST).date() or spent_usd + result.get("usage_usd", 0.0) >= model_daily_usd():
+        return False
+    return _call_allowance(now, started, d, chain) >= GEMINI_TIMEOUT_S
+
+
+def _after_retry(first, second):
+    """The second attempt's result, which is what the card shows and stores, with the first attempt's spend added:
+    both attempts were billed, and a reservation either one kept stays reserved."""
+    out = {**second, "usage_usd": first.get("usage_usd", 0.0) + second.get("usage_usd", 0.0)}
+    reserved = first.get("model_reserved_usd", 0.0) + second.get("model_reserved_usd", 0.0)
+    if reserved:
+        out["model_reserved_usd"] = reserved
+        out["usage_unknown"] = True
+    return out
+
+
 def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, started=None, sleep=None, busy=None):
     """Run explanations in task order, one at a time. No new one starts past the deadline or the time limit
     (_out_of_time from started, stopped as at the deadline, with limit task_timeout in the stop), outside the
@@ -1372,8 +1410,10 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
     time limit or the day. sleep (default time.sleep) does every wait. spend["usd"] grows as explanations finish.
     A Today-bound candidate the busy model left unexplained gets cand["busy_reason"], the fixed wording its held item
     shows as failed_reason: the one whose own call ran out of tries, and, once the breaker tripped on refusals or the
-    deadline stopped a run that had waited on the model, each one not started. busy, when given, gets the run's
-    refusals, waits and give-ups. Returns
+    deadline stopped a run that had waited on the model, each one not started. An explanation that ended in a model
+    error is made once more, from the writer on, when _retry_admits allows it; the card shows the second attempt and
+    both are billed (_after_retry), and spend["model_retry"] lists each retried candidate with its second reason.
+    busy, when given, gets the run's refusals, waits and give-ups. Returns
     ({id(cand): result}, the breaker's error or None, the deadline stop or None)."""
     results, running, capped = {}, {}, False
     explanation_stop = None
@@ -1392,15 +1432,26 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
     pace = _setting("PACE_S", PACE_S, 0.0)
     workers = 1
 
-    def explain(cand):
+    def attempt(cand, spent_before):
         gave_up = breaker.gave_up
-        result = _explain_one(cand, model=breaker, spent_before=base_usd + spend["usd"], d=d,
+        result = _explain_one(cand, model=breaker, spent_before=spent_before, d=d,
                               model_call_guard=lambda: d == clock().astimezone(SAST).date(),
                               retry_guard=lambda: _call_allowance(clock(), started, d, chain) > 0,
                               retry_504_guard=lambda: _call_allowance(clock(), started, d, chain) >= GEMINI_TIMEOUT_S)
         if breaker.gave_up > gave_up and result["reason"] == "model_error":
             cand["busy_reason"] = MODEL_BUSY if breaker.busy == "deadline" else MODEL_REFUSED
         return result
+
+    def explain(cand):
+        result = attempt(cand, base_usd + spend["usd"])
+        if not _retry_admits(result, cand, breaker, base_usd + spend["usd"], clock(), started, d, chain):
+            return result
+        print(f"brief: explanation of {cand['market']} {cand['row'].get('item_id')} tried once more after a model "
+              f"error: {str(result.get('error'))[:300]}", file=sys.stderr)
+        second = attempt(cand, base_usd + spend["usd"] + result["usage_usd"])
+        spend.setdefault("model_retry", []).append({"market": cand["market"], "item_id": cand["row"].get("item_id"),
+                                                    "reason": second["reason"]})
+        return _after_retry(result, second)
 
     def collect(done):
         nonlocal capped
@@ -1464,10 +1515,25 @@ def _floor_held(cand):
             and cand["row"].get("market_scope") == "market")
 
 
+def _adopted(cand):
+    """True for a candidate in the candidate statement's pattern bucket 0: a sound or a format its own local posts
+    show adopted by 3 or more creators on 2 or more days (core/brief/sql/brief.sql _selection_pattern)."""
+    return cand["row"].get("_selection_pattern") == 0
+
+
 def _in_rank_order(by_market):
-    """Each market's Today-bound candidates interleaved by rank, so every market's top trends go first."""
+    """Each market's Today-bound candidates interleaved by rank, so every market's top trends go first: those in
+    pattern bucket 0 (_adopted) of every market before the rest, each part interleaved by rank, so a model failure or
+    a deadline late in the run never costs the candidates whose posts show adoption (23 Oct 2026: KE's top bucket 0
+    candidate was held unexplained). Only the order of the explanations changes; which candidates are judged does
+    not."""
     lists = [[c for c in by_market[m] if _for_today(c)] for m in MARKETS]
-    return [lst[i] for i in range(max(map(len, lists), default=0)) for lst in lists if i < len(lst)]
+
+    def interleaved(parts):
+        return [lst[i] for i in range(max(map(len, parts), default=0)) for lst in parts if i < len(lst)]
+
+    return (interleaved([[c for c in lst if _adopted(c)] for lst in lists])
+            + interleaved([[c for c in lst if not _adopted(c)] for lst in lists]))
 
 
 def _payload_candidate(cand, result, specificity=None):
@@ -2038,6 +2104,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
               "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged}
     if spend.get("model_reserved_usd"):
         counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
+    if spend.get("model_retry"):
+        counts["model_retry"] = spend["model_retry"]
     if title_receipts:
         counts["title_majority_receipts"] = title_receipts
     if receipt_omitted:

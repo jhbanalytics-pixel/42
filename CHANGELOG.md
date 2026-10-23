@@ -27,6 +27,9 @@ Services release of the website and Ask, not jobs only, release id written in at
 - Ask's video reads count against the research share of the question's budget, so a researcher stops reading videos once that share is spent.
 - An Ask asked just before midnight South African time counts its spending on the day it was held against.
 - History, and the Ask and dossier exports, tell browsers and caches not to keep a copy.
+- The brief explains a trend once more when a model call failed or ran out of time, while a whole call still fits before the deadline and the day's model spending is under the cap. Both attempts count against the cap, and a model that blocked the request is never asked again.
+- The brief explains the trends whose own local posts show an adopted sound or format first, in every market, so a failure late in the run never costs the strongest candidate.
+- A genre no longer counts as a format local creators adopted: a skit, tutorial, slideshow, image meme, duet or stitch adds nothing to the brief's ranking, to the counts the writer and the critic read, or to a why-now inferred from adoption. A dance still counts.
 
 ## 2.6.0 (22 October 2026)
 
