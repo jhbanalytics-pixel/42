@@ -2028,7 +2028,7 @@ def test_a_sustained_rate_limit_stops_every_model_call_for_the_run(error, busy_w
 def test_other_model_errors_do_not_stop_the_run():
     model = RateLimited(RuntimeError("503 service unavailable"))
     r = brief(world(n=2), model=model, workers=1)
-    assert len(model.calls) == 6
+    assert len(model.calls) == 12  # each explanation made once more after its model error (model-error-retry)
     assert "model" not in r.counts
 
 
@@ -2058,7 +2058,7 @@ def test_a_429_status_or_a_rate_limit_class_trips_the_breaker(error):
 def test_a_429_inside_other_text_does_not_trip_the_breaker(error):
     model = RateLimited(error)
     r = brief(world(n=2), model=model, workers=1)
-    assert len(model.calls) == 6
+    assert len(model.calls) == 12  # each explanation made once more after its model error (model-error-retry)
     assert "model" not in r.counts
 
 
@@ -2118,7 +2118,9 @@ def timeout_errors():
 def test_a_timed_out_call_holds_its_card_and_the_run_goes_on(error):
     model = RateLimited(error)
     r = brief(world(n=2), model=model, workers=1)
-    assert len(model.calls) == 6  # one call per card: the timeout ends that card, not the run
+    # Two calls per card: the timeout ends that explanation, which is made once more (model-error-retry, 23 Oct
+    # 2026) and ends the same way; it ends the card, not the run.
+    assert len(model.calls) == 12
     assert "model" not in r.counts
     for m in MARKETS:
         p = payload(r, m)

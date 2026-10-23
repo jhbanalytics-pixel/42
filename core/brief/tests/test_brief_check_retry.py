@@ -538,9 +538,11 @@ def stored(r):
 def test_two_504s_in_the_job_store_exactly_what_one_504_stored_at_1cfda9c():
     before = json.loads(SINGLE_504_AT_1CFDA9C.read_text(encoding="utf-8"))
     assert before["dispatched"] == [1, 1, 1]
-    model = FlakyJobModel(2, kind="504")
+    # 23 Oct 2026, model-error-retry: an explanation that ended in a model error is made once more, so a card that
+    # ends as one 504 did now meets two 504s on each of its two attempts.
+    model = FlakyJobModel(4, kind="504")
     now = stored(brief(world(n=1), model=model))
-    assert sorted(model.dispatched.values()) == [2, 2, 2]  # the retry was sent, and failed
+    assert sorted(model.dispatched.values()) == [4, 4, 4]  # each attempt's retry was sent, and failed
     assert sorted(now["briefs"]) == sorted(before["briefs"]) == ["KE", "NG", "ZA"]
     for m in ("ZA", "NG", "KE"):
         assert set(now["briefs"][m]) == set(before["briefs"][m])

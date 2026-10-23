@@ -61,6 +61,15 @@ try:
     from ops.runners.benchmark_moments import latest_briefs
 except ImportError:  # run as a script from ops/runners
     from benchmark_moments import latest_briefs
+try:
+    from core.brief import pattern_formats
+except ImportError:  # run as a script from ops/runners: the module imports nothing, so it loads from its path
+    import importlib.util
+
+    _spec = importlib.util.spec_from_file_location(
+        "pattern_formats", Path(__file__).resolve().parents[2] / "core" / "brief" / "pattern_formats.py")
+    pattern_formats = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(pattern_formats)
 
 PROJECT = "ogilvy-trends-v2"
 CORE_Q, AGENT_Q = f"`{PROJECT}.intelligence_42_core`", f"`{PROJECT}.intelligence_42_agent`"
@@ -246,7 +255,8 @@ def rank_sql():
     """The candidates SQL of core/brief/sql/brief.sql up to its ordered rows, with the limit gone and the scope counts
     added, filtered to the given items. The text is read from the brief's own file so a change to the rank order there
     is the order here; if the file no longer has the shape this needs, it stops rather than rank by a stale copy."""
-    text = BRIEF_SQL_FILE.read_text(encoding="utf-8")
+    # The pattern bucket's format exclusions are written in as core/brief/job.py writes them.
+    text = pattern_formats.render(BRIEF_SQL_FILE.read_text(encoding="utf-8"))
     block = text.split("-- name: candidates", 1)[1].split("-- name:", 1)[0]
     head, marker, _ = block.partition("selection_snapshot AS (")
     start = head.find("WITH seen AS")
