@@ -531,19 +531,25 @@ def _when(text):
     return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
 
 
-def headlines(xml_text, fetched):
-    """Titles of RSS items and Atom entries, dropping any dated more than HEADLINE_DAYS before the fetch."""
+def dated_titles(xml_text):
+    """(title, publication time or None) of each titled RSS item and Atom entry."""
     root = ElementTree.fromstring(xml_text.encode("utf-8"))
-    oldest = fetched - timedelta(days=HEADLINE_DAYS)
     out = []
     for item in (e for e in root.iter() if _tag(e) in ("item", "entry")):
         fields = {_tag(child): (child.text or "").strip() for child in item}
         title = fields.get("title")
-        moment = _when(fields.get("pubDate") or fields.get("published") or fields.get("updated")
-                       or fields.get("date"))
-        if title and (moment is None or moment >= oldest):
-            out.append(title)
+        if title:
+            out.append((title, _when(fields.get("pubDate") or fields.get("published") or fields.get("updated")
+                                     or fields.get("date"))))
     return out
+
+
+def headlines(xml_text, fetched, entries=None):
+    """Titles that may seed today's searches: published within HEADLINE_DAYS before the fetch. An undated or
+    unreadable date, or one after the fetch, cannot show the headline is current, so it seeds nothing."""
+    oldest = fetched - timedelta(days=HEADLINE_DAYS)
+    return [title for title, moment in (dated_titles(xml_text) if entries is None else entries)
+            if moment is not None and oldest <= moment <= fetched]
 
 
 STOPWORDS = frozenset("""
@@ -828,10 +834,13 @@ def run(day, run_id, *, client, get, clock, item_id_fn, geo_fn, last_pulls=None,
             continue
         try:
             if f.route == "rss":
-                titles = headlines(text, fetched)
-                for title in titles:
+                entries = dated_titles(text)
+                for title in headlines(text, fetched, entries):
                     news[f.market].setdefault(title.casefold(), title)
-                record(f, "ok", calls=1, ok=True, items=len(titles), units_ok=1)
+                # Coverage still counts an undated title, as it did before dates decided which titles seed.
+                oldest = fetched - timedelta(days=HEADLINE_DAYS)
+                covered = [title for title, moment in entries if moment is None or moment >= oldest]
+                record(f, "ok", calls=1, ok=True, items=len(covered), units_ok=1)
             else:
                 names = app_store_board(json.loads(text))
                 rows = _counters(f, [(r, _item(item_id_fn, "brand", n)) for r, n in enumerate(names, 1)], pull,

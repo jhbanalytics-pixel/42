@@ -1971,6 +1971,18 @@ def test_a_run_stopped_for_credits_or_balance_makes_no_local_fetch(status):
     assert local and all(r["status"] == "not_made" and r["calls"] == 0 and status in r["reason"] for r in local)
 
 
+class InWindowGet(FakeGet):
+    """The local feeds' fixtures, dated 4 and 5 October, moved back six days to sit before this run's 29 September
+    fetch: a headline dated after the fetch seeds nothing (local_sources.headlines)."""
+
+    def __call__(self, url):
+        status, text = super().__call__(url)
+        for old, new in (("04 Oct 2026", "28 Sep 2026"), ("05 Oct 2026", "29 Sep 2026"),
+                         ("2026-10-04T", "2026-09-28T"), ("2026-10-05T", "2026-09-29T")):
+            text = text.replace(old, new)
+        return status, text
+
+
 def test_news_seeds_are_rule_one_filtered_then_appended_to_seed_queue(monkeypatch):
     assert blocked(BLOCKED_SEED)
     real = ls.run
@@ -1982,7 +1994,7 @@ def test_news_seeds_are_rule_one_filtered_then_appended_to_seed_queue(monkeypatc
 
     monkeypatch.setattr(ls, "run", with_a_blocked_seed)
     bq, runs = FakeBQ(), chain.MemoryRunsStore()
-    assert run_main(["--run-date", "2026-09-29"], bq=bq, runs=runs, client=BothClient(), get=FakeGet()) == 0
+    assert run_main(["--run-date", "2026-09-29"], bq=bq, runs=runs, client=BothClient(), get=InWindowGet()) == 0
     rows = bq.loaded("seed_queue")
     news = [r for r in rows if r["ttl_days"] == ls.SEED_TTL_DAYS]
     assert news and {r["market"] for r in news} == {"NG", "KE"}
