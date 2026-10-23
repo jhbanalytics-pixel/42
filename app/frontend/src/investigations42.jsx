@@ -490,6 +490,8 @@ function EstimateView({estimate, budget}){
       {budget
         ? <p className="inv42-line">{'Left today: ' + plural(budget.credits ?? 0, 'credit') + ' and ' + usdDown(budget.model_usd) + '. Both are checked again when you start.'}</p>
         : <p className="inv42-line">What is left today is checked again when you start.</p>}
+      {/* The minutes come from fixed figures per pass, not from timed runs. */}
+      <p className="inv42-line">The time is a planning guess: 42 has not yet measured how long investigations take.</p>
     </section>
   );
 }

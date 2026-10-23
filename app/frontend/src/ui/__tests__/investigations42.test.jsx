@@ -1073,3 +1073,9 @@ test('Edit plan offers no Remove on a single sub-question and no Add at eight', 
   expect(button('Add a sub-question')).toBeUndefined();
 });
 
+/* Audit W20-05: the minutes are labelled as a guess, not a measured time. */
+test('the estimate says its time is a planning guess, not measured', async () => {
+  await openDraft();
+  await until(() => text().includes('The estimate'), 'the estimate');
+  expect(text()).toContain('The time is a planning guess: 42 has not yet measured how long investigations take.');
+});
