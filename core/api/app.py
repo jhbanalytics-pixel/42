@@ -771,7 +771,7 @@ def _check_skin_id(skin_id: str) -> None:
 
 @gated.get("/api/skins")
 async def api_skins() -> Response:
-    return _passthrough(await _forward("GET", "/api/skins"))
+    return await _again(await _forward("GET", "/api/skins"), "masked")  # a saved word can name someone hidden since
 
 
 @gated.post("/api/skins")
@@ -783,7 +783,7 @@ async def api_skin_create(request: Request) -> Response:
 @gated.get("/api/skins/{skin_id}")
 async def api_skin(skin_id: str) -> Response:
     _check_skin_id(skin_id)
-    return _passthrough(await _forward("GET", f"/api/skins/{skin_id}"))
+    return await _again(await _forward("GET", f"/api/skins/{skin_id}"), "masked")
 
 
 @gated.put("/api/skins/{skin_id}")
@@ -797,7 +797,7 @@ async def api_skin_edit(skin_id: str, request: Request) -> Response:
 async def api_skin_archive(skin_id: str, request: Request) -> Response:
     _check_skin_id(skin_id)
     auth.ask_limiter.check(request)
-    return _passthrough(await _forward("POST", f"/api/skins/{skin_id}/archive"))
+    return await _again(await _forward("POST", f"/api/skins/{skin_id}/archive"), "masked")
 
 
 async def _skin(skin_id: str) -> dict:
@@ -842,8 +842,11 @@ async def api_skin_today(skin_id: str, date: str | None = None) -> dict:
         from core.api import privacy
 
         with privacy.one_read():
-            alerts = privacy.mask(alerts, privacy.read_hidden(privacy.LazyStore(store.get_store)))
-        return skins.narrow_today(resp, skin, alerts)
+            hidden = privacy.read_hidden(privacy.LazyStore(store.get_store))
+            alerts = privacy.mask(alerts, hidden)
+        out = skins.narrow_today(resp, skin, alerts)
+        out["skin"] = privacy.mask(out["skin"], hidden)  # the skin's name can name someone hidden since it was saved
+        return out
 
     return await run_in_threadpool(build)
 
