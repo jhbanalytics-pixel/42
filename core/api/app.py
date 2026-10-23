@@ -835,7 +835,8 @@ async def api_skin_today(skin_id: str, date: str | None = None) -> dict:
         alerts = {"alerts": [], "waiting": []}
         if watches:
             try:
-                alerts = discover.build_alerts(held, watches, date=day)
+                # Without a date, the alerts follow the brief Today chose, not a later detect run.
+                alerts = discover.build_alerts(held, watches, date=day or resp.get("date"))
             except discover.NotReady:
                 alerts = {"alerts": [], "waiting": [], "note": "No detection run has finished yet."}
         from core.api import privacy
