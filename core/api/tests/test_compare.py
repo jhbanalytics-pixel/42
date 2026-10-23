@@ -448,3 +448,41 @@ def test_posts_row_and_a_note_name_the_counting_basis(fx):
     assert {r["metric"]: r["words"] for r in body["rows"]}["posts"] == "Posts first seen in the window"
     assert compare.BASIS_NOTE in body["notes"]
     assert "Lexicon" in compare.BASIS_NOTE
+
+
+# Audit W23-03: a creator subject names its creator profile when the item resolves to a creator nobody hid; every
+# other subject, and a creator the suppression list hides or cannot vouch for, carries none.
+VISIBLE_CREATOR = "c" * 63 + "1"
+VISIBLE_ROW = {"item_id": VISIBLE_CREATOR, "kind": "creator", "canonical_key": "tiktok:c_fixture_visible",
+               "label": "@fixture_visible", "aliases": [], "status": None}
+
+
+class WithCreator(FixtureStore):
+    def __init__(self, hidden_rows=True):
+        super().__init__()
+        self.hidden_rows = hidden_rows
+
+    def map_items(self, item_ids):
+        rows = super().map_items(item_ids) or []
+        return rows + [dict(VISIBLE_ROW)] if VISIBLE_CREATOR in item_ids else rows
+
+    def creator_names(self, keys):
+        row = {"key": "tiktok:c_fixture_visible", "creator_id": "c_fixture_visible", "platform": "tiktok",
+               "handle": "@fixture_visible", "display_name": None}
+        return {row["key"]: row} if row["key"] in keys else {}
+
+    def hidden_people_rows(self):
+        return super().hidden_people_rows() if self.hidden_rows else None
+
+
+def test_a_creator_subject_names_its_profile_and_a_topic_subject_does_not():
+    body = compare.build_compare(WithCreator(), "items", items=f"{VISIBLE_CREATOR},{STEP}", market="ZA")
+    by_id = {s["item_id"]: s for s in body["subjects"]}
+    assert by_id[VISIBLE_CREATOR]["creator_id"] == "c_fixture_visible"
+    assert by_id[STEP]["creator_id"] is None
+
+
+def test_a_creator_subject_names_no_profile_while_the_suppression_list_cannot_be_read():
+    body = compare.build_compare(WithCreator(hidden_rows=False), "items", items=f"{VISIBLE_CREATOR},{STEP}",
+                                 market="ZA")
+    assert all(s["creator_id"] is None for s in body["subjects"])

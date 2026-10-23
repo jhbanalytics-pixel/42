@@ -550,6 +550,10 @@ function Table({subjects, rows, mode}){
                   <th key={s.key} scope="col">
                     <span className="c42-head">
                       <a className="t42-link c42-subject" href={topicHref(s.item_id, s.market)}>{s.label}</a>
+                      {/* A creator the service cleared also opens its creator page; the item page stays. */}
+                      {typeof s.creator_id === 'string' && s.creator_id && (
+                        <a className="t42-link" href={'#/creators/' + encodeURIComponent(s.creator_id) + '?market=' + encodeURIComponent(s.market)}>Creator page</a>
+                      )}
                       {scope && <span className="c42-scope">{scope}</span>}
                       {s.matched_by === 'keyword' && <span className="c42-matched">Matched by name in post text</span>}
                       {held && <span className="c42-held">{heldWords(held)}</span>}

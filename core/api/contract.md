@@ -403,12 +403,14 @@ Series: `posts a day` per subject for each day of the window, by first-sighting 
 
 ```json
 {"mode": "items", "window": {"from": "2026-09-02", "to": "2026-09-29", "days": 28},
- "subjects": [{"key": "s1", "label": "#amapiano", "item_id": "...", "market": "ZA", "platform": null, "matched_by": "linked", "card": <Card or null>}],
+ "subjects": [{"key": "s1", "label": "#amapiano", "item_id": "...", "market": "ZA", "platform": null, "matched_by": "linked", "card": <Card or null>, "creator_id": null}],
  "series": [{"key": "s1", "unit": "posts a day", "points": [{"date": "2026-09-02", "value": 4}]}],
  "rows": [{"metric": "posts", "words": "Posts first seen in the window", "values": {"s1": <Figure>, "s2": <Figure>}}],
  "notes": ["Coverage differs: 5 of 6 South Africa series usable, 2 of 4 Kenya series usable over the window; read differences with care",
            "#example counts the posts 42 linked to it plus posts that name it; name matches may include unrelated uses"]}
 ```
+
+`creator_id` is set only on a creator subject whose item resolves, by its `platform:creator id` key, to a creators row the suppression list clears; the app then links the subject to its creator page (`#/creators/<creator_id>?market=`) beside its item page. It is null for every other subject, and for all of them while the suppression list cannot be read.
 
 `notes` always states unequal coverage across the compared markets or platforms (share of valid collection_health series per subject over the window), because unequal collection is never read as a difference in prevalence (rubric.md, honesty about gaps). A subject the gate holds back is compared like any other, with its card's `held_back` shown.
 
