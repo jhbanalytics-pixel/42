@@ -89,6 +89,10 @@ def test_an_unreadable_health_view_is_unavailable_not_a_500():
     assert out["date"] == "2026-10-02"
     assert out["credits"]["state"] == "unavailable" and out["credits"]["spent"] is None
     assert all(s["status"] in ("unavailable", "off", "waiting") for m in out["markets"] for s in m["sources"])
+    # Audit W26-04: the tally counts the sources whose record could not be read.
+    for m in out["markets"]:
+        assert m["counts"]["unavailable"] == sum(1 for s in m["sources"] if s["status"] == "unavailable")
+    assert any(m["counts"]["unavailable"] > 0 for m in out["markets"])
 
 
 def test_a_health_series_the_plan_does_not_name_still_shows():
@@ -364,3 +368,11 @@ def test_old_shape_is_read_from_the_accounts_planned_so_a_failed_rotation_does_n
     for code, (detail, calls, credits) in OLD_SHAPE_AT_3580ECF.items():
         row = source(out, code, DESK)
         assert (row["name"], row["detail"], row["planned_calls"]) == (OLD_NAME, detail, calls)
+
+
+def test_an_earlier_day_says_its_roster_is_todays_settings(out):
+    # Audit W26-02: no plan is kept per collection run, so an earlier day's roster is today's settings and says so.
+    assert out["date"] < out["today"]
+    assert out["plan_note"] == fieldwork.PLAN_IS_CURRENT
+    same_day = fieldwork.build_fieldwork(FixtureStore(), "2026-10-02", now=NOW)
+    assert same_day["plan_note"] is None

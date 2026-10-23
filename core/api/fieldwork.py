@@ -126,6 +126,10 @@ DROPPED_FEED_WORDS = {
 CONFIG_UNAVAILABLE = "The collection settings could not be read, so the source list is missing."
 HEALTH_ABSENT = "No collection record for this day yet. The roster below is what the 02:00 collection is set to read."
 HEALTH_UNAVAILABLE = "The collection record could not be read, so how each source did is unknown."
+# No plan is kept with each collection run, so an earlier day's roster is rebuilt from today's settings. Until a run
+# stores the plan it read, an earlier day says so rather than passing today's roster off as that day's.
+PLAN_IS_CURRENT = ("This roster is the collection settings as they stand today. The settings used on this day were "
+                   "not kept, so a source shown as planned or off may have been set differently then.")
 
 
 def _label(market):
@@ -525,7 +529,7 @@ def build_fieldwork(store, date=None, *, now=None):
             rank = {g: i for i, (g, _) in enumerate(GROUPS)}
             sources.sort(key=lambda s: rank.get(s["group"], len(rank)))
             counts = {k: sum(1 for s in sources if s["status"] == k)
-                      for k in ("delivered", "partial", "failed", "no_record", "waiting", "off")}
+                      for k in ("delivered", "partial", "failed", "no_record", "waiting", "off", "unavailable")}
             markets.append({"market": m, "label": _label(m), "sources": sources, "counts": counts,
                             "planned_credits": sum(s["planned_credits"] for s in sources)})
         plan_hold = sum(r["credits"] for r in plan["rows"] if r.get("priced", True)) + plan["trends"]["credits"]
@@ -547,7 +551,7 @@ def build_fieldwork(store, date=None, *, now=None):
         "health_state": health_state,
         "health_note": {"absent": HEALTH_ABSENT, "unavailable": HEALTH_UNAVAILABLE}.get(health_state),
         "plan_state": "ready" if plan is not None else "unavailable",
-        "plan_note": None if plan is not None else CONFIG_UNAVAILABLE,
+        "plan_note": CONFIG_UNAVAILABLE if plan is None else PLAN_IS_CURRENT if day < today else None,
         "groups": [{"key": k, "label": v} for k, v in GROUPS],
         "markets": markets,
         "off": _off(plan, day) if plan is not None else [],

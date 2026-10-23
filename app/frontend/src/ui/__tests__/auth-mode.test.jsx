@@ -272,3 +272,62 @@ test('unavailable modes and failed health or identity probes show reload and sta
     clearCache();
   }
 });
+
+/* Audit W24-01: a startup check that never answers must not hold every
+   route on the wait frame. At the deadline the page shows sign-in recovery,
+   starts no protected read, and a late answer does not open the shell. */
+function holdDeadline(){
+  const nativeSetTimeout = globalThis.setTimeout;
+  const held = [];
+  globalThis.setTimeout = (callback, delay, ...args) => {
+    if (delay === 15000){
+      const timer = {callback, args};
+      held.push(timer);
+      return nativeSetTimeout(() => {}, 0);
+    }
+    return nativeSetTimeout(callback, delay, ...args);
+  };
+  return {
+    fire: () => { for (const timer of held.splice(0)) timer.callback(...timer.args); },
+    count: () => held.length,
+    restore: () => { globalThis.setTimeout = nativeSetTimeout; },
+  };
+}
+
+for (const [name, stalls] of [
+  ['health', (url) => url === '/api/health'],
+  ['IAP identity', (url) => url === '/api/auth/verify'],
+  ['stored passcode', (url) => url === '/api/auth/verify'],
+]){
+  test('the ' + name + ' check, never answering, ends in sign-in recovery at the deadline', async () => {
+    const deadline = holdDeadline();
+    const late = [];
+    try {
+      if (name === 'stored passcode') localStorage.setItem(PASS_KEY, 'synthetic-stored-fixture-passcode');
+      globalThis.fetch = async (url, init = {}) => {
+        calls.push({url: String(url), init});
+        if (stalls(String(url))) return new Promise((resolve) => { late.push(resolve); });
+        if (String(url) === '/api/health') return health(name === 'IAP identity' ? 'iap_readonly' : 'passcode', name !== 'IAP identity');
+        if (String(url).startsWith('/api/coverage')) return reply(200, desk);
+        return reply(404, {error: 'not_found'});
+      };
+      mount();
+      await settle();
+      expect(host.querySelector('h1')).toBeNull();
+      expect(late.length).toBe(1);
+      expect(deadline.count()).toBeGreaterThan(0);
+      flushSync(() => deadline.fire());
+      await settle();
+      expect(host.querySelector('h1')?.textContent).toBe('Sign-in unavailable');
+      expect([...host.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Reload')).toBe(true);
+      expect(readCalls()).toHaveLength(0);
+      /* An open legacy health or an accepted identity would open the shell if it still counted. */
+      for (const resolve of late) resolve(name === 'health' ? health(undefined, false) : reply(200, {ok: true}));
+      await settle();
+      expect(host.querySelector('h1')?.textContent).toBe('Sign-in unavailable');
+      expect(readCalls()).toHaveLength(0);
+    } finally {
+      deadline.restore();
+    }
+  });
+}

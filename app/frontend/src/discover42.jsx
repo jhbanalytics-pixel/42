@@ -74,6 +74,16 @@ const kindWord = (kind) => KIND_WORDS[kind] || codeWords(kind);
 const stateWord = (state) => STATE_WORDS[state] || codeWords(state);
 const isFigure = (value) => value && typeof value === 'object' && typeof value.value === 'number' && Number.isFinite(value.value);
 const list = (value) => (Array.isArray(value) ? value : []);
+
+/* A feed read that answered 200 must still carry its items as a list
+   (contract section 10.2). Without one the service is at fault, and the page
+   says so with Try again rather than reporting that nothing cleared the
+   checks. An empty list is a real empty result. */
+export function discoverBodyReadable(body){
+  return Boolean(body) && typeof body === 'object' && !Array.isArray(body) && Array.isArray(body.items);
+}
+
+const UNREADABLE_FEED = 'The 42 service answered, but not with results this page can read.';
 const globalSearchLabel = (card) => {
   if (!card || card.market_scope === 'market') return '';
   const searchMarket = SEARCH_MARKET_NAMES[String(card.market || '').toUpperCase()];
@@ -269,8 +279,12 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
       .then((data) => {
         clearTimeout(slowTimer);
         if (ctrl.signal.aborted) return;
-        const body = data || {};
-        setLoad({state: 'ready', data: body, items: list(body.items), cursor: body.next_cursor || null,
+        if (!discoverBodyReadable(data)){
+          setLoad({state: 'error', message: UNREADABLE_FEED});
+          return;
+        }
+        const body = data;
+        setLoad({state: 'ready', data: body, items: body.items, cursor: body.next_cursor || null,
           scope: {market, kind, states, platforms}});
         if (body.filters) setFilters({kinds: list(body.filters.kinds), states: list(body.filters.states), platforms: list(body.filters.platforms)});
       })
@@ -294,8 +308,9 @@ export function Discover42({region, onAuth, onCreateWatch, onRegionChange}){
     fetchDiscover({...params, cursor: load.cursor}, {signal: ctrl.signal})
       .then((data) => {
         if (ctrl.signal.aborted) return;
-        const body = data || {};
-        setLoad((prev) => ({...prev, items: prev.items.concat(list(body.items)), cursor: body.next_cursor || null}));
+        if (!discoverBodyReadable(data)){ setMore('error'); return; }
+        const body = data;
+        setLoad((prev) => ({...prev, items: prev.items.concat(body.items), cursor: body.next_cursor || null}));
         setMore('idle');
       })
       .catch((error) => {

@@ -9,7 +9,7 @@ come from the item's Discover card at the window's end, in items and markets mod
 import datetime as dt
 
 from core.api.discover import BadRequest, NotReady, _cards, figure
-from core.api.store import cap_refused
+from core.api.store import cap_refused, creator_key
 from core.api.today import (LABELS, MARKETS, PLATFORM_IDS, PLATFORM_WORDS, STATE_WORDS, hidden_people,
                             without_hidden)
 
@@ -144,6 +144,37 @@ def _state_figure(row, card):
     return dict(f, word=card.get("state_word") or STATE_WORDS.get(card["state"]))
 
 
+def _creator_profiles(store, rows, hidden):
+    """{item_id: creator_id} for the creator items whose "platform:creator id" key names a creators row nobody hid,
+    so a creator subject can open its creator page beside its item page. Empty while the suppression list cannot be
+    read (hidden None) or the creators read gives nothing: no profile is named that the list has not cleared."""
+    if hidden is None:
+        return {}
+    keys = {}
+    for r in rows:
+        key = str(r.get("canonical_key") or "").strip().lower()
+        if r.get("kind") == "creator" and ":" in key:
+            keys[r["item_id"]] = key
+    reader = getattr(store, "creator_names", None)
+    if not keys or not callable(reader):
+        return {}
+    try:
+        found = reader(set(keys.values())) or {}
+    except Exception:  # noqa: BLE001 - a profile link is optional; Compare must not fail on it
+        return {}
+    hidden_keys, hidden_ids, _ = hidden
+    out = {}
+    for item_id, key in keys.items():
+        c = found.get(key) or {}
+        creator_id = c.get("creator_id")
+        platform, ident = key.split(":", 1)
+        if (isinstance(creator_id, str) and creator_id.strip() and creator_id not in hidden_ids
+                and creator_key(platform, ident) not in hidden_keys
+                and creator_key(c.get("platform") or platform, c.get("handle") or ident) not in hidden_keys):
+            out[item_id] = creator_id
+    return out
+
+
 def build_compare(store, mode, items=None, market=None, markets=None, platforms=None, days=28):
     if mode not in MODES:
         raise BadRequest("mode must be items, markets or platforms.")
@@ -175,6 +206,9 @@ def build_compare(store, mode, items=None, market=None, markets=None, platforms=
     body = {"mode": mode, "window": {"from": start, "to": end, "days": days}, "subjects": subjects,
             "series": [], "rows": [], "notes": []}
     hidden = hidden_people(store)  # read once; every card and the body go through it
+    profiles = _creator_profiles(store, [by_id[s["item_id"]] for s in subjects], hidden)
+    for s in subjects:
+        s["creator_id"] = profiles.get(s["item_id"])
 
     try:
         states = {}

@@ -5,7 +5,7 @@
    those posts belong to. Every number comes from GET /api/seed-path and keeps
    its query id; nothing is inferred on the page. */
 import {useState, useEffect, useCallback, useRef} from 'react';
-import {useApi, readerFigure, sentenceCase} from './api.js';
+import {useApi, readerFigure, sentenceCase, MENU_READ_TIMEOUT_MS} from './api.js';
 import {SignalLoader} from './parts.jsx';
 import {REGION_NAME} from './model.js';
 import {go, buildScopedReadHash} from './router.js';
@@ -261,8 +261,8 @@ export function SeedPathPage({session, onAuth, initialKeyword, initialMarket, se
   /* Cold load reads nothing for the trace: the hook idles until a term is
      traced. */
   const path = '/api/seed-path?keyword=' + encodeURIComponent(q) + '&market=' + encodeURIComponent(market.toUpperCase());
-  const [res, retryPath] = useApi(path, session, onAuth, !!q && readable && !tooShort);
-  const [discoverRes] = useApi('/api/discover?market=' + market.toUpperCase() + '&limit=12', session, onAuth, readable && !q);
+  const [res, retryPath] = useApi(path, session, onAuth, !!q && readable && !tooShort, MENU_READ_TIMEOUT_MS);
+  const [discoverRes] = useApi('/api/discover?market=' + market.toUpperCase() + '&limit=12', session, onAuth, readable && !q, MENU_READ_TIMEOUT_MS);
   const examples = suggestionTerms(discoverRes.state === 'ready' ? discoverRes.data : null);
 
   /* The service traces 2 to 60 characters with at least one letter or

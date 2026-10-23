@@ -866,3 +866,22 @@ def test_coverage_shows_an_ok_understand_run_with_failed_rows_and_a_label_net_fa
     assert understand["status"] == "ok"
     assert understand["degraded"] == ["Embedding: 2 posts not embedded",
                                       "Topic labels for South Africa: neutral labels used (the daily model cap was reached)"]
+
+
+def test_coverage_scorecard_carries_the_expansion_concentration_measures():
+    """Audit W26-03: the learn job stores cluster, platform and language concentration; Coverage passes all three on,
+    the unmeasured language one with its reason."""
+    fig = lambda value, unit, reason=None: {"value": value, "unit": unit, "query_id": "q_scorecard_expansion_share",
+                                            "run_id": "r1", "result_hash": "h", "n": 4, "reason": reason}
+    row = {"week_start": "2026-09-21", "week_end": "2026-09-27", "market": "ZA", "run_id": "r1", "rule_version": "v",
+           "expansion_cluster_share": fig(0.45, "largest share of expansion credits held by one cluster (target 0.25 "
+                                                "or less)"),
+           "expansion_platform_share": fig(0.40, "largest share of expansion credits held by one platform (target "
+                                                 "0.25 or less)"),
+           "expansion_language_share": fig(None, "largest share of expansion credits held by one language",
+                                           "not yet measured: credit_ledger and seed_queue rows carry no language")}
+    za = coverage._scorecard([row])["markets"][0]
+    assert za["expansion_cluster_share"]["value"] == 0.45 and "0.25" in za["expansion_cluster_share"]["unit"]
+    assert za["expansion_platform_share"]["value"] == 0.40
+    assert za["expansion_language_share"]["value"] is None
+    assert za["reasons"]["expansion_language_share"].endswith("carry no language")

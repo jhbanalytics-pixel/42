@@ -650,6 +650,14 @@ test('the Ask link carries the question, market, item and date', async () => {
   expect(link.getAttribute('href')).toBe('#/ask?q=' + encodeURIComponent(card.ask) + '&market=ZA&item=' + card.item_id + '&date=2026-09-30&draft=1');
 });
 
+/* Audit W19-03: a Today title carries its brief's date to the topic page. */
+test('a Today card title opens its topic with the brief date', async () => {
+  await mount();
+  const first = cardTitled('#fixture_za_step');
+  const card = todayFixture.markets[0].cards[0];
+  expect(first.querySelector('a.tc-title-link').getAttribute('href')).toBe('#/t/' + card.item_id + '?market=ZA&date=2026-09-30');
+});
+
 test('the sparkline leaves gaps as breaks and draws the band only when expected values exist', async () => {
   await mount();
   const svg = cardTitled('#fixture_za_step').querySelector('svg.t42-spark');
@@ -1514,7 +1522,61 @@ test('a 409 says Today is not published yet, with the date', async () => {
   await settle();
   expect(text()).toContain('Today is not published yet');
   expect(text()).toContain('30 September 2026');
-  expect(button(host, 'Try again')).toBeUndefined();
+});
+
+/* Audit W19-04: a brief published while the reader waits is one press away,
+   and the page never asks again on its own. */
+test('a not-published brief offers Try again, which reads once more and shows the brief', async () => {
+  standOnFixtureDay();
+  let answer = reply(409, {error: 'not_ready', message: 'Today is not published yet for 2026-09-30.'});
+  serve([['/api/today', () => answer], ['/api/trends/', reply(200, trendFixture)]]);
+  flushSync(() => root.render(<TodayPage42 region="ZA" date="2026-09-30" />));
+  await settle();
+  expect(text()).toContain('Today is not published yet');
+  const reads = () => calls.filter((call) => call.url.startsWith('/api/today')).length;
+  expect(reads()).toBe(1);
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  expect(reads()).toBe(1);
+  answer = reply(200, todayFixture);
+  click(button(host, 'Try again'));
+  await settle();
+  expect(reads()).toBe(2);
+  expect(text()).not.toContain('Today is not published yet');
+  expect(cards().length).toBeGreaterThan(0);
+});
+
+/* Audit W19-01: a 200 whose body is not a brief is a service fault, never an
+   empty brief or a market missing from it. */
+test('a successful read whose body is not a brief shows a retryable error, not an empty brief', async () => {
+  standOnFixtureDay();
+  const broken = [null, {}, [], {markets: 'ZA'}, {markets: {}}, {markets: [null]}, {markets: [{market: 'ZA'}]},
+    {markets: [{market: 'ZA', cards: {}}]}, {markets: [{market: 'ZA', cards: [], more: 'x'}]}];
+  for (const body of broken){
+    resetRoot();
+    serve([['/api/today', reply(200, body)]]);
+    flushSync(() => root.render(<TodayPage42 region="ZA" date="2026-09-30" />));
+    await settle();
+    expect([body, text().includes('Today could not load')]).toEqual([body, true]);
+    expect([body, text().includes('This market is not in this brief')]).toEqual([body, false]);
+    expect(button(host, 'Try again')).toBeDefined();
+  }
+  resetRoot();
+  let answer = reply(200, {});
+  serve([['/api/today', () => answer], ['/api/trends/', reply(200, trendFixture)]]);
+  flushSync(() => root.render(<TodayPage42 region="ZA" date="2026-09-30" />));
+  await settle();
+  answer = reply(200, todayFixture);
+  click(button(host, 'Try again'));
+  await settle();
+  expect(cards().length).toBeGreaterThan(0);
+});
+
+test('a well-formed brief with no cards still reads as an empty brief, not an error', async () => {
+  const empty = clone(todayFixture);
+  for (const market of empty.markets){ market.cards = []; market.more = []; }
+  await mount({}, empty);
+  expect(text()).not.toContain('Today could not load');
+  expect(cards().length).toBe(0);
 });
 
 test('loading shows first, and an error offers Try again that reads again', async () => {
@@ -1961,7 +2023,7 @@ test('Today card titles open the market topic without changing Ask or Posts cont
   await mount({}, today);
   const shown = cardTitled(card.title);
   const titleLink = shown.querySelector('h3 a.tc-title-link');
-  expect(titleLink?.getAttribute('href')).toBe(topicHref(card.item_id, 'ZA'));
+  expect(titleLink?.getAttribute('href')).toBe(topicHref(card.item_id, 'ZA', '2026-09-30'));
   const askLink = [...shown.querySelectorAll('a')].find((link) => link.textContent.trim() === 'Ask about this');
   expect(askLink?.getAttribute('href')).toBe('#/ask?q=' + encodeURIComponent(card.ask) + '&market=ZA&item=' + card.item_id + '&date=2026-09-30&draft=1');
   expect(button(shown, 'Posts')?.getAttribute('aria-expanded')).toBe('false');
@@ -2676,7 +2738,7 @@ test('a tap anywhere on a Today card opens it, and its controls keep their own j
   expect(opened).toBe(2);
   // The title link stays the card's one keyboard stop.
   expect(card.getAttribute('tabindex')).toBeNull();
-  expect(link.getAttribute('href')).toBe(topicHref(todayFixture.markets[0].cards[0].item_id, 'ZA'));
+  expect(link.getAttribute('href')).toBe(topicHref(todayFixture.markets[0].cards[0].item_id, 'ZA', '2026-09-30'));
 });
 
 test('a long Today page offers a way back to the top', async () => {

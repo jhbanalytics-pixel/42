@@ -2,7 +2,8 @@ import {expect, test} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 
 const fixture = () => JSON.parse(readFileSync(new URL('../../src/ui/__tests__/fixtures/today42.json', import.meta.url), 'utf8'));
-const ORIGIN = 'http://127.0.0.1:4207';
+/* The fixture's own origin is the one the run serves the app from. */
+const origin = () => new URL(test.info().project.use.baseURL).origin;
 
 async function openToday(page, data, market, theme){
   const blocked = [];
@@ -15,7 +16,7 @@ async function openToday(page, data, market, theme){
   await page.context().route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
-    if (url.origin !== ORIGIN) return route.abort('blockedbyclient');
+    if (url.origin !== origin()) return route.abort('blockedbyclient');
     if (!url.pathname.startsWith('/api/')) return route.continue();
     const reads = {
       '/api/health': {ok: true, passcode: true, auth_mode: 'passcode', checks: {auth: 'ok'}},

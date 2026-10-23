@@ -9,7 +9,7 @@
    written glossary, and the panel says so plainly when there is none. */
 import {useEffect, useState} from 'react';
 import {StateView} from 'ogilvy-intelligence-design-system';
-import {useApi, readerFigure} from './api.js';
+import {useApi, readerFigure, MENU_READ_TIMEOUT_MS} from './api.js';
 import {buildScopedReadHash, go} from './router.js';
 import {GLOSSARY, REGION_NAME} from './model.js';
 import {PageHero} from './ui/index.js';
@@ -176,7 +176,7 @@ export function LexiconPage({region, term, session, onAuth}){
   const reg = String(region || 'ALL').toLowerCase();
   const market = reg.toUpperCase();
   const readable = MARKETS.includes(market);
-  const [res, retry] = useApi('/api/lexicon?market=' + market, session, onAuth, readable);
+  const [res, retry] = useApi('/api/lexicon?market=' + market, session, onAuth, readable, MENU_READ_TIMEOUT_MS);
   /* Page data audit, 3 October 2026: a service without this route answers
      with its "No such API route." 404, which Try again cannot fix. The page
      says the lexicon is not in this version and offers Today. */

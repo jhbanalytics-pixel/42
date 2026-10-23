@@ -77,6 +77,8 @@ def test_compare_masks_a_suppressed_channel_and_reads_the_list_once():
     assert named(body, CHANNEL_NAME, CHANNEL, YT_HANDLE) == []
     assert {s["item_id"]: s["label"] for s in body["subjects"]}[YT_ITEM] == "YouTube channel"
     assert store.reads == 1
+    # Audit W23-03: a hidden creator's subject links to no creator profile.
+    assert {s["item_id"]: s["creator_id"] for s in body["subjects"]}[YT_ITEM] is None
 
 
 def test_history_item_and_search_mask_a_suppressed_channel():

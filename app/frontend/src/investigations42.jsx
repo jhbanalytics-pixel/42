@@ -490,6 +490,8 @@ function EstimateView({estimate, budget}){
       {budget
         ? <p className="inv42-line">{'Left today: ' + plural(budget.credits ?? 0, 'credit') + ' and ' + usdDown(budget.model_usd) + '. Both are checked again when you start.'}</p>
         : <p className="inv42-line">What is left today is checked again when you start.</p>}
+      {/* The minutes come from fixed figures per pass, not from timed runs. */}
+      <p className="inv42-line">The time is a planning guess: 42 has not yet measured how long investigations take.</p>
     </section>
   );
 }
@@ -502,12 +504,22 @@ function toCredits(raw){
   return text !== '' && Number.isFinite(value) ? Math.round(value * 100) / 100 : null;
 }
 
+const MAX_SUB_QUESTIONS = 8;
+
 function PlanEditor({plan, onSave, onCancel, onAuth}){
   const [subs, setSubs] = useState(() => plan.sub_questions.map((sub) => ({...sub, platforms: asGroups(sub.platforms), credits: String(sub.credits)})));
   const [gapRound, setGapRound] = useState(Boolean(plan.gap_round));
   const [state, setState] = useState({busy: false, error: null});
 
   const change = (id, patch) => setSubs((current) => current.map((sub) => (sub.id === id ? {...sub, ...patch} : sub)));
+  /* The service takes 1 to 8 sub-questions, ids q1 to q99, and prices the plan again when it is saved. */
+  const remove = (id) => setSubs((current) => (current.length > 1 ? current.filter((sub) => sub.id !== id) : current));
+  const add = () => setSubs((current) => {
+    if (current.length >= MAX_SUB_QUESTIONS) return current;
+    /* A new id follows the highest, so a removed question's id is never reused. */
+    const n = Math.max(0, ...current.map((sub) => Number(String(sub.id).slice(1)) || 0)) + 1;
+    return n > 99 ? current : [...current, {id: 'q' + n, text: '', platforms: [], credits: '0'}];
+  });
   const toggle = (sub, platform) => change(sub.id, {platforms: sub.platforms.includes(platform) ? sub.platforms.filter((p) => p !== platform) : [...sub.platforms, platform]});
 
   async function submit(event){
@@ -553,8 +565,12 @@ function PlanEditor({plan, onSave, onCancel, onAuth}){
           </fieldset>
           <label className="ask42-label" htmlFor={'inv42-credits-' + sub.id}>Credits</label>
           <input id={'inv42-credits-' + sub.id} className="ask42-input inv42-number" type="number" min={0} step={0.01} inputMode="decimal" value={sub.credits} onChange={(event) => change(sub.id, {credits: event.target.value})} />
+          {subs.length > 1 && <button type="button" className="ask42-quiet" onClick={() => remove(sub.id)}>Remove this sub-question</button>}
         </fieldset>
       ))}
+      {subs.length < MAX_SUB_QUESTIONS && (
+        <button type="button" className="ask42-quiet" onClick={add} disabled={state.busy}>Add a sub-question</button>
+      )}
       <div className="ask42-form-row">
         <p className="inv42-line">{plural(subs.length, 'researcher')}, one per sub-question</p>
         <label className="inv42-check">

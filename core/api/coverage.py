@@ -42,6 +42,11 @@ SCORECARD = {
     "recall": "recall",
     "breadth": "breadth_platforms",
     "cost_per_confirmed_trend": "cost_per_confirmed",
+    # How evenly expansion searches spread their credits: the largest share one item, platform or language holds,
+    # against the 0.25 target. Language stays unmeasured, with its reason, until spend rows carry a language.
+    "expansion_cluster_share": "expansion_cluster_share",
+    "expansion_platform_share": "expansion_platform_share",
+    "expansion_language_share": "expansion_language_share",
 }
 MARKET_ORDER = ("ZA", "NG", "KE")
 # What a run that finished ok could not write (store.degraded_writes, from the understand row's counts).

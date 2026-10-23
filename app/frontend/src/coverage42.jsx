@@ -30,6 +30,14 @@ const SCORECARD_MEASURES = [
   {key: 'recall', words: 'Recall'},
   {key: 'breadth', words: 'Breadth'},
   {key: 'cost_per_confirmed_trend', words: 'Cost per confirmed trend'},
+  /* How evenly expansion searches spread their credits, as the largest share
+     one item, platform or language held. Shown when the service sends them. */
+  {key: 'expansion_cluster_share', words: 'Expansion on one item', share: true, optional: true,
+    unit: 'Largest share of expansion credits on one item, target 25% or less'},
+  {key: 'expansion_platform_share', words: 'Expansion on one platform', share: true, optional: true,
+    unit: 'Largest share of expansion credits on one platform, target 25% or less'},
+  {key: 'expansion_language_share', words: 'Expansion on one language', share: true, optional: true,
+    unit: 'Largest share of expansion credits on one language, target 25% or less'},
 ];
 const STATUS_WORDS = {ok: 'Finished', failed: 'Failed', running: 'Reported running', skipped: 'Skipped'};
 const SCORECARD_WAIT = 'No weekly scorecard yet. The learn job writes one every Monday at 07:30 SAST, for the week before';
@@ -556,8 +564,10 @@ const scoreMarkets = (scorecard) => (Array.isArray(scorecard.markets) ? scorecar
 function Scorecard({scorecard, wait}){
   const markets = scorecard ? scoreMarkets(scorecard) : [];
   const notesId = useId();
+  const measures = SCORECARD_MEASURES.filter((measure) => !measure.optional
+    || markets.some((m) => m && Object.prototype.hasOwnProperty.call(m, measure.key)));
   /* Why a measure has no value, once per cell, in table order, under the table. */
-  const notes = SCORECARD_MEASURES.flatMap((measure) => markets
+  const notes = measures.flatMap((measure) => markets
     .filter((m) => !isFigure(m[measure.key]) && m.reasons && m.reasons[measure.key])
     .map((m) => ({market: m.market, key: measure.key, words: measure.words, reason: m.reasons[measure.key]})));
   return (
@@ -576,15 +586,15 @@ function Scorecard({scorecard, wait}){
                   </tr>
                 </thead>
                 <tbody>
-                  {SCORECARD_MEASURES.map((measure) => {
+                  {measures.map((measure) => {
                     const first = markets.map((m) => m[measure.key]).find(isFigure);
-                    const unit = first ? splitUnit(first).unit : '';
+                    const unit = measure.unit || (first ? splitUnit(first).unit : '');
                     /* "Credits per confirmed trend" under "Cost per confirmed trend" says nothing new. */
                     const tail = (text) => text.toLowerCase().split(/\s+/).slice(-3).join(' ');
-                    const rowUnit = unit && tail(unit) !== tail(measure.words) ? unit : '';
+                    const rowUnit = measure.unit || (unit && tail(unit) !== tail(measure.words) ? unit : '');
                     /* Night Desk: a meter per figure on the row's own scale. A share
                        reads on 0 to 100; any other measure against the row's largest. */
-                    const share = first ? /^share of /.test(String(first.unit || '').trim()) : false;
+                    const share = measure.share || (first ? /^share of /.test(String(first.unit || '').trim()) : false);
                     const rowMax = Math.max(0, ...markets.map((m) => m[measure.key]).filter(isFigure).map((f) => f.value));
                     const meter = (fig) => share ? Math.min(1, Math.max(0, fig.value)) : (rowMax > 0 ? fig.value / rowMax : 0);
                     return (
@@ -604,7 +614,7 @@ function Scorecard({scorecard, wait}){
                               </td>
                             );
                           }
-                          const parts = splitUnit(fig);
+                          const parts = measure.share ? {lead: Math.round(fig.value * 100) + '%', unit} : splitUnit(fig);
                           return (
                             <td className="cv42-score-cell" key={m.market} data-label={MARKET_NAMES[m.market] || m.market}>
                               <Fig figure={fig}><span className="cv42-score-value">{parts.lead}</span></Fig>

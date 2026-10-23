@@ -486,6 +486,32 @@ test('a scorecard shows each measure per market as a Figure for its week, shares
   expect(card.textContent).not.toContain('No weekly scorecard yet');
 });
 
+/* Audit W26-03: the expansion concentration the learn job measures shows
+   against its 25% target, and the unmeasured language share gives its reason. */
+test('the scorecard shows expansion concentration by item and platform against the 25% target, and why language is not measured', async () => {
+  const withCard = clone(coverageFixture);
+  const fig = (value, unit) => ({value, unit, query_id: 'q_scorecard_expansion_share', run_id: 'r1', result_hash: 'sha256:x'});
+  const za = {
+    market: 'ZA',
+    time_to_detect: fig(2.0, 'days'), lead_time: fig(1.5, 'days'), precision: null, recall: null, breadth: null, cost_per_confirmed_trend: null,
+    expansion_cluster_share: fig(0.45, 'largest share of expansion credits held by one cluster (target 0.25 or less); credits with no item are left out of the denominator'),
+    expansion_platform_share: fig(0.40, 'largest share of expansion credits held by one platform (target 0.25 or less)'),
+    expansion_language_share: fig(null, 'largest share of expansion credits held by one language'),
+    reasons: {expansion_language_share: 'not yet measured: credit_ledger and seed_queue rows carry no language'},
+  };
+  withCard.scorecard = {week: '2026-09-21', week_end: '2026-09-27', markets: [za]};
+  withCard.scorecard_text = null;
+  await mount(withCard);
+  const card = section('scorecard');
+  const rows = [...card.querySelectorAll('tbody tr')].map(rowCells);
+  const row = (start) => rows.find((cells) => cells[0].startsWith(start));
+  expect(row('Expansion on one item')?.[1]).toBe('45%');
+  expect(row('Expansion on one platform')?.[1]).toBe('40%');
+  expect(row('Expansion on one item')?.[0]).toContain('target 25% or less');
+  expect(row('Expansion on one language')?.[1]).toContain('Not measured yet');
+  expect(card.querySelector('.cv42-notes').textContent).toContain('carry no language');
+});
+
 test('a failed read shows the message and Try again reads again', async () => {
   let n = 0;
   serve(() => (++n === 1 ? reply(500, {error: 'internal', message: 'Coverage could not be read.'}) : reply(200, coverageFixture)));

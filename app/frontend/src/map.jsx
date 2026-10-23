@@ -1,14 +1,15 @@
 /* All pages (the Map): every page in the menu, in the menu's own groups,
-   each with the one question it answers. Names, groups and questions come
+   each with the one question it answers, and Build, which the menu leaves
+   out but #/console still serves. Names, groups and questions come
    from the menu (rail42.jsx, pageQuestions.js), so a page renamed there is
    renamed here; map-pages.test.jsx fails if a menu page is missing or listed
    twice. Pure navigation: it reads no data, so it never waits on the API. */
 import {PageHero} from './ui/index.js';
-import {RAIL_ALL, RAIL_MORE_GROUPS, RAIL_TOP, RAIL_WORK} from './rail42.jsx';
+import {MAP_ONLY, RAIL_ALL, RAIL_MORE_GROUPS, RAIL_TOP, RAIL_WORK} from './rail42.jsx';
 import {pageQuestion} from './pageQuestions.js';
 import './styles/map42.css';
 
-const MENU = new Map(RAIL_ALL.map((item) => [item.href, item]));
+const MENU = new Map([...RAIL_ALL, ...MAP_ONLY].map((item) => [item.href, item]));
 
 const BLURBS = Object.freeze({
   top: 'Open Today first. Open a trend to see why it is moving, or ask 42 about it.',
@@ -26,7 +27,8 @@ export const MAP_GROUPS = Object.freeze([
   id: group.id,
   title: group.title,
   blurb: BLURBS[group.id],
-  pages: group.items.map((item) => ({href: item.href, desc: pageQuestion(item.href)})),
+  pages: [...group.items, ...MAP_ONLY.filter((item) => item.group === group.id)]
+    .map((item) => ({href: item.href, desc: pageQuestion(item.href)})),
 })));
 
 function MapNode({page}){

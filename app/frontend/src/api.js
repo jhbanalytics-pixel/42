@@ -339,6 +339,11 @@ export function forgetCached(prefix){
   for (const path of [...cache.keys()]) if (path.startsWith(prefix)) cache.delete(path);
 }
 
+/* The deadline for a menu page's plain read (Seeds, Seed path, Lexicon). A
+   read that never answers then shows the page's error state with Try again,
+   instead of its loading line for good. */
+export const MENU_READ_TIMEOUT_MS = 30000;
+
 export function useApi(path, refreshKey, onAuth, enabled, timeoutMs = 0){
   const [s, setS] = useState(() => (enabled === false ? {state: 'idle'} : {state: 'loading'}));
   const [tick, setTick] = useState(0);
