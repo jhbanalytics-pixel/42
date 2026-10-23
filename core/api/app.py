@@ -590,8 +590,9 @@ async def api_suppression_create(request: Request) -> Response:
 
 
 @gated.get("/api/suppressions")
-def api_suppressions() -> dict:
-    from core.api import store
+def api_suppressions() -> Response:
+    """The hidden handles, reasons and staff names: never kept by a browser or an intermediary cache."""
+    from core.api import privacy, store
 
     try:
         rows = store.get_store().suppressions()
@@ -600,7 +601,7 @@ def api_suppressions() -> dict:
         rows = None
     if rows is None:
         raise ApiError(503, "people_unavailable", "People view unavailable.")
-    return {"suppressions": rows}
+    return JSONResponse(jsonable_encoder({"suppressions": rows}), headers=privacy.NO_STORE)
 
 
 @gated.get("/api/history/items/{item_id}")
