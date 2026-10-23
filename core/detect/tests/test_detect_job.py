@@ -770,17 +770,33 @@ def test_a_day_with_an_ok_aggregate_run_is_not_aggregated_again_but_a_failed_one
     assert [r["status"] for r in agg_rows(con, day(3))] == ["failed", "ok"]
 
 
-def test_catch_up_never_reaches_before_d_minus_3_and_stats_and_state_run_for_d_only(con):
+def test_catch_up_never_reaches_before_d_minus_3_and_state_runs_for_d_only(con):
     world(con)
     job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
     steps = duck.query(con, "SELECT r.stage, r.run_date FROM {agent}.runs r "
                             "WHERE r.stage IN ('aggregate', 'stats') ORDER BY r.stage, r.run_date")
     assert [(r["stage"], r["run_date"]) for r in steps] == [
-        ("aggregate", day(3)), ("aggregate", day(2)), ("aggregate", day(1)), ("aggregate", D), ("stats", D)]
+        ("aggregate", day(3)), ("aggregate", day(2)), ("aggregate", day(1)), ("aggregate", D),
+        ("stats", day(3)), ("stats", day(2)), ("stats", day(1)), ("stats", D)]
     assert duck.query(con, "SELECT COUNT(*) n FROM {core}.item_daily i WHERE i.metric_date < @d",
                       {"d": day(3)}) == [{"n": 0}]
-    assert duck.query(con, "SELECT DISTINCT s.metric_date FROM {core}.series_test s") == [{"metric_date": D}]
     assert duck.query(con, "SELECT DISTINCT s.metric_date FROM {core}.item_state s") == [{"metric_date": D}]
+
+
+def test_a_recovered_day_is_series_tested_once_before_d(con):
+    """W16-02: Rising counts significant days in the three days to d from the series tests of those days, so a day
+    whose aggregate is recovered gets its own stats run and series_test rows, and a second detect of d adds none."""
+    world(con)
+    job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    tested = duck.query(con, "SELECT DISTINCT s.metric_date, s.run_id FROM {core}.series_test s ORDER BY 1")
+    assert [r["metric_date"] for r in tested] == [day(3), day(2), day(1), D]
+    good = duck.query(con, "SELECT g.run_date, g.run_id FROM {core}.v_good_runs g WHERE g.stage = 'stats' "
+                           "ORDER BY 1")
+    assert [(r["run_date"], r["run_id"]) for r in good] == [(r["metric_date"], r["run_id"]) for r in tested]
+    job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
+    again = duck.query(con, "SELECT r.run_date, COUNT(*) n FROM {agent}.runs r WHERE r.stage = 'stats' "
+                            "GROUP BY r.run_date ORDER BY 1")
+    assert [(r["run_date"], r["n"]) for r in again] == [(day(3), 1), (day(2), 1), (day(1), 1), (D, 2)]
 
 
 def test_late_cluster_replays_original_date_after_aggregate_start_and_stops_after_replay(con):
@@ -1203,7 +1219,8 @@ def test_the_stats_step_reads_the_switch_from_the_jobs_own_agent_dataset(con, mo
     seen = []
     monkeypatch.setattr(stats, "run_stats", lambda *a, **k: seen.append(k) or 0)
     job.run(JobClient(con), D, chain=FakeChain(con), core="core", agent="agent")
-    assert seen == [{"core": "core", "agent": "agent"}]
+    # the three recovered days before D, then D
+    assert seen == [{"core": "core", "agent": "agent"}] * 4
 
 
 def test_the_near_duplicate_step_records_its_wall_time(monkeypatch):
