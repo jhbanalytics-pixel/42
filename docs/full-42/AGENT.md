@@ -14,7 +14,7 @@ The brain in BRAIN.md, built. Python on Cloud Run (f42-agent), with Gemini on Ve
 
 | Tier | When | Agents | Tool calls | Credits |
 |---|---|---|---|---|
-| T0 Lookup | Answerable from the warehouse | Orchestrator alone | 3 to 8 | 0 to 10 |
+| T0 Lookup | Answerable from the warehouse | Orchestrator alone | 3 to 8 | 0: warehouse only, no live tools |
 | T1 Quick scan | One entity, one or two platforms, "is this real" | 1 to 2 researchers | up to 10 each | up to 60 |
 | T2 Brief | Comparison, "why is this rising", a brand across platforms | 3 to 5 researchers and the critic | 10 to 15 each | up to 300 |
 | T3 Investigation | New category or community, several angles, client deliverable | 5 to 8 researchers, critic, gap round | 15 each, 20 hard stop | up to 600 (the whole ASK_DAILY share); more only when Albert raises ASK_DAILY for that day in the plan screen |

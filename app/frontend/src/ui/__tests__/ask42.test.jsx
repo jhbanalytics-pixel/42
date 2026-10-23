@@ -1853,7 +1853,7 @@ test('Try again on any other followed record confirms the tier ceiling first; Ca
   await followFailed({run: {tier: 'T0'}});
   await act(async () => { button('Try again').click(); });
   await until(() => confirmBox(), 'the confirm');
-  expect(plain(confirmBox().textContent)).toContain('up to 10 credits');
+  expect(plain(confirmBox().textContent)).toContain('reads stored posts only and spends no credits');
   expect(document.activeElement && plain(document.activeElement.textContent)).toBe('Cancel');
   await act(async () => { button('Cancel').click(); });
   expect(confirmBox()).toBeNull();
@@ -1870,6 +1870,18 @@ test('confirming the ceiling asks again at the same tier', async () => {
   const posted = calls.filter((call) => call.path === '/api/ask');
   expect(posted).toHaveLength(1);
   expect(posted[0].body).toEqual({question: record.question, market: 'ZA', parent_id: null, tier: 'T1', request_id: expect.any(String)});
+});
+
+test('confirming a T0 retry asks again at T0, which spends no credits', async () => {
+  const record = await followFailed({run: {tier: 'T0'}});
+  await act(async () => { button('Try again').click(); });
+  await until(() => confirmBox(), 'the confirm');
+  expect(plain(confirmBox().textContent)).not.toContain('60 credits');
+  await act(async () => { button('Ask again').click(); });
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the retry');
+  const posted = calls.filter((call) => call.path === '/api/ask');
+  expect(posted).toHaveLength(1);
+  expect(posted[0].body).toEqual({question: record.question, market: 'ZA', parent_id: null, tier: 'T0', request_id: expect.any(String)});
 });
 
 test('a followed record with no tier names the highest ceiling Ask may pick and posts no tier', async () => {

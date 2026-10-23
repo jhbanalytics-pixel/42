@@ -50,7 +50,8 @@ const CONFIDENCE = {
 
 /* The most an ask may spend at each tier (AGENT.md). With no tier the agent
    picks T0 or T1, so the higher ceiling is the one to name. */
-const CEILING = {T0: 10, T1: 60};
+const CEILING = {T0: 0, T1: 60};  // T0 reads stored posts only and spends no credits.
+const ceilingTier = (tier) => (Object.hasOwn(CEILING, tier || '') ? tier : null);
 /* The tier in words, as the skill confirms name it. */
 const TIER_WORDS = {T0: 'Quick lookup', T1: 'Quick scan', T2: 'Deep read'};
 
@@ -995,7 +996,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
          asked again under a new one. */
       const stopped = run.phase === 'error' && run.error && run.error.code === 'stopped';
       const key = run.phase === 'error' && !stopped ? run.request.key : null;
-      setRetry({tier: CEILING[extra.tier] ? extra.tier : null, extra, key});
+      setRetry({tier: ceilingTier(extra.tier), extra, key});
       return;
     }
     const spike = record && record.spike;
@@ -1008,7 +1009,7 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
     }
     if (record && record.schedule_id){ go('/schedules'); return; }
     const tier = record && ((record.run && record.run.tier) || record.tier);
-    setRetry({tier: CEILING[tier] ? tier : null});
+    setRetry({tier: ceilingTier(tier)});
   }
 
   function askAgain(){
@@ -1122,7 +1123,8 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
         <CostConfirm
           title="Ask this question again?"
           where={run.request.text}
-          line={'Asking again spends up to ' + CEILING[retry.tier || 'T1'] + ' credits.'}
+          line={retry.tier === 'T0' ? 'Asking again reads stored posts only and spends no credits.'
+            : 'Asking again spends up to ' + CEILING[retry.tier || 'T1'] + ' credits.'}
           does="42 starts this question over and reads the posts again."
           get="A new answer on this page, with the posts behind each point."
           confirmWord="Ask again"

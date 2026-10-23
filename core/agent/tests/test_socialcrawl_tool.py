@@ -72,7 +72,7 @@ class FakeClient:
                 "reason": self._reason}
 
 
-def ctx(tier="T0", **kw):
+def ctx(tier="T1", **kw):
     return RunContext(run_id="run_1", tier=tier, as_of=AS_OF, market="ZA", **kw)
 
 
@@ -251,7 +251,7 @@ def test_search_everywhere_keeps_caller_excludes_and_does_not_mutate_params():
 
 def test_refuses_over_question_budget():
     client = FakeClient(quote=6.0)
-    c = ctx("T0", credits_spent=5.0)  # T0 budget 10, 5 left
+    c = ctx("T1", credits_spent=55.0)  # T1 budget 60, 5 left
     with pytest.raises(Refused):
         socialcrawl_call(c, client, "tiktok", "search/top", {"query": "braai"}, max_credits=20)
     assert client.calls == []
@@ -266,7 +266,7 @@ def test_refuses_over_max_credits():
 
 def test_refuses_when_calls_exhausted():
     client = FakeClient()
-    c = ctx("T0", calls_made=8)  # T0 allows 8 calls
+    c = ctx("T1", calls_made=20)  # T1 allows 20 calls
     with pytest.raises(Refused):
         socialcrawl_call(c, client, "tiktok", "search/top", {"query": "braai"}, max_credits=5)
     assert client.quotes == [] and client.calls == []
@@ -274,7 +274,7 @@ def test_refuses_when_calls_exhausted():
 
 def test_call_uses_agent_live_lane_and_caps_max_credits_at_credits_left():
     client = FakeClient(quote=2.0)
-    c = ctx("T0", credits_spent=7.0)  # 3 left
+    c = ctx("T1", credits_spent=57.0)  # 3 left
     socialcrawl_call(c, client, "tiktok", "search/top", {"query": "braai"}, max_credits=5)
     call = client.calls[0]
     assert call["route"] == "tiktok/search/top"
@@ -555,7 +555,7 @@ def test_lane_selectors_refused_beside_search_text(platform, endpoint, params):
 
 # Evidence market: the item's own market or country, else the call's country, region, geo or gl, else ctx.market.
 def mctx(market=None):
-    return RunContext(run_id="run_1", tier="T0", as_of=AS_OF, market=market)
+    return RunContext(run_id="run_1", tier="T1", as_of=AS_OF, market=market)
 
 
 def item(i, **kw):

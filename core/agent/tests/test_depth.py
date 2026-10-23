@@ -43,3 +43,10 @@ def test_depth_reads_no_environment():
 
     source = inspect.getsource(depth)
     assert "os.environ" not in source and "getenv" not in source and "import os" not in source
+
+
+def test_quick_reads_the_warehouse_only():
+    quick = next(lv for lv in depth.levels(deep=False, daily=600) if lv["tier"] == "T0")
+    assert "live" not in quick["reads"].lower()
+    assert "only" in quick["reads"]
+    assert quick["max_credits"] == 0 and quick["max_live_calls"] == 0 and quick["share_of_daily"] == 0

@@ -21,7 +21,7 @@ DEFAULT_ASK_DAILY = 600  # credits, all asks and investigations together (SETUP.
 # cost: how the app flags the level. "highest" is the level a slider would set alight.
 LEVELS = (
     {"key": "quick", "tier": "T0", "label": "Quick", "cost": "low", "max_researchers": 1,
-     "reads": "42's stored posts, with a few small live checks"},
+     "reads": "42's stored posts only"},
     {"key": "standard", "tier": "T1", "label": "Standard", "cost": "normal", "max_researchers": 1,
      "reads": "Stored posts plus live searches on the platforms the question names"},
     {"key": "deep", "tier": "T2", "label": "Deep", "cost": "highest", "max_researchers": 5,

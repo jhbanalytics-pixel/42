@@ -271,7 +271,7 @@ def make_research(stop_flag=None, live=True, seen=None):
             return {"note": "", "tokens": {"input": 400, "output": 50}, "usd": 0.004}
         sql_query(ctx, options.warehouse, COUNT_SQL, purpose="posts, authors and platforms for amapiano",
                   params={"term": "amapiano"})
-        if live:
+        if live and ctx.tier != "T0":  # T0 reads the warehouse only, as the real research loop's guard holds it
             emit.step("search", "Searching Threads live", platform="threads")
             socialcrawl_call(ctx, options.client, "threads", "search", {"query": "amapiano"}, max_credits=5)
         return {"note": "Reading: amapiano, South Africa, this week.", "tokens": {"input": 1000, "output": 300},

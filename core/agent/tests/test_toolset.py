@@ -15,7 +15,7 @@ AS_OF = datetime.fromisoformat("2026-09-28T06:10:00+02:00")
 GOOD_SQL = "SELECT post_id, text FROM intelligence_42_core.posts WHERE market = 'ZA' LIMIT 10"
 
 
-def make_ctx(tier="T0", **kw):
+def make_ctx(tier="T1", **kw):
     return RunContext(run_id="run_1", tier=tier, as_of=AS_OF, market="ZA", **kw)
 
 
@@ -214,18 +214,18 @@ def test_guard_and_tool_share_one_normaliser():
 
 
 def test_socialcrawl_guard_denies_over_credit_budget():
-    args = {"platform": "tiktok", "endpoint": "search/top", "params": {"q": "amapiano"}, "max_credits": 11}
-    assert refusals(make_ctx("T0"), "socialcrawl_call", args)
+    args = {"platform": "tiktok", "endpoint": "search/top", "params": {"q": "amapiano"}, "max_credits": 61}
+    assert refusals(make_ctx("T1"), "socialcrawl_call", args)
 
 
 def test_socialcrawl_guard_denies_when_credits_spent():
     args = {"platform": "tiktok", "endpoint": "search/top", "params": {}, "max_credits": 1}
-    assert refusals(make_ctx("T0", credits_spent=10), "socialcrawl_call", args)
+    assert refusals(make_ctx("T1", credits_spent=60), "socialcrawl_call", args)
 
 
 def test_socialcrawl_guard_denies_when_no_calls_left():
     args = {"platform": "tiktok", "endpoint": "search/top", "params": {}, "max_credits": 1}
-    assert refusals(make_ctx("T0", calls_made=8), "socialcrawl_call", args)
+    assert refusals(make_ctx("T1", calls_made=20), "socialcrawl_call", args)
 
 
 @pytest.mark.parametrize("max_credits", [None, "lots"])
@@ -237,10 +237,10 @@ def test_socialcrawl_guard_denies_bad_max_credits(max_credits):
 
 
 def test_socialcrawl_guard_reads_budget_at_call_time():
-    ctx = make_ctx("T0")
+    ctx = make_ctx("T1")
     args = {"platform": "tiktok", "endpoint": "search/top", "params": {}, "max_credits": 5}
     assert refusals(ctx, "socialcrawl_call", args) == []
-    ctx.credits_spent = 8
+    ctx.credits_spent = 56
     assert refusals(ctx, "socialcrawl_call", args)
 
 
@@ -329,9 +329,9 @@ def test_other_failures_keep_the_readable_part(warehouse_module):
 
 
 def test_socialcrawl_handler_refuses_over_budget(warehouse_module):
-    client = FakeClient(quote=50.0)
-    tool = tools_by_name(make_ctx("T0"), client=client)["socialcrawl_call"]
-    result = call(tool, {"platform": "tiktok", "endpoint": "search/top", "params": {}, "max_credits": 60})
+    client = FakeClient(quote=70.0)
+    tool = tools_by_name(make_ctx("T1"), client=client)["socialcrawl_call"]
+    result = call(tool, {"platform": "tiktok", "endpoint": "search/top", "params": {}, "max_credits": 70})
     assert result["is_error"] is True
     assert text(result).startswith("Refused: ")
     assert client.calls == []
@@ -358,8 +358,8 @@ def test_socialcrawl_handler_returns_json(warehouse_module):
 
 
 def test_budget_status_handler(warehouse_module):
-    result = call(tools_by_name(make_ctx("T0", credits_spent=4))["budget_status"], {})
-    assert json.loads(text(result)) == {"credits_left": 6.0, "calls_left": 8}
+    result = call(tools_by_name(make_ctx("T1", credits_spent=4))["budget_status"], {})
+    assert json.loads(text(result)) == {"credits_left": 56.0, "calls_left": 20}
 
 
 def test_resolve_dates_handler(warehouse_module):
@@ -464,3 +464,62 @@ def test_log_forecast_handler_refuses_a_bad_target(warehouse_module):
         "statement": "It will go viral.", "evidence_ids": ["tiktok_7412"]})
     assert result["is_error"] is True and text(result).startswith("Refused: ")
     assert writer.inserts == []
+
+
+# T0 is warehouse only (Albert, 23 October): no live search and no credits, whatever the model asks for.
+
+LIVE_ARGS = {
+    "socialcrawl_call": {"platform": "tiktok", "endpoint": "search/top", "params": {"q": "amapiano"}, "max_credits": 5},
+    "get_comments": {"evidence_id": "tiktok_7412", "max_credits": 1},
+    "get_transcript": {"evidence_id": "tiktok_7412", "max_credits": 1},
+    "watch_video": {"evidence_id": "tiktok_7412", "question": "What is on screen?"},
+    "read_article": {"evidence_id": "news_1"},
+}
+
+
+def test_t0_holds_no_live_credits_or_calls():
+    from core.agent.context import TIERS
+
+    assert TIERS["T0"]["credits"] == 0 and TIERS["T0"]["calls"] == 0
+    ctx = make_ctx("T0")
+    assert ctx.credits_left() == 0 and ctx.calls_left() == 0
+
+
+@pytest.mark.parametrize("name", toolset.SOCIALCRAWL_TOOLS)
+def test_t0_guard_refuses_every_live_tool(name):
+    reasons = refusals(make_ctx("T0"), name, LIVE_ARGS[name])
+    assert reasons and "warehouse only" in reasons[0]
+
+
+def test_the_t0_refusal_covers_every_tool_that_spends_credits():
+    assert set(LIVE_ARGS) == set(toolset.SOCIALCRAWL_TOOLS)
+
+
+class QuoteRecorder(FakeClient):
+    def __init__(self):
+        super().__init__()
+        self.quotes = []
+
+    def quote(self, route, params):
+        self.quotes.append(route)
+        return super().quote(route, params)
+
+
+def test_t0_live_search_is_refused_before_the_client_quotes_while_t1_runs(warehouse_module):
+    from core.agent.gemini_research import _run_call
+
+    args = LIVE_ARGS["socialcrawl_call"]
+    t0, client = make_ctx("T0"), QuoteRecorder()
+    out, is_error = _run_call(t0, toolset.build_functions(t0, FakeWarehouse(), client, FakeWriter()),
+                              "socialcrawl_call", dict(args))
+    assert is_error and out.startswith("Refused: ") and "warehouse only" in out
+    assert client.quotes == [] and client.calls == [] and t0.calls_made == 0
+    t1, client = make_ctx("T1"), QuoteRecorder()
+    out, is_error = _run_call(t1, toolset.build_functions(t1, FakeWarehouse(), client, FakeWriter()),
+                              "socialcrawl_call", dict(args))
+    assert not is_error and client.calls == ["tiktok/search/top"] and t1.calls_made == 1
+
+
+@pytest.mark.parametrize("tier", ["T1", "T2", "T3"])
+def test_live_tools_stay_open_above_t0(tier):
+    assert refusals(make_ctx(tier), "socialcrawl_call", LIVE_ARGS["socialcrawl_call"]) == []

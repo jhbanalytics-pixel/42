@@ -503,3 +503,12 @@ def test_spike_explain_quotes_the_item_state_from_v_item_state_current():
 def test_spike_explain_step_one_leaves_the_window_check_to_run_ask():
     frame = method_steps()[1]
     assert "outside the window" not in frame and "read only the series" not in frame
+
+
+def test_culture_read_keeps_t0_to_the_warehouse_and_names_every_refused_live_tool():
+    from core.agent.toolset import SOCIALCRAWL_TOOLS
+
+    text = skills.load_skill("culture-read")
+    rule = next(line for line in text.splitlines() if "At T0 do not call socialcrawl_call" in line)
+    assert all(name in rule for name in SOCIALCRAWL_TOOLS) and "T0 reads the warehouse only" in rule
+    assert TIERS["T0"]["credits"] == 0
