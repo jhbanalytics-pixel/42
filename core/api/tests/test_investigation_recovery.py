@@ -1,6 +1,7 @@
 import copy
 import json
 import socket
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -294,3 +295,25 @@ def test_a_startup_scan_that_fails_leaves_the_budget_unknown_until_a_scan_succee
         agent_app.INVESTIGATIONS.clear()
         restarted.get("/api/investigations")
         assert agent_app.money_left() is not None
+
+
+def test_a_rebuilt_hold_counts_only_on_the_day_it_was_rebuilt(client, inv, monkeypatch):
+    """A hold rebuilt after a restart stands for spend its dead owner may have made but never recorded, which belongs
+    to that day. A run then closed as lost keeps it for the day, and the next day's budget no longer carries it."""
+    use_gate(monkeypatch, inv)
+    inv_id = draft(client).json()["investigation_id"]
+    client.post(f"/api/investigations/{inv_id}/start")
+    monkeypatch.setattr(agent_app, "finish_investigation", lambda *args: None)
+    with agent_app._lock:
+        agent_app.ASKS.clear()
+        agent_app.RUNNING_INVESTIGATIONS.clear()
+    inv.RESERVED.clear()
+    with TestClient(agent_app.app):
+        held = inv.RESERVED.total()
+        assert held["credits"] > 0
+        agent_app.money_snapshot()
+        assert inv.RESERVED.total() == held  # still the day it was rebuilt
+        today = agent_app.now()
+        monkeypatch.setattr(agent_app, "now", lambda market=None: today + timedelta(days=1))
+        agent_app.money_snapshot()
+        assert inv.RESERVED.total() == {"credits": 0, "model_usd": 0.0}

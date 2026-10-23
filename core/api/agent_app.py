@@ -157,6 +157,10 @@ ASK_REQUEST_ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
 REQUESTS = {}
 STOPPED_REQUESTS = {}
 _PLANNER_READBACK_HOLDS = {}
+# Holds rebuilt after a restart, by investigation, with the SAST day they were rebuilt on. They stand for spend a dead
+# owner may have made without recording it, which can only fall on or before that day, so money_snapshot drops them
+# once the day ends (a run still open by then has no owner left to spend).
+_RECOVERED_HOLDS = {}
 
 @asynccontextmanager
 async def investigation_lifespan(app):
@@ -1973,6 +1977,10 @@ def money_snapshot(run_date=None):
         spent = {"credits": None, "model_usd": None}
     if now().date().isoformat() != day:
         return spent, None, False
+    for key, rebuilt_on in list(_RECOVERED_HOLDS.items()):
+        if rebuilt_on != day:
+            investigations.RESERVED.release(key)
+            _RECOVERED_HOLDS.pop(key, None)
     for key, hold in list(_PLANNER_READBACK_HOLDS.items()):
         if hold["run_date"] != day:
             investigations.RESERVED.release(key)
@@ -2456,6 +2464,7 @@ def reconcile_investigation(investigation_id):
             plan = investigations.view(current)["plan"]
             investigations.RESERVED.keep(investigation_id, {"credits": plan["max_credits"],
                                                             "model_usd": plan["max_model_usd"]})
+            _RECOVERED_HOLDS.setdefault(investigation_id, now().date().isoformat())
         try:
             record = stored_investigation_record(current["ask_id"])
             if (not record or record.get("ask_id") != current["ask_id"]
@@ -2469,7 +2478,7 @@ def reconcile_investigation(investigation_id):
                     investigation_id, current["version"] + 1, status_time(current["market"]), "failed",
                     current["question"], current["market"], investigations.view(current)["plan"],
                     investigations.view(current)["estimate"], current["ask_id"], current["run_id"])
-                # The hold stays: releasing it changes a hold, which waits for the shared reservation gate (N34).
+                # The hold stays for the day it was rebuilt on (N34), and money_snapshot drops it after that day.
                 if append("investigations", INVESTIGATIONS, row):
                     return [*rows, row]
                 log.error("investigation %s: its lost-run row was not written", investigation_id)
@@ -2483,6 +2492,7 @@ def reconcile_investigation(investigation_id):
                 # The Ask's runs row holds what the run spent, so its reservation ends here, as finish_investigation
                 # ends it for a run this process saw through.
                 investigations.RESERVED.release(investigation_id)
+                _RECOVERED_HOLDS.pop(investigation_id, None)
                 return [*rows, row]
             log.error("investigation %s: its recovered finish row was not written", investigation_id)
         except Exception as exc:

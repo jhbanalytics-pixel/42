@@ -1956,11 +1956,13 @@ def inv(monkeypatch):
     agent_app.INVESTIGATIONS.clear()
     investigations.RESERVED.clear()
     agent_app._PLANNER_READBACK_HOLDS.clear()
+    agent_app._RECOVERED_HOLDS.clear()
     yield investigations
     agent_app.INVESTIGATIONS.clear()
     agent_app.RUNNING_INVESTIGATIONS.clear()
     investigations.RESERVED.clear()
     agent_app._PLANNER_READBACK_HOLDS.clear()
+    agent_app._RECOVERED_HOLDS.clear()
 
 
 def today():
