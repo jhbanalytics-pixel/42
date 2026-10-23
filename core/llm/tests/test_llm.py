@@ -290,6 +290,7 @@ def test_the_priority_switch_puts_the_priority_header_on_every_request(monkeypat
     from google.genai._api_client import patch_http_options
 
     monkeypatch.setenv("GEMINI_PRIORITY", "1")
+    monkeypatch.setenv("GEMINI_PRIORITY_PRICE_MULT", "1.8")
     options = built_client(monkeypatch, timeout_s=60, retries=0)["http_options"]
     assert options.headers == {"X-Vertex-AI-LLM-Shared-Request-Type": "priority"}
     assert options.timeout == 60_000 and options.retry_options.attempts == 1
@@ -302,7 +303,7 @@ def test_the_priority_switch_puts_the_priority_header_on_every_request(monkeypat
 def test_priority_multiplies_every_gemini_price_and_only_while_it_is_on(monkeypatch):
     monkeypatch.setenv("GEMINI_PRIORITY_PRICE_MULT", "3")
     assert provider.price_for("gemini-3.8-flash") == {"input": 1.5, "output": 7.5, "cached": 0.15}
-    monkeypatch.delenv("GEMINI_PRIORITY_PRICE_MULT")
+    monkeypatch.setenv("GEMINI_PRIORITY_PRICE_MULT", "1.8")
     monkeypatch.setenv("GEMINI_PRIORITY", "1")
     assert provider.price_for("gemini-3.8-flash") == pytest.approx({"input": 2.7, "output": 13.5, "cached": 0.27})
     assert provider.GEMINI_LIST_PRICES["gemini-3.8-flash"] == {"input": 1.5, "output": 7.5, "cached": 0.15}
@@ -314,14 +315,35 @@ def test_priority_multiplies_every_gemini_price_and_only_while_it_is_on(monkeypa
     assert provider.price_for("gemini-other")["output"] == pytest.approx(6.0)
 
 
-@pytest.mark.parametrize("mult", ["0.5", "free", "nan", "inf"])
+@pytest.mark.parametrize("mult", [None, "", " ", "0.5", "free", "nan", "inf"])
 def test_a_priority_multiplier_that_would_book_less_leaves_gemini_unpriced(monkeypatch, mult):
     monkeypatch.setenv("GEMINI_PRIORITY", "1")
-    monkeypatch.setenv("GEMINI_PRIORITY_PRICE_MULT", mult)
+    if mult is None:
+        monkeypatch.delenv("GEMINI_PRIORITY_PRICE_MULT", raising=False)
+    else:
+        monkeypatch.setenv("GEMINI_PRIORITY_PRICE_MULT", mult)
     with pytest.raises(provider.PriceUnset):
         provider.price_for("gemini-3.8-flash")
     with pytest.raises(provider.PriceUnset):
         provider.price_for("other-model")
+
+
+@pytest.mark.parametrize("mult", [None, "0.5", "free"])
+def test_priority_without_a_billed_multiplier_sends_no_request(monkeypatch, mult):
+    # No multiplier read off a billed priority record: the client is never built, so no request goes out at a
+    # price the budget cannot book.
+    monkeypatch.setenv("GEMINI_PRIORITY", "1")
+    if mult is None:
+        monkeypatch.delenv("GEMINI_PRIORITY_PRICE_MULT", raising=False)
+    else:
+        monkeypatch.setenv("GEMINI_PRIORITY_PRICE_MULT", mult)
+    from google import genai
+
+    built = []
+    monkeypatch.setattr(genai, "Client", lambda **k: built.append(k) or NS(models=None))
+    with pytest.raises(provider.PriceUnset):
+        GeminiModel(timeout_s=60).client
+    assert built == []
 
 
 def test_priority_usage_estimates_and_reserves_all_use_the_priority_price(monkeypatch):
@@ -341,6 +363,7 @@ def test_priority_usage_estimates_and_reserves_all_use_the_priority_price(monkey
 
     standard = costs()
     monkeypatch.setenv("GEMINI_PRIORITY", "1")
+    monkeypatch.setenv("GEMINI_PRIORITY_PRICE_MULT", "1.8")
     priority = costs()
     usd, estimate, ceiling_micros, call = standard
     assert priority[0] == pytest.approx(usd * 1.8) and priority[1] == pytest.approx(estimate * 1.8)
