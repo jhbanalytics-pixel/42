@@ -35,6 +35,7 @@ STARTED = "Ask started"
 START_UNRECORDED = "The ask's start could not be recorded"
 ASK_FAILED = "The ask failed"
 PAUSED = "Paused before its turn"
+CANCELLED = "Cancelled before its turn"
 STATUS_UNKNOWN = "The schedule's status could not be read"
 NO_RESERVATION = {"credits": 0, "model_usd": 0.0}
 
@@ -48,7 +49,7 @@ def run_id(day, schedule_id):
 
 
 def due(schedules, day):
-    """Active schedules due on `day`: daily every day, weekly_monday on Mondays, paused never."""
+    """Active schedules due on `day`: daily every day, weekly_monday on Mondays, paused or cancelled never."""
     return [s for s in schedules if s.get("status") == "active"
             and (s.get("cadence") == "daily" or (s.get("cadence") == "weekly_monday" and day.weekday() == 0))]
 
@@ -93,7 +94,7 @@ def run(schedules, day, spend_reader, ask, record_skip, share, dry=False, asked=
     and records nothing. `asked` holds the sched- run_ids already asked or started today, so a retried job never asks
     a schedule twice; None means they could not be read, and nothing is asked. current(schedule_id) rereads the
     schedule's latest state just before its started row, so a schedule paused while an earlier one was being asked
-    is skipped; when that read fails the schedule is not asked."""
+    is skipped, as is one cancelled; when that read fails the schedule is not asked."""
     dry = dry or share is None
     out = []
     for schedule in sorted(due(schedules, day), key=_created):
@@ -145,7 +146,9 @@ def _still_active(current, schedule):
     except Exception as exc:
         log.warning("rereading schedule %s failed (%s)", schedule["schedule_id"], type(exc).__name__)
         return STATUS_UNKNOWN
-    return None if latest and latest.get("status") == "active" else PAUSED
+    if latest and latest.get("status") == "active":
+        return None
+    return CANCELLED if latest and latest.get("status") == "cancelled" else PAUSED
 
 
 def current_schedule(schedule_id):

@@ -1412,8 +1412,28 @@ def test_pause_and_resume_schedule_append_rows_and_list_shows_latest(client, sch
         "active", "paused", "active"]
 
 
+def test_cancel_schedule_appends_a_final_row_that_cannot_be_resumed_or_paused(client, sched, monkeypatch):
+    first = new_schedule(client).json()
+    sid = first["schedule_id"]
+    assert client.post(f"/api/schedules/{sid}/pause").status_code == 200
+    monkeypatch.setattr(agent_app, "status_time", lambda market: "2026-10-23T09:00:00+02:00")
+    r = client.post(f"/api/schedules/{sid}/cancel")
+    assert r.status_code == 200
+    cancelled = r.json()
+    assert cancelled["status"] == "cancelled" and cancelled["created_at"] == first["created_at"]
+    assert cancelled["status_at"] == "2026-10-23T09:00:00+02:00"
+    assert client.post(f"/api/schedules/{sid}/cancel").status_code == 200  # cancelling twice appends once
+    for action in ("resume", "pause"):
+        r = client.post(f"/api/schedules/{sid}/{action}")
+        assert r.status_code == 409 and r.json()["error"] == "cancelled"
+    assert [row["status"] for row in agent_app.SCHEDULES] == ["active", "paused", "cancelled"]
+    # A cancelled schedule stays listed with its status, so its history is kept.
+    listed = client.get("/api/schedules").json()["schedules"]
+    assert [(s["schedule_id"], s["status"]) for s in listed] == [(sid, "cancelled")]
+
+
 def test_pause_or_resume_unknown_schedule_gives_404(client, sched):
-    for action in ("pause", "resume"):
+    for action in ("pause", "resume", "cancel"):
         r = client.post(f"/api/schedules/s_000000000000/{action}")
         assert r.status_code == 404 and r.json()["error"] == "not_found"
     assert agent_app.SCHEDULES == []

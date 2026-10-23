@@ -301,6 +301,12 @@ export function resumeSchedule(scheduleId, options){
   return postJson(schedulePath(scheduleId) + '/resume', undefined, options);
 }
 
+/* Cancel is final: the schedule stays listed, is never asked again, and a
+   later pause or resume answers 409. */
+export function cancelSchedule(scheduleId, options){
+  return postJson(schedulePath(scheduleId) + '/cancel', undefined, options);
+}
+
 /* How a schedule's last run ended, in the words Today and the Schedules
    screen share. A refused or thin answer says so; a skip names its reason. */
 const OUTCOME_WORDS = {partial: 'Partial answer', insufficient_evidence: 'Not enough evidence', refused: 'Refused'};

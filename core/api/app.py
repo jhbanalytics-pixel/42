@@ -761,6 +761,13 @@ async def api_schedule_resume(schedule_id: str, request: Request) -> Response:
     return _passthrough(await _forward("POST", f"/api/schedules/{schedule_id}/resume"))
 
 
+@gated.post("/api/schedules/{schedule_id}/cancel")
+async def api_schedule_cancel(schedule_id: str, request: Request) -> Response:
+    _check_schedule_id(schedule_id)
+    auth.ask_limiter.check(request)
+    return _passthrough(await _forward("POST", f"/api/schedules/{schedule_id}/cancel"))
+
+
 # Client skins (contract section 15.1): writes and reads forwarded to f42-agent like the schedules. A skin's Today
 # and its weekly report are built here from the skin the agent holds.
 

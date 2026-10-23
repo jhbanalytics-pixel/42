@@ -1,11 +1,12 @@
 /* Scheduled questions on the 42 API (core/api/contract.md section 14.2): a
    saved question re-asked on a cadence, every answer kept. Lists each
-   schedule with its last run and, when that run was skipped, why; Pause and
-   Resume append a row, so nothing is deleted; a form saves a new one. Ask
+   schedule with its last run and, when that run was skipped, why; Pause,
+   Resume and Cancel append a row, so nothing is deleted, and a cancelled
+   schedule stays listed with no controls; a form saves a new one. Ask
    hands a finished question over as #/schedules?q=<question>&market=ZA. */
 import {useEffect, useId, useRef, useState} from 'react';
 import {MarketScopeNote, inMarket, pickedMarket, useFollowedMarket} from './marketScope.jsx';
-import {createSchedule, listSchedules, pauseSchedule, resumeSchedule, scheduledRunWords} from './api42.js';
+import {cancelSchedule, createSchedule, listSchedules, pauseSchedule, resumeSchedule, scheduledRunWords} from './api42.js';
 import {longDate} from './ui/TrendCard.jsx';
 import {MARKET_WORDS} from './ui/WatchDialog.jsx';
 import './styles/today42.css';
@@ -32,6 +33,7 @@ const NO_ANSWER = 'The 42 service did not answer. Try again.';
 const list = (value) => (Array.isArray(value) ? value : []);
 const wordOf = (options, id) => (options.find((o) => o.id === id) || {}).label || id;
 const marketWord = (market) => MARKET_WORDS[market] || market;
+const STATE_WORDS = {active: 'Active', paused: 'Paused', cancelled: 'Cancelled'};
 
 export const runWords = scheduledRunWords;
 const askFollowHref = (askId) => '#/ask?follow=' + encodeURIComponent(askId);
@@ -74,7 +76,7 @@ export function SchedulesPage42({search, onAuth, region}){
     return () => ctrl.abort();
   }, [tick]);
 
-  /* A pause or resume answers with the schedule row alone, so its last run
+  /* A pause, resume or cancel answers with the schedule row alone, so its last run
      stays as it was read. */
   const replace = (next) => setSchedules((prev) => (prev.state === 'ready'
     ? {...prev, items: prev.items.map((s) => (s.schedule_id === next.schedule_id ? {...s, ...next, last_run: s.last_run, skip_reason: s.skip_reason} : s))}
@@ -132,14 +134,13 @@ function Schedules({picked = '', schedules, onRetry, onChange, onAuth}){
   const live = useRef(true);
   useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
 
-  const toggle = (schedule) => {
+  const change = (schedule, call, status) => {
     const id = schedule.schedule_id;
-    const paused = schedule.status === 'paused';
     setRows((r) => ({...r, [id]: {busy: true}}));
-    (paused ? resumeSchedule : pauseSchedule)(id)
+    call(id)
       .then((next) => {
         if (!live.current) return;
-        if (!next || next.schedule_id !== id || next.status !== (paused ? 'active' : 'paused')) {
+        if (!next || next.schedule_id !== id || next.status !== status) {
           setRows((r) => ({...r, [id]: {error: 'The change was not confirmed. Reload the schedules before trying again.'}}));
           return;
         }
@@ -152,6 +153,10 @@ function Schedules({picked = '', schedules, onRetry, onChange, onAuth}){
         setRows((r) => ({...r, [id]: {error: error && error.status ? error.message : NO_ANSWER}}));
       });
   };
+  const toggle = (schedule) => (schedule.status === 'paused'
+    ? change(schedule, resumeSchedule, 'active')
+    : change(schedule, pauseSchedule, 'paused'));
+  const confirmCancel = (schedule, open) => setRows((r) => ({...r, [schedule.schedule_id]: open ? {confirm: true} : {}}));
 
   let body;
   if (schedules.state === 'loading') body = <p className="t42-status" role="status">Loading scheduled questions</p>;
@@ -178,13 +183,29 @@ function Schedules({picked = '', schedules, onRetry, onChange, onAuth}){
         {schedules.items.filter((s) => inMarket(s.market, picked)).map((s) => {
           const row = rows[s.schedule_id] || {};
           const paused = s.status === 'paused';
+          const cancelled = s.status === 'cancelled';
           return (
             <li key={s.schedule_id} className="a42-watch" data-schedule={s.schedule_id}>
               <span className="a42-name">{s.question}</span>
               <span className="a42-meta">{[marketWord(s.market), wordOf(TIERS, s.tier), wordOf(CADENCES, s.cadence), deliverWords(s.deliver)].join(' · ')}</span>
-              <span className="a42-state">{paused ? 'Paused' : 'Active'}</span>
+              <span className="a42-state">{STATE_WORDS[s.status] || STATE_WORDS.active}</span>
               <LastRun schedule={s} />
-              <button type="button" className="t42-button" disabled={Boolean(row.busy)} onClick={() => toggle(s)}>{paused ? 'Resume' : 'Pause'}</button>
+              {/* Albert, 23 October 2026: Cancel retires a schedule for good,
+                  so it asks first; a cancelled row keeps its history and
+                  offers no controls. */}
+              {!cancelled && !row.confirm && (
+                <>
+                  <button type="button" className="t42-button" disabled={Boolean(row.busy)} onClick={() => toggle(s)}>{paused ? 'Resume' : 'Pause'}</button>
+                  <button type="button" className="t42-button" disabled={Boolean(row.busy)} onClick={() => confirmCancel(s, true)}>Cancel</button>
+                </>
+              )}
+              {!cancelled && row.confirm && (
+                <>
+                  <p className="t42-line-text" role="status">Cancel this schedule for good? 42 stops asking it and it cannot be resumed. It stays listed here with its last answer.</p>
+                  <button type="button" className="w42-primary" onClick={() => change(s, cancelSchedule, 'cancelled')}>Cancel schedule</button>
+                  <button type="button" className="t42-button" onClick={() => confirmCancel(s, false)}>Keep it</button>
+                </>
+              )}
               {row.error && <p className="w42-error" role="alert">{row.error}</p>}
             </li>
           );

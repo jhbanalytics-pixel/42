@@ -1058,6 +1058,9 @@ def set_schedule_status(schedule_id, status):
     schedule = held[0]
     if schedule["status"] == status:
         return JSONResponse(schedule)
+    # Cancel is final: a cancelled schedule keeps its rows and stays listed, but is never paused or resumed again.
+    if schedule["status"] == "cancelled":
+        return error(409, "cancelled", f"Schedule {schedule_id} was cancelled, so it cannot be paused or resumed.")
     schedule.update(status=status, status_at=status_time(schedule["market"]))
     if not append("schedules", SCHEDULES, schedule_row(schedule)):
         return not_saved("schedule")
@@ -1072,6 +1075,11 @@ def pause_schedule(schedule_id: str):
 @app.post("/api/schedules/{schedule_id}/resume")
 def resume_schedule(schedule_id: str):
     return set_schedule_status(schedule_id, "active")
+
+
+@app.post("/api/schedules/{schedule_id}/cancel")
+def cancel_schedule(schedule_id: str):
+    return set_schedule_status(schedule_id, "cancelled")
 
 
 @app.get("/api/schedules")
