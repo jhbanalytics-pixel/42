@@ -596,7 +596,14 @@ async def start(request: Request):
     if busy:
         return error(429, "rate_limited",
                      f"{MAX_RUNNING} asks are already running; try again when one finishes.")
-    threading.Thread(target=execute, args=(ask, run_ask), daemon=True, name=req["ask_id"]).start()
+    try:
+        threading.Thread(target=execute, args=(ask, run_ask), daemon=True, name=req["ask_id"]).start()
+    except Exception as exc:
+        # No worker will ever end this ask, so it gives its running slot back before the refusal (audit W04-01).
+        log.error("ask %s: its worker did not start: %s", req["ask_id"], type(exc).__name__)
+        with _lock:
+            ASKS.pop(req["ask_id"], None)
+        return error(503, "agent_unavailable", "The Ask agent could not start this ask; try again.")
     if req["wait"]:
         await run_in_threadpool(ask.finished.wait)
         return view_response(await run_in_threadpool(readable, ask.snapshot()))
