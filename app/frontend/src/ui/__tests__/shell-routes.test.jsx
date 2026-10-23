@@ -29,7 +29,7 @@ const JOBS = {pulse: 'briefing', explore: 'discover', compare: 'compare', consol
 const OUTSIDE = ['browse', 'method', 'research', 'seeds', 'seedpath', 'lexicon', 'map', 'board', 'listen', 'network', 'historical', 'source-lab', 'topic'];
 /* Quiet register, 23 Sept 2026: the pages outside the jobs a reader lands on
    and needs marked, each with the path its one rail entry carries. */
-const MARKED_PAGES = {listen: '/listen', network: '/network', historical: '/historical', 'source-lab': '/source-lab', console: '/console'};
+const MARKED_PAGES = {listen: '/listen', network: '/network', historical: '/historical', 'source-lab': '/source-lab'};
 
 /* The shell as App hands it the route: the job it marks, and the one page
    outside the jobs it marks instead, as its only utility entry. */
@@ -78,10 +78,7 @@ describe('the rail carries the five jobs and, at most, the page the reader is on
 
   test('Ask marks Ask, not the Build job, and Build brief still marks Build', () => {
     expect(currentLinks(shellFor('console', railPlaceForHostRoute('console', {askOpen: true})))).toEqual([['utility', '/ask']]);
-    /* Audit W24-03: the 42 rail hides the jobs and leaves Build off its
-       menu, so Build also marks its own utility entry, which stays in view. */
-    expect(currentLinks(shellFor('console', railPlaceForHostRoute('console', {askOpen: false})))).toEqual([['job', '/build'], ['utility', '/console']]);
-    expect(railPlaceForHostRoute('console', {askOpen: false}).currentPage.label).toBe('Build');
+    expect(currentLinks(shellFor('console', railPlaceForHostRoute('console', {askOpen: false})))).toEqual([['job', '/build']]);
     expect(railPlaceForHostRoute('console', {askOpen: true}).currentPage.label).toBe('Ask');
   });
 
@@ -93,7 +90,7 @@ describe('the rail carries the five jobs and, at most, the page the reader is on
 describe('the rendered rail marks a job or nothing', () => {
   test('each job route marks its job', () => {
     for (const [host, job] of Object.entries(JOBS)){
-      expect(currentLinks(shellFor(host))).toEqual([['job', '/' + job], ...(MARKED_PAGES[host] ? [['utility', MARKED_PAGES[host]]] : [])]);
+      expect(currentLinks(shellFor(host))).toEqual([['job', '/' + job]]);
     }
   });
 

@@ -194,8 +194,6 @@ export function instrumentRouteForHostRoute(route){
    own title. */
 const CURRENT_PAGE_LINKS = Object.freeze({
   ask: Object.freeze({id: 'ask', label: 'Ask', href: '/ask'}),
-  /* Build is off the 42 rail's menu, so its own entry shows where the reader is. */
-  console: Object.freeze({id: 'console', label: 'Build', href: '/console'}),
   'source-lab': Object.freeze({id: 'source-lab', label: 'Source Lab', href: '/source-lab'}),
   listen: Object.freeze({id: 'listen', label: 'Listen', href: '/listen'}),
   network: Object.freeze({id: 'network', label: 'Network', href: '/network'}),
