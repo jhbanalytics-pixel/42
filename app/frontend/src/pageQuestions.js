@@ -9,6 +9,7 @@ export const PAGE_QUESTIONS = Object.freeze({
   '#/investigations': 'What is 42 researching for you in depth?',
   '#/dossiers': 'Which answers have you checked and can share?',
   '#/history': 'What did we see before, and what did we ask?',
+  '#/console': 'Where do you start an answer, an investigation or a dossier in one place?',
   '#/compare': 'How do trends stack up against each other?',
   '#/lexicon': 'Which words and hashtags are people using?',
   '#/communities': 'Which creators move together?',

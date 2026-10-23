@@ -9,11 +9,12 @@ GlobalRegistrator.register();
 afterAll(() => GlobalRegistrator.unregister());
 const {renderToStaticMarkup} = await import('react-dom/server');
 const {MapPage} = await import('../../map.jsx');
-const {RAIL_ALL} = await import('../../rail42.jsx');
+const {RAIL_ALL, MAP_ONLY} = await import('../../rail42.jsx');
 
 const html = renderToStaticMarkup(React.createElement(MapPage));
 const dom = new window.DOMParser().parseFromString(html, 'text/html');
-const menu = new Map(RAIL_ALL.map((item) => [item.href, item.label]));
+/* Build is off the menu but on the Map, under the name its page carries. */
+const menu = new Map([...RAIL_ALL, ...MAP_ONLY].map((item) => [item.href, item.label]));
 
 test('every Map node is named as the menu names its page', () => {
   const nodes = [...dom.querySelectorAll('a.map-node')];
