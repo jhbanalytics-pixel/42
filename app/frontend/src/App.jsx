@@ -1111,7 +1111,7 @@ export default function App(){
         )}
         <Suspense fallback={<RouteWait />}>
           {route === 'explore' && <Discover42 region={region} onRegionChange={setRegion} onAuth={onAuth} onCreateWatch={createWatch} />}
-          {route === 'topic42' && <TopicPage42 key={hash.param + ':' + topic42Market(window.location.hash, region)} itemId={hash.param} market={topic42Market(window.location.hash, region)} onAuth={onAuth} onCreateWatch={createWatch} />}
+          {route === 'topic42' && <TopicPage42 key={hash.param + ':' + topic42Market(window.location.hash, region)} itemId={hash.param} market={topic42Market(window.location.hash, region)} date={todayDateFromHash(window.location.hash)} onAuth={onAuth} onCreateWatch={createWatch} />}
           {route === 'coverage' && <CoveragePage42 onAuth={onAuth} />}
           {route === 'alerts' && <AlertsPage42 region={region} onAuth={onAuth} />}
           {route === 'console' && consoleShowsBuild(window.location.hash) && <Build42 region={region} onAuth={onAuth} />}

@@ -8,7 +8,7 @@
    A measured day on a platform series asks why that day jumped (section
    14.1), after a confirm that names the cost. */
 import {useEffect, useRef, useState} from 'react';
-import {fetchTopic} from './api42.js';
+import {fetchTopic, fetchTrend} from './api42.js';
 import {readerFigure, sentenceCase, seriesFigure} from './api.js';
 import {safeUrl} from './safeUrl.js';
 import {unitFor} from './readerUnits.js';
@@ -93,7 +93,11 @@ function Fig({figure, children}){
   );
 }
 
-export function TopicPage42({itemId, market, onAuth, onCreateWatch}){
+/* A topic page opened from a dated brief (#/t/<item_id>?market=ZA&date=...)
+   names that day. The topic read covers the latest run only, so when it no
+   longer holds the item the page reads the brief's own card and posts for
+   that day (contract section 5) instead of saying the topic is not found. */
+export function TopicPage42({itemId, market, date = null, onAuth, onCreateWatch}){
   const [load, setLoad] = useState({state: 'loading'});
   const [tick, setTick] = useState(0);
   const authRef = useRef(onAuth);
@@ -120,8 +124,27 @@ export function TopicPage42({itemId, market, onAuth, onCreateWatch}){
         if (day) forgetHashDay();
       })
       .catch((error) => {
+        if (ctrl.signal.aborted){ clearTimeout(timer); return; }
+        if (error && error.status === 404 && date && !error.auth){
+          /* The page's deadline stays armed over the dated read. */
+          fetchTrend(itemId, market, date, {signal: ctrl.signal})
+            .then((card) => {
+              clearTimeout(timer);
+              if (ctrl.signal.aborted) return;
+              setLoad(card && typeof card === 'object' && !Array.isArray(card) ? {state: 'dated', card} : {state: 'missing'});
+            })
+            .catch((later) => {
+              clearTimeout(timer);
+              if (ctrl.signal.aborted) return;
+              if (later && later.auth){
+                setLoad({state: 'auth'});
+                if (authRef.current) authRef.current();
+              } else if (later && later.status === 404) setLoad({state: 'missing'});
+              else setLoad({state: 'error', message: later && later.status ? later.message : 'The 42 service did not answer.'});
+            });
+          return;
+        }
         clearTimeout(timer);
-        if (ctrl.signal.aborted) return;
         if (error && error.auth){
           setLoad({state: 'auth'});
           if (authRef.current) authRef.current();
@@ -132,7 +155,7 @@ export function TopicPage42({itemId, market, onAuth, onCreateWatch}){
         }
       });
     return () => { clearTimeout(timer); ctrl.abort(); };
-  }, [itemId, market, tick]);
+  }, [itemId, market, date, tick]);
 
   if (load.state === 'loading'){
     return (
@@ -153,6 +176,35 @@ export function TopicPage42({itemId, market, onAuth, onCreateWatch}){
       <section className="page tp42">
         <h1 className="tp42-heading">Topic not found</h1>
         <p className="tp42-status">42 has no topic with this id in {marketWord(market)}.</p>
+      </section>
+    );
+  }
+  if (load.state === 'dated'){
+    const card = load.card;
+    const where = card.market || market;
+    const written = writtenTitle(card, card.title);
+    const unnamed = !written && isUnnamedTopic(card.title);
+    const heading = written || (unnamed ? UNNAMED_TOPIC_WORDS : card.title);
+    return (
+      <section className="page tp42">
+        <header className="tp42-head">
+          <h1 className="tp42-heading">{heading}</h1>
+          <p className="tp42-sub">{(written || unnamed) ? card.title + ' · ' : ''}{marketWord(where)} · from the brief of {longDate(date)}</p>
+          <p className="tp42-status">42's latest run no longer holds this topic, so this is its card and posts as that brief kept them. Its daily series, spread and history are not shown.</p>
+          {card.held_back && card.held_back.reason_text && (
+            <p className="tp42-held">Held back: {card.held_back.reason_text}</p>
+          )}
+        </header>
+        <div className="tp42-card" data-section="card" data-held={card.held_back ? '' : undefined}>
+          {card.held_back && <p className="tp42-card-label">What we saw (not published)</p>}
+          <ul className="tp42-card-list">
+            <TrendCard card={card} market={where} date={card.date || date} onAuth={onAuth} posts={false} />
+          </ul>
+        </div>
+        <Evidence items={Array.isArray(card.evidence) ? card.evidence : []} />
+        <p className="tp42-actions">
+          <a className="tp42-link" href={'#/today?date=' + date}>Back to the brief</a>
+        </p>
       </section>
     );
   }

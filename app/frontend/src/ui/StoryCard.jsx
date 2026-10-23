@@ -176,7 +176,7 @@ export function StoryCard({card: stored, market, date, onAuth, onWatch, onFeedba
             <span className="sc-rank" aria-hidden="true" data-lead={index === 0 ? '' : undefined}>{rank}</span>
             <div className="sc-heading">
               <h3 className="t42-card-title sc-title">
-                <a className="tc-title-link" href={topicHref(card.item_id, where)}>{title}</a>
+                <a className="tc-title-link" href={topicHref(card.item_id, where, when)}>{title}</a>
               </h3>
               {(written || unnamed) && <p className="t42-card-label sc-label" data-card-label="">{label}</p>}
             </div>

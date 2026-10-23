@@ -505,6 +505,43 @@ test('a topic 42 does not hold says so', async () => {
   expect(text()).toContain('42 has no topic with this id in South Africa');
 });
 
+/* Audit W19-03: a card opened from a dated brief whose item has left the
+   latest run opens as that brief's card and posts, not as Topic not found. */
+test('a topic gone from the latest run opens as the card of the dated brief it was opened from', async () => {
+  const dated = clone(topicFixture.card);
+  dated.date = '2026-09-29';
+  dated.evidence = clone(topicFixture.evidence || []);
+  serve((url) => String(url).startsWith('/api/trends/')
+    ? reply(200, dated)
+    : reply(404, {error: 'not_found', message: 'No such item.'}));
+  flushSync(() => root.render(<TopicPage42 itemId={ITEM} market="ZA" date="2026-09-29" />));
+  await settle();
+  expect(calls.map((call) => call.url)).toEqual([
+    '/api/topics/' + encodeURIComponent(ITEM) + '?market=ZA',
+    '/api/trends/' + encodeURIComponent(ITEM) + '?market=ZA&date=2026-09-29',
+  ]);
+  expect(text()).not.toContain('Topic not found');
+  expect(text()).toContain('29 September 2026');
+  expect(host.querySelector('[data-section="card"]')).not.toBeNull();
+  expect(host.querySelector('[data-section="evidence"]')).not.toBeNull();
+});
+
+test('without a brief date, a topic gone from the latest run still says it is not found and reads nothing else', async () => {
+  serve(reply(404, {error: 'not_found', message: 'No such item.'}));
+  flushSync(() => root.render(<TopicPage42 itemId={ITEM} market="ZA" />));
+  await settle();
+  expect(calls).toHaveLength(1);
+  expect(text()).toContain('Topic not found');
+});
+
+test('a dated topic that neither read holds says it is not found', async () => {
+  serve(reply(404, {error: 'not_found', message: 'No such item.'}));
+  flushSync(() => root.render(<TopicPage42 itemId={ITEM} market="ZA" date="2026-09-29" />));
+  await settle();
+  expect(calls).toHaveLength(2);
+  expect(text()).toContain('Topic not found');
+});
+
 test('a 401 hands over to the passcode screen', async () => {
   let asked = 0;
   serve(reply(401, {error: 'unauthorized', message: 'Missing or wrong passcode.'}));
