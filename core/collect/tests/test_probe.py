@@ -1109,7 +1109,7 @@ def test_bodies_report_writes_and_totals_a_routes_run(tmp_path):
     assert "| a2 | ask | prism/mentions | 200 | 2 | 2 | 1 |" in section
     assert "Details: 1 credits. Ask: 2 credits. Total: 3 credits." in section
     missing = section.split("Not called (skipped or stopped): ")[1].split(".")[0].split(", ")
-    assert missing == ["d2", "d3", "d4", "d5", "d6", "d7", "a1"]
+    assert missing == ["d2", "d3", "d4", "d5", "d6", "d7", "a1", "a3"]
 
 
 # probe.py --ig-locations: Instagram location ids for core/config/markets.yaml -----------------------------
@@ -1455,3 +1455,20 @@ def test_candidates_live_client_uses_the_build_share_after_the_schedule(monkeypa
     with redirect_stdout(io.StringIO()):
         probe.main(["--candidates"], clock=lambda: NOW)
     assert seen == {"run_id": "probe-candidates-20260929T040000Z", "schedule_started": True}
+
+
+# W09-04: instagram/search/reels with include=country is held at the spec's 60 credits a page while the vendor's reply
+# says half. The probe reads the charge for exactly that call, one page in one market, only when --routes names it.
+def test_routes_plan_probes_the_instagram_country_card_at_its_held_quote():
+    calls, dropped = probe.bodies_plan(["instagram/search/reels"])
+    assert dropped == []
+    [p] = calls
+    assert (p["id"], p["group"], p["method"]) == ("a3", "ask", "GET")
+    assert p["params"]["include"] == "country" and p["params"]["max_pages"] == 1
+    assert probe.hold(p) == 61 <= probe.BODIES_CAP
+    assert "instagram/search/reels" not in {c["route"] for c in probe.bodies_plan()[0]}
+    params, market, why = probe.pick(p, [post_row("instagram", "KE", hashtags=["#Amapiano"])])
+    assert why == "" and market == "KE"
+    assert params == {"query": "amapiano", "region": "KE", "include": "country", "max_pages": 1}
+    assert quote_for(p["route"], "GET", params) == 61
+    assert forbidden(p["route"], "GET", dict(params)) == ""

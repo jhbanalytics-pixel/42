@@ -1856,6 +1856,10 @@ def money_snapshot(run_date=None):
     day = run_date or now().date().isoformat()
     if now().date().isoformat() != day:
         return {"credits": None, "model_usd": None}, None, False
+    if _RECOVERY_FAILED:
+        # A running investigation the last scan could not read may hold ceilings that are not in RESERVED, so
+        # nothing proves any budget is left until a scan succeeds (recover_investigations).
+        return {"credits": None, "model_usd": None}, None, False
     try:
         spent = spent_today()
     except Exception as exc:
@@ -2309,6 +2313,8 @@ def stored_investigation_record(ask_id):
 # f42-agent runs as a single instance (max-instances 1), so a run no thread here holds and no stored record ends,
 # once it is older than the longest it may take, belongs to a process that has died (L3).
 ORPHAN_AFTER_SECONDS = 3600
+# True while the last recover_investigations scan failed: a running row it could not reconcile may hold ceilings.
+_RECOVERY_FAILED = False
 
 
 def _utcnow():
@@ -2338,6 +2344,12 @@ def reconcile_investigation(investigation_id):
             active = RUNNING_INVESTIGATIONS.get(investigation_id)
         if active is not None and not active.finished.is_set():
             return rows
+        if active is None:
+            # No thread here owns the run (after a restart, its owner died with the reservation it granted), so
+            # hold the stored plan's ceilings, which are never less than the granted ones, until the run ends.
+            plan = investigations.view(current)["plan"]
+            investigations.RESERVED.keep(investigation_id, {"credits": plan["max_credits"],
+                                                            "model_usd": plan["max_model_usd"]})
         try:
             record = stored_investigation_record(current["ask_id"])
             if (not record or record.get("ask_id") != current["ask_id"]
@@ -2362,6 +2374,9 @@ def reconcile_investigation(investigation_id):
                 investigations.view(current)["estimate"], current["ask_id"],
                 (record.get("run") or {}).get("run_id") or current["run_id"])
             if append("investigations", INVESTIGATIONS, row):
+                # The Ask's runs row holds what the run spent, so its reservation ends here, as finish_investigation
+                # ends it for a run this process saw through.
+                investigations.RESERVED.release(investigation_id)
                 return [*rows, row]
             log.error("investigation %s: its recovered finish row was not written", investigation_id)
         except Exception as exc:
@@ -2371,7 +2386,10 @@ def reconcile_investigation(investigation_id):
 
 
 def recover_investigations():
-    """Reconcile stored running rows at startup. Missing local state alone never proves a dead owner."""
+    """Reconcile stored running rows at startup. Missing local state alone never proves a dead owner. A scan that
+    cannot read or reconcile every running row leaves the budget unknown (money_snapshot) until one can."""
+    global _RECOVERY_FAILED
+    failed = False
     try:
         if os.environ.get("F42_DATA") == "bigquery":
             rows = _stored("investigations",
@@ -2391,10 +2409,13 @@ def recover_investigations():
             try:
                 reconcile_investigation(row["investigation_id"])
             except Exception as exc:
+                failed = True
                 log.error("investigation %s: startup recovery failed (exception_type=%s)",
                           row["investigation_id"], type(exc).__name__)
     except Exception as exc:
+        failed = True
         log.error("investigation startup scan failed (exception_type=%s)", type(exc).__name__)
+    _RECOVERY_FAILED = failed
 
 
 def shown_investigations(rows):

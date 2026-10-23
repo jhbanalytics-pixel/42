@@ -27,10 +27,10 @@ GEMINI_DEFAULT_MODEL = "gemini-3.8-flash"
 GEMINI_LIST_PRICES = {"gemini-3.8-flash": {"input": 1.50, "output": 7.50, "cached": 0.15}}
 
 
-# Priority PayGo: the request header Vertex reads, and the price multiplier when GEMINI_PRIORITY_PRICE_MULT is unset
-# (Google bills priority at a higher rate than standard and publishes no fixed ratio; 1.8 is a third-party reading).
+# Priority PayGo: the request header Vertex reads. Google bills priority at a higher rate than standard and publishes
+# no fixed ratio, so there is no default multiplier: GEMINI_PRIORITY_PRICE_MULT must carry one read off a billed
+# priority record, and without it priority prices nothing and sends nothing.
 PRIORITY_HEADER = {"X-Vertex-AI-LLM-Shared-Request-Type": "priority"}
-PRIORITY_PRICE_MULT = 1.8
 
 
 class PriceUnset(KeyError):
@@ -43,11 +43,12 @@ def gemini_priority() -> bool:
 
 
 def priority_price_mult() -> float:
-    """GEMINI_PRIORITY_PRICE_MULT, else PRIORITY_PRICE_MULT; raises PriceUnset when it is set but not a number of at
-    least 1, since a lower one would book less than priority bills."""
+    """GEMINI_PRIORITY_PRICE_MULT; raises PriceUnset when it is unset, or not a number of at least 1, since a lower
+    one would book less than priority bills."""
     value = (os.environ.get("GEMINI_PRIORITY_PRICE_MULT") or "").strip()
     if not value:
-        return PRIORITY_PRICE_MULT
+        raise PriceUnset("GEMINI_PRIORITY is on but GEMINI_PRIORITY_PRICE_MULT is unset: set the multiplier a billed "
+                         "priority record shows before priority requests are sent")
     try:
         mult = float(value)
     except ValueError:

@@ -477,7 +477,7 @@ def test_run_ask_books_full_gemini_research_reserve_into_daily_projection(monkey
     daily_cap = ask.hold_usd("T0", "gemini-3.8-flash") + booked / 2
     monkeypatch.setattr(ask, "model_daily_usd", lambda now: daily_cap)
     second = Harness(research=research)
-    second.deps.spent_today_usd = lambda: ask.model_spend_today(
+    second.deps.spent_today_usd = lambda at: ask.model_spend_today(
         DailyProjection(), datetime(2026, 9, 28, 8, 15, tzinfo=timezone(timedelta(hours=2))))
     second_result = second.run(tier="T1")
 

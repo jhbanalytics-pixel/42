@@ -698,7 +698,9 @@ class Deps:
     research: Callable = default_research
     now: Callable[[], datetime] = lambda: datetime.now(SAST)
     check: Callable | None = None  # check_answer(draft, ctx, warehouse, *, window, markets) -> (answer, verdicts)
-    spent_today_usd: Callable[[], float] | None = None
+    # spent_today_usd(at) -> USD spent on models on at's SAST day: run_ask passes the one accounting moment its cap,
+    # hold and runs row also take, so a read that ends after SAST midnight still reads the day it decides for.
+    spent_today_usd: Callable[[datetime], float] | None = None
     # store_breadth(ctx, warehouse, platforms) -> query ids: the whole-store counts the gate runs once before the
     # writer. None runs none; _default_deps sets it, so every live ask counts the whole store.
     store_counts: Callable | None = None
@@ -1078,7 +1080,8 @@ def _first_round(deps: Deps, ctx: RunContext, client: _Counted, setup: ResearchS
     """T2's first round: one researcher per platform group, all at once. Each lane gets a fair slice of the tier's
     credits, capped at the slice less the gap reserve (the 55% first round plus the 20% enrichment share, which
     enrich_tools holds at 20% of the slice), a fair share of the calls less the same reserve, the tier's turns and
-    researcher_usd. The 55% for live searches is in each researcher's instruction; the cap and the reserve are code."""
+    researcher_usd. The 55% for live searches is in each researcher's instruction and is held in code too
+    (search_cap), so live searches cannot spend the enrichment share."""
     requested_groups = list(dict.fromkeys("reddit_threads" if platform in {"reddit", "threads"} else platform
                                           for platform in requested_platforms or []))
     groups = platform_groups(markets, requested_platforms=requested_groups)
@@ -1095,7 +1098,8 @@ def _first_round(deps: Deps, ctx: RunContext, client: _Counted, setup: ResearchS
     share = tier["credits"] / len(groups)
     round_share = FIRST_ROUND_SHARE + ENRICH_SHARE
     limits = {"credits": share, "calls": int(tier["calls"] * round_share / len(groups)),
-              "max_turns": tier["max_turns"], "max_budget_usd": researcher_usd(), "credit_cap": share * round_share}
+              "max_turns": tier["max_turns"], "max_budget_usd": researcher_usd(), "credit_cap": share * round_share,
+              "search_cap": share * FIRST_ROUND_SHARE}
     progress.step("plan", f"Sending {len(groups)} researchers out at once: "
                           + ", ".join(GROUP_LABELS[g] for g in groups))
     jobs = [(ctx.lane(dict(limits)), _lane_prompt(prompt, g, len(groups), FIRST_ROUND_SHARE * share),
@@ -1127,7 +1131,7 @@ def _plan_round(deps: Deps, ctx: RunContext, client: _Counted, setup: ResearchSe
         routes = sorted({r for group in sub["platforms"] for r in group_routes(group)})
         credits = sub["credits"] * scale
         lane = ctx.lane({"credits": credits, "calls": calls, "max_turns": TIERS["T3"]["max_turns"],
-                         "max_budget_usd": lane_usd})
+                         "max_budget_usd": lane_usd, "search_cap": (1 - ENRICH_SHARE) * credits})
         jobs.append((lane, _angle_prompt(prompt, sub, len(subs), routes, credits),
                      _Counted(client.client, routes, client.lock)))
     return _research_lanes(deps, jobs, setup, progress, should_stop, ctx, client)
@@ -1243,7 +1247,7 @@ def _default_deps(*, gemini_retries: int = 1) -> Deps:
         model = _AskGeminiModel(model)
     return Deps(warehouse=warehouse, socialcrawl=_socialcrawl_client, tables=BigQueryTableWriter(),
                 model=model, research=research, store_counts=store_breadth, topic_sweep=topic_sweep,
-                spent_today_usd=lambda: model_spend_today(warehouse, datetime.now(SAST)))
+                spent_today_usd=lambda at: model_spend_today(warehouse, at))
 
 
 def _request(request: dict) -> tuple[str, str, str, str | None, str]:
@@ -1978,18 +1982,20 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     # cap and take this ask's hold in one locked step, so two asks starting together cannot both fit under it. A spend
     # that cannot be read refuses the ask: nothing then proves any hold fits. Finished asks whose runs rows are not
     # written yet count too, and so does any row written while the read was going, which the read may have missed.
+    # The decision's moment is taken before the read and the read is of its SAST day, so the spend read, the cap,
+    # the hold and the runs row's run_date (spend_day) are one accounting day even when the read ends after midnight.
     spent, notice = 0.0, None
     reading = object()
     with _SPEND_LOCK:
         _READING[reading] = 0.0
     try:
+        decision_at = deps.now().astimezone(SAST).replace(microsecond=0)
         if deps.spent_today_usd is not None:
             try:
                 with timings.begin("io", "spend_read"):
-                    spent = deps.spent_today_usd()
+                    spent = deps.spent_today_usd(decision_at)
             except Exception:
                 spent = None
-        decision_at = deps.now().astimezone(SAST).replace(microsecond=0)
         model_cap = model_daily_usd(now=decision_at)
         inv = _investigation(request, model=model_name, now=decision_at)
         if client is None:
