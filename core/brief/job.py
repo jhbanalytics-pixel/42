@@ -221,6 +221,8 @@ BOARD_WORDS = {"board_tiktok_hashtag": "TikTok hashtag board", "board_youtube": 
                "board_apple_music": "Apple Music chart"}
 NO_CONFIRM = {"kind": "thin_coverage",
               "text": "Cross-platform confirmation did not run today: cards rest on 42's own collection only"}
+CONFIRM_FAILED = "Cross-platform confirmation failed today"
+CONFIRM_PARTIAL = "Cross-platform confirmation was partial today"
 NO_COUNTED_DAYS = "No creator posted about it in the last 3 days"
 PACK_MAX, PER_CREATOR = 12, 2  # core/brief/sql/evidence.sql: at most 12 posts in a pack and 2 per creator
 # Leave this reserve for the boards, moments, claim_checks, briefs and chain.finish. Each model dispatch reads the
@@ -1859,7 +1861,31 @@ def _open_ingest(client, sc):
     return ingest, "ok" if ingest is not None else "unavailable"
 
 
-def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chain, clock, started=None):
+def _confirm_routes(found):
+    """A market's confirm searches by outcome: ok, empty and cached completed; a halting status stopped the lane and
+    is reported as such; every other status (error, forbidden, refunded, not_in_replay) failed."""
+    statuses = Counter(call.get("status") for r in found.values() for call in r.get("calls") or [])
+    failed = {s: n for s, n in sorted(statuses.items(), key=lambda kv: str(kv[0]))
+              if s not in confirm_lane.INGEST_STATUSES and s not in confirm_lane.HALT}
+    completed = sum(n for s, n in statuses.items() if s in confirm_lane.INGEST_STATUSES)
+    return {"searches": sum(statuses.values()), "completed": completed, "failed": failed}
+
+
+def _confirm_banner(routes):
+    """The banner for a market some of whose confirm searches failed, or None when none failed. The cards keep their
+    own decisions: a failed search only means presence elsewhere was not checked."""
+    failed = (routes or {}).get("failed") or {}
+    if not failed:
+        return None
+    n = sum(failed.values())
+    text = (f"{CONFIRM_PARTIAL if routes['completed'] else CONFIRM_FAILED}: {n} of {routes['searches']} searches did "
+            f"not complete ({', '.join(str(s) for s in failed)})")
+    if not routes["completed"]:
+        text += "; cards rest on 42's own collection only"
+    return {"kind": "thin_coverage", "text": text}
+
+
+def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chain, clock, started=None, routes=None):
     """Confirm the Today-bound candidates of each market inside one confirm share, then the candidates held only by
     the post floors (_floor_held), so the share goes to Today-bound ones first. Other held items are skipped: a
     search on them would spend credits without changing any decision, since presence never lifts a hold. Each
@@ -1872,6 +1898,8 @@ def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chai
     stopped that way is not confirmed, so a slow vendor cannot push explanations past 06:15 or the task timeout; a confirm call that raises, or a market whose
     searches the lane stopped (its share used, or the client's cap_reached, balance_floor or insufficient_credits),
     stops confirming for the rest of the run, leaves that market unconfirmed and keeps the credits already recorded.
+    A market's searches are tallied by outcome into routes ({market: _confirm_routes}) when it is given; a market
+    where searches ran and none completed (each answered error, forbidden or the like) is not confirmed.
     Returns ({market: {item_id: platforms_found}} for the items found anywhere, the set of markets confirmed, and
     why confirming stopped or None)."""
     found_by_market, confirmed, why = {}, set(), {}
@@ -1916,6 +1944,9 @@ def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chai
                 since = c["row"].get("first_seen") or d - timedelta(days=confirm_lane.SINCE_DAYS)
                 c["pack"]["facts"].append(f"Also found by search since {since.isoformat()}: {', '.join(platforms)}")
                 found_by_market.setdefault(m, {})[c["row"]["item_id"]] = list(platforms)
+        tally = _confirm_routes(found)
+        if routes is not None:
+            routes[m] = tally
         stopped = [r for r in found.values() if r.get("status") == "stopped"]
         if stopped:
             if "note" in why:
@@ -1923,6 +1954,8 @@ def _confirm(by_market, d, *, client, sc, confirm, ingest, ingested, spend, chai
             halts = [call["status"] for r in stopped for call in r.get("calls") or []
                      if call.get("status") in confirm_lane.HALT]
             return found_by_market, confirmed, f"stopped in {m} ({halts[0] if halts else 'confirm share used'})"
+        if tally["failed"] and not tally["completed"]:
+            continue
         confirmed.add(m)
     return found_by_market, confirmed, None
 
@@ -2038,7 +2071,7 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
     merged = _merge(by_market)
 
     found, confirmed, note = {}, set(), sc_skipped and f"skipped: {sc_skipped}"
-    ingest_status, ingested = None, {}
+    ingest_status, ingested, confirm_routes = None, {}, {}
     if sc is not None:
         ingest, ingest_status = _open_ingest(client, sc)
         if ingest_status == "unavailable":
@@ -2046,7 +2079,7 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                   file=sys.stderr)
         found, confirmed, note = _confirm(by_market, d, client=client, sc=sc, confirm=confirm, ingest=ingest,
                                           ingested=ingested, spend=spend, chain=chain, clock=clock,
-                                          started=started)
+                                          started=started, routes=confirm_routes)
     if note:
         print(f"brief {d.isoformat()}: confirm {note}", file=sys.stderr)
     grown, late_merged = _regrow(client, d, by_market, chain=chain, clock=clock, build_ctx=build_ctx,
@@ -2087,7 +2120,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
                                    "claim_id": chk["claim_id"], "rule": chk["rule"], "verdict": chk["verdict"],
                                    "checker": chk["checker"], "run_id": run.run_id,
                                    "reason": check_reason(chk), **retained_columns(chk)})
-        banners = [b for b in (warm, None if m in confirmed else NO_CONFIRM, late_banner) if b]
+        confirm_banner = _confirm_banner(confirm_routes.get(m)) or (None if m in confirmed else NO_CONFIRM)
+        banners = [b for b in (warm, confirm_banner, late_banner) if b]
         if selection_audits.get(m, {}).get("candidate_read") in ("held", NULL_COLUMN_READ_FAILED):
             banners.append({"kind": "data_issue", "text": "Data issue: today's candidates could not be read"})
         boards_, unnamed = boards(client, d, m, core, agent, hidden=hidden)
@@ -2148,6 +2182,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
             c["row"]["item_id"] for c in tasks if (results.get(id(c)) or {}).get("reason", "not_started")]}
     if note:
         counts["confirm"] = note
+    if confirm_routes:
+        counts["confirm_routes"] = confirm_routes
     if grown:
         counts["regrown"] = grown
     if ingest_status is not None:

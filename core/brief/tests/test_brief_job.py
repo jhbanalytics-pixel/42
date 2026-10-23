@@ -3197,3 +3197,53 @@ def test_the_daily_seen_id_reaches_only_the_tiktok_search_through_the_real_lane(
     assert tiktok and {c[0] for c in tiktok} == set(MARKETS)
     assert all(c[3]["seen"] == collect_job.seen_id(c[0], D) for c in tiktok)
     assert all("seen" not in c[3] for c in sc.calls if c[2] == confirm_lane.MULTI)
+
+
+class StatusSC:
+    """A live confirm client whose every call returns the status its route is given, charging one credit."""
+
+    mode, run_id = "live", "brief-x"
+
+    def __init__(self, statuses, markets=MARKETS):
+        self.statuses = statuses
+        self.markets = set(markets)
+        self.calls = []
+
+    def call(self, route, params, *, market, item_id, lane):
+        self.calls.append((market, route))
+        status = self.statuses[route] if market in self.markets else "empty"
+        return SimpleNamespace(status=status, route=route, items=[], credits_charged=1, reason=None, body=None)
+
+
+def test_a_market_whose_confirm_searches_all_returned_error_is_not_counted_confirmed():
+    # W17-02: error and forbidden are not completed searches; a market where none completed reads as unconfirmed,
+    # with the route outcome in the payload and the run counts, and its cards keep their own gate decisions.
+    sc = StatusSC({confirm_lane.MULTI: "error", confirm_lane.TIKTOK: "error"}, markets=("ZA",))
+    r = brief(world(n=2), sc=sc, confirm=confirm_lane.confirm)
+    za = payload(r, "ZA")
+    [banner] = no_confirm(za)
+    assert banner["text"].startswith("Cross-platform confirmation failed today")
+    assert "4 of 4 searches did not complete (error)" in banner["text"]
+    assert all(c["explained"] for c in all_cards(za)) and len(all_cards(za)) == 2
+    assert r.counts["confirm_routes"]["ZA"] == {"searches": 4, "completed": 0, "failed": {"error": 4}}
+    for m in ("NG", "KE"):
+        assert not no_confirm(payload(r, m))
+        assert r.counts["confirm_routes"][m] == {"searches": 4, "completed": 4, "failed": {}}
+
+
+def test_a_market_with_some_failed_confirm_searches_shows_a_partial_confirmation_issue():
+    sc = StatusSC({confirm_lane.MULTI: "forbidden", confirm_lane.TIKTOK: "ok"}, markets=("NG",))
+    r = brief(world(n=2), sc=sc, confirm=confirm_lane.confirm)
+    [banner] = no_confirm(payload(r, "NG"))
+    assert banner["text"] == ("Cross-platform confirmation was partial today: 2 of 4 searches did not complete "
+                              "(forbidden)")
+    assert r.counts["confirm_routes"]["NG"] == {"searches": 4, "completed": 2, "failed": {"forbidden": 2}}
+    assert all(c["explained"] for c in all_cards(payload(r, "NG")))
+
+
+def test_confirm_searches_that_return_empty_are_complete_and_show_no_issue():
+    sc = StatusSC({confirm_lane.MULTI: "empty", confirm_lane.TIKTOK: "empty"})
+    r = brief(world(n=2), sc=sc, confirm=confirm_lane.confirm)
+    for m in MARKETS:
+        assert not no_confirm(payload(r, m))
+        assert r.counts["confirm_routes"][m]["failed"] == {}
