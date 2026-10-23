@@ -1016,6 +1016,7 @@ def _topic_sweep(ctx: RunContext, warehouse: Warehouse, topic: list[str], platfo
     window = (since, until)
     started = time.monotonic()
     filters, shared = _search_filters(platforms, None, 0)
+    filters.append(NOT_SUPPRESSED)  # the sweep stores what it finds as evidence, as search_posts does
     words = " OR ".join(topic)
     base = " ".join(t.lstrip("#") for t in topic)
     curated, tags = _widen(ctx, warehouse, words, since, until, platforms)
@@ -1040,7 +1041,8 @@ def _topic_sweep(ctx: RunContext, warehouse: Warehouse, topic: list[str], platfo
             continue
         try:
             sql, params = build()
-            result = sql_query(ctx, warehouse, sql, params=params, purpose=f"Topic sweep, {label}: {base}")
+            result = internal_read("topic_sweep", ctx, warehouse, sql, purpose=f"Topic sweep, {label}: {base}",
+                                   params=params)
         except Exception as e:
             _emit_retrieval_trace(ctx, mode, error=e)
             out["failed"][label] = _reason(e)

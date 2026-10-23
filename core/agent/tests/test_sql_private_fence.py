@@ -338,7 +338,7 @@ def test_b23_calendar_analogues_and_media_stay_readable():
 # B20. INTERNAL_ALLOW lists exactly the functions that read a denied object, and only those functions use it.
 def test_b20_internal_allow_lists_exactly_the_functions_that_read_denied_objects():
     registry = module.INTERNAL_ALLOW
-    assert set(registry) == {"discover_creators", "search_posts", "fetch_posts", "recall_findings",
+    assert set(registry) == {"discover_creators", "search_posts", "fetch_posts", "topic_sweep", "recall_findings",
                              "get_trending_fallback_snapshot", "log_forecast"}
     for name in ("discover_creators", "search_posts", "fetch_posts"):  # each leaves out the creators hidden now
         assert set(registry[name]) == {f"{CORE}.v_suppressed_creators", f"{CORE}.suppressions"}

@@ -11,7 +11,7 @@ from core.agent.spread import spread_order
 from core.agent.tests.test_ask import Harness, make_research
 from core.agent.tests.test_ask_store_background import StoreWarehouse
 from core.agent.tools import warehouse as wh_module
-from core.agent.tools.sql_query import check_sql
+from core.agent.tools.sql_query import INTERNAL_ALLOW, check_sql
 from core.agent.tools.warehouse import SWEEP_TOOL, store_breadth, sweep_topic, topic_sweep
 
 NOW = datetime(2026, 10, 10, 6, 0)
@@ -133,7 +133,7 @@ def test_the_keyword_searches_differ_in_order_and_match_and_the_semantic_ones_in
     assert "ORDER BY COALESCE(p.published_at" in keyword[1][0]
     assert len({r[1]["q"] for r in semantic}) == 2
     for sql, params in wh.runs:
-        check_sql(sql)
+        check_sql(sql, INTERNAL_ALLOW["topic_sweep"] if "co_posts" not in sql else ())
         assert "humor" not in sql.lower()
         assert params.get("market", "ZA") == "ZA"
 
