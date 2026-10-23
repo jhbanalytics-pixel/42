@@ -244,7 +244,12 @@ def _communities(page):
     """[(every member id, community body)] for the market, largest first."""
     store = page.store
     # The creators joined by three shared items, grouped as the pairs stream in (store.py community_components).
-    groups = store.community_groups(page.market, page.start, page.end, page.no_edge) or []
+    # None means a source table is missing, so 42 cannot say there are no communities: the page is unavailable, while
+    # a read that found no groups is a true empty list.
+    groups = store.community_groups(page.market, page.start, page.end, page.no_edge)
+    if groups is None:
+        log.warning("the community source tables are missing; communities are unavailable")
+        raise PeopleUnavailable()
     found = [(members, shared) for members, shared in groups if len(members) >= MIN_MEMBERS]
     if not found:
         return []

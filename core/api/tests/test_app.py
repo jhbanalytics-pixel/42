@@ -1102,6 +1102,20 @@ def test_communities_routes(v2):
     assert v2.client.get("/api/communities", headers=GOOD).status_code == 400
 
 
+@pytest.mark.parametrize("groups, status", [(None, 503), ([], 200)])
+def test_communities_route_says_unavailable_when_the_sources_are_missing(v2, monkeypatch, groups, status):
+    """W03-03: missing community source tables are not an empty list; a read that found no groups still is."""
+    from core.api.store import FixtureStore
+
+    monkeypatch.setattr(FixtureStore, "community_groups", lambda self, *args: groups)
+    r = v2.client.get("/api/communities", params={"market": "NG"}, headers=GOOD)
+    assert r.status_code == status
+    if groups is None:
+        assert r.json()["error"] == "people_unavailable"
+    else:
+        assert r.json()["communities"] == []
+
+
 def test_history_routes(v2):
     r = v2.client.get(f"/api/history/items/{HERITAGE_ID}", params={"market": "ZA"}, headers=GOOD)
     assert r.status_code == 200 and r.json()["waves"]
