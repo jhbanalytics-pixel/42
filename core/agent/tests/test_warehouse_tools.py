@@ -9,7 +9,7 @@ from sqlglot import exp
 from core.agent import checks
 from core.agent.answer import validate_answer
 from core.agent.context import Refused, RunContext
-from core.agent.tools.sql_query import check_sql, check_sql_harness
+from core.agent.tools.sql_query import INTERNAL_ALLOW, check_sql, check_sql_harness
 from core.agent.tools.warehouse import (
     FINDINGS_TABLE,
     MAX_POSTS,
@@ -26,6 +26,7 @@ from core.agent.tools.warehouse import (
 from core.agent.tests.test_history import DuckWarehouse
 
 INJECTION = "braai'; DROP TABLE intelligence_42_core.posts; --"
+SEARCH_ALLOW = INTERNAL_ALLOW["search_posts"]  # search_posts and fetch_posts read the suppression view
 
 POST_ROWS = [
     {
@@ -82,7 +83,7 @@ def test_search_posts_keeps_values_out_of_sql(ctx):
     wh = FakeWarehouse(POST_ROWS)
     search_posts(ctx, wh, INJECTION, platforms=["tiktok", "x"], author="@chef_za", min_engagement=10)
     sql, params = wh.runs[0][0], wh.runs[0][1]
-    check_sql(sql)
+    check_sql(sql, SEARCH_ALLOW)
     assert "DROP" not in sql and "braai" not in sql.lower()
     assert "tiktok" not in sql and "chef_za" not in sql
     values = [v for v in params.values() if isinstance(v, str)]
@@ -90,7 +91,7 @@ def test_search_posts_keeps_values_out_of_sql(ctx):
     assert "tiktok" in values and "twitter" in values and "chef_za" in values  # x binds as the stored name
     assert params["min_engagement"] == 10
     assert tables_in(sql) == ["intelligence_42_core.creators", "intelligence_42_core.posts",
-                              "intelligence_42_core.v_post_source_markets"]
+                              "intelligence_42_core.v_post_source_markets", "intelligence_42_core.v_suppressed_creators"]
 
 
 def test_search_posts_default_window_is_seven_days_to_as_of(ctx):
@@ -145,7 +146,7 @@ def test_search_posts_limit_capped(ctx, asked, expected):
 def test_search_posts_sorts_pass_check_sql(ctx, sort):
     wh = FakeWarehouse([])
     search_posts(ctx, wh, "braai amapiano", sort=sort, platforms=["tiktok"], author="chef_za", min_engagement=5)
-    check_sql(wh.runs[0][0])
+    check_sql(wh.runs[0][0], SEARCH_ALLOW)
 
 
 def test_search_posts_stores_evidence_and_fences_output(ctx):
@@ -218,7 +219,7 @@ def test_search_posts_semantic_rows_carry_post_date(ctx):
     wh = SplitWarehouse([], [dict(sem("s1", 0.1), published_at=None, post_date=date(2026, 9, 27))])
     search_posts(ctx, wh, "braai")
     sql = wh.runs[1][0]
-    check_sql(sql)
+    check_sql(sql, SEARCH_ALLOW)
     assert "intelligence_42_core.posts" in tables_in(sql) and "post_date" in sql
     assert ctx.evidence["s1"]["posted_at"] == "2026-09-27"
 
@@ -291,11 +292,11 @@ def test_search_posts_runs_semantic_tvf_with_named_parameters_only(ctx):
     search_posts(ctx, wh, INJECTION, since="2026-09-01", until="2026-09-10", limit=20)
     assert len(wh.runs) == 2
     sql, params = wh.runs[1][0], wh.runs[1][1]
-    check_sql(sql)
+    check_sql(sql, SEARCH_ALLOW)
     tree = sqlglot.parse_one(sql, dialect="bigquery")
     assert sorted(f"{t.db}.{t.name or t.this.name}" for t in tree.find_all(exp.Table)) == [
         "intelligence_42_agent.tvf_search_posts_scoped", "intelligence_42_core.creators", "intelligence_42_core.posts",
-        "intelligence_42_core.v_post_source_markets"]
+        "intelligence_42_core.v_post_source_markets", "intelligence_42_core.v_suppressed_creators"]
     assert "DROP" not in sql and "braai" not in sql.lower()
     args = tvf_args(sql)
     assert len(args) == 8
@@ -312,7 +313,7 @@ def test_search_posts_semantic_market_is_a_parameter(ctx):
     wh = SplitWarehouse([], [])
     search_posts(ctx, wh, "braai", limit=500)
     sql, params = wh.runs[1][0], wh.runs[1][1]
-    check_sql(sql)
+    check_sql(sql, SEARCH_ALLOW)
     args = tvf_args(sql)
     assert all(isinstance(a, exp.Parameter) for a in args[:5])
     assert [a.name for a in args[:5]] == ["q", "market", "since", "until", "k"]
@@ -324,7 +325,7 @@ def test_search_posts_semantic_keeps_the_other_filters(ctx):
     wh = SplitWarehouse([], [])
     search_posts(ctx, wh, "braai", platforms=["tiktok"], author="@chef_za", min_engagement=7)
     sql, params = wh.runs[1][0], wh.runs[1][1]
-    check_sql(sql)
+    check_sql(sql, SEARCH_ALLOW)
     assert "tiktok" not in sql and "chef_za" not in sql
     assert params["platform_0"] == "tiktok"
     assert params["author"] == "chef_za"
@@ -344,6 +345,7 @@ def source_market_con():
                 "hashtags VARCHAR[])")
     con.execute("CREATE TABLE intelligence_42_core.creators (platform VARCHAR, creator_id VARCHAR, handle VARCHAR, "
                 "home_market VARCHAR)")
+    con.execute("CREATE TABLE intelligence_42_core.v_suppressed_creators (creator_id VARCHAR)")  # nobody hidden
     con.execute("CREATE TABLE intelligence_42_core.v_post_source_markets (post_id VARCHAR, "
                 "source_markets VARCHAR[], source_sightings STRUCT(source_market VARCHAR, source_region VARCHAR, "
                 "route VARCHAR, protocol VARCHAR, observed_at TIMESTAMP, obs_date DATE)[])")
@@ -561,7 +563,7 @@ def test_search_posts_handle_falls_back_to_creator_id_when_creators_has_no_row(c
     assert handle_column(wh.runs[0][0]) == "COALESCE(c.handle, p.creator_id) AS handle"
     assert handle_column(wh.runs[1][0]) == "COALESCE(c.handle, s.creator_id) AS handle"
     for sql, _, _ in wh.runs:
-        check_sql(sql)
+        check_sql(sql, SEARCH_ALLOW)
 
 
 # fetch_posts: hydrate posts the researcher only saw in sql_query rows
@@ -589,9 +591,9 @@ def test_fetch_posts_hydrates_query_row_ids_into_evidence(ctx):
 
     assert len(wh.runs) == 1
     sql, params = wh.runs[0][0], wh.runs[0][1]
-    check_sql(sql)
+    check_sql(sql, SEARCH_ALLOW)
     assert tables_in(sql) == ["intelligence_42_core.creators", "intelligence_42_core.posts",
-                              "intelligence_42_core.v_post_source_markets"]
+                              "intelligence_42_core.v_post_source_markets", "intelligence_42_core.v_suppressed_creators"]
     assert handle_column(sql) == "COALESCE(c.handle, p.creator_id) AS handle"
     assert obs(1) not in sql and obs(2) not in sql
     assert {k: v for k, v in params.items() if k.startswith("post_id_")} == {

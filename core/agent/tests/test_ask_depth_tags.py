@@ -12,10 +12,11 @@ from core.agent.context import Refused, RunContext
 from core.agent.tests.test_history import DuckWarehouse
 from core.agent.tests.test_warehouse_tools import SplitWarehouse, kw, sem
 from core.agent.tools import warehouse as wh_module
-from core.agent.tools.sql_query import check_sql
+from core.agent.tools.sql_query import INTERNAL_ALLOW, check_sql
 from core.agent.tools.warehouse import LOCAL_TERMS_PATH, MAX_TERMS, load_local_terms, search_posts
 
 NOW = datetime(2026, 10, 10, 6, 0)
+SEARCH_ALLOW = INTERNAL_ALLOW["search_posts"]  # search_posts and fetch_posts read the suppression view
 
 
 @pytest.fixture
@@ -70,6 +71,7 @@ def humour_con():
                 "hashtags VARCHAR[])")
     con.execute("CREATE TABLE intelligence_42_core.creators (platform VARCHAR, creator_id VARCHAR, handle VARCHAR, "
                 "home_market VARCHAR)")
+    con.execute("CREATE TABLE intelligence_42_core.v_suppressed_creators (creator_id VARCHAR)")  # nobody hidden
     con.execute("CREATE TABLE intelligence_42_core.v_post_source_markets (post_id VARCHAR, "
                 "source_markets VARCHAR[], source_sightings STRUCT(source_market VARCHAR, source_region VARCHAR, "
                 "route VARCHAR, protocol VARCHAR, observed_at TIMESTAMP, obs_date DATE)[])")
@@ -96,7 +98,7 @@ def test_the_tag_clause_is_an_exact_case_blind_match_on_the_column_with_the_valu
     wh = TagWarehouse(keyword=[kw("a")])
     search_posts(ctx, wh, "#Humor")
     sql, params = wh.legs()["keyword"][0][0], wh.legs()["keyword"][0][1]
-    check_sql(sql)
+    check_sql(sql, SEARCH_ALLOW)
     assert "UNNEST(p.hashtags)" in sql and "LOWER(TRIM(h)) = LOWER(@term_0)" in sql
     assert "humor" not in sql.lower()
     assert params["term_0"] == "Humor"
@@ -256,6 +258,7 @@ def test_related_hashtags_ranks_by_how_much_of_a_tag_sits_with_the_seed():
                 "hashtags VARCHAR[])")
     con.execute("CREATE TABLE intelligence_42_core.creators (platform VARCHAR, creator_id VARCHAR, handle VARCHAR, "
                 "home_market VARCHAR)")
+    con.execute("CREATE TABLE intelligence_42_core.v_suppressed_creators (creator_id VARCHAR)")  # nobody hidden
     day = date(2026, 10, 8)
     rows = [("h1", "u1", ["Humor", "funny", "fyp"]), ("h2", "u2", ["humor", "funny", "fyp"]),
             ("h3", "u3", ["humor", "comedy"]), ("h4", "u4", ["funny"])]
@@ -301,7 +304,7 @@ def test_the_family_tags_are_matched_against_the_tag_column_only(ctx):
     wh = TagWarehouse(tags=related("funny", "comedy"), keyword=[kw("a")])
     search_posts(ctx, wh, "#humor")
     sql, params = wh.legs()["keyword"][0][0], wh.legs()["keyword"][0][1]
-    check_sql(sql)
+    check_sql(sql, SEARCH_ALLOW)
     assert sql.count("CONTAINS_SUBSTR") == 1  # the seed only; a family tag is never a caption substring
     assert sql.count("UNNEST(p.hashtags)") == 3
     assert "LOWER(TRIM(h)) = LOWER(@term_1)" in sql and "LOWER(TRIM(h)) = LOWER(@term_2)" in sql
@@ -333,6 +336,7 @@ def test_the_co_occurrence_sql_applies_the_floor_and_the_length_on_duckdb():
                 "hashtags VARCHAR[])")
     con.execute("CREATE TABLE intelligence_42_core.creators (platform VARCHAR, creator_id VARCHAR, handle VARCHAR, "
                 "home_market VARCHAR)")
+    con.execute("CREATE TABLE intelligence_42_core.v_suppressed_creators (creator_id VARCHAR)")  # nobody hidden
     day, rows = date(2026, 10, 8), []
     for i in range(10):  # ten humour posts, by ten creators
         rows.append((f"h{i}", f"u{i}", ["humor", "memes"] + (["comedia"] if i < 6 else []) + ["fyp", "viral", "a", "sa"]

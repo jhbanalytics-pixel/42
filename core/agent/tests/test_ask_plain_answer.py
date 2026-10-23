@@ -7,8 +7,10 @@ import pytest
 from core.agent import ask, plain, toolset, writer
 from core.agent.skills import load_skill
 from core.agent.tests.test_warehouse_tools import GOOD, FakeWriter, ctx, passed, primed  # noqa: F401
-from core.agent.tools.sql_query import WAREHOUSE_EXAMPLE, check_sql, check_sql_harness
+from core.agent.tools.sql_query import INTERNAL_ALLOW, WAREHOUSE_EXAMPLE, check_sql, check_sql_harness
 from core.agent.tools.warehouse import commit_findings, save_finding
+
+SEARCH_ALLOW = INTERNAL_ALLOW["search_posts"]  # search_posts and fetch_posts read the suppression view
 
 
 # What we do not know
@@ -196,7 +198,7 @@ def test_or_between_search_terms_matches_any_of_them_and_is_never_searched_for(c
     assert sorted(terms.values()) == ["challenge", "gqom", "sound", "trend"]
     term = [TERM_TEST.format(f"@term_{n}") for n in range(4)]  # each term also matches the hashtags column
     assert f"(({term[0]}) OR ({term[1]}) OR ({term[2]} AND {term[3]}))" in sql
-    check_sql(sql)
+    check_sql(sql, SEARCH_ALLOW)
 
 
 def test_plain_terms_are_still_all_required(ctx):  # noqa: F811

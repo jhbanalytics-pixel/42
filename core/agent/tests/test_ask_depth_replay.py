@@ -32,6 +32,7 @@ def posts_table(con):
                 "hashtags VARCHAR[])")
     con.execute("CREATE TABLE intelligence_42_core.creators (platform VARCHAR, creator_id VARCHAR, handle VARCHAR, "
                 "home_market VARCHAR)")
+    con.execute("CREATE TABLE intelligence_42_core.v_suppressed_creators (creator_id VARCHAR)")  # nobody hidden
     con.execute("CREATE TABLE intelligence_42_core.v_post_source_markets (post_id VARCHAR, "
                 "source_markets VARCHAR[], source_sightings STRUCT(source_market VARCHAR, source_region VARCHAR, "
                 "route VARCHAR, protocol VARCHAR, observed_at TIMESTAMP, obs_date DATE)[])")
