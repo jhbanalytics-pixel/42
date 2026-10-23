@@ -128,6 +128,15 @@ def test_an_anchor_expires_after_three_uses_that_found_nothing():
     assert sorted(s["query"] for s in live) == ["kota", "sasa"]
 
 
+def test_only_anchor_misses_expire_an_anchor():
+    anchor = seed("braai", lane="anchor")
+    misses = [used("braai", 0, 0, RUN - timedelta(days=d), lane="anchor") for d in (1, 3)]
+    expansion = used("braai", 0, 0, RUN - timedelta(days=2), lane="expansion")
+    assert [s["query"] for s in seeds.live([anchor, *misses, expansion], RUN)["ZA"]] == ["braai"]
+    third = used("braai", 0, 0, RUN - timedelta(days=4), lane="anchor")
+    assert seeds.live([anchor, *misses, expansion, third], RUN)["ZA"] == []
+
+
 def test_record_lists_each_clusters_uses_newest_first():
     rows = [used("gqom", 3, 0, RUN - timedelta(days=2)), used("gqom", 5, 2, RUN - timedelta(days=1)),
             used("gqom", 1, 1, RUN - timedelta(days=1), market="NG"), seed("gqom")]
@@ -162,6 +171,24 @@ def test_seeds_share_the_expansion_slots_and_never_add_any():
     assert any(p.family == "seed_queue" for p in out["14"])
     queued = [p for p in out["14"] + out["16"] if p.family == "seed_queue"]
     assert all(p.item_id and p.seed_date == RUN and p.kind == "topic" for p in queued)
+
+
+def test_a_full_row_14_queue_still_takes_one_research_term_inside_its_share():
+    full = {"slots14": 60, "slots16": 7, "cost14": 1, "cost16": 10}
+    queue = [seed(f"queued {i}", template="tiktok/search/top", priority=5.0) for i in range(46)]
+    terms = [{"term": f"research {i}", "market": "ZA", "active": True, "source": seeds.RESEARCH_SOURCE,
+              "location_evidence": False} for i in range(40)]
+    research = seeds.research_rows(terms, RUN, markets=("ZA",))
+    out = seeds.mix(tags(30), queue + research, {}, random.Random(1), **full)
+    assert len(out["14"]) == 60 and sum(p.source == seeds.RESEARCH_SOURCE for p in out["14"]) == 1
+    without = seeds.mix(tags(30), queue, {}, random.Random(1), **full)
+    assert len(without["14"]) == 60 and not any(p.source == seeds.RESEARCH_SOURCE for p in without["14"])
+    # A research term that repeats a queued query is that query's call, not one more.
+    repeated = seeds.research_rows([dict(terms[0], term="queued 0")], RUN, markets=("ZA",))
+    again = seeds.mix(tags(30), queue + repeated, {}, random.Random(1), **full)
+    assert len(again["14"]) == 60 and not any(p.source == seeds.RESEARCH_SOURCE for p in again["14"])
+    none = seeds.mix(tags(30), queue + research, {}, random.Random(1), **dict(full, slots14=0))
+    assert none["14"] == []
 
 
 def test_anchor_slice_is_at_most_15_percent_of_expansion_credits():

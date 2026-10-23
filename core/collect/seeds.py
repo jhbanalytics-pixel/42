@@ -6,7 +6,7 @@ parameterised SELECT. live() keeps the seeds the run may use: rows with no yield
 exploration or anchor, with a query, no rule 1 word (gdelt.blocked) and a seed_date from the run date back
 to ttl_days minus one day before it (ttl 3 on 30 September: the 28th to the 30th). One seed per market
 and cluster survives, the newest and then the highest priority. An anchor expires once its last
-ANCHOR_MISSES uses found no post. record() lists each market and cluster's past uses, newest first.
+ANCHOR_MISSES anchor-lane uses found no post. record() lists each market and cluster's past uses, newest first.
 
 A cluster is a query folded to lower-case letters and digits, so "Cyril Ramaphosa" and #cyrilramaphosa
 are one cluster. seed_queue carries no cluster id yet; once detection writes one, cluster() should read it.
@@ -14,7 +14,8 @@ are one cluster. seed_queue carries no cluster id yet; once detection writes one
 mix() fills the expansion slots of rows 14 (tiktok/search/top, cost14 each) and 16 (search/multi,
 cost16 each) that the job already pays for; seeds take slots, they never add calls. Today's harvest
 hashtags, live queue seeds and rotated research terms are taken in turn, each in its own order (harvest
-rank, queue priority). A seed with template search/multi goes to row 16, any other to row 14, and an
+rank, queue priority), except that one research term not already queued takes the last slot of row 14's main
+part, inside its share, so a full queue cannot crowd every research term out. A seed with template search/multi goes to row 16, any other to row 14, and an
 exploration seed always to row 14. Row 16 fills first, then the main part of row 14, then exploration:
 floor(explore_share of row 14) picks from below the cut (harvest left over, queue seeds not taken and the
 queue's exploration seeds), chosen by Thompson sampling: each candidate draws from Beta(1 + hits,
@@ -129,7 +130,8 @@ def record(rows):
 
 
 def _expired(uses):
-    recent = [u for u in uses if u.get("yield_posts") is not None][:ANCHOR_MISSES]
+    # Only the anchor's own uses count: an expansion or exploration miss on the same query is another lane's result.
+    recent = [u for u in uses if u.get("lane") == "anchor" and u.get("yield_posts") is not None][:ANCHOR_MISSES]
     return len(recent) == ANCHOR_MISSES and not any(u["yield_posts"] for u in recent)
 
 
@@ -304,7 +306,22 @@ def mix(ranked, queue, uses, rng, *, slots14, slots16, cost14, cost16, explore_s
 
     row16, _ = fill(pool16, n16, "16", cost16, set(), credits=room["16"])
     taken14 = set()
-    main14, used14 = fill(pool14, n14 - explore, "14", cost14, taken14, credits=room["14"])
+    # n14 counts one research call, so its slot is reserved: the main part of row 14 fills all but its last slot by
+    # priority, then takes the first research term that fits, so harvest and queue seeds cannot crowd every research
+    # term out. The research call stays last, behind the queries rows 14i and 16w search again. A slot no research
+    # term takes goes back to the queue.
+    research = [p for p in pool14 if p.source == RESEARCH_SOURCE]
+    hold14 = min((price(p, "14") for p in research), default=None)
+    if research and n14 - explore > 0 and hold14 <= room["14"]:
+        normal = [p for p in pool14 if p.source != RESEARCH_SOURCE]
+        main14, used14 = fill(normal, n14 - explore - 1, "14", cost14, taken14, credits=room["14"] - hold14)
+        more, spent14 = fill(research, 1, "14", cost14, taken14, credits=room["14"] - used14)
+        if not more:
+            more, spent14 = fill([p for p in normal if p.cluster not in taken14], 1, "14", cost14, taken14,
+                                 credits=room["14"] - used14)
+        main14, used14 = main14 + more, used14 + spent14
+    else:
+        main14, used14 = fill(pool14, n14 - explore, "14", cost14, taken14, credits=room["14"])
     left = [p for p in pool14 if p.cluster not in taken14 and p.lane != "anchor" and
             p.source != RESEARCH_SOURCE] + [p for p in explore_pool if p.source != RESEARCH_SOURCE]
     draws = []
