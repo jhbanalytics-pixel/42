@@ -314,7 +314,7 @@ def test_no_step_writes_to_the_runner_environment_file(path):
     assert "github_env" not in text
 
 
-CORE_FLOOR = 29_439  # Observed Linux passing count in run 38704022139 on 15 October 2026; all 29642 nodes accounted for once.
+CORE_FLOOR = 30_304  # Observed Linux passing count in run 39952886842 on 23 October 2026; all 30507 nodes accounted for once.
 CORE_RATCHET_GAP = 800  # exact: the job fails when the passed count has grown more than this past the floor
 
 
@@ -468,7 +468,7 @@ def test_core_matrix_preserves_all_shards_and_requires_exact_aggregation():
     merge = next(s for s in aggregate["steps"] if "ci_core_shards.py aggregate" in s.get("run", ""))
     assert "--count 4" in merge["run"] and '--head "${GITHUB_SHA}"' in merge["run"]
     floor = next(s for s in aggregate["steps"] if "ci_skip_report.py" in s.get("run", ""))
-    assert "--min-total 29439 --min-passed 29439 --ratchet-gap 800" in floor["run"]
+    assert "--min-total 30304 --min-passed 30304 --ratchet-gap 800" in floor["run"]
 
 
 def test_core_pdf_browser_matches_the_production_install_before_the_offline_guard():
