@@ -12,7 +12,7 @@ export const PAGE_QUESTIONS = Object.freeze({
   '#/console': 'Where do you start an answer, an investigation or a dossier in one place?',
   '#/compare': 'How do trends stack up against each other?',
   '#/lexicon': 'Which words and hashtags are people using?',
-  '#/communities': 'Which creators move together?',
+  '#/communities': 'Which creators keep posting about the same topics?',
   '#/seedpath': 'Where did 42 first record a word, and which words appear with it?',
   '#/seeds': 'What will 42 search for next, and what did its last searches find?',
   '#/coverage': 'What did 42 collect, and what is missing?',

@@ -268,6 +268,11 @@ test('the community list names each community by its items, with its creator cou
      service sends its older line. */
   expect(text()).toContain('Grouped by the topics they share. Replies and mentions between them are not counted yet.');
   expect(text()).not.toContain('not yet measured');
+  /* Audit W01-02: the page names what a community is, a shared-topic group,
+     and claims no interaction it does not measure. */
+  expect(text()).toContain('Shared-topic groups: each pair of creators posted about three or more of the same topics, and a group holds five or more creators.');
+  const {pageQuestion} = await import('../../pageQuestions.js');
+  expect(pageQuestion('#/communities')).toBe('Which creators keep posting about the same topics?');
   const [first] = fixture.communities.communities;
   const link = links().find((l) => l.href === '#/communities/' + first.community_id + '?market=NG');
   expect(link.text).toBe(first.label);

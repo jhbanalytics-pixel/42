@@ -418,9 +418,16 @@ export function CommunitiesPage42({market, onAuth}){
   );
 }
 
+/* A community is creators who keep posting about the same topics (core/api
+   people.py and store.py: three shared topics a pair, five creators a group).
+   No reply, mention or follow between them is measured, so the page says what
+   the grouping is and promises no more. */
+const SHARED_TOPIC_GROUPS = 'Shared-topic groups: each pair of creators posted about three or more of the same topics, and a group holds five or more creators.';
+
 function MethodWords({data}){
   return (
     <>
+      <p className="pp42-line">{SHARED_TOPIC_GROUPS}</p>
       <p className="pp42-line">{methodLine(data.interaction)}</p>
       {data.note && <p className="pp42-line">{data.note}</p>}
     </>
