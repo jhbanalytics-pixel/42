@@ -186,6 +186,7 @@ Evidence (one shape everywhere: Today cards, Ask answers, SSE events). It is the
 - `mode` `live` (default) or `replay` (cached SocialCrawl responses only; a cache miss becomes a gap with status `not_in_replay`; spends no live credits).
 - `wait` false (default) returns 202 at once; true holds the request until the answer is final (the eval) and returns 200 with the full Ask record.
 - `from_card` optional, passed to the agent as is (Ask about this on a Today card). Named apart from the answer's `context` string.
+- `request_id` optional, 8 to 64 letters, digits, `-` or `_`, chosen by the page for one start (added 23 October 2026). A start sent again with the same `request_id` while f42-agent still holds the ask it made returns that ask (202 with its current `status` and `"repeat": true`, or its record when `wait` is true) and starts nothing; f42-api does not count it as another of the day's questions. A start whose `request_id` was stopped first (below) returns 409 `stopped`.
 - `spike` optional (section 14.1) takes only `item_id` (an item id), `market` (ZA, NG or KE), `date` (YYYY-MM-DD) and an optional `series` (1 to 80 letters, digits or _), and any other key or a bad value gives 400.
 
 202 body: `{"ask_id": "a_20260930_...", "status": "running", "events_url": "/api/ask/a_.../events", "url": "/api/ask/a_..."}`
@@ -232,7 +233,7 @@ Every event carries `id: <seq>`. Steps are written in plain words with counts, a
 
 ### Stop
 
-`POST /api/ask/{ask_id}/stop` returns 202 `{"ask_id", "status": "stopping"}`. The agent stops cleanly and finishes with status `stopped` and whatever answer it had passed through the checks (possibly `insufficient_evidence`).
+`POST /api/ask/{ask_id}/stop` returns 202 `{"ask_id", "status": "stopping"}`. The agent stops cleanly and finishes with status `stopped` and whatever answer it had passed through the checks (possibly `insufficient_evidence`). `POST /api/ask/requests/{request_id}/stop` stops by the start's `request_id`, before or after that start has answered: 202 `{"request_id", "ask_id", "status": "stopping"}` when the agent holds the ask it made, else 202 with `ask_id` null and `status` `stopped`, and that start is then refused if it arrives later.
 
 ### Export
 

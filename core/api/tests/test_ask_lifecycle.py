@@ -17,12 +17,16 @@ def env(monkeypatch):
     monkeypatch.delenv("F42_PROJECT", raising=False)
     agent_app.SINK.clear()
     agent_app.ASKS.clear()
+    agent_app.REQUESTS.clear()
+    agent_app.STOPPED_REQUESTS.clear()
     yield
     for held in list(agent_app.ASKS.values()):
         held.stop = True
         held.finished.wait(5)
     agent_app.SINK.clear()
     agent_app.ASKS.clear()
+    agent_app.REQUESTS.clear()
+    agent_app.STOPPED_REQUESTS.clear()
 
 
 @pytest.fixture(autouse=True)
@@ -138,3 +142,58 @@ def test_different_request_ids_make_different_dossiers(client, dossier_store):
     two = client.post("/api/dossiers", json={"from": source, "request_id": "req-bbbbbbbbbbbb"}).json()
     assert one["dossier_id"] != two["dossier_id"]
     assert client.post("/api/dossiers", json={"from": source, "request_id": "x"}).status_code == 400
+
+
+# A start sent again with its request_id (audit W04-04), and a stop sent before the start answered (audit W20-03).
+
+def workers():
+    return sorted(t.name for t in threading.enumerate() if t.name.startswith("a_"))
+
+
+def test_a_start_sent_again_after_a_lost_reply_gets_the_same_ask(client, monkeypatch):
+    monkeypatch.setenv("F42_FIXTURE_DELAY", "0.2")
+    first = ask(client, request_id="req-0123456789abcdef")
+    assert first.status_code == 202  # the reply the proxy lost
+    again = ask(client, request_id="req-0123456789abcdef")
+    assert again.status_code == 202
+    assert again.json()["ask_id"] == first.json()["ask_id"] and again.json()["repeat"] is True
+    assert list(agent_app.ASKS) == [first.json()["ask_id"]]
+    assert workers() == [first.json()["ask_id"]]
+    other = ask(client, request_id="req-fedcba9876543210")
+    assert other.json()["ask_id"] != first.json()["ask_id"] and "repeat" not in other.json()
+
+
+def test_a_waiting_start_sent_again_returns_the_first_asks_record(client):
+    first = ask(client, request_id="req-0123456789abcdef", wait=True).json()
+    again = ask(client, request_id="req-0123456789abcdef", wait=True)
+    assert again.status_code == 200 and again.json()["ask_id"] == first["ask_id"]
+    assert len(agent_app.ASKS) == 1
+
+
+def test_a_bad_request_id_is_refused(client):
+    for bad in ("short", "x" * 65, "has space here", 12345678):
+        assert ask(client, request_id=bad).status_code == 400
+    assert client.post("/api/ask/requests/short/stop").status_code == 400
+
+
+def test_a_stop_before_the_start_arrives_refuses_that_start(client):
+    r = client.post("/api/ask/requests/req-0123456789abcdef/stop")
+    assert r.status_code == 202 and r.json() == {"request_id": "req-0123456789abcdef", "ask_id": None,
+                                                 "status": "stopped"}
+    late = ask(client, request_id="req-0123456789abcdef")
+    assert late.status_code == 409 and late.json()["error"] == "stopped"
+    assert agent_app.ASKS == {} and workers() == []
+
+
+def test_a_stop_by_request_id_stops_the_ask_its_start_made(client, monkeypatch):
+    monkeypatch.setenv("F42_FIXTURE_DELAY", "0.2")
+    started = ask(client, request_id="req-0123456789abcdef").json()  # the page has not read this reply yet
+    r = client.post("/api/ask/requests/req-0123456789abcdef/stop")
+    assert r.status_code == 202 and r.json()["ask_id"] == started["ask_id"] and r.json()["status"] == "stopping"
+    held = agent_app.get_ask(started["ask_id"])
+    assert held.finished.wait(5)
+    assert held.snapshot()["status"] == "stopped"
+    # The ask stays discoverable by its request id: the same start returns it, stopped, and starts nothing new.
+    again = ask(client, request_id="req-0123456789abcdef")
+    assert again.status_code == 202 and again.json()["ask_id"] == started["ask_id"]
+    assert again.json()["status"] == "stopped" and len(agent_app.ASKS) == 1

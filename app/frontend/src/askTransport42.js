@@ -52,6 +52,14 @@ export async function stopAsk(askId){
   return res.json();
 }
 
+/* Stops the ask a start with this request_id made, or will make: Stop works
+   before the start has answered, and the reply names the ask when the agent
+   holds it. */
+export async function stopAskRequest(requestId){
+  const res = await request('/api/ask/requests/' + encodeURIComponent(requestId) + '/stop', {method: 'POST'});
+  return res.json();
+}
+
 export async function downloadExport(askId){
   const res = await request('/api/ask/' + encodeURIComponent(askId) + '/export?format=html', {});
   const blob = await res.blob();

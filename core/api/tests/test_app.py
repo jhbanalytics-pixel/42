@@ -104,11 +104,16 @@ def make_agent(seen):
         seen["authorization"] = request.headers.get("authorization")
         if body.get("question") == "no":
             return JSONResponse({"error": "bad_request", "message": "too short"}, status_code=400)
+        known = seen.setdefault("request_ids", [])
+        repeat = {"repeat": True} if body.get("request_id") in known else {}
+        if body.get("request_id"):
+            known.append(body["request_id"])
         return {
             "ask_id": "a_1",
             "status": "running",
             "events_url": "/api/ask/a_1/events",
             "url": "/api/ask/a_1",
+            **repeat,
         }
 
     @agent.get("/api/ask/{ask_id}")
@@ -132,6 +137,11 @@ def make_agent(seen):
     @agent.post("/api/ask/{ask_id}/stop", status_code=202)
     async def stop(ask_id: str):
         return {"ask_id": ask_id, "status": "stopping"}
+
+    @agent.post("/api/ask/requests/{request_id}/stop", status_code=202)
+    async def stop_request(request_id: str):
+        seen.setdefault("request_stops", []).append(request_id)
+        return {"request_id": request_id, "ask_id": "a_1", "status": "stopping"}
 
     @agent.get("/api/watches")
     async def list_watches():
@@ -650,6 +660,27 @@ def test_daily_limit_does_not_count_asks_the_agent_rejects(ctx, monkeypatch):
     assert r.status_code == 400
     assert r.json()["error"] == "bad_request"
     assert ctx.client.post("/api/ask", json={"question": "abc def"}, headers=GOOD).status_code == 202
+
+
+def test_daily_limit_does_not_count_a_start_sent_again_with_its_request_id(ctx, monkeypatch):
+    """W04-04: the agent answers a repeated request_id with the ask it already made, so it is not a second question."""
+    monkeypatch.setenv("ASK_PER_IP_DAILY", "2")
+    body = {"question": "abc def", "request_id": "req-0123456789abcdef"}
+    assert ctx.client.post("/api/ask", json=body, headers=GOOD).status_code == 202
+    again = ctx.client.post("/api/ask", json=body, headers=GOOD)
+    assert again.status_code == 202 and again.json()["ask_id"] == "a_1" and again.json()["repeat"] is True
+    assert ctx.client.post("/api/ask", json={"question": "abc def"}, headers=GOOD).status_code == 202
+    r = ctx.client.post("/api/ask", json={"question": "abc def"}, headers=GOOD)
+    assert r.status_code == 429 and r.json()["error"] == "daily_question_limit"
+
+
+def test_ask_stop_by_request_id_is_forwarded(ctx):
+    """W20-03: the page can stop an ask by the request_id of its start before that start has answered."""
+    r = ctx.client.post("/api/ask/requests/req-0123456789abcdef/stop", headers=GOOD)
+    assert r.status_code == 202 and r.json()["ask_id"] == "a_1"
+    assert ctx.seen["request_stops"] == ["req-0123456789abcdef"]
+    assert ctx.client.post("/api/ask/requests/short/stop", headers=GOOD).status_code == 400
+    assert ctx.client.post("/api/ask/requests/req-0123456789abcdef/stop").status_code == 401
 
 
 def test_ask_rate_limit_30_per_10_seconds(ctx):

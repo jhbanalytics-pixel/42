@@ -150,6 +150,12 @@ MAX_SINK = 500
 
 ASKS = {}
 SINK = []
+# A start may carry a request_id the page chose (audit W04-04, W20-03). REQUESTS maps it to its ask while the ask is
+# held, so a start sent again after a lost reply gets that ask back instead of a second one. STOPPED_REQUESTS holds the
+# request ids a stop came for, so a start that arrives after its own stop is refused rather than run unseen.
+ASK_REQUEST_ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
+REQUESTS = {}
+STOPPED_REQUESTS = {}
 _PLANNER_READBACK_HOLDS = {}
 
 @asynccontextmanager
@@ -434,6 +440,12 @@ def prune():
     drop = [a for a in finished if a.ended < cutoff] + fresh[:max(0, len(fresh) - MAX_FINISHED)]
     for a in drop:
         ASKS.pop(a.request["ask_id"], None)
+    for request_id, ask_id in list(REQUESTS.items()):
+        if ask_id not in ASKS:
+            del REQUESTS[request_id]
+    for request_id, at in list(STOPPED_REQUESTS.items()):
+        if at < cutoff:
+            del STOPPED_REQUESTS[request_id]
 
 
 def project():
@@ -531,6 +543,9 @@ def validate(body):
         return "parent_id must be an ask id or null."
     if not isinstance(body.get("from_card"), (dict, type(None))):
         return "from_card must be an object or null."
+    request_id = body.get("request_id")
+    if not (request_id is None or (isinstance(request_id, str) and ASK_REQUEST_ID.fullmatch(request_id))):
+        return "request_id must be 8 to 64 letters, digits, - or _, or left out."
     if body.get("spike") is not None:
         from core.api.spike import check_spike
         try:
@@ -589,11 +604,22 @@ async def start(request: Request):
     ask = Ask(req)
     if "spike" in req:
         ask.record["spike"] = req["spike"]  # so Try again on a followed spike goes back to its topic page
+    request_id = body.get("request_id")
+    busy = False
     with _lock:
         prune()
-        busy = sum(1 for a in ASKS.values() if a.ended is None) >= MAX_RUNNING
-        if not busy:
-            ASKS[req["ask_id"]] = ask
+        held = ASKS.get(REQUESTS.get(request_id)) if request_id else None
+        stopped = held is None and request_id in STOPPED_REQUESTS
+        if held is None and not stopped:
+            busy = sum(1 for a in ASKS.values() if a.ended is None) >= MAX_RUNNING
+            if not busy:
+                ASKS[req["ask_id"]] = ask
+                if request_id:
+                    REQUESTS[request_id] = req["ask_id"]
+    if held is not None:
+        return await repeated(held, req["wait"])
+    if stopped:
+        return error(409, "stopped", "This ask was stopped before it started.")
     if busy:
         return error(429, "rate_limited",
                      f"{MAX_RUNNING} asks are already running; try again when one finishes.")
@@ -604,12 +630,41 @@ async def start(request: Request):
         log.error("ask %s: its worker did not start: %s", req["ask_id"], type(exc).__name__)
         with _lock:
             ASKS.pop(req["ask_id"], None)
+            REQUESTS.pop(request_id, None)
         return error(503, "agent_unavailable", "The Ask agent could not start this ask; try again.")
     if req["wait"]:
         await run_in_threadpool(ask.finished.wait)
         return view_response(await run_in_threadpool(readable, ask.snapshot()))
     url = f"/api/ask/{req['ask_id']}"
     return JSONResponse({"ask_id": req["ask_id"], "status": "running", "events_url": url + "/events", "url": url},
+                        status_code=202)
+
+
+async def repeated(held, wait):
+    """The answer to a start sent again with the request_id of an ask held here: that ask, never a second one. Its
+    reply says repeat, so f42-api does not count the start as another of the day's questions."""
+    ask_id = held.request["ask_id"]
+    if wait:
+        await run_in_threadpool(held.finished.wait)
+        return view_response(await run_in_threadpool(readable, held.snapshot()))
+    url = f"/api/ask/{ask_id}"
+    return JSONResponse({"ask_id": ask_id, "status": held.snapshot()["status"], "events_url": url + "/events",
+                         "url": url, "repeat": True}, status_code=202)
+
+
+@app.post("/api/ask/requests/{request_id}/stop")
+def stop_request(request_id: str):
+    """Stop the ask a start with this request_id made, or the one it will make: the page can ask for a stop before its
+    start has answered (audit W20-03). The reply names the ask when one is held, so the page can follow it."""
+    if not ASK_REQUEST_ID.fullmatch(request_id):
+        return error(400, "bad_request", "That is not a request id.")
+    with _lock:
+        STOPPED_REQUESTS[request_id] = time.monotonic()
+        held = ASKS.get(REQUESTS.get(request_id))
+    if held is None:
+        return JSONResponse({"request_id": request_id, "ask_id": None, "status": "stopped"}, status_code=202)
+    held.stop = True
+    return JSONResponse({"request_id": request_id, "ask_id": held.request["ask_id"], "status": "stopping"},
                         status_code=202)
 
 

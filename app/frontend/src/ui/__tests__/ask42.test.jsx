@@ -380,6 +380,87 @@ test('a stream that drops mid-way falls back to polling from where it got to', a
   expect(seqs).toEqual(completeRecord.steps.map((step) => step.seq));
 });
 
+/* Audit W20-03: Stop works while the start is still on its way, by the
+   start's request key, and the ask the start made then ends stopped. */
+test('Stop pressed before the start answers stops the ask by its request key', async () => {
+  const record = {...clone(completeRecord), status: 'stopped'};
+  const server = serve([record]);
+  const served = globalThis.fetch;
+  let release = null;
+  const held = new Promise((resolve) => { release = resolve; });
+  const slowStart = async (url, init = {}) => {
+    const path = String(url);
+    const method = String(init.method || 'GET').toUpperCase();
+    if (method === 'POST' && path === '/api/ask'){
+      calls.push({path, method, headers: init.headers || {}, body: JSON.parse(init.body)});
+      await held;
+      return json(202, {ask_id: record.ask_id, status: 'running', events_url: `/api/ask/${record.ask_id}/events`, url: `/api/ask/${record.ask_id}`});
+    }
+    if (method === 'POST' && path.startsWith('/api/ask/requests/')){
+      calls.push({path, method, headers: init.headers || {}});
+      return json(202, {request_id: path.split('/')[4], ask_id: record.ask_id, status: 'stopping'});
+    }
+    return served(url, init);
+  };
+  globalThis.fetch = slowStart;
+  window.fetch = slowStart;
+  await render();
+  await askByTyping(record.question);
+  await until(() => button('Stop') && !button('Stop').disabled, 'Stop while starting');
+  await act(async () => { button('Stop').click(); });
+  const key = postedAsks()[0].body.request_id;
+  await until(() => calls.some((call) => call.path === `/api/ask/requests/${key}/stop`), 'the stop by key');
+  expect(headerOf(calls.find((call) => call.path === `/api/ask/requests/${key}/stop`), 'X-Passcode')).toBe('fixture-pass');
+  await act(async () => { release(); });
+  await finish(server, record);
+  await until(() => !button('Stop'), 'the run to end');
+  expect(calls.some((call) => call.path === `/api/ask/${record.ask_id}/events`)).toBe(true);
+});
+
+test('a page that lets an ask go before its start answers stops it by its request key', async () => {
+  const record = clone(completeRecord);
+  serve([record]);
+  const served = globalThis.fetch;
+  let release = null;
+  const held = new Promise((resolve) => { release = resolve; });
+  const slowStart = async (url, init = {}) => {
+    const path = String(url);
+    const method = String(init.method || 'GET').toUpperCase();
+    if (method === 'POST' && path === '/api/ask'){
+      calls.push({path, method, headers: init.headers || {}, body: JSON.parse(init.body)});
+      await held;
+      return json(202, {ask_id: record.ask_id, status: 'running', events_url: `/api/ask/${record.ask_id}/events`, url: `/api/ask/${record.ask_id}`});
+    }
+    if (method === 'POST' && path.startsWith('/api/ask/requests/')){
+      calls.push({path, method, headers: init.headers || {}});
+      return json(202, {request_id: path.split('/')[4], ask_id: record.ask_id, status: 'stopping'});
+    }
+    return served(url, init);
+  };
+  globalThis.fetch = slowStart;
+  window.fetch = slowStart;
+  await render();
+  await askByTyping(record.question);
+  const key = postedAsks()[0].body.request_id;
+  await act(async () => root.unmount());
+  root = createRoot(host);
+  await act(async () => { release(); await new Promise((resolve) => setTimeout(resolve, 10)); });
+  expect(calls.filter((call) => call.path === `/api/ask/requests/${key}/stop`)).toHaveLength(1);
+  expect(calls.some((call) => call.path === `/api/ask/${record.ask_id}/events`)).toBe(false);
+});
+
+/* Audit W04-04: a start that failed before naming its ask may have been
+   accepted, so asking again sends the same request key. */
+test('asking again after a start that failed sends the same request key', async () => {
+  serve([clone(completeRecord)]);
+  failFirstAsk();
+  await render();
+  await askByTyping(completeRecord.question);
+  await askAgainThroughTheConfirm();
+  expect(postedAsks()[0].body.request_id).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+  expect(postedAsks()[1].body.request_id).toBe(postedAsks()[0].body.request_id);
+});
+
 test('transport errors carry status, code and auth', async () => {
   let reply = json(401, {error: 'unauthorized', message: 'Passcode required.'});
   const stub = async () => reply;
@@ -486,7 +567,7 @@ test('a full run shows the research as it happens, then the checked answer', asy
   await render();
   await askByTyping(record.question);
   const posted = calls.find((call) => call.path === '/api/ask');
-  expect(posted.body).toEqual({question: record.question, market: 'ZA', parent_id: null});
+  expect(posted.body).toEqual({question: record.question, market: 'ZA', parent_id: null, request_id: expect.any(String)});
   expect(headerOf(posted, 'X-Passcode')).toBe('fixture-pass');
 
   const stream = server.stream(id);
@@ -1029,7 +1110,7 @@ test('a Today card starts once and retains its accepted ask URL', async () => {
   await until(() => text().includes('What we do not know'), 'the finished answer');
   const posts = calls.filter((call) => call.path === '/api/ask');
   expect(posts.length).toBe(1);
-  expect(posts[0].body).toEqual({question: query.q, market: 'ZA', parent_id: null, from_card: {item_id: 'it_fixture_1', market: 'ZA', date: '2026-09-28'}});
+  expect(posts[0].body).toEqual({question: query.q, market: 'ZA', parent_id: null, request_id: expect.any(String), from_card: {item_id: 'it_fixture_1', market: 'ZA', date: '2026-09-28'}});
   expect(window.history.state).toEqual(historyState);
   expect(window.history.length).toBe(historyLength);
   expect(host.querySelector('textarea').value).toBe(query.q);
@@ -1748,7 +1829,7 @@ test('confirming the ceiling asks again at the same tier', async () => {
   await until(() => calls.some((call) => call.path === '/api/ask'), 'the retry');
   const posted = calls.filter((call) => call.path === '/api/ask');
   expect(posted).toHaveLength(1);
-  expect(posted[0].body).toEqual({question: record.question, market: 'ZA', parent_id: null, tier: 'T1'});
+  expect(posted[0].body).toEqual({question: record.question, market: 'ZA', parent_id: null, tier: 'T1', request_id: expect.any(String)});
 });
 
 test('a followed record with no tier names the highest ceiling Ask may pick and posts no tier', async () => {

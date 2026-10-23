@@ -9,7 +9,7 @@ import {readerFigure} from './api.js';
 import {plainUnit, unitFor} from './readerUnits.js';
 import {validateAnswer} from './answerContract.js';
 import {createDossier, fetchDiscover, saveFinding} from './api42.js';
-import {downloadExport, getAsk, requestKey, startAsk, stopAsk, streamAsk} from './askTransport42.js';
+import {downloadExport, getAsk, requestKey, startAsk, stopAsk, stopAskRequest, streamAsk} from './askTransport42.js';
 import {go} from './router.js';
 import {marketToSend} from './askMarkets.js';
 import {costWords, itemsWords} from './costWords.js';
@@ -720,7 +720,7 @@ function Running({run, onStop}){
   const elsewhere = run.evidence.filter((record) => !inMarket(record, market));
   const gathered = counted.slice(0, GATHERED_LIMIT);
   const moreGathered = counted.length - gathered.length;
-  const stopButton = <button type="button" className="ask42-quiet ask42-stop" onClick={onStop} disabled={run.stopping || !run.askId}>{run.stopping ? 'Stopping' : 'Stop'}</button>;
+  const stopButton = <button type="button" className="ask42-quiet ask42-stop" onClick={onStop} disabled={run.stopping || !(run.askId || (run.request && run.request.key))}>{run.stopping ? 'Stopping' : 'Stop'}</button>;
   return (
     <div className="ask42-running">
       <h2 className="ask42-question" aria-label={question}>{question}</h2>
@@ -841,21 +841,30 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
 
   useEffect(() => () => { if (control.current) control.current.abort(); }, []);
 
-  async function ask(text, mkt, extra = {}){
+  /* Each start carries a request key (audit W04-04, W20-03). Asking again
+     after a start that failed before it named its ask sends the same key, so
+     an ask the agent did accept is followed, not started twice; Stop works on
+     the key until the ask's id is known. */
+  async function ask(text, mkt, extra = {}, key = requestKey()){
     const words = String(text || '').trim();
     if (words.length < 3) return;
     if (control.current) control.current.abort();
     const ctrl = new AbortController();
     control.current = ctrl;
     const requestHash = typeof window === 'undefined' ? '' : window.location.hash;
-    const request = {text: words, mkt, extra};
+    const request = {text: words, mkt, extra, key};
     setRun({...EMPTY_RUN, phase: 'running', startedAt: Date.now(), request});
-    const body = {question: words, market: mkt || null, parent_id: extra.parent_id || null};
+    const body = {question: words, market: mkt || null, parent_id: extra.parent_id || null, request_id: key};
     if (extra.from_card) body.from_card = extra.from_card;
     if (extra.tier) body.tier = extra.tier;
     try {
       const started = await startAsk(body);
-      if (ctrl.signal.aborted) return;
+      if (ctrl.signal.aborted){
+        /* The page let this ask go before it learnt its id, so nothing here
+           could show or stop it: it is stopped rather than left running. */
+        stopAskRequest(key).catch(() => {});
+        return;
+      }
       setRun((current) => ({...current, askId: started.ask_id}));
       if (
         typeof window !== 'undefined' &&
@@ -950,9 +959,10 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   }
 
   async function stop(){
-    if (!run.askId) return;
+    const key = run.request && run.request.key;
+    if (!run.askId && !key) return;
     setRun((current) => ({...current, stopping: true}));
-    try { await stopAsk(run.askId); }
+    try { await (run.askId ? stopAsk(run.askId) : stopAskRequest(key)); }
     catch (error){
       setRun((current) => ({...current, stopping: false, stopError: error && error.message}));
       needPasscode(error);
@@ -980,7 +990,12 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
     if (run.phase === 'error' && (followed || run.askId)){ follow(followed || run.askId); return; }
     if (!followed){
       const extra = run.request.extra || {};
-      setRetry({tier: CEILING[extra.tier] ? extra.tier : null, extra});
+      /* A start that failed before naming its ask may still have been
+         accepted: the same key finds that ask. One stopped on its key is
+         asked again under a new one. */
+      const stopped = run.phase === 'error' && run.error && run.error.code === 'stopped';
+      const key = run.phase === 'error' && !stopped ? run.request.key : null;
+      setRetry({tier: CEILING[extra.tier] ? extra.tier : null, extra, key});
       return;
     }
     const spike = record && record.spike;
@@ -999,8 +1014,9 @@ export function AskPage({region, setRegion, query, onAuth, health = null}){
   function askAgain(){
     const tier = retry && retry.tier;
     const extra = retry && retry.extra;
+    const key = (retry && retry.key) || undefined;
     setRetry(null);
-    ask(run.request.text, run.request.mkt, extra || (tier ? {tier} : {}));
+    ask(run.request.text, run.request.mkt, extra || (tier ? {tier} : {}), key);
   }
 
   const record = run.record;
