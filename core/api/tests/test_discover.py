@@ -1391,7 +1391,7 @@ def test_alerts_creator_surge_waits_without_watch_matches(fx):
     out = discover.build_alerts(fx, watches)
     assert out["alerts"] == []
     assert out["waiting"] == [{"watch_id": "w_surge", "label": "Surge",
-                               "waiting": "Waiting for creator views detection"}]
+                               "market": "ZA", "waiting": "Waiting for creator views detection"}]
 
 
 class ByTable(FakeClient):
@@ -1460,7 +1460,7 @@ def test_alerts_fire_on_change_since_the_previous_run_and_carry_the_discover_car
         assert set(a) == {"watch_id", "label", "item_id", "market", "fired_because", "since", "card"}
         assert a["card"] == dict(discover_cards[a["item_id"]], watch_id=a["watch_id"])
     assert out["waiting"] == [{"watch_id": "w_wait", "label": "Step surge",
-                               "waiting": "Waiting for creator views detection"}]
+                               "market": "ZA", "waiting": "Waiting for creator views detection"}]
 
 
 def test_alerts_on_held_back_items_keep_the_reason_on_the_card(fx):
@@ -1476,7 +1476,7 @@ def test_alerts_for_a_date_use_that_run_and_the_run_before_it(fx):
     assert out["date"] == "2026-09-29"
     assert out["alerts"] == []
     assert out["waiting"] == [{"watch_id": "w_new", "label": "A watch",
-                               "waiting": "Waiting for a second detect run to compare against"}]
+                               "market": "ZA", "waiting": "Waiting for a second detect run to compare against"}]
     assert discover.build_alerts(fx, [watch("w_new", {"kind": "item", "item_id": STEP},
                                             {"state_in": ["new_to_42"]})])["alerts"] == []
 
@@ -1491,13 +1491,13 @@ def test_alerts_with_no_earlier_run_only_wait(fx):
     out = discover.build_alerts(fx, watches, date="2026-09-29")
     compare = "Waiting for a second detect run to compare against"
     assert out["alerts"] == []
-    assert out["waiting"] == [{"watch_id": "w_rise", "label": "Rising", "waiting": compare},
-                              {"watch_id": "w_ratio", "label": "Ratio", "waiting": compare},
-                              {"watch_id": "w_reach", "label": "Reach", "waiting": compare},
-                              {"watch_id": "w_break", "label": "Step breakout", "waiting": compare},
-                              {"watch_id": "w_tone", "label": "Step tone", "waiting": compare},
+    assert out["waiting"] == [{"watch_id": "w_rise", "label": "Rising", "market": "ZA", "waiting": compare},
+                              {"watch_id": "w_ratio", "label": "Ratio", "market": "ZA", "waiting": compare},
+                              {"watch_id": "w_reach", "label": "Reach", "market": "ZA", "waiting": compare},
+                              {"watch_id": "w_break", "label": "Step breakout", "market": "ZA", "waiting": compare},
+                              {"watch_id": "w_tone", "label": "Step tone", "market": "ZA", "waiting": compare},
                               {"watch_id": "w_wait", "label": "Step surge",
-                               "waiting": "Waiting for creator views detection"}]
+                               "market": "ZA", "waiting": "Waiting for creator views detection"}]
 
 
 def test_alerts_brand_keyword_matches_the_item_aliases(fx):

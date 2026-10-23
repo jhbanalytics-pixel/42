@@ -64,7 +64,7 @@ def test_reach_over_fires_only_on_crossing():
 def test_creator_surge_waits_while_there_are_no_watch_matches_to_read():
     today = [item("i1", kind="creator", state="rising", ratio=9, reach=900)]
     assert evaluate([watch("w_1", ITEM, {"creator_surge": True})], today, [], None) == [
-        {"watch_id": "w_1", "waiting": "Waiting for creator views detection"}]
+        {"watch_id": "w_1", "market": "ZA", "waiting": "Waiting for creator views detection"}]
 
 
 def test_paused_watches_never_fire_or_wait():
@@ -159,12 +159,20 @@ def test_no_earlier_run_gives_only_waiting_entries():
                watch("w_7", ITEM, {"creator_surge": True})]
     compare = "Waiting for a second detect run to compare against"
     assert evaluate(watches, today, None, {"w_7": ["i1"]}) == [
-        {"watch_id": "w_1", "label": "Rising watch", "waiting": compare},
-        {"watch_id": "w_2", "label": None, "waiting": compare},
-        {"watch_id": "w_3", "label": "A watch", "waiting": compare},
-        {"watch_id": "w_4", "label": "A watch", "waiting": compare},
-        {"watch_id": "w_6", "label": "A watch", "waiting": compare},
-        {"watch_id": "w_7", "label": "A watch", "waiting": compare}]
+        {"watch_id": "w_1", "label": "Rising watch", "market": "ZA", "waiting": compare},
+        {"watch_id": "w_2", "label": None, "market": "ZA", "waiting": compare},
+        {"watch_id": "w_3", "label": "A watch", "market": "ZA", "waiting": compare},
+        {"watch_id": "w_4", "label": "A watch", "market": "ZA", "waiting": compare},
+        {"watch_id": "w_6", "label": "A watch", "market": "ZA", "waiting": compare},
+        {"watch_id": "w_7", "label": "A watch", "market": "ZA", "waiting": compare}]
+
+
+def test_waiting_entries_carry_their_watch_market():
+    watches = [watch("w_za", ITEM, {"state_in": ["rising"]}),
+               watch("w_ng", ITEM, {"state_in": ["rising"]}, market="NG"),
+               watch("w_surge", ITEM, {"creator_surge": True}, market="KE")]
+    out = evaluate(watches, [item("i1")], None)
+    assert [(w["watch_id"], w["market"]) for w in out] == [("w_za", "ZA"), ("w_ng", "NG"), ("w_surge", "KE")]
 
 
 def toned(item_id, today, before, **kw):

@@ -27,6 +27,13 @@ const heldOf = (alert) => (alert.card && alert.card.held_back ? alert.card.held_
 const waitingOf = (alerts) => (alerts.state === 'ready'
   ? list(alerts.data.alerts).filter((a) => a.waiting).concat(list(alerts.data.waiting))
   : []);
+/* A waiting entry's market: its own, else its watch's, so the picked market
+   scopes the waiting list the way it scopes alerts and watches. */
+const waitingMarket = (entry, watches) => {
+  if (entry.market) return entry.market;
+  const watch = watches.find((w) => w.watch_id === entry.watch_id);
+  return watch ? watch.market : undefined;
+};
 
 export function AlertsPage42({onAuth, region}){
   const picked = pickedMarket(region);
@@ -68,10 +75,18 @@ export function AlertsPage42({onAuth, region}){
     return () => ctrl.abort();
   }, [alertsTick]);
 
-  const replace = (watch) => setWatches((prev) => (prev.state === 'ready'
-    ? {...prev, items: prev.items.map((w) => (w.watch_id === watch.watch_id ? watch : w))}
-    : prev));
-  const add = (watch) => setWatches((prev) => (prev.state === 'ready' ? {...prev, items: [watch, ...prev.items]} : prev));
+  /* The server recomputes alerts from the active watches, so a confirmed
+     pause, resume or new watch reads them again. */
+  const replace = (watch) => {
+    setWatches((prev) => (prev.state === 'ready'
+      ? {...prev, items: prev.items.map((w) => (w.watch_id === watch.watch_id ? watch : w))}
+      : prev));
+    setAlertsTick((t) => t + 1);
+  };
+  const add = (watch) => {
+    setWatches((prev) => (prev.state === 'ready' ? {...prev, items: [watch, ...prev.items]} : prev));
+    setAlertsTick((t) => t + 1);
+  };
   const known = watches.state === 'ready' ? watches.items : [];
 
   return (
@@ -107,7 +122,7 @@ function TodaysAlerts({picked = '', alerts, watches, onRetry}){
   } else {
     const allFired = list(alerts.data.alerts).filter((a) => !a.waiting);
     const fired = allFired.filter((a) => inMarket(a.market, picked));
-    const waiting = waitingOf(alerts);
+    const waiting = waitingOf(alerts).filter((w) => inMarket(waitingMarket(w, watches), picked));
     const labelOf = (entry) => {
       if (entry.label) return entry.label;
       const watch = watches.find((w) => w.watch_id === entry.watch_id);
@@ -147,7 +162,10 @@ function TodaysAlerts({picked = '', alerts, watches, onRetry}){
           <>
             <h3 className="a42-subtitle">Not checked yet</h3>
             <ul className="a42-waiting">
-              {waiting.map((w) => <li key={w.watch_id}>{labelOf(w)}: {w.waiting}</li>)}
+              {waiting.map((w) => {
+                const market = picked ? '' : waitingMarket(w, watches);
+                return <li key={w.watch_id}>{labelOf(w)}{market ? ' (' + marketWord(market) + ')' : ''}: {w.waiting}</li>;
+              })}
             </ul>
           </>
         )}

@@ -113,10 +113,11 @@ def evaluate(watches, items_today, items_yesterday, matches=None, matches_before
             continue
         rule, target = _obj(watch.get("rule")), _obj(watch.get("target"))
         if "creator_surge" in rule and matches is None:
-            out.append({"watch_id": watch["watch_id"], "waiting": NO_MATCHES})
+            out.append({"watch_id": watch["watch_id"], "market": watch.get("market"), "waiting": NO_MATCHES})
             continue
         if items_yesterday is None:
-            out.append({"watch_id": watch["watch_id"], "label": watch.get("label"), "waiting": NO_EARLIER_RUN})
+            out.append({"watch_id": watch["watch_id"], "label": watch.get("label"), "market": watch.get("market"),
+                        "waiting": NO_EARLIER_RUN})
             continue
         market = watch.get("market")
         items = [i for i in items_today if market == "all" or i.get("market") == market]

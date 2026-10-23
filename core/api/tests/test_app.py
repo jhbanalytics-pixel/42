@@ -972,7 +972,8 @@ def test_alerts_route_reads_watches_from_the_agent(v2):
     (alert,) = body["alerts"]
     assert alert["watch_id"] == "w_1" and alert["fired_because"] == "Entered Rising"
     assert alert["card"]["item_id"] == item and alert["card"]["watch_id"] == "w_1"
-    assert body["waiting"] == [{"watch_id": "w_2", "label": "Surge", "waiting": "Waiting for creator views detection"}]
+    assert body["waiting"] == [{"watch_id": "w_2", "label": "Surge", "market": "ZA",
+                                "waiting": "Waiting for creator views detection"}]
     r = v2.client.get("/api/alerts", params={"date": "2026-09-29"}, headers=GOOD)
     assert r.status_code == 200 and r.json()["date"] == "2026-09-29"
 
