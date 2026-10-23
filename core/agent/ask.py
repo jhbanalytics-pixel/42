@@ -698,7 +698,9 @@ class Deps:
     research: Callable = default_research
     now: Callable[[], datetime] = lambda: datetime.now(SAST)
     check: Callable | None = None  # check_answer(draft, ctx, warehouse, *, window, markets) -> (answer, verdicts)
-    spent_today_usd: Callable[[], float] | None = None
+    # spent_today_usd(at) -> USD spent on models on at's SAST day: run_ask passes the one accounting moment its cap,
+    # hold and runs row also take, so a read that ends after SAST midnight still reads the day it decides for.
+    spent_today_usd: Callable[[datetime], float] | None = None
     # store_breadth(ctx, warehouse, platforms) -> query ids: the whole-store counts the gate runs once before the
     # writer. None runs none; _default_deps sets it, so every live ask counts the whole store.
     store_counts: Callable | None = None
@@ -1245,7 +1247,7 @@ def _default_deps(*, gemini_retries: int = 1) -> Deps:
         model = _AskGeminiModel(model)
     return Deps(warehouse=warehouse, socialcrawl=_socialcrawl_client, tables=BigQueryTableWriter(),
                 model=model, research=research, store_counts=store_breadth, topic_sweep=topic_sweep,
-                spent_today_usd=lambda: model_spend_today(warehouse, datetime.now(SAST)))
+                spent_today_usd=lambda at: model_spend_today(warehouse, at))
 
 
 def _request(request: dict) -> tuple[str, str, str, str | None, str]:
@@ -1980,18 +1982,20 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     # cap and take this ask's hold in one locked step, so two asks starting together cannot both fit under it. A spend
     # that cannot be read refuses the ask: nothing then proves any hold fits. Finished asks whose runs rows are not
     # written yet count too, and so does any row written while the read was going, which the read may have missed.
+    # The decision's moment is taken before the read and the read is of its SAST day, so the spend read, the cap,
+    # the hold and the runs row's run_date (spend_day) are one accounting day even when the read ends after midnight.
     spent, notice = 0.0, None
     reading = object()
     with _SPEND_LOCK:
         _READING[reading] = 0.0
     try:
+        decision_at = deps.now().astimezone(SAST).replace(microsecond=0)
         if deps.spent_today_usd is not None:
             try:
                 with timings.begin("io", "spend_read"):
-                    spent = deps.spent_today_usd()
+                    spent = deps.spent_today_usd(decision_at)
             except Exception:
                 spent = None
-        decision_at = deps.now().astimezone(SAST).replace(microsecond=0)
         model_cap = model_daily_usd(now=decision_at)
         inv = _investigation(request, model=model_name, now=decision_at)
         if client is None:

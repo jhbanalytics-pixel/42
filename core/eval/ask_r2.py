@@ -1121,7 +1121,8 @@ def _wrap_wiring(wiring, modules, *, prefix, question_id, day, captured, budget)
             tables=tables,
             model=model,
             socialcrawl=modules.staging.refusing_socialcrawl,
-            spent_today_usd=lambda: modules.ask.model_spend_today(warehouse, wiring.now()),
+            # The run's own clock picks the day it guards, not run_ask's accounting moment.
+            spent_today_usd=lambda at=None: modules.ask.model_spend_today(warehouse, wiring.now()),
         )
 
     wrapped.ask_deps = ask_deps
