@@ -60,8 +60,8 @@ Full reasoning, every platform family's verdict and every route's parameters are
 | 8 | facebook/profile/posts since=yesterday, 4 hub pages per market | 12 | 12 |
 | 9 | telegram/profile/posts, 9 channels; facebook/events, 6 cities | 15 | 15 |
 | 10 | tiktok/profile/videos for new local-feed authors (breakout baseline) | 36 | 36 |
-| 11 | tiktok/song/videos for the top 6 sounds per market | 18 | 18 |
-| 12 | tiktok/song and tiktok/hashtag counts, 30 watched items | 30 | 30 |
+| 11 | tiktok/song/videos for the 6 sounds per market used by the most local creators on the most days over the last 7 days (local by the brief's pattern_posts rule) | 18 | 18 |
+| 12 | tiktok/song and tiktok/hashtag counts, 30 watched items: after the watches, 6 sounds (row 11's) and 4 hashtags a market | 30 | 30 |
 | 13 | instagram/audio/reels for sounds found on both platforms | 6 | 6 |
 | 14 | tiktok/search/top country=XX publish_time=this-week seen= (50 candidates a market, KE 60 with its dropped feed pulls; 15% exploration; no cluster above 25%) | 160 | 160 |
 | 15 | tiktok/search/hashtag max_age_days=7; search/suggestions region | 30 | 30 |

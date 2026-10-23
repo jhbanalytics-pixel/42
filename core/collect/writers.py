@@ -916,37 +916,57 @@ def read_profile_countries(bq, keys, *, timeout=None):
 
 # The stored posts whose sounds rank the morning's row 11 and 12 sound reads (job.rank_sounds): yesterday's
 # TikTok search and trending pulls.
-ADOPTION_ROUTES = ("tiktok/search/top", "tiktok/search/hashtag", "tiktok/trending")
+# Stored adoption reads the market's TikTok posts of the ADOPTION_DAYS days to the day before the run, as the brief's
+# pattern_posts counts them (core/brief/sql/brief.sql): posted and observed in the market in the window, any route but
+# the legacy, placebo and agent_live lanes, a creator-less post counting as its own creator, and local when located in
+# the market from a known source (KNOWN_GEO, at GEO_KNOWN or more) or seen in the market's own feeds (source_market,
+# any route but YouTube's regional chart) and not located in another market from a known source.
+ADOPTION_DAYS = 7
+_KNOWN = "p.geo_source IN (" + ", ".join(f"'{s}'" for s in KNOWN_GEO) + ")"
 ADOPTION_SQL = (
-    "SELECT o.market, p.sound_id, p.creator_id, p.post_id, MAX(IFNULL(p.published_at, o.observed_at)) AS newest\n"
+    "WITH sourced AS (\n"
+    "  SELECT DISTINCT source_market AS market, post_id FROM `{observations}`\n"
+    f"  WHERE observed_date BETWEEN DATE_SUB(@d, INTERVAL {ADOPTION_DAYS - 1} DAY) AND @d\n"
+    "    AND source_market IN UNNEST(@markets) AND IFNULL(route, '') != 'youtube/videos/trending')\n"
+    "SELECT o.market, p.sound_id, IFNULL(p.creator_id, p.post_id) AS creator_id, p.post_id, p.post_date AS post_day,\n"
+    "  MAX(IFNULL(p.published_at, o.observed_at)) AS newest,\n"
+    f"  LOGICAL_OR((p.geo_market = o.market AND IFNULL(p.geo_confidence, 0) >= {GEO_KNOWN} AND {_KNOWN})\n"
+    f"    OR (s.post_id IS NOT NULL AND NOT IFNULL(p.geo_market != o.market AND p.geo_confidence >= {GEO_KNOWN}\n"
+    f"                                         AND {_KNOWN}, FALSE))) AS is_local\n"
     "FROM `{observations}` o\n"
     "JOIN `{posts}` p ON p.post_id = o.post_id\n"
-    "WHERE o.observed_date = @d AND o.market IN UNNEST(@markets) AND o.route IN UNNEST(@routes)\n"
+    "LEFT JOIN sourced s ON s.market = o.market AND s.post_id = o.post_id\n"
+    f"WHERE o.observed_date BETWEEN DATE_SUB(@d, INTERVAL {ADOPTION_DAYS - 1} DAY) AND @d\n"
+    f"  AND p.post_date BETWEEN DATE_SUB(@d, INTERVAL {ADOPTION_DAYS - 1} DAY) AND @d\n"
+    "  AND o.market IN UNNEST(@markets)\n"
+    "  AND o.lane_class != 'legacy' AND IFNULL(o.lane, '') NOT IN ('placebo', 'agent_live')\n"
     "  AND p.platform = 'tiktok' AND p.sound_id IS NOT NULL\n"
-    "GROUP BY o.market, p.sound_id, p.creator_id, p.post_id"
+    "GROUP BY o.market, p.sound_id, p.creator_id, p.post_id, p.post_date"
 )
 
 
 def read_sound_adoption(bq, day, markets):
-    """market -> [{sound_id, creator_id, post_id, newest}], one row per TikTok post with a sound that the
-    market's search or trending pulls (ADOPTION_ROUTES) observed on day, newest being its publish time, else its
-    latest observation. One parameterised SELECT; a failing read is logged and reads as no rows, so the run
-    ranks its sounds from the harvest alone, as before."""
+    """market -> [{sound_id, creator_id, post_id, newest, day, local}], one row per TikTok post with a sound that the
+    market observed and that was posted in the ADOPTION_DAYS days to day (ADOPTION_SQL), newest being its publish
+    time, else its latest observation, day its posting day and local whether it counts as local to the market by the
+    brief's rule. One parameterised SELECT; a failing read is logged and reads as no rows, so the run ranks its
+    sounds from the harvest alone, as before."""
     from google.cloud import bigquery
 
     sql = ADOPTION_SQL.format(observations=table("post_observations"), posts=table("posts"))
     out = {m: [] for m in markets}
     try:
         rows = _query(bq, sql, [bigquery.ScalarQueryParameter("d", "DATE", day),
-                                bigquery.ArrayQueryParameter("markets", "STRING", list(markets)),
-                                bigquery.ArrayQueryParameter("routes", "STRING", list(ADOPTION_ROUTES))])
+                                bigquery.ArrayQueryParameter("markets", "STRING", list(markets))])
     except Exception:
         log.exception("the stored sound adoption read failed; sounds rank from the harvest alone")
         return out
     for r in rows:
         r = dict(r.items())
         if r.get("market") in out:
-            out[r["market"]].append({k: r.get(k) for k in ("sound_id", "creator_id", "post_id", "newest")})
+            row = {k: r.get(k) for k in ("sound_id", "creator_id", "post_id", "newest")}
+            row["day"], row["local"] = r.get("post_day"), r.get("is_local") is True
+            out[r["market"]].append(row)
     return out
 
 
