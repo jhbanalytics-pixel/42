@@ -28,6 +28,8 @@ into a test fixture. A failure ends the run with exit 0, so the job's one retry 
 body each, to read the vendor's charge against PRICED. PRICE_ROUTES are the routes priced for Ask: one post
 opened per platform (L3 Needs 5) and prism/mentions and instagram/tagged (L4 Needs 25). Those two take an
 Instagram handle from the culture desk in core/config/hubs.yaml, public pages only, never a person's post.
+instagram/search/reels is the country card: one page with include=country, its query a post's hashtag and its
+region that post's market, held at 61 credits.
 
     py -3.13 -m core.collect.probe --bodies --routes tiktok/post,prism/mentions --plan
 
@@ -225,6 +227,9 @@ PRICE_ROUTES = (
     ("d7", "details", "threads/post", "threads", "url"),
     ("a1", "ask", "instagram/tagged", "instagram", "hub_handle"),
     ("a2", "ask", "prism/mentions", "instagram", "hub_handle"),
+    # The Instagram country card (include=country), held at the spec's 60 a page against the vendor's half: one page
+    # in one market, so the charge it reads settles which is right before the price or the T1 ceiling moves.
+    ("a3", "ask", "instagram/search/reels", "instagram", "reels_country"),
 )
 PRICE_GROUPS = ("details", "ask")
 BODY_ROUTE_NAMES = tuple(r[2] for r in BODY_ROUTES + PRICE_ROUTES)
@@ -247,6 +252,8 @@ PLACEHOLDERS = {
     "handle": lambda pf: {"handle": "<creator handle from a posts url>"},
     "sound": lambda pf: {"audio_id": "<posts.sound_id>"},
     "hub_handle": lambda pf: {"handle": f"<{pf} handle from the hubs.yaml culture desk>"},
+    "reels_country": lambda pf: {"query": "<hashtag from posts>", "region": "<its market>", "include": "country",
+                                 "max_pages": 1},
 }
 POSTS_SQL = f"""SELECT url, platform, geo_market, hashtags, sound_id
 FROM `{PROJECT}.{DATASET}.posts`
@@ -288,7 +295,7 @@ def candidates(p, today, query):
         "since": today - timedelta(days=BODY_DAYS), "today": today,
         "platforms": list(PLATFORMS.get(p["platform"], (p["platform"],))), "markets": list(BODY_MARKETS),
         "video": p["need"] == "video", "video_url": VIDEO_URLS.get(p["platform"], ""),
-        "sound": p["need"] == "sound", "hashtag": p["need"] == "hashtag",
+        "sound": p["need"] == "sound", "hashtag": p["need"] in ("hashtag", "reels_country"),
     })
 
 
@@ -315,6 +322,10 @@ def pick(p, rows):
             tag = next((t for t in map(_tag, row.get("hashtags") or []) if t), None)
             if tag:
                 return {"hashtag": tag, "region": market}, market, ""
+        elif p["need"] == "reels_country":
+            tag = next((t for t in map(_tag, row.get("hashtags") or []) if t), None)
+            if tag:
+                return {"query": tag, "region": market, "include": "country", "max_pages": 1}, market, ""
         elif p["need"] == "handle":
             found = TIKTOK_HANDLE.search(url)
             if found and not blocked(found.group(1)):
