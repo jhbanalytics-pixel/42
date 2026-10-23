@@ -197,7 +197,10 @@ def test_possibly_dispatched_timeout_books_full_reservation_with_an_unknown_mark
 
     monkeypatch.setattr(explain, "_estimate_usd", record_estimate)
     counts, chain, client = run_job(model)
-    assert len(estimates) == transport.dispatched == 2
+    # Each of the two topics is explained twice: a model error gets one more whole attempt (core/brief/job.py
+    # _retry_admits, 23 Oct 2026), and both attempts keep their whole reservation.
+    assert len(estimates) == transport.dispatched == 4
+    assert [r["item_id"] for r in counts["model_retry"]] == ["za1", "za2"]
     assert counts["model_usd"] == pytest.approx(sum(estimates), abs=0.000001)
     assert counts["model_reserved_usd"] == pytest.approx(sum(estimates), abs=0.000001)
     assert chain.finished[0]["counts"]["model_reserved_usd"] == counts["model_reserved_usd"]
