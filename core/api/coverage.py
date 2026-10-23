@@ -1,5 +1,6 @@
 """Coverage (core/api/contract.md section 10.4): what 42 collected, spent and ran on one day."""
 import json
+import logging
 import os
 import re
 from collections import Counter
@@ -9,6 +10,7 @@ from core.api.discover import figure
 from core.api.auth import sast_date
 from core.api.today import (INVALID_WORDS, LABELS, MARKETS, NEWS_SERIES, _coverage, _news_feed_name, _series_name,
                             invalid_code)
+from core.api import today
 from core.config import caps as caps_config
 from core.public_feeds.catalog import FEEDS
 
@@ -50,6 +52,10 @@ NET_ERROR_WORDS = {"cap": "the daily model cap was reached", "malformed": "the l
                    "spend_unknown": "the day's model spend could not be read",
                    "day_changed": "the day changed before the label check"}
 CLUSTER_WORDS = {"pan": "the three markets pooled"}
+
+
+BRIEF_OUTCOME_UNREAD = "The brief's outcome could not be read"
+logger = logging.getLogger(__name__)
 
 
 MAX_ERROR = 300
@@ -442,4 +448,15 @@ def build_coverage(store, date):
         "not_seen": list(NOT_SEEN),
         "scorecard": card,
         "scorecard_text": None if card else NO_SCORECARD,
+        "brief_outcome": _brief_outcome(store, date),
     }
+
+
+def _brief_outcome(store, date):
+    """today.today_value for the day: value readiness, each market's outcome with its hold reasons, and the run of
+    zero-card mornings. A failed read is unknown and never reads as ready."""
+    try:
+        return today.today_value(store, date)
+    except Exception as exc:
+        logger.warning("coverage: brief outcome could not be read: %s", type(exc).__name__)
+        return {"date": date, "status": "unknown", "value_ready": False, "text": BRIEF_OUTCOME_UNREAD}
