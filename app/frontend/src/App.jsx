@@ -97,6 +97,10 @@ function SignInWait(){
   );
 }
 
+/* How long the startup health and identity checks may take before the page
+   stops waiting and offers sign-in recovery. */
+export const AUTH_PROBE_MS = 15000;
+
 function SignInUnavailable(){
   return (
     <div className="page route-wait-enter">
@@ -709,6 +713,7 @@ export default function App(){
   const [authMode, setAuthMode] = useState(null);
   const [authUnavailable, setAuthUnavailable] = useState(false);
   const [authReady, setAuthReady] = useState(null);
+  const authDeadline = useRef(null);
   const [health, setHealth] = useState(null);
   const onAuth = useCallback(() => {
     if (authMode === 'iap_readonly'){
@@ -746,13 +751,27 @@ export default function App(){
 
   useEffect(() => {
     let live = true;
+    const probe = new AbortController();
+    /* A startup check that never answers would hold every route on the wait
+       frame. At the deadline the page stops listening, so a late answer
+       cannot open the shell, and shows sign-in recovery with Reload. */
+    const deadline = setTimeout(() => {
+      if (!live) return;
+      live = false;
+      probe.abort();
+      setAuthMode('unavailable');
+      setAuthUnavailable(true);
+      setNeedPass(false);
+      setAuthReady(false);
+    }, AUTH_PROBE_MS);
+    authDeadline.current = deadline;
     /* With a stored key the page waits, sends one verify, and starts no gated
        read until it answers 200. */
     const openWithStoredKey = () => {
       if (!credential.key()){ setNeedPass(true); setAuthReady(false); return; }
       credential.verifyStored().then((result) => { if (live) applyStoredCheck(result); });
     };
-    fetch('/api/health')
+    fetch('/api/health', {signal: probe.signal})
       .then((r) => {
         if (r && r.ok === false) throw new Error('health_unavailable');
         return r.json();
@@ -770,6 +789,7 @@ export default function App(){
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               body: '{}',
+              signal: probe.signal,
             })
               .then((r) => {
                 if (r && r.ok === false) throw new Error('sign_in_unavailable');
@@ -822,8 +842,16 @@ export default function App(){
           setAuthReady(false);
         }
       });
-    return () => { live = false; };
+    return () => { live = false; clearTimeout(deadline); };
   }, [applyStoredCheck]);
+
+  /* The deadline ends once the gate has an answer either way. */
+  useEffect(() => {
+    if ((authReady !== null || authUnavailable) && authDeadline.current !== null){
+      clearTimeout(authDeadline.current);
+      authDeadline.current = null;
+    }
+  }, [authReady, authUnavailable]);
 
   const retryStored = useCallback(() => {
     if (retryingNow.current) return;
