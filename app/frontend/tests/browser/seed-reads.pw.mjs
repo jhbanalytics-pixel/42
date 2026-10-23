@@ -4,6 +4,7 @@ import {DESK_WRAPPED_SIGNAL} from '../../src/ui/__tests__/fixtures/instrument-pa
 
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/seed-reads.json', import.meta.url), 'utf8'));
 const copy = value => JSON.parse(JSON.stringify(value));
+const FIXTURE_PASSCODE = 'browser-fixture-only';
 
 function lexiconPayload(rows, market){
   const fig = value => ({value, unit: 'posts', query_id: 'q_lexicon', run_id: 'r1', result_hash: 'sha256:x'});
@@ -78,6 +79,14 @@ async function setup(page, {seedReply, pathReply, deskReply, initialRegion = 'NG
   await page.route('**/api/**', async route => {
     const request = route.request(), url = new URL(request.url());
     reads.push(url.pathname + url.search);
+    /* The stored passcode is checked once before any gated read (audit
+       W28-04). Only the synthetic fixture passcode is accepted here. */
+    if (request.method() === 'POST' && url.pathname === '/api/auth/verify'){
+      let body = null;
+      try { body = request.postDataJSON(); } catch {}
+      if (!body || body.passcode !== FIXTURE_PASSCODE){ unexpected.push('verify with another passcode'); return route.fulfill({status: 401, json: {error: 'unauthorized'}}); }
+      return route.fulfill({json: {ok: true}});
+    }
     if (request.method() !== 'GET') {unexpected.push(request.method() + url.pathname); return route.fulfill({status: 501, json: {detail: 'Unexpected mutation'}});}
     if (url.pathname === '/api/health') return route.fulfill({json: {passcode: true}});
     if (url.pathname === '/api/seeds') return route.fulfill(seedReply ? await seedReply(++seedCalls, url) : {json: fixture.seeds});
@@ -158,7 +167,7 @@ test('Seeds carries Kenya from its market button to the header, its reads, its t
      on the trigger as the market's name rather than its code. */
   await expect(page.locator('.instrument-market-trigger')).toHaveText('Kenya');
   await expect(page.getByText('The 4 searches of Wednesday 30 September 2026 found 23 new posts and 4 new creators', {exact: false})).toBeVisible();
-  await expect(page.getByText('2 searches of creator accounts', {exact: false})).toBeVisible();
+  await expect(page.getByText('2 of these searches are of creator accounts', {exact: false})).toBeVisible();
   await expect(page.locator('[data-query-id="q_seeds_queue"]').first()).toBeVisible();
   await expect(page.getByRole('link', {name: 'Fixture Cola', exact: true})).toHaveAttribute('href', '#/t/abc123?market=KE');
   await expect(page.getByRole('link', {name: 'fixture_anchor', exact: true})).toHaveAttribute('href', '#/seedpath/fixture_anchor?region=ke');
@@ -317,5 +326,24 @@ for (const width of [390, 768, 1440]) test('Explorer records fit the viewport at
   await expect(page.locator('[data-platform-row]')).toHaveCount(2);
   await page.evaluate(() => document.fonts.ready);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(state.errors).toEqual([]);
+});
+
+/* Audit W24-02 and W28-05: a Seeds read that never answers leaves Loading at
+   its deadline for an error with Try again, and Try again reads afresh. */
+test('a Seeds read that never answers offers Try again at its deadline, and the retry renders', async ({page}) => {
+  await page.clock.install();
+  const state = await setup(page, {initialRegion: 'ZA', seedReply: async (call, url) => {
+    if (call === 1) return new Promise(() => {});
+    return {json: seedsPayload(url.searchParams.get('market'))};
+  }});
+  await page.goto('/#/seeds');
+  await expect(page.getByText('Loading available seeds…', {exact: true})).toBeVisible();
+  await page.clock.fastForward(30000);
+  await expect(page.getByRole('heading', {name: 'Seeds could not load'})).toBeVisible();
+  await page.getByRole('button', {name: 'Try again'}).click();
+  await expect(page.getByRole('heading', {name: 'Next searches'})).toBeVisible();
+  expect(state.reads.filter(p => p.startsWith('/api/seeds'))).toEqual(['/api/seeds?market=ZA', '/api/seeds?market=ZA']);
+  expect(state.unexpected).toEqual([]);
   expect(state.errors).toEqual([]);
 });
