@@ -46,6 +46,12 @@ def test_paused_is_never_due():
     assert scheduled.due(rows, TUESDAY) == []
 
 
+def test_cancelled_is_never_due():
+    rows = [schedule("s_daily", status="cancelled"), schedule("s_weekly", cadence="weekly_monday", status="cancelled")]
+    assert scheduled.due(rows, MONDAY) == []
+    assert scheduled.due(rows, TUESDAY) == []
+
+
 # ---------- precheck ----------
 
 def test_tier_maxima_follow_agent_md():
@@ -641,3 +647,25 @@ def test_a_schedule_whose_status_cannot_be_reread_is_not_asked():
                         record_start=record_start, current=unreadable)
     assert writes == [("skipped", "s_a", "sched-2026-09-29-s_a")]
     assert out[0]["status"] == "skipped" and out[0]["reason"] == scheduled.STATUS_UNKNOWN
+
+
+def test_a_schedule_cancelled_while_an_earlier_one_is_asked_is_not_started(job, monkeypatch):
+    caps, asked = job
+    caps.write_text("SCHEDULED_DAILY: 120\n", encoding="utf-8")
+    agent_app.SCHEDULES.append(agent_app.schedule_row(schedule("s_later", tier="T0",
+                                                               created_at="2026-09-21T08:00:00+02:00")))
+
+    def ask_then_cancel(s, run_id):
+        asked.append((s["schedule_id"], run_id))
+        if s["schedule_id"] == "s_main":
+            agent_app.cancel_schedule("s_later")
+
+    monkeypatch.setattr(scheduled, "live_ask", ask_then_cancel)
+    assert scheduled.main(["--live"]) == 0
+    day = scheduled.today().isoformat()
+    assert asked == [("s_main", f"sched-{day}-s_main")]
+    later = [(r["stage"], r["status"], r["outcome"]) for r in agent_app.SINK
+             if r["run_id"] == f"sched-{day}-s_later"]
+    assert later == [("scheduled", "skipped", scheduled.CANCELLED)]
+    # The next day's job finds it cancelled and does not ask it at all.
+    assert [s["schedule_id"] for s in scheduled.due(agent_app.current_schedules(), scheduled.today())] == ["s_main"]

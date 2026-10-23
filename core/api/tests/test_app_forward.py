@@ -397,6 +397,7 @@ SCHEDULE_ROUTES = [
     ("POST", "/api/schedules", SCHEDULE, "/api/schedules", {}, 201),
     ("POST", "/api/schedules/s_1/pause", None, "/api/schedules/s_1/pause", {}, 201),
     ("POST", "/api/schedules/s_1/resume", None, "/api/schedules/s_1/resume", {}, 201),
+    ("POST", "/api/schedules/s_1/cancel", None, "/api/schedules/s_1/cancel", {}, 201),
 ]
 
 
@@ -409,7 +410,7 @@ def test_schedule_routes_forward_to_the_agent(ctx, method, path, body, agent_pat
     assert ctx.seen["calls"] == [(method, agent_path, query, body)]
 
 
-@pytest.mark.parametrize("action", ["pause", "resume"])
+@pytest.mark.parametrize("action", ["pause", "resume", "cancel"])
 @pytest.mark.parametrize("bad", BAD_IDS)
 def test_schedule_ids_are_checked_before_forwarding(ctx, action, bad):
     r = ctx.client.post(f"/api/schedules/{bad}/{action}", headers=GOOD)
