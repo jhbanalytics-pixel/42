@@ -1517,6 +1517,40 @@ test('a 409 says Today is not published yet, with the date', async () => {
   expect(button(host, 'Try again')).toBeUndefined();
 });
 
+/* Audit W19-01: a 200 whose body is not a brief is a service fault, never an
+   empty brief or a market missing from it. */
+test('a successful read whose body is not a brief shows a retryable error, not an empty brief', async () => {
+  standOnFixtureDay();
+  const broken = [null, {}, [], {markets: 'ZA'}, {markets: {}}, {markets: [null]}, {markets: [{market: 'ZA'}]},
+    {markets: [{market: 'ZA', cards: {}}]}, {markets: [{market: 'ZA', cards: [], more: 'x'}]}];
+  for (const body of broken){
+    resetRoot();
+    serve([['/api/today', reply(200, body)]]);
+    flushSync(() => root.render(<TodayPage42 region="ZA" date="2026-09-30" />));
+    await settle();
+    expect([body, text().includes('Today could not load')]).toEqual([body, true]);
+    expect([body, text().includes('This market is not in this brief')]).toEqual([body, false]);
+    expect(button(host, 'Try again')).toBeDefined();
+  }
+  resetRoot();
+  let answer = reply(200, {});
+  serve([['/api/today', () => answer], ['/api/trends/', reply(200, trendFixture)]]);
+  flushSync(() => root.render(<TodayPage42 region="ZA" date="2026-09-30" />));
+  await settle();
+  answer = reply(200, todayFixture);
+  click(button(host, 'Try again'));
+  await settle();
+  expect(cards().length).toBeGreaterThan(0);
+});
+
+test('a well-formed brief with no cards still reads as an empty brief, not an error', async () => {
+  const empty = clone(todayFixture);
+  for (const market of empty.markets){ market.cards = []; market.more = []; }
+  await mount({}, empty);
+  expect(text()).not.toContain('Today could not load');
+  expect(cards().length).toBe(0);
+});
+
 test('loading shows first, and an error offers Try again that reads again', async () => {
   const timers = trackTodaySlowTimers();
   try {

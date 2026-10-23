@@ -849,7 +849,7 @@ test('a filter change aborts the older Feed read and its late response cannot re
 });
 
 test('an empty answer still renders the heading and says nothing matched', async () => {
-  await mount({}, [['/api/', reply(200, {})]]);
+  await mount({}, [['/api/', reply(200, {items: []})]]);
   expect(host.querySelector('h1').textContent).toBe('Discover');
   expect(text()).toContain('No trends have cleared the checks in South Africa yet.');
   expect(text()).toContain('Hold information was not returned.');
@@ -1274,4 +1274,37 @@ test('the 7-day reach shows only on a card that carries it: Today cards and card
   </ol>));
   expect(host.querySelectorAll('[data-figure="reach7"]').length).toBe(0);
   expect(host.textContent).not.toContain('every source');
+});
+
+/* Audit W19-01: a 200 whose body has no list of items is a service fault,
+   never zero results. */
+test('a successful feed read with no items list shows a retryable error, not zero results', async () => {
+  for (const body of [null, {}, [], {items: null}, {items: {}}, {items: 'none'}]){
+    if (root) flushSync(() => root.unmount());
+    root = createRoot(host);
+    calls = [];
+    await mount({}, [['/api/discover/radar', reply(200, radar)], ['/api/discover', reply(200, body)]]);
+    expect([body, text().includes('Discover could not load')]).toEqual([body, true]);
+    expect([body, text().includes('No trends have cleared the checks')]).toEqual([body, false]);
+    expect([body, text().includes('0 results')]).toEqual([body, false]);
+  }
+  let answer = reply(200, {});
+  if (root) flushSync(() => root.unmount());
+  root = createRoot(host);
+  calls = [];
+  await mount({}, [['/api/discover/radar', reply(200, radar)], ['/api/discover', () => answer]]);
+  answer = reply(200, pageOne);
+  click(button(host, 'Try again'));
+  await settle();
+  expect(cards()).toHaveLength(5);
+});
+
+test('a Load more page with no items list says the page did not load and keeps the rows shown', async () => {
+  await mount({}, [['/api/discover/radar', reply(200, radar)], ['/api/discover', (url) => reply(200, url.includes('cursor=c2') ? {next_cursor: null} : pageOne)]]);
+  expect(cards()).toHaveLength(5);
+  click(button(host, 'Load more'));
+  await settle();
+  expect(cards()).toHaveLength(5);
+  expect(text()).toContain('More trends could not load.');
+  expect(button(host, 'Load more')).toBeDefined();
 });
