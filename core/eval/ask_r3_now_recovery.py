@@ -851,7 +851,7 @@ def _execute_now_retry(*, repo_root, data_dir, snapshot_path, source_metadata_pa
                 checked_now = wiring.now()
                 if checked_now.astimezone(modules.staging.SAST).date() != day:
                     raise shared.OperationRefused("phase_reservation_sast_day_changed")
-                daily_warehouse = shared.ReadOnlyWarehouse(wiring.warehouse, modules.sql.check_sql)
+                daily_warehouse = shared.ReadOnlyWarehouse(wiring.warehouse, modules.sql.check_sql_harness)
                 daily_spend_after = modules.ask.model_spend_today(daily_warehouse, checked_now)
                 daily_delta_micros = None
                 if not resume_prefunded:

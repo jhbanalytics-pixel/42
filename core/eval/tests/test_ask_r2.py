@@ -545,7 +545,7 @@ def test_search_posts_source_sightings_query_reserves_one_embedding_call():
     context.record_query = record_query
     backend = _FakeWarehouse()
     budget = ask_r2.SessionBudget(10.0)
-    guarded = ask_r2.ReadOnlyWarehouse(backend, sql_query.check_sql, budget=budget)
+    guarded = ask_r2.ReadOnlyWarehouse(backend, sql_query.check_sql_harness, budget=budget)
     guarded.bind_context(context)
 
     warehouse_tools.search_posts(context, guarded, "amapiano", since=date(2026, 9, 1),
@@ -1979,7 +1979,7 @@ def _fake_runtime(*, insufficient_question=None, fail_question=None, hide_claim_
     modules = SimpleNamespace(
         staging=staging,
         ask=ask,
-        sql=SimpleNamespace(MAX_BYTES_BILLED=1000, check_sql=check_sql),
+        sql=SimpleNamespace(MAX_BYTES_BILLED=1000, check_sql=check_sql, check_sql_harness=check_sql),
         embed=SimpleNamespace(SPEND_ROW_SQL=backend.spend_sql, book_spend=book_spend),
         gemini_research=research,
         gemini=SimpleNamespace(usage_of=lambda response, model_name: response.usage),

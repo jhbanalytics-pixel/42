@@ -1671,7 +1671,8 @@ or None."""
         """The post_items links @market sees at @end, as tvf_post_items (core/detect/sql/counted_links.sql) scopes
         them: a link written for another market's clustering run is not the market's, a link counts from its
         linked_on, and a link ended in post_item_end on or before @end no longer counts. A row with neither field,
-        written before links carried them, is read as always."""
+        written before links carried them, is read as always. Unlike counted_links.sql it adds no lineage links and
+        does not keep one winning item per post and market, so a post linked to two items counts toward both."""
         ends = self._find("post_item_end")
         ended = ("\n    AND NOT EXISTS (SELECT 1 FROM " + ends + " e WHERE e.post_id = l.post_id AND e.item_id = l.item_id"
                  " AND e.ended_on <= @end)") if ends else ""

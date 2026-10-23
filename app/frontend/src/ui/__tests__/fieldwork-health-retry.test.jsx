@@ -73,7 +73,7 @@ test('an earlier day says its roster is today\'s collection settings', () => {
   document.body.appendChild(host);
   const root = createRoot(host);
   const note = 'This roster is the collection settings as they stand today.';
-  flushSync(() => root.render(<FieldworkPage payload={{...clone(days.ready), plan_note: note}} />));
+  flushSync(() => root.render(<FieldworkPage payload={{...clone(days.ready), roster_note: note}} />));
   expect(host.querySelector('[data-plan-note]')?.textContent).toBe(note);
   flushSync(() => root.unmount());
   host.remove();

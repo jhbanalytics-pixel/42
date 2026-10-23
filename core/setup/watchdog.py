@@ -87,10 +87,15 @@ WATCHDOG_MAX_GAP = timedelta(minutes=90)
 # The degraded writes of an understand run, spelled exactly as core/api/store.py DEGRADED_SQL reads them for
 # Coverage (a test holds the two together); copied here so the job image does not import the API's store.
 _CLUSTER_MARKETS = ("za", "ng", "ke", "pan")
+_FAILED_ROWS = "SAFE_CAST(JSON_VALUE(r.counts, '$.failed') AS INT64)"
 UNDERSTAND_DEGRADED = "ARRAY(SELECT w FROM UNNEST([{}]) AS w WITH OFFSET o WHERE w IS NOT NULL ORDER BY o)".format(
     ", ".join(["IF(JSON_VALUE(r.counts, '$.embed_error') IS NOT NULL, 'embed', NULL)",
+               f"IF({_FAILED_ROWS} > 0, CONCAT('embed_rows:', CAST({_FAILED_ROWS} AS STRING)), NULL)",
                "IF(JSON_VALUE(r.counts, '$.enrich_error') IS NOT NULL, 'enrich', NULL)"]
               + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.error') IS NOT NULL, 'cluster:{m}', NULL)"
+                 for m in _CLUSTER_MARKETS]
+              + [f"IF(JSON_VALUE(r.counts, '$.cluster.{m}.net_failed') = 'true', CONCAT('label_net:{m}:', "
+                 f"IFNULL(JSON_VALUE(r.counts, '$.cluster.{m}.net_error'), 'unknown')), NULL)"
                  for m in _CLUSTER_MARKETS]))
 
 # For deploy_jobs.py and schedule.py (task 2.10 leaves those files to their owner): the job, and its two
@@ -256,6 +261,11 @@ def _short(text):
 def _step_words(step):
     if step.startswith("cluster:"):
         return f"topic clusters for {step.split(':', 1)[1].upper()}"
+    if step.startswith("embed_rows:"):
+        return f"embeddings for {step.split(':', 1)[1]} posts"
+    if step.startswith("label_net:"):
+        _, market, reason = step.split(":", 2)
+        return f"checked topic labels for {market.upper()} (neutral labels used, {reason})"
     return STEP_WORDS.get(step, step)
 
 

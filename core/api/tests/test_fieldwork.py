@@ -373,6 +373,6 @@ def test_old_shape_is_read_from_the_accounts_planned_so_a_failed_rotation_does_n
 def test_an_earlier_day_says_its_roster_is_todays_settings(out):
     # Audit W26-02: no plan is kept per collection run, so an earlier day's roster is today's settings and says so.
     assert out["date"] < out["today"]
-    assert out["plan_note"] == fieldwork.PLAN_IS_CURRENT
+    assert out["roster_note"] == fieldwork.PLAN_IS_CURRENT and out["plan_note"] is None
     same_day = fieldwork.build_fieldwork(FixtureStore(), "2026-10-02", now=NOW)
-    assert same_day["plan_note"] is None
+    assert same_day["roster_note"] is None
