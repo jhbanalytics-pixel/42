@@ -66,7 +66,7 @@ Support checker. For Today, one check per surviving claim and one on the explana
 
 Ask may narrow a claim once to what its cited posts support, then runs the code and support checks again. Removed dependent background and implications leave gaps explaining why. A summary that depended on a cut or narrowed claim may be rewritten once from the retained claims; if it stays blank after checks, a gap explains why and the answer cannot remain complete.
 
-**Critic.** Names the simplest non-cultural explanation: one viral post, one creator, a news story, a scheduled event. The card passes only when that explanation is ruled out and a local why-now is confirmed. A news-driven or scheduled topic can still pass when at least two distinct local creators are reacting in their own words; it is then labelled news-driven and every claim drops one label step.
+**Critic.** Names the simplest non-cultural explanation: one viral post, one creator, a news story, a scheduled event. The card passes only when that explanation is ruled out, and then on a local why-now that a cited local post states or, when no post states the local cause, on a format, sound or practice that code (not the critic) counts as adopted by three or more independent local creators on two or more days among the posts the writer may cite; that why-now is labelled Inferred on the card. A topic that is only a reaction to a news or scheduled event stays held, however many local creators react to it, because the simpler explanation is left standing.
 
 In Ask, deep reads add the critic after the researchers, and it can only lower or cut, never add.
 

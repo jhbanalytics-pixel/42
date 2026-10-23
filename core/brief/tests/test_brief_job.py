@@ -690,7 +690,8 @@ def test_confirm_runs_on_publishable_candidates_per_market_inside_one_share():
     r = brief(con, ctx=FakeCtx({"ng2": {"valid_days": [False, True, True]}}))
     assert [c["market"] for c in r.confirm.calls] == ["ZA", "NG", "KE"]
     assert [c["share_used"] for c in r.confirm.calls] == [0, 15.0, 25.0]
-    assert all(c["sc"] is SC and c["d"] == D and c["seen"] is None for c in r.confirm.calls)
+    assert all(c["sc"] is SC and c["d"] == D and c["seen"] == f"f42-{c['market'].lower()}-{D.isoformat()}"
+               for c in r.confirm.calls)
     ng = r.confirm.calls[1]["candidates"]
     assert [c["item_id"] for c in ng] == ["ng1", "ng3"]
     assert {"item_id", "kind", "label", "canonical_key", "first_seen", "seen_platforms"} <= set(ng[0])
@@ -3161,3 +3162,88 @@ def test_stored_cards_and_held_items_carry_no_formats_or_sound_the_checks_read()
     evidence = [e for c in all_cards(stored) for e in c["evidence"]]
     evidence += [e for h in held_items(r, "ZA").values() for e in h["evidence"]]
     assert evidence and not any({"formats", "sound_id"} & set(e) for e in evidence)
+
+
+def test_confirm_passes_each_markets_daily_seen_id_from_collection_to_every_candidate():
+    # W17-03: the brief's TikTok searches carry the same per-market daily seen id collection used, so the vendor
+    # skips posts 42 already has; search/multi never carries it (confirm._plan).
+    from core.collect import job as collect_job
+
+    confirm = FakeConfirm()
+    brief(world(n=3), confirm=confirm)
+    assert [c["market"] for c in confirm.calls] == ["ZA", "NG", "KE"]
+    for call in confirm.calls:
+        assert call["seen"] == collect_job.seen_id(call["market"], D)
+        assert call["seen"] == collect_job._search_params("x", call["market"], D, 1)["seen"]
+    assert len({c["seen"] for c in confirm.calls}) == 3
+
+
+def test_the_daily_seen_id_reaches_only_the_tiktok_search_through_the_real_lane():
+    from core.collect import job as collect_job
+
+    class SC:
+        mode, run_id = "live", "brief-x"
+
+        def __init__(self):
+            self.calls = []
+
+        def call(self, route, params, *, market, item_id, lane):
+            self.calls.append((market, item_id, route, dict(params)))
+            return SimpleNamespace(status="empty", route=route, items=[], credits_charged=1, reason=None, body=None)
+
+    sc = SC()
+    brief(world(n=2), sc=sc, confirm=confirm_lane.confirm)
+    tiktok = [c for c in sc.calls if c[2] == confirm_lane.TIKTOK]
+    assert tiktok and {c[0] for c in tiktok} == set(MARKETS)
+    assert all(c[3]["seen"] == collect_job.seen_id(c[0], D) for c in tiktok)
+    assert all("seen" not in c[3] for c in sc.calls if c[2] == confirm_lane.MULTI)
+
+
+class StatusSC:
+    """A live confirm client whose every call returns the status its route is given, charging one credit."""
+
+    mode, run_id = "live", "brief-x"
+
+    def __init__(self, statuses, markets=MARKETS):
+        self.statuses = statuses
+        self.markets = set(markets)
+        self.calls = []
+
+    def call(self, route, params, *, market, item_id, lane):
+        self.calls.append((market, route))
+        status = self.statuses[route] if market in self.markets else "empty"
+        return SimpleNamespace(status=status, route=route, items=[], credits_charged=1, reason=None, body=None)
+
+
+def test_a_market_whose_confirm_searches_all_returned_error_is_not_counted_confirmed():
+    # W17-02: error and forbidden are not completed searches; a market where none completed reads as unconfirmed,
+    # with the route outcome in the payload and the run counts, and its cards keep their own gate decisions.
+    sc = StatusSC({confirm_lane.MULTI: "error", confirm_lane.TIKTOK: "error"}, markets=("ZA",))
+    r = brief(world(n=2), sc=sc, confirm=confirm_lane.confirm)
+    za = payload(r, "ZA")
+    [banner] = no_confirm(za)
+    assert banner["text"].startswith("Cross-platform confirmation failed today")
+    assert "4 of 4 searches did not complete (error)" in banner["text"]
+    assert all(c["explained"] for c in all_cards(za)) and len(all_cards(za)) == 2
+    assert r.counts["confirm_routes"]["ZA"] == {"searches": 4, "completed": 0, "failed": {"error": 4}}
+    for m in ("NG", "KE"):
+        assert not no_confirm(payload(r, m))
+        assert r.counts["confirm_routes"][m] == {"searches": 4, "completed": 4, "failed": {}}
+
+
+def test_a_market_with_some_failed_confirm_searches_shows_a_partial_confirmation_issue():
+    sc = StatusSC({confirm_lane.MULTI: "forbidden", confirm_lane.TIKTOK: "ok"}, markets=("NG",))
+    r = brief(world(n=2), sc=sc, confirm=confirm_lane.confirm)
+    [banner] = no_confirm(payload(r, "NG"))
+    assert banner["text"] == ("Cross-platform confirmation was partial today: 2 of 4 searches did not complete "
+                              "(forbidden)")
+    assert r.counts["confirm_routes"]["NG"] == {"searches": 4, "completed": 2, "failed": {"forbidden": 2}}
+    assert all(c["explained"] for c in all_cards(payload(r, "NG")))
+
+
+def test_confirm_searches_that_return_empty_are_complete_and_show_no_issue():
+    sc = StatusSC({confirm_lane.MULTI: "empty", confirm_lane.TIKTOK: "empty"})
+    r = brief(world(n=2), sc=sc, confirm=confirm_lane.confirm)
+    for m in MARKETS:
+        assert not no_confirm(payload(r, m))
+        assert r.counts["confirm_routes"][m]["failed"] == {}

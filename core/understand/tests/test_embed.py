@@ -377,6 +377,10 @@ def test_index_is_ivf_cosine_on_embedding():
     assert "index_type = 'IVF'" in text and "distance_type = 'COSINE'" in text
 
 
+# Embed counts with no failed row: a clean run (a failed row is degraded, W14-02).
+CLEAN_EMBED = {"embedded": 5, "failed": 0, "skipped": 2, "chars_sent": 700, "tokens": 175}
+
+
 class FakeWarehouse:
     def __init__(self, counts=None, shape="rows", stored=5_000):
         self.calls = []
@@ -1365,7 +1369,9 @@ def test_the_partial_reason_reaches_coverage_through_the_cluster_errors_it_alrea
     monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
     monkeypatch.setattr(job, "run_cluster", lambda execute, *, market, **kw: (_ for _ in ()).throw(OSError("llvmlite")))
     assert job.main(execute=FakeWarehouse()) == 0
-    assert degraded_writes(finished_run(log)[3]) == ["cluster:za", "cluster:ng", "cluster:ke", "cluster:pan"]
+    # The fixture's embed counts hold one failed row, which is degraded too (W14-02).
+    assert degraded_writes(finished_run(log)[3]) == ["embed_rows:1", "cluster:za", "cluster:ng", "cluster:ke",
+                                                     "cluster:pan"]
 
 
 @pytest.mark.parametrize("results, partial", [
@@ -1505,7 +1511,8 @@ def test_failed_enrichment_and_cluster_writes_land_where_coverage_reads_them_and
     assert job.main(execute=FakeWarehouse()) == 0
     finished = next(e for e in log if e[0] == "finish")
     assert finished[2] == "ok" and finished[4] is None, "fail-soft: the run stays ok so the morning brief is never held"
-    assert degraded_writes(finished[3]) == ["enrich", "cluster:ng", "cluster:pan"]
+    # The fixture's embed counts hold one failed row, which is degraded too (W14-02).
+    assert degraded_writes(finished[3]) == ["embed_rows:1", "enrich", "cluster:ng", "cluster:pan"]
     assert log[-1] == ("start_next", "understand", DAY)
 
 
@@ -1516,7 +1523,7 @@ def test_a_clean_run_reads_as_not_degraded(monkeypatch):
     log = fake_chain(monkeypatch)
     monkeypatch.setattr(job, "run_enrich", lambda execute, **kw: {"enriched": 0})
     monkeypatch.setattr(job, "run_cluster", clustered(log))
-    assert job.main(execute=FakeWarehouse()) == 0
+    assert job.main(execute=FakeWarehouse(counts=CLEAN_EMBED)) == 0
     assert degraded_writes(next(e for e in log if e[0] == "finish")[3]) == []
 
 
@@ -1938,5 +1945,18 @@ def test_a_clean_run_prints_no_degraded_line(monkeypatch, capsys):
     monkeypatch.delenv("EMBED_DAYS", raising=False)
     log = fake_chain(monkeypatch)
     monkeypatch.setattr(job, "now", lambda: datetime(2026, 10, 5, 8, 0, tzinfo=timezone.utc))
-    assert job.main(execute=FakeWarehouse()) == 0
+    assert job.main(execute=FakeWarehouse(counts=CLEAN_EMBED)) == 0
     assert "degraded" not in capsys.readouterr().err
+
+
+# W14-02: per-row embedding failures and a market whose label net fell back to neutral labels are soft failures too.
+@pytest.mark.parametrize("counts, expected", [
+    ({"embedded": 9, "failed": 1}, {"embed_rows": "1 post not embedded"}),
+    ({"embedded": 9, "failed": 0}, {}),
+    ({"cluster": {"ng": {"clusters": 4, "net_failed": True, "net_error": "malformed"},
+                  "za": {"clusters": 2, "net_failed": False}}}, {"label_net:ng": "malformed"}),
+    ({"failed": 3, "cluster": {"ke": {"clusters": 1, "net_failed": True, "net_error": "cap"}}},
+     {"embed_rows": "3 posts not embedded", "label_net:ke": "cap"}),
+])
+def test_degraded_reasons_name_failed_embedding_rows_and_a_label_net_fallback(counts, expected):
+    assert job.degraded_reasons(counts) == expected
