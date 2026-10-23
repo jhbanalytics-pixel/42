@@ -1154,8 +1154,43 @@ test('Add to dossier starts a draft from the answer and opens it', async () => {
   await until(() => window.location.hash === '#/dossiers/d_fixture01', 'the dossier to open');
   const post = calls.find((call) => call.path === '/api/dossiers');
   expect(post.method).toBe('POST');
-  expect(post.body).toEqual({from: {ask_id: record.ask_id}});
+  expect(post.body).toEqual({from: {ask_id: record.ask_id}, request_id: expect.any(String)});
+  expect(post.body.request_id).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
   expect(headerOf(post, 'X-Passcode')).toBe('fixture-pass');
+});
+
+/* Audit W21-02: a create whose reply was lost may have saved the draft; the
+   retry sends the same request key so the server returns that draft. */
+test('Add to dossier retried after an unclear failure sends the same request key', async () => {
+  const record = clone(completeRecord);
+  const server = serve([record]);
+  const served = globalThis.fetch;
+  let posts = 0;
+  const withDossiers = async (url, init = {}) => {
+    if (String(url) === '/api/dossiers' && String(init.method || '').toUpperCase() === 'POST'){
+      posts += 1;
+      calls.push({path: String(url), method: 'POST', headers: init.headers || {}, body: JSON.parse(init.body)});
+      return posts === 1
+        ? json(503, {error: 'save_unconfirmed', message: 'The dossier could not be confirmed as saved; try again.'})
+        : json(200, {dossier_id: 'd_fixture02', version: 1, state: 'draft'});
+    }
+    return served(url, init);
+  };
+  globalThis.fetch = withDossiers;
+  window.fetch = withDossiers;
+  window.history.replaceState(null, '', '#/ask');
+  await render({query: {q: record.question, market: 'ZA'}});
+  await until(() => calls.some((call) => call.path === '/api/ask'), 'the auto ask');
+  await finish(server, record);
+  await until(() => button('Add to dossier'), 'the dossier action');
+  await act(async () => { button('Add to dossier').click(); });
+  await until(() => text().includes('could not be confirmed'), 'the unclear failure');
+  await act(async () => { button('Add to dossier').click(); });
+  await until(() => window.location.hash === '#/dossiers/d_fixture02', 'the dossier to open');
+  const sent = calls.filter((call) => call.path === '/api/dossiers').map((call) => call.body.request_id);
+  expect(sent.length).toBe(2);
+  expect(sent[0]).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+  expect(sent[1]).toBe(sent[0]);
 });
 
 test('notices from the run wait in Technical details, not in a banner above the answer', async () => {

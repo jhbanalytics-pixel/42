@@ -173,8 +173,10 @@ export function sendFeedback(body, options){
 /* Contract section 13.2. The server owns every claim, so an edit sends only
    which claims to keep, their order, the title and the notes; anything else
    it is handed stays here. */
-export function createDossier(askId, options){
-  return postJson('/api/dossiers', {from: {ask_id: askId}}, options);
+export function createDossier(askId, options = {}){
+  const body = {from: {ask_id: askId}};
+  if (options.requestId) body.request_id = options.requestId;
+  return postJson('/api/dossiers', body, options);
 }
 
 export function saveFinding(askId, options){
@@ -273,8 +275,10 @@ export function listInvestigations({status} = {}, options){
   return getJson('/api/investigations' + (status ? '?status=' + encodeURIComponent(status) : ''), options);
 }
 
-export function createInvestigationDossier(investigationId, options){
-  return postJson('/api/dossiers', {from: {investigation_id: investigationId}}, options);
+export function createInvestigationDossier(investigationId, options = {}){
+  const body = {from: {investigation_id: investigationId}};
+  if (options.requestId) body.request_id = options.requestId;
+  return postJson('/api/dossiers', body, options);
 }
 
 /* Contract section 14.2. The writes go to f42-agent through f42-api; each

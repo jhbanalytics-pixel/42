@@ -7,6 +7,17 @@ import {releaseExportUrlLater} from './exportUrl.js';
 
 const POLL_MS = 2000;
 
+/* A fresh key for one request the page may need to send again, such as an
+   Ask start or a dossier create: sent again with the same key, the server
+   answers with what the first attempt made instead of starting another. */
+export function requestKey(){
+  const cryptoApi = typeof globalThis !== 'undefined' ? globalThis.crypto : undefined;
+  if (cryptoApi && typeof cryptoApi.randomUUID === 'function') return cryptoApi.randomUUID();
+  let key = 'k';
+  for (let i = 0; i < 4; i += 1) key += Math.random().toString(36).slice(2, 10);
+  return key;
+}
+
 async function failure(res){
   let body = null;
   try { body = await res.json(); } catch (_error){ body = null; }

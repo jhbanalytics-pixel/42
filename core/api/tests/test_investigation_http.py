@@ -65,7 +65,7 @@ def test_a_running_skin_investigation_still_names_its_skin_for_a_dossier(client,
     gate = use_gate(monkeypatch, inv)
     seen = []
     monkeypatch.setattr(agent_app, "skin_people", lambda skin_id, record=None: seen.append(skin_id) or {})
-    monkeypatch.setattr(agent_app, "first_version", lambda record, change, source, people: people)
+    monkeypatch.setattr(agent_app, "first_version", lambda record, change, source, people, dossier_id=None: people)
     held = draft(client).json()
     inv_id = held["investigation_id"]
     store_plan(inv_id, lambda plan: {**plan, "skin_id": "sk_0123456789ab"})

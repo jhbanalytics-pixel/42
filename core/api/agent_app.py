@@ -1,6 +1,7 @@
 """f42-agent: runs Ask, streams its steps and records the finished run (core/api/contract.md sections 6 and 7)."""
 
 import copy
+import hashlib
 import importlib
 import json
 import logging
@@ -1363,17 +1364,41 @@ def save_version(body, ticks, status):
     row = {"dossier_id": body["dossier_id"], "version": body["version"], "created_at": body["created_at"],
            "who": body["who"], "state": body["state"], "body": json.dumps(body),
            "source_ask_id": body["source_ask_id"], "content_hash": dossiers.content_hash(body)}
-    if not append("dossier_versions", DOSSIER_VERSIONS, row):
+    try:
+        saved = append("dossier_versions", DOSSIER_VERSIONS, row)
+    except Exception as exc:
+        # The insert may have landed with its reply lost: the exact row read back decides (audit W21-02).
+        log.warning("dossier %s v%s: the insert raised %s; reading it back", body["dossier_id"], body["version"],
+                    type(exc).__name__)
+        try:
+            saved = any(held["version"] == row["version"] and held["content_hash"] == row["content_hash"]
+                        for held in dossier_versions(body["dossier_id"]))
+        except Exception:
+            saved = False
+        if not saved:
+            return error(503, "save_unconfirmed", "The dossier could not be confirmed as saved; try again.")
+    if not saved:
         return not_saved("dossier")
     return view_response(dossier_view({"body": body, "content_hash": row["content_hash"]}, ticks), status)
 
 
-def create_dossier_from(ask_id, change):
+DOSSIER_REQUEST_ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
+
+
+def requested_dossier_id(origin, request_id):
+    """The dossier id one create request names: the same source and request id always give the same id, so a retry of
+    a create whose reply was lost finds the dossier it made instead of starting a second draft (audit W21-02)."""
+    (kind, source_id), = origin.items()
+    digest = hashlib.sha256(f"{kind}:{source_id.strip()}:{request_id}".encode("utf-8")).hexdigest()
+    return f"d_{digest[:12]}"
+
+
+def create_dossier_from(ask_id, change, dossier_id=None):
     record = source_record(ask_id)
     if record is None:
         return error(404, "not_found", f"No ask {ask_id} is held here or stored.")
     people = skin_people(record["skin_id"], record) if record.get("skin_id") else None
-    return first_version(record, change, {"ask_id": ask_id}, people)
+    return first_version(record, change, {"ask_id": ask_id}, people, dossier_id)
 
 
 def keepable(record, learned=None):
@@ -1443,7 +1468,22 @@ def not_keepable(ids):
                                    "42 no longer shows.")
 
 
-def first_version(record, change, source, people=None):
+def first_version(record, change, source, people=None, dossier_id=None):
+    if NOT_RECORDED in ((record.get("run") or {}).get("notices") or []):
+        # Its runs row was never written, so once this process lets the answer go no edit or freeze could read it
+        # again (audit W21-01).
+        return error(409, "not_recorded", "This answer could not be recorded, so a dossier cannot be made from it. "
+                                          "Ask the question again to make one.")
+    if dossier_id is None:
+        return new_first_version(record, change, source, people, f"d_{secrets.token_hex(6)}")
+    with _dossier_lock:
+        versions = dossier_versions(dossier_id)
+        if versions:
+            return view_response(dossier_view(versions[-1], dossier_ticks(dossier_id)))
+        return new_first_version(record, change, source, people, dossier_id)
+
+
+def new_first_version(record, change, source, people, dossier_id):
     learned = set()
     ok = keepable(record, learned)
     if ok is None:
@@ -1457,12 +1497,12 @@ def first_version(record, change, source, people=None):
         sel = dossiers.selection(change, record, None)
     except dossiers.Refused as exc:
         return refused(exc)
-    body = dossiers.build(record, sel, dossier_id=f"d_{secrets.token_hex(6)}", version=1,
+    body = dossiers.build(record, sel, dossier_id=dossier_id, version=1,
                           created_at=status_time(record.get("market")), source=source, people=people, withheld=learned)
     return save_version(body, {}, 201)
 
 
-def create_dossier_from_investigation(investigation_id, change):
+def create_dossier_from_investigation(investigation_id, change, dossier_id=None):
     """Version 1 from a finished investigation's answer; its ask_id comes from memory, else the investigations table."""
     with _lock:
         running = RUNNING_INVESTIGATIONS.get(investigation_id)
@@ -1484,7 +1524,7 @@ def create_dossier_from_investigation(investigation_id, change):
         return error(409, "not_ready", f"Investigation {investigation_id} is running and has not finished; "
                                        "only a finished investigation can become a dossier.")
     people = skin_people(skin_id, record) if skin_id else None
-    return first_version(record, change, {"investigation_id": investigation_id}, people)
+    return first_version(record, change, {"investigation_id": investigation_id}, people, dossier_id)
 
 
 @app.post("/api/dossiers")
@@ -1496,11 +1536,15 @@ async def create_dossier(request: Request):
     if not (isinstance(origin, dict) and len(origin) == 1
             and any(_text(origin.get(key)) for key in ("ask_id", "investigation_id"))):
         return error(400, "bad_request", "from must hold one ask_id or one investigation_id.")
+    request_id = body.get("request_id")
+    if not (request_id is None or (isinstance(request_id, str) and DOSSIER_REQUEST_ID.fullmatch(request_id))):
+        return error(400, "bad_request", "request_id must be 8 to 64 letters, digits, - or _, or left out.")
+    dossier_id = requested_dossier_id(origin, request_id) if request_id else None
     change = {"title": body["title"]} if "title" in body else {}
     if "investigation_id" in origin:
         return await run_in_threadpool(in_one_read, create_dossier_from_investigation,
-                                       origin["investigation_id"].strip(), change)
-    return await run_in_threadpool(in_one_read, create_dossier_from, origin["ask_id"].strip(), change)
+                                       origin["investigation_id"].strip(), change, dossier_id)
+    return await run_in_threadpool(in_one_read, create_dossier_from, origin["ask_id"].strip(), change, dossier_id)
 
 
 @app.post("/api/findings")

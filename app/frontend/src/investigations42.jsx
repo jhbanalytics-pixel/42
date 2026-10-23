@@ -19,7 +19,7 @@ import {answerStatusWords, noShortAnswer} from './ask42.jsx';
 import {stoppedEarly, summaryNotice} from './answerMeta.js';
 import {peopleWords, privacyNotice} from './privacyNotice.js';
 import {createInvestigation, createInvestigationDossier, getInvestigation, listInvestigations, startInvestigation, stopInvestigation, streamInvestigation, updateInvestigationPlan} from './api42.js';
-import {downloadExport} from './askTransport42.js';
+import {downloadExport, requestKey} from './askTransport42.js';
 import {go} from './router.js';
 import {EvidenceChip, monthName, postDay} from './ui/EvidenceChip.jsx';
 import {FigureLine} from './ui/FigureLine.jsx';
@@ -710,6 +710,8 @@ function InvestigationAnswer({record, investigationId, onFailure}){
   const [exportError, setExportError] = useState('');
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState('');
+  /* One key per dossier this investigation starts, sent again on a retry (see Ask's answer). */
+  const dossierRequest = useRef(null);
   const records = new Map(withParents(answer.evidence).map((item) => [item.id, item]));
   const figures = (answer.claims || []).flatMap((claim) => claim.numbers || []).slice(0, 4);
   const notices = Array.isArray(run.notices) ? run.notices : [];
@@ -734,7 +736,11 @@ function InvestigationAnswer({record, investigationId, onFailure}){
     setOpening(true);
     setOpenError('');
     try {
-      const made = await createInvestigationDossier(investigationId);
+      if (!dossierRequest.current || dossierRequest.current.investigationId !== investigationId){
+        dossierRequest.current = {investigationId, key: requestKey()};
+      }
+      const made = await createInvestigationDossier(investigationId, {requestId: dossierRequest.current.key});
+      dossierRequest.current = null;
       go('/dossiers/' + encodeURIComponent(made.dossier_id));
     } catch (error){
       setOpenError(error && error.message ? error.message : 'The dossier could not be started.');

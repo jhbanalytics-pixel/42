@@ -9,7 +9,7 @@ import {readerFigure} from './api.js';
 import {plainUnit, unitFor} from './readerUnits.js';
 import {validateAnswer} from './answerContract.js';
 import {createDossier, fetchDiscover, saveFinding} from './api42.js';
-import {downloadExport, getAsk, startAsk, stopAsk, streamAsk} from './askTransport42.js';
+import {downloadExport, getAsk, requestKey, startAsk, stopAsk, streamAsk} from './askTransport42.js';
 import {go} from './router.js';
 import {marketToSend} from './askMarkets.js';
 import {costWords, itemsWords} from './costWords.js';
@@ -388,6 +388,9 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
   const [exportError, setExportError] = useState('');
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
+  /* One key per dossier this answer starts: a retry after an unclear failure
+     sends it again, so the server returns the draft it may already have made. */
+  const dossierRequest = useRef(null);
   const [findingSave, setFindingSave] = useState({askId, phase: 'idle', error: ''});
   const findingSaveRequest = useRef(null);
   const findingSaveState = findingSave.askId === askId ? findingSave : {phase: 'idle', error: ''};
@@ -433,7 +436,11 @@ function Answer({record, onFollowup, onFailure, tail = null, followAction}){
     setAdding(true);
     setAddError('');
     try {
-      const made = await createDossier(record.ask_id);
+      if (!dossierRequest.current || dossierRequest.current.askId !== record.ask_id){
+        dossierRequest.current = {askId: record.ask_id, key: requestKey()};
+      }
+      const made = await createDossier(record.ask_id, {requestId: dossierRequest.current.key});
+      dossierRequest.current = null;
       go('/dossiers/' + encodeURIComponent(made.dossier_id));
     } catch (error){
       setAddError(peopleWords(error, 'The dossier could not be started.'));
