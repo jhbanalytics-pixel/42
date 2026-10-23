@@ -163,15 +163,33 @@ def test_embedding_cosine_only_when_both_posts_have_an_embedding():
 
 def test_embeddings_passed_to_analyse_link_posts_whose_text_differs():
     rows, emb = [], {}
+    for i, item in ((2, "x"), (1, "y")):
+        for k, a in enumerate(NET[:5]):
+            pid = f"e-{i}-{a}"
+            rows.append(row(pid, a, utc(i, 8, k), text=a, item=item))
+            emb[pid] = [1.0, 0.01 * k, 0.0]
+    rows += background("x", 2) + background("y", 1)
+    assert coaction.analyse(rows, D)["networks"] == []
+    net = coaction.analyse(rows, D, emb)["networks"]
+    assert [n["accounts"] for n in net] == [5]
+
+
+def test_embedding_alone_on_one_item_on_two_days_is_no_network():
+    """W16-01: five accounts post within ten minutes on one item on two days, sharing nothing but a close embedding,
+    and own both item-days. An embedding match names no content, so the two days cannot be told to share different
+    content: no pair repeats, so there is no network and no signal. A distinct link each day still repeats."""
+    rows, emb = [], {}
     for i in (2, 1):
         for k, a in enumerate(NET[:5]):
             pid = f"e-{i}-{a}"
             rows.append(row(pid, a, utc(i, 8, k), text=a))
             emb[pid] = [1.0, 0.01 * k, 0.0]
-    rows += background("x", 2, 1)
-    assert coaction.analyse(rows, D)["networks"] == []
-    net = coaction.analyse(rows, D, emb)["networks"]
-    assert [n["accounts"] for n in net] == [5]
+    res = coaction.analyse(rows, D, emb)
+    assert res["networks"] == [] and res["signals"] == []
+    events = coaction.coaction_events(rows, emb)
+    assert events and coaction.qualifying_pairs(events) == set()
+    linked = [dict(r, text=f"{r['text']} https://u.co/{r['post_id'][2]}") for r in rows]
+    assert coaction.qualifying_pairs(coaction.coaction_events(linked, emb))
 
 
 # Co-action edges and the repeat rule
@@ -690,10 +708,10 @@ def test_coord_score_is_merged_on_existing_creators_only(con):
 def test_embeddings_are_read_from_post_enrichment(con):
     w = World()
     rows = []
-    for i in (2, 1):
+    for i, item in ((2, "x"), (1, "y")):
         for k, a in enumerate(NET[:5]):
-            rows.append(row(f"e-{i}-{a}", a, utc(i, 8, k), text=f"words {k} {i}", item="x"))
-    add_posts(w, rows + background("x", 2, 1))
+            rows.append(row(f"e-{i}-{a}", a, utc(i, 8, k), text=f"words {k} {i}", item=item))
+    add_posts(w, rows + background("x", 2) + background("y", 1))
     w.t["core.post_enrichment"] = [{"post_id": r["post_id"], "embedding": [1.0, 0.01 * n, 0.0]}
                                    for n, r in enumerate(rows)]
     w.load(con)
