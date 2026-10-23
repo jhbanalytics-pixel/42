@@ -533,7 +533,7 @@ def _geo(ctx, platform, market, **signals):
 
 def _post(out, ctx, item, platform, *, rank=None, fallback=None, author=None, sound=None, handle=None):
     """One post row, its observation and its creator row; None when the post has no platform, id or URL, or
-    predates since=. author is the panel row's profile, read where the post's own author block is silent."""
+    predates since= or has no readable publication time under since=. author is the panel row's profile, read where the post's own author block is silent."""
     item = _dict(item)
     node = _dict(item.get("post")) or item
     platform = str(platform or node.get("platform") or "").strip().lower()
@@ -544,7 +544,9 @@ def _post(out, ctx, item, platform, *, rank=None, fallback=None, author=None, so
     content, ext, media = _dict(node.get("content")), _dict(node.get("ext")), _dict(node.get("media"))
     published = parse_time(_first(node, "published_at", "created_at", "create_time", "taken_at")) \
         or parse_time(_first(ext, "published_at_epoch"))
-    if ctx["since"] and published and published.astimezone(_zone(ctx["market"])).date() < ctx["since"]:
+    # A time-scoped panel holds a post whose publication time is missing or unreadable, since nothing proves it falls
+    # on or after since= and the fetch-day fallback below would date a stale post as current. The raw receipt keeps it.
+    if ctx["since"] and (published is None or published.astimezone(_zone(ctx["market"])).date() < ctx["since"]):
         return None
     profile = _dict(author)
     author = _dict(node.get("author")) or profile
