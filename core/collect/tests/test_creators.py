@@ -357,6 +357,23 @@ def test_dedupe_posts_takes_geo_from_a_later_sighting_when_the_first_had_none():
     assert kept["geo_market"] == "NG"
 
 
+def test_later_direct_region_upgrades_a_profile_location_in_either_order():
+    profile, region = ("KE", 0.8, "home_market"), ("NG", 0.9, "ext_region")
+    for rows in ([post("p", profile, views=1), post("p", region)], [post("p", region, views=1), post("p", profile)]):
+        [row] = writers.dedupe_posts(rows)
+        assert geo_of(row) == region
+    con = posts_con()
+    sql = writers.MERGE_SQL.format(table=writers.table("posts"))
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [post("p", profile, views=1), post("q", region, views=1)])
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [post("p", region), post("q", profile)])
+    duck_merge(con, sql, "posts", writers.POST_TYPES, [post("p", ("ZA", 0.7, "place_mention"))])
+    assert posts_table(con) == {"p": ("NG", 0.9, "ext_region", 1), "q": ("NG", 0.9, "ext_region", 1)}
+    bq = FakeBQ()
+    writers.merge_posts(bq, [post("p", profile, views=1)])
+    writers.merge_posts(bq, [post("p", region)])
+    assert geo_of(bq.posts["p"]) == region
+
+
 # The collect run
 
 def test_while_off_a_collect_run_writes_no_creators_and_everything_else(monkeypatch):

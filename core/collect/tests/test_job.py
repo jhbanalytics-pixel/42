@@ -139,6 +139,12 @@ class FakeTable:
     schema = []
 
 
+def stronger_geo(stored, row):
+    """The posts MERGE's geo rule (writers.FILLS_GEO): a known reading fills an empty geo or replaces a weaker one."""
+    return row["geo_market"] is not None and (
+        stored["geo_market"] is None or row["geo_confidence"] > (stored["geo_confidence"] or 0))
+
+
 class FakeBQ:
     """Records queries and load jobs; plays MERGE into posts on a dict keyed by post_id, the creators MERGE
     on (platform, creator_id), and serves raw_responses rows to the backfill."""
@@ -209,7 +215,7 @@ class FakeBQ:
         if sql.lstrip().upper().startswith("MERGE") and "WHEN NOT MATCHED" not in sql:
             for row in (s.struct_values for s in params["rows"].values):  # the backfill's geo fill
                 post = self.posts.get(row["post_id"])
-                if post is not None and post["geo_market"] is None and row["geo_market"] is not None:
+                if post is not None and stronger_geo(post, row):
                     post.update({k: row[k] for k in writers.GEO})
             return FakeJob()
         if sql.lstrip().upper().startswith("MERGE"):
@@ -223,7 +229,7 @@ class FakeBQ:
                     post = self.posts[row["post_id"]]
                     if any(row[k] is not None for k in ("views", "likes", "comments", "shares")):
                         post.update({k: row[k] for k in writers.METRICS})
-                    if post["geo_market"] is None and row["geo_market"] is not None:
+                    if stronger_geo(post, row):
                         post.update({k: row[k] for k in writers.GEO})
             return FakeJob()
         if "MAX(c.pull_seq)" in sql:
