@@ -285,12 +285,17 @@ export function parseAskQuery(hashText){
 }
 
 /* History opens a past brief at #/today?date=YYYY-MM-DD; anything else in
-   date= is ignored and Today opens on its latest brief. */
+   date= is ignored and Today opens on its latest brief. A day the calendar
+   does not have, such as 30 February, is anything else too: the API would
+   refuse it, and retrying would only ask for it again. */
 export function todayDateFromHash(hashText){
   const text = String(hashText || '');
   const at = text.indexOf('?');
   const date = new URLSearchParams(at >= 0 ? text.slice(at + 1) : '').get('date') || '';
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const [y, m, d] = date.split('-').map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d));
+  return day.getUTCFullYear() === y && day.getUTCMonth() === m - 1 && day.getUTCDate() === d ? date : null;
 }
 
 /* A 42 topic page is #/t/<item_id>?market=ZA. A market outside the three

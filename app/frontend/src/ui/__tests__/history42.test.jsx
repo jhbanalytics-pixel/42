@@ -121,6 +121,11 @@ test('the routes: #/history and #/history/items/<id>; a brief date opens Today o
   expect(todayDateFromHash('#/pulse?date=2026-09-29')).toBe('2026-09-29');
   expect(todayDateFromHash('#/today')).toBeNull();
   expect(todayDateFromHash('#/today?date=yesterday')).toBeNull();
+  /* Audit W19-02: a day the calendar does not have opens the latest brief. */
+  for (const impossible of ['2026-02-30', '2026-13-01', '2026-00-10', '2026-01-00', '2027-02-29', '2026-04-31']){
+    expect([impossible, todayDateFromHash('#/today?date=' + impossible)]).toEqual([impossible, null]);
+  }
+  expect(todayDateFromHash('#/today?date=2028-02-29')).toBe('2028-02-29');
   expect(resolveHostRoute('today', '')).toBe('pulse');
 });
 
