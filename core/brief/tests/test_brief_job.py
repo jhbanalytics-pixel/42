@@ -2076,7 +2076,7 @@ def test_on_gemini_the_brief_model_sends_a_finite_http_timeout(monkeypatch):
     model = job.brief_model()
     assert isinstance(model, GeminiModel) and model.project == job.PROJECT
     model.client
-    assert 0 < job.GEMINI_TIMEOUT_S <= 120
+    assert 0 < job.GEMINI_TIMEOUT_S <= 300  # finite; 180 s since 24 Oct 2026 (job.py GEMINI_TIMEOUT_S)
     assert made["http_options"].timeout == job.GEMINI_TIMEOUT_S * 1000
     assert made["project"] == job.PROJECT and made["vertexai"] is True
 

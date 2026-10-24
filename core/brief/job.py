@@ -2262,7 +2262,12 @@ def live_socialcrawl(client, clock):
 
 # Maximum HTTP phase timeout for one Gemini SDK attempt, clamped to the remaining allowance again at dispatch.
 # An expired allowance blocks later dispatches; the awaited SDK request also has a cooperative elapsed deadline.
-GEMINI_TIMEOUT_S = 60
+# Vertex receives it as the server's own deadline, so a call still thinking at this limit ends in 504
+# DEADLINE_EXCEEDED. At 60 s every explanation of 24 Oct 2026 ended that way or in 500 INTERNAL (15 of 15 tried, all
+# three markets), and the two candidates that ran out of time on 23 Oct ran out again: the candidates whose posts show
+# an adopted sound or format, which the brief explains first since 2.7.0, carry the largest packs. Ask allows 120 s
+# a call; the brief allows 180 s. The deadline, the task time limit and the day's model cap are unchanged.
+GEMINI_TIMEOUT_S = 180
 
 
 def brief_model():
