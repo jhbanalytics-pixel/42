@@ -67,9 +67,14 @@ async function phoneCheck(ahead = minutes(6)){
 /* The newest entry is re-derived from the merge list and dated at bind (the
    numbering ruling, paragraph 4), so it is checked by its shape, never by its
    lines or their count. The released entries below it are history and are
-   pinned. */
+   pinned. 2.7.1 is a jobs only release on top of the services release
+   2.7.0, which the lead dates once its services are live, so 2.7.0 may still
+   read next, not live yet below it, or carry its date. */
 const DATE = /^\d{1,2} (?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}$/;
-const NEWEST = '2.7.0';
+const NEWEST = '2.7.1';
+const SERVICES = '2.7.0';
+/* The when of an entry that is either still next or dated. */
+const nextOrDated = (when) => when === 'Next, not live yet' || DATE.test(when);
 function expectUpcomingShape(entry){
   expect(entry.version).toBe(NEWEST);
   if (entry.next) expect(entry.when).toBe('Next, not live yet');
@@ -85,8 +90,8 @@ function expectUpcomingShape(entry){
    and extra lines added under the release line, so a test holds whether or
    not the bind has dated the entry yet. */
 function withNewestHeading(heading, extra = ''){
-  return CHANGELOG.replace(/^## 2\.7\.0 \([^)\n]*\)$/m, heading).replace(
-    /(\n## 2\.7\.0 [^\n]*\n\nServices release[^\n]*\n\n)/, (match) => match + extra);
+  return CHANGELOG.replace(/^## 2\.7\.1 \([^)\n]*\)$/m, heading).replace(
+    /(\n## 2\.7\.1 [^\n]*\n\nJobs only release[^\n]*\n\n)/, (match) => match + extra);
 }
 /* Every "## X.Y.Z (...)" heading of a changelog text, newest first, read
    from the raw text rather than through the parser under test. */
@@ -146,9 +151,9 @@ afterEach(() => {
 afterAll(() => { GlobalRegistrator.unregister(); });
 
 describe('the release files', () => {
-  test('VERSION holds 2.7.0 and nothing else', () => {
+  test('VERSION holds 2.7.1 and nothing else', () => {
     expect(VERSION_TEXT.trim()).toBe(NEWEST);
-    expect(VERSION_TEXT).toMatch(/^2\.7\.0\r?\n?$/);
+    expect(VERSION_TEXT).toMatch(/^2\.7\.1\r?\n?$/);
   });
 
   /* The lead's numbering ruling of 22 October 2026, word for word. It
@@ -179,63 +184,69 @@ describe('the release files', () => {
     expect(head).not.toMatch(/keeps the current number|not numbered yet|"### Jobs update"/i);
   });
 
-  test('the changelog lists 2.7.0 next, then the two jobs only releases, Alpha, D0, C, B and A with their dates and plain lines', () => {
+  test('the changelog lists 2.7.1 next, then 2.7.0, the two jobs only releases, Alpha, D0, C, B and A with their dates and plain lines', () => {
     const releases = parseChangelog(CHANGELOG);
-    expect(releases.map((r) => r.version)).toEqual(['2.7.0', '2.6.0', '2.5.0', '2.4.0', '2.3.0', '2.2.0', '2.1.0', '2.0.0']);
+    expect(releases.map((r) => r.version)).toEqual(['2.7.1', '2.7.0', '2.6.0', '2.5.0', '2.4.0', '2.3.0', '2.2.0', '2.1.0', '2.0.0']);
     expectUpcomingShape(releases[0]);
-    expect(releases.slice(1).map((r) => r.next)).toEqual([false, false, false, false, false, false, false]);
+    /* 2.7.0 is dated by the lead once its services are live; it is never
+       dated after a newer release is. */
+    expect(releases[1].version).toBe(SERVICES);
+    expect(releases[1].next ? releases[1].when === 'Next, not live yet' : DATE.test(releases[1].when)).toBe(true);
+    if (!releases[0].next) expect(releases[1].next).toBe(false);
+    expect(releases.slice(2).map((r) => r.next)).toEqual([false, false, false, false, false, false, false]);
     /* The line naming a release stays true once it is live: release state
        is the heading's alone, and the panel reads it against VERSION. */
     for (const release of releases) expect(release.summary).not.toMatch(/\bnext\b|not live/i);
-    expect(releases[0].summary).toMatch(/website/i);
-    expect(releases[0].summary).toMatch(/Ask/);
-    expect(releases[0].summary).toMatch(/not jobs only/);
-    expect(releases[1].when).toBe('22 October 2026');
-    expect(releases[1].summary).toContain('rel-5dff8ff-01');
-    expect(releases[1].summary).toMatch(/^Jobs only release\b/);
-    expect(releases[2].when).toBe('21 October 2026');
-    expect(releases[2].summary).toContain('rel-42c1af2-01');
+    expect(releases[0].summary).toMatch(/^Jobs only release\b/);
+    expect(releases[1].summary).toMatch(/website/i);
+    expect(releases[1].summary).toMatch(/Ask/);
+    expect(releases[1].summary).toMatch(/not jobs only/);
+    expect(releases[2].when).toBe('22 October 2026');
+    expect(releases[2].summary).toContain('rel-5dff8ff-01');
     expect(releases[2].summary).toMatch(/^Jobs only release\b/);
-    expect(releases[3].when).toBe('15 October 2026');
-    expect(releases[3].summary).toMatch(/\bAlpha\b/);
-    expect(releases[4].when).toBe('12 October 2026');
-    expect(releases[4].summary).toMatch(/\bD0\b/);
-    expect(releases[5].when).toBe('11 October 2026');
-    expect(releases[5].summary).toContain('Release C');
-    expect(releases[5].summary).toContain('rel-d0aebe7-01');
-    expect(releases[5].summary).toMatch(/website/i);
-    expect(releases[5].summary).toMatch(/Ask/);
+    expect(releases[3].when).toBe('21 October 2026');
+    expect(releases[3].summary).toContain('rel-42c1af2-01');
+    expect(releases[3].summary).toMatch(/^Jobs only release\b/);
+    expect(releases[4].when).toBe('15 October 2026');
+    expect(releases[4].summary).toMatch(/\bAlpha\b/);
+    expect(releases[5].when).toBe('12 October 2026');
+    expect(releases[5].summary).toMatch(/\bD0\b/);
     expect(releases[6].when).toBe('11 October 2026');
-    expect(releases[6].summary).toContain('Release B');
-    expect(releases[6].summary).toContain('rel-89d4629-01');
-    expect(releases[6].summary).toMatch(/jobs/i);
-    expect(releases[7].summary).toContain('Release A');
-    expect(releases[7].summary).toContain('rel-3710c5e-01');
+    expect(releases[6].summary).toContain('Release C');
+    expect(releases[6].summary).toContain('rel-d0aebe7-01');
+    expect(releases[6].summary).toMatch(/website/i);
+    expect(releases[6].summary).toMatch(/Ask/);
+    expect(releases[7].when).toBe('11 October 2026');
+    expect(releases[7].summary).toContain('Release B');
+    expect(releases[7].summary).toContain('rel-89d4629-01');
+    expect(releases[7].summary).toMatch(/jobs/i);
+    expect(releases[8].summary).toContain('Release A');
+    expect(releases[8].summary).toContain('rel-3710c5e-01');
     for (const release of releases) expect(release.lines.length).toBeGreaterThan(0);
-    expect(releases[5].lines).toContain('Instagram and X show their official marks.');
-    expect(releases[6].lines).toContain('Stored runs record which build produced them.');
-    expect(releases[7].lines).toContain('Today and Fieldwork read the culture desk and its kept creators in both the old and the new stored shape.');
-    expect(releases[4].updates.map((u) => u.when)).toEqual(['12 October 2026']);
-    expect(releases.filter((r) => r.version !== '2.3.0').map((r) => r.updates)).toEqual([[], [], [], [], [], [], []]);
+    expect(releases[6].lines).toContain('Instagram and X show their official marks.');
+    expect(releases[7].lines).toContain('Stored runs record which build produced them.');
+    expect(releases[8].lines).toContain('Today and Fieldwork read the culture desk and its kept creators in both the old and the new stored shape.');
+    expect(releases[5].updates.map((u) => u.when)).toEqual(['12 October 2026']);
+    expect(releases.filter((r) => r.version !== '2.3.0').map((r) => r.updates)).toEqual([[], [], [], [], [], [], [], []]);
   });
 
   test('the newest entry passes its shape check dated or undated, with any number of lines', () => {
     const bound = withNewestHeading;
     for (const text of [
       CHANGELOG,
-      bound('## 2.7.0 (next, not live yet)'),
-      bound('## 2.7.0 (next, not live yet)', '- One more line.\n- And another.\n'),
-      bound('## 2.7.0 (23 October 2026)', '- One more line.\n- And another.\n'),
+      bound('## 2.7.1 (next, not live yet)'),
+      bound('## 2.7.1 (next, not live yet)', '- One more line.\n- And another.\n'),
+      bound('## 2.7.1 (24 October 2026)', '- One more line.\n- And another.\n'),
     ]){
       expectUpcomingShape(parseChangelog(text)[0]);
     }
-    const undated = parseChangelog(bound('## 2.7.0 (next, not live yet)'))[0];
+    const undated = parseChangelog(bound('## 2.7.1 (next, not live yet)'))[0];
     expect(undated.next).toBe(true);
     expect(undated.when).toBe('Next, not live yet');
-    const dated = parseChangelog(bound('## 2.7.0 (23 October 2026)', ''))[0];
+    const dated = parseChangelog(bound('## 2.7.1 (24 October 2026)', ''))[0];
     expect(dated.next).toBe(false);
-    expect(dated.when).toBe('23 October 2026');
-    expect(() => expectUpcomingShape(parseChangelog(bound('## 2.7.0 (soon)', ''))[0])).toThrow();
+    expect(dated.when).toBe('24 October 2026');
+    expect(() => expectUpcomingShape(parseChangelog(bound('## 2.7.1 (soon)', ''))[0])).toThrow();
     expect(() => expectUpcomingShape({...parseChangelog(CHANGELOG)[0], lines: []})).toThrow();
     expect(() => expectUpcomingShape({...parseChangelog(CHANGELOG)[0], lines: ['A line ' + '-'.repeat(2) + ' with a double hyphen.']})).toThrow();
   });
@@ -266,13 +277,19 @@ describe('the release files', () => {
     expect(new Set(all.map((h) => h.version)).size).toBe(all.length);
     for (let at = 1; at < all.length; at += 1) expect(compareVersions(all[at - 1].version, all[at].version)).toBeGreaterThan(0);
     const since = all.slice(0, all.findIndex((h) => h.version === '2.4.0') + 1);
-    expect(since.map((h) => h.version)).toEqual(['2.7.0', '2.6.0', '2.5.0', '2.4.0']);
+    expect(since.map((h) => h.version)).toEqual(['2.7.1', '2.7.0', '2.6.0', '2.5.0', '2.4.0']);
     for (let at = 1; at < since.length; at += 1) expect(isOneStep(since[at - 1].parts, since[at].parts)).toBe(true);
-    /* Only the newest heading may be undated; every other one carries its go-live date. */
-    for (const h of all.slice(1)) expect(h.when).toMatch(DATE);
+    /* Only the newest heading and 2.7.0, which the lead dates once its
+       services are live, may be undated; every other one carries its go-live
+       date, and no release is dated while one below it is not. */
+    expect(all[1].version).toBe(SERVICES);
+    for (const h of all.slice(0, 2)) expect(h.when === 'next, not live yet' || DATE.test(h.when)).toBe(true);
+    if (DATE.test(all[0].when)) expect(all[1].when).toMatch(DATE);
+    for (const h of all.slice(2)) expect(h.when).toMatch(DATE);
     /* The check catches a release that bumped one file and not the other. */
-    const stale = CHANGELOG.replace(/^## 2\.7\.0 \(next, not live yet\)$/m, '## 2.8.0 (next, not live yet)');
+    const stale = CHANGELOG.replace(/^## 2\.7\.1 \(next, not live yet\)$/m, '## 2.8.0 (next, not live yet)');
     expect(headings(stale)[0].version).not.toBe(VERSION_TEXT.trim());
+    expect(isOneStep([2, 7, 1], [2, 7, 0])).toBe(true);
     expect(isOneStep([2, 7, 0], [2, 5, 0])).toBe(false);
     expect(isOneStep([2, 6, 1], [2, 5, 0])).toBe(false);
     expect(isOneStep([3, 0, 0], [2, 6, 0])).toBe(true);
@@ -280,7 +297,7 @@ describe('the release files', () => {
   });
 
   test('from 2.4.0 on no release hides inside another: each has its own heading and no ### block', () => {
-    const from = CHANGELOG.slice(CHANGELOG.indexOf('\n## 2.7.0'), CHANGELOG.indexOf('\n## 2.3.0'));
+    const from = CHANGELOG.slice(CHANGELOG.indexOf('\n## 2.7.1'), CHANGELOG.indexOf('\n## 2.3.0'));
     expect(from).not.toMatch(/^### /m);
     expect(CHANGELOG.match(/^### .*$/gm)).toEqual(['### Jobs update (12 October 2026)']);
   });
@@ -348,33 +365,49 @@ describe('shaDiffers', () => {
 });
 
 describe('the version line and What\'s new', () => {
-  test('the 2.7.0 build marks 2.7.0 as This version and lists both jobs only releases below it with their dates', () => {
+  test('a 2.7.1 build marks 2.7.1 as This version and lists 2.7.0 and both jobs only releases below it', () => {
     render(<VersionNote release={{...BUILT, version: NEWEST, changelog: CHANGELOG}} />);
-    expect(versionButton().querySelector('.rail42-version-name').textContent).toBe('42 v2.7.0');
+    expect(versionButton().querySelector('.rail42-version-name').textContent).toBe('42 v2.7.1');
     click(versionButton());
     const entries = [...panel().querySelectorAll('.rail42-whatsnew-release')];
-    expect(entries.map((e) => e.querySelector('.rail42-whatsnew-version').textContent)).toEqual(['2.7.0', '2.6.0', '2.5.0', '2.4.0', '2.3.0', '2.2.0', '2.1.0', '2.0.0']);
+    expect(entries.map((e) => e.querySelector('.rail42-whatsnew-version').textContent)).toEqual(['2.7.1', '2.7.0', '2.6.0', '2.5.0', '2.4.0', '2.3.0', '2.2.0', '2.1.0', '2.0.0']);
     expect(entries[0].querySelector('.rail42-whatsnew-current').textContent).toBe('This version');
     expect(panel().textContent).not.toContain('Next, not live yet');
     expect(entries.filter((entry) => entry.querySelector('.rail42-whatsnew-current'))).toHaveLength(1);
-    expect(entries[1].querySelector('.rail42-whatsnew-when').textContent).toBe('22 October 2026');
-    expect(entries[1].textContent).toContain('rel-5dff8ff-01');
-    expect(entries[2].querySelector('.rail42-whatsnew-when').textContent).toBe('21 October 2026');
-    expect(entries[2].textContent).toContain('rel-42c1af2-01');
-    expect(entries[3].textContent).toContain('Release Alpha');
-    expect(entries[4].textContent).toContain('Release D0');
-    expect(entries[4].textContent).toContain('12 October 2026');
+    expect(entries[1].textContent).toContain('Services release');
+    expect(entries[2].querySelector('.rail42-whatsnew-when').textContent).toBe('22 October 2026');
+    expect(entries[2].textContent).toContain('rel-5dff8ff-01');
+    expect(entries[3].querySelector('.rail42-whatsnew-when').textContent).toBe('21 October 2026');
+    expect(entries[3].textContent).toContain('rel-42c1af2-01');
+    expect(entries[4].textContent).toContain('Release Alpha');
+    expect(entries[5].textContent).toContain('Release D0');
+    expect(entries[5].textContent).toContain('12 October 2026');
     expect(entries.slice(1).some((entry) => entry.querySelector('.rail42-whatsnew-current'))).toBe(false);
   });
 
-  test('the live 2.4.0 build reading this changelog shows the jobs only releases dated and 2.7.0 as Next, not live yet', () => {
+  test('the 2.7.0 build, which a jobs only 2.7.1 leaves running, marks 2.7.0 as This version with 2.7.1 above it', () => {
+    render(<VersionNote release={{...BUILT, version: SERVICES, changelog: CHANGELOG}} />);
+    expect(versionButton().querySelector('.rail42-version-name').textContent).toBe('42 v2.7.0');
+    click(versionButton());
+    const entries = [...panel().querySelectorAll('.rail42-whatsnew-release')];
+    expect(entries.map((e) => e.querySelector('.rail42-whatsnew-version').textContent).slice(0, 3)).toEqual(['2.7.1', '2.7.0', '2.6.0']);
+    expect(nextOrDated(entries[0].querySelector('.rail42-whatsnew-when').textContent)).toBe(true);
+    expect(entries[0].querySelector('.rail42-whatsnew-current')).toBeNull();
+    expect(entries[1].querySelector('.rail42-whatsnew-current').textContent).toBe('This version');
+    expect(entries.filter((entry) => entry.querySelector('.rail42-whatsnew-current'))).toHaveLength(1);
+    expect(entries.slice(1).some((entry) => entry.textContent.includes('Next, not live yet'))).toBe(false);
+    expect(entries[2].querySelector('.rail42-whatsnew-when').textContent).toBe('22 October 2026');
+  });
+
+  test('the live 2.4.0 build reading this changelog shows the jobs only releases dated and 2.7.1 and 2.7.0 above them', () => {
     render(<VersionNote release={{...BUILT, version: '2.4.0', changelog: CHANGELOG}} />);
     click(versionButton());
     const entries = [...panel().querySelectorAll('.rail42-whatsnew-release')];
-    expect(entries[0].querySelector('.rail42-whatsnew-when').textContent).toBe('Next, not live yet');
-    expect(entries[1].querySelector('.rail42-whatsnew-when').textContent).toBe('22 October 2026');
-    expect(entries[2].querySelector('.rail42-whatsnew-when').textContent).toBe('21 October 2026');
-    expect(entries[3].querySelector('.rail42-whatsnew-current').textContent).toBe('This version');
+    expect(nextOrDated(entries[0].querySelector('.rail42-whatsnew-when').textContent)).toBe(true);
+    expect(nextOrDated(entries[1].querySelector('.rail42-whatsnew-when').textContent)).toBe(true);
+    expect(entries[2].querySelector('.rail42-whatsnew-when').textContent).toBe('22 October 2026');
+    expect(entries[3].querySelector('.rail42-whatsnew-when').textContent).toBe('21 October 2026');
+    expect(entries[4].querySelector('.rail42-whatsnew-current').textContent).toBe('This version');
     expect(entries.filter((entry) => entry.querySelector('.rail42-whatsnew-current'))).toHaveLength(1);
   });
   test('nothing renders when the build carries no version', () => {
@@ -444,21 +477,22 @@ describe('the version line and What\'s new', () => {
   });
 
   test('an entry above the running version, and only that, reads Next, not live yet', () => {
-    render(<VersionNote release={{...BUILT, version: '2.6.0', changelog: withNewestHeading('## 2.7.0 (next, not live yet)')}} />);
+    render(<VersionNote release={{...BUILT, version: SERVICES, changelog: withNewestHeading('## 2.7.1 (next, not live yet)')}} />);
     click(versionButton());
     const entries = [...panel().querySelectorAll('.rail42-whatsnew-release')];
     expect(entries[0].querySelector('.rail42-whatsnew-when').textContent).toBe('Next, not live yet');
     expect(entries[0].querySelector('.rail42-whatsnew-current')).toBeNull();
-    expect(entries[1].querySelector('.rail42-whatsnew-when').textContent).toBe('22 October 2026');
+    expect(entries[1].querySelector('.rail42-whatsnew-version').textContent).toBe('2.7.0');
     expect(entries[1].querySelector('.rail42-whatsnew-current').textContent).toBe('This version');
+    expect(entries[2].querySelector('.rail42-whatsnew-when').textContent).toBe('22 October 2026');
     expect(entries.slice(1).some((entry) => entry.textContent.includes('Next, not live yet'))).toBe(false);
     /* Once the bind dates the entry, the same page shows the date instead. */
     flushSync(() => root.unmount());
     root = createRoot(host);
-    render(<VersionNote release={{...BUILT, version: '2.6.0', changelog: withNewestHeading('## 2.7.0 (23 October 2026)')}} />);
+    render(<VersionNote release={{...BUILT, version: SERVICES, changelog: withNewestHeading('## 2.7.1 (24 October 2026)')}} />);
     click(versionButton());
     const dated = [...panel().querySelectorAll('.rail42-whatsnew-release')];
-    expect(dated[0].querySelector('.rail42-whatsnew-when').textContent).toBe('23 October 2026');
+    expect(dated[0].querySelector('.rail42-whatsnew-when').textContent).toBe('24 October 2026');
     expect(dated[0].querySelector('.rail42-whatsnew-current')).toBeNull();
     expect(dated[1].querySelector('.rail42-whatsnew-current').textContent).toBe('This version');
     expect(panel().textContent).not.toContain('Next, not live yet');
@@ -915,7 +949,8 @@ describe('compareVersions', () => {
 
 /* The ruling of 22 October 2026: every release takes its own version, jobs
    only releases included, so the two jobs only releases since Alpha are
-   2.5.0 and 2.6.0 and the services release after them is 2.7.0. A line sits
+   2.5.0 and 2.6.0, the services release after them is 2.7.0, and the jobs
+   only release on top of that is 2.7.1. A line sits
    under the release where its code went live: the wider morning collection
    was in the jobs image of rel-42c1af2-01, so it is a 2.5.0 line, not a
    website line. */
@@ -960,5 +995,17 @@ describe('one version for each release', () => {
     expect(said).not.toMatch(/Bluesky|4,000|creator panel|reel search/);
     /* Alpha's own lines stay as they shipped. */
     expect(byVersion()['2.4.0'].lines.join(' ')).not.toMatch(/Control room|Deep|Bluesky/);
+  });
+
+  test('2.7.1 holds the brief call time line of 24 October and nothing of the website', () => {
+    const jobs = byVersion()['2.7.1'];
+    plain(jobs.lines);
+    expect(jobs.summary).toMatch(/^Jobs only release\b/);
+    const said = jobs.lines.join(' ');
+    for (const scope of [/3 minutes where it gave 1/, /24 October/, /unchanged/]){
+      expect(said).toMatch(scope);
+    }
+    expect(said).not.toMatch(/Control room|Communities|1 GiB|Deep/);
+    expect(byVersion()['2.7.0'].lines.join(' ')).not.toMatch(/3 minutes/);
   });
 });

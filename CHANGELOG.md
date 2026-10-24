@@ -10,6 +10,12 @@ A release not live yet reads "next, not live yet" in its brackets. At bind its l
 
 A jobs-only release does not rebuild the website, so its entry reaches the live What's new panel only with the next website build. That is accepted, because the changelog in the repo is the record and the menu shows what the website runs. The panel marks the version the page runs as This version.
 
+## 2.7.1 (next, not live yet)
+
+Jobs only release, release id written in at bind.
+
+- The brief gives each model call 3 minutes where it gave 1, after every explanation of 24 October ran out of time. The deadline, the time limit and the day's model spending cap are unchanged.
+
 ## 2.7.0 (next, not live yet)
 
 Services release of the website and Ask, not jobs only, release id written in at bind.
