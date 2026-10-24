@@ -9,6 +9,8 @@ feeds, one confidence step lower. located_in_market and every other critic rule 
 
 import re
 
+import pytest
+
 from core.brief import explain
 from core.brief.tests.test_brief_explain import heads, outside_fences
 from core.brief.tests.test_brief_explain_local import CANDIDATE, ng_post
@@ -108,7 +110,7 @@ def test_the_critic_rules_around_it_are_unchanged():
         "Name the simplest non-cultural explanation for why these posts rose: a paid campaign or sponsored push, a "
         "platform feature change, a bot or coordinated push, a news event or scheduled event that alone accounts for "
         "the posts, a scraping or collection artefact, or a single viral post or one creator carrying the count.",
-        "Evaluate only the why-now clause and the local posts cited by its supporting claims.",
+        "For local_why_now, evaluate only the why-now clause and the local posts cited by its supporting claims.",
         "Set local_why_now true only when those sources support a timely local cause or a cited post states the "
         "timing.",
         "Generic country labels, popularity alone, a missing time hook, unrelated local examples, and source-only "
@@ -142,7 +144,30 @@ def test_cultural_critic_prompt_and_unchanged_support_prompt_are_pinned():
     """Pin the strengthened critic policy while retaining the existing support contract."""
     import hashlib
 
+    # 22 Oct 2026, critic-pattern-citable and pack-lane-member-marks: the counted line covers the posts the writer
+    # may cite, and one line says what measured and market_member show about a collection or grouping artefact.
+    # 23 Oct 2026, genre-formats-skipped: the critic is told the genres show no adopted practice either, and that its
+    # counted line leaves them out (core/brief/pattern_formats.py).
     assert hashlib.sha256(explain.CRITIC_SYSTEM.encode("utf-8")).hexdigest() == (
-        "ed315786e5b1a2865bc99f8867650f405d90fac21e5f43fc01091620983366ac")
+        "49db7c60799219e8369124f61d10865c9e11a942ddfc4db8007d58b9e3f76bec")
+    # 22 Oct 2026, board-line-feed-wording: one paragraph says what a cited post marked board_only supports.
     assert hashlib.sha256(explain.SUPPORT_SYSTEM.encode("utf-8")).hexdigest() == (
-        "0da133fe7fb64a1bf099d653b147370a55d17dc37dee38777b4657d0df69f123")
+        "2e6cef9b77ddf9e72687cdab033d5a793fb63a664d9f71958c9e6ea351b5131d")
+
+
+@pytest.mark.parametrize("system", ["SUPPORT_SYSTEM", "CRITIC_SYSTEM"])
+def test_both_checks_are_told_what_formats_and_sound_mean(system):
+    # 18 Oct 2026: both checks saw formats and sound on every post with no word on what they mean, so an empty list
+    # could read as a post with no format.
+    text = " ".join(getattr(explain, system).split())
+    assert "an empty list means the post was not enriched, not that it has no format" in text
+    assert "posts with the same letter on the same platform use the same audio" in text
+    assert "null means 42 has no sound id for the post" in text
+    # The support check keeps its wording; the critic names the genres too (23 Oct 2026, genre-formats-skipped).
+    assert ("talking_head, other or news_clip alone shows no adopted practice" in text if system == "SUPPORT_SYSTEM"
+            else "talking_head, other, news_clip, skit, tutorial, slideshow, meme_image, duet or stitch, alone shows no "
+                 "adopted practice" in text)
+    assert "news_clip points toward news" in text
+    for name in ("talking_head", "skit", "dance", "duet", "stitch", "tutorial", "slideshow", "meme_image", "news_clip",
+                 "other"):
+        assert name in text

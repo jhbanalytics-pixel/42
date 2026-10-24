@@ -3,8 +3,11 @@
 Row 4 is platform-wide and runs once first. Then the markets ZA, NG and KE run interleaved, row by row,
 in four phases: the harvest (rows 1 to 8, the cheap unbiased lists first: the TikTok local feed, YouTube
 trending, Reddit, Apple Music, then the ZA hashtag board and the Facebook hub pages; row 5 only when
-Instagram location ids are configured); candidates scored from each market's harvest (frequency across
-rows and platforms) feeding rows 11, 12, 14 and 16, where core/collect/seeds.py shares the slots of rows 14
+Instagram location ids are configured); candidates scored from each market's harvest (hashtags by frequency
+across rows and platforms; sounds by local adoption, distinct local creators and their posting days over the harvest
+and the market's stored TikTok posts of the 7 days before, writers.read_sound_adoption, local by the brief's
+pattern_posts rule) feeding rows 11, 12, 14 and
+16, where core/collect/seeds.py shares the slots of rows 14
 and 16 between those candidates, live seed_queue seeds and rotated research terms (an anchor slice of at most
 15% of expansion credits, about 15% of row 14 as exploration by Thompson sampling, no cluster above 25% of
 expansion credits
@@ -48,7 +51,8 @@ Every call goes through the SocialCrawl client, which appends raw_responses and 
 response is then parsed by core/collect/parse.py. cap_reached stops the rest of that market;
 insufficient_credits and balance_floor stop everything. core/collect/writers.py then writes posts by
 one MERGE, appends post_observations, item_counter_daily and collection_health, and merges every counter
-item that has a readable name (body_names, chart_names, default_label) into cultural_map with L2's MERGE.
+item that has a readable name (body_names, chart_names, default_label), and every searched post's sound a
+response named, into cultural_map with L2's MERGE.
 
 A live run refuses to start unless SAST, WAT and EAT are all on its run date (RUN_DATE or --run-date,
 else today) at the clock and it is 01:30 to 22:30 SAST; any date works with --plan. A call whose market
@@ -126,21 +130,32 @@ NEWS_PLATFORMS = "twitter,threads,reddit"
 # The Telegram phase's route (core/collect/telegram_collect.py ROUTE): its records stay out of the job's own
 # call counts.
 TELEGRAM_ROUTE = "telegram_preview"
-SONG_VIDEOS, COUNT_SOUNDS, COUNT_TAGS = 6, 5, 5
+# Row 11 reads the videos of a market's SONG_VIDEOS most locally adopted sounds; row 12 counts COUNT_SOUNDS sounds and
+# COUNT_TAGS hashtags a market. Row 12 counted 5 and 5 until 23 Oct 2026, which left the sixth row 11 sound without a
+# count: on 23 Oct the strongest adoption by local creators the brief found was in sounds (KE: one sound used by 7
+# local creators on 4 days, another by 3 on 2), while the topic items with an adopted format were cut by the critic as
+# routine, serialised or disparate. Hashtags keep row 14's country searches. Same 10 reads a market, so the credits
+# do not move.
+SONG_VIDEOS, COUNT_SOUNDS, COUNT_TAGS = 6, 6, 4
+# A sound is locally adopted when at least this many distinct local creators used it on at least this many posting
+# days (the brief's card rule wants 3 on 2; a sound at 2 on 2 is worth watching before it gets there).
+LOCAL_CREATORS, LOCAL_DAYS = 2, 2
 # Row 12 reads counts for 30 watched items a run (SOURCES.md). The Alerts watches take those slots first,
 # as the watchlist lane's row 12 reads in GLOBAL, and the candidates share what is left per market.
 COUNT_CALLS = len(MARKETS) * (COUNT_SOUNDS + COUNT_TAGS)
 WATCH_ROW = "12w"
 # Row 14 country searches a market. Their posts come back located by TikTok's own region field, which is what
 # the Today locality check reads, so the collect share's headroom goes here: 60 a market (was 50, and 25 before
-# that) under the 2,000 collect share. The planned count is part of their protocol (search_protocol), so a change
+# that) under a collect share of at least PAGES_SHARE (2,000). The planned count is part of their protocol (search_protocol), so a change
 # of it starts a new search series instead of judging the bigger days against the old reference.
 SEARCH_TOP, EXPLORE_SHARE, MULTI_TOP, MAX_SHARE = 60, 0.15, 7, 0.25
 # Under a collect share of PAGES_SHARE or more, row 14 reads SEARCH_PAGES result pages a search (a credit a page),
 # and every credit above PAGES_SHARE goes half to more row 14 searches and half to more row 16 search/multi
 # calls (Instagram, YouTube, Reddit, X, Threads and Facebook), split evenly over the markets (volume()).
 SEARCH_PAGES, PAGES_SHARE, MULTI_CREDITS = 2, 2000, 10
-# Row 14i: Instagram reel searches with the creator card (include=creator), on a market's first row 14 queries. Each
+# Row 14i: Instagram reel searches with the creator card (include=creator), localised to the market (region=), on a
+# market's first row 14 queries. region= is free and narrows the page toward the market (probe of 20 Oct 2026, NG: 12
+# of 12 rows placed local from text against 14 of 30 without it; a ZA page came back with 3 rows). Each
 # reel comes back with post.ext.author_country, the country its creator declares on their own Instagram profile, which
 # parse reads as the creator's home market. A call holds 61 credits: 1 for the page and 60 for the creator lookups of
 # a full page of 30, refunded for every creator not looked up or not found. The most a market reads a run; 0 turns its
@@ -149,6 +164,24 @@ SEARCH_PAGES, PAGES_SHARE, MULTI_CREDITS = 2, 2000, 10
 # run's order, so no other lane gives up a credit; none under a cap override.
 REELS_TOP = {"ZA": 1, "NG": 1, "KE": 1}
 REELS_ROW, REELS_ROUTE = "14i", "instagram/search/reels"
+# Row 16w, the wider net: each market's first row 16 queries (then row 14's) searched again on the platforms rows 14
+# and 16 never reach, and inside the market's own subreddit; the market's placebo search picks (up to the same count)
+# are searched the same way, so the found_platforms base rate sees these platforms too (wide_calls). LinkedIn goes
+# through search/multi alone (5 a call); the subreddit and Bluesky searches are 1 each. The plan holds 21 a market, 63
+# a run, made route by route across the markets, cheapest first, so a day with little room (the Monday and Thursday
+# industry board) still spreads them over the markets. Like row 14i they carry no seed,
+# take only the room the share has left after the rows before them (so the curated panel and every earlier lane keep
+# their credits), come before row 14i, which gets what is left, and a body they cannot read fails that call, not the
+# run. Their posts are search_presence rows placed only from text, so their worth is judged on the locality and
+# candidate yield of their own series (docs/full-42/research/14-socialcrawl-endpoint-audit.md), not on volume. A count
+# of 0 turns a route off. Pinterest is off: its posts are stored as platform pinterest, which the answer contract
+# (core/eval/answer.schema.json, pinned to Release A) does not take, so an Ask citing one would fail. Turn it on only
+# with a schema release that adds it. Pinterest search takes no date, so its pins can be old.
+WIDE_ROW = "16w"
+WIDE_TOP = (("reddit/subreddit/search", 3), ("bluesky/search", 3), ("pinterest/search", 0), ("search/multi", 3))
+# Row 16w's Reddit search runs inside the market's own subreddit, so every post it finds was posted there. The 16 Oct
+# candidate probe (probe-candidates-20261016T181157Z) placed no post from r/southafrica or r/Nigeria abroad.
+SUBREDDITS = {"ZA": "southafrica", "NG": "Nigeria", "KE": "Kenya"}
 # Local feed pulls a day. The task 0.5 probe measured the feed=local in-country share at ZA 83% (20 of 24),
 # NG 65% (17 of 26) and KE 12% (1 of 8), NG to KE overlap 1 video. BUILD.md 0.5 moves a market under 40%
 # to country-filtered search: KE keeps one pull as its measurement series, and the credits of its other
@@ -457,8 +490,12 @@ def expansion_calls(market, day, ranked, rng, counted, search_top=SEARCH_TOP, *,
     return calls + placebo + regular
 
 
+def reels_params(query, market):
+    return {"query": query, "include": "creator", "region": market}
+
+
 def reels_calls(market, regular, count):
-    """Row 14i for a market: count Instagram reel searches with include=creator, on the first queries of its planned
+    """Row 14i for a market: count Instagram reel searches with include=creator and region=, on the first queries of its planned
     row 14 country searches (placebo searches left out). They carry no seed, so a seed's recorded yield stays its
     row 14 and 16 reads, and their health rows are search_presence, never baseline. The protocol names the market's
     REELS_TOP count, as row 14's names its planned searches."""
@@ -471,9 +508,58 @@ def reels_calls(market, regular, count):
             queries.append((c.seed.query, c.seed_key, c.lane))
     calls = []
     for query, key, lane in queries:
-        params = {"query": query, "include": "creator"}
+        params = reels_params(query, market)
         calls.append(Call(REELS_ROW, REELS_ROUTE, params, market, lane, seed_key=key,
                           protocol=search_protocol(REELS_ROUTE, params, REELS_TOP.get(market, 0))))
+    return calls
+
+
+def wide_params(route, query, market, day):
+    since = _since(day, 7)
+    if route == "search/multi":
+        return {"query": query, "platforms": "linkedin", "since": since}
+    if route == "bluesky/search":
+        return {"query": query, "sort": "latest", "since": since}
+    if route == "pinterest/search":
+        return {"query": query}
+    if route == "reddit/subreddit/search":
+        return {"subreddit": SUBREDDITS[market], "query": query, "sort": "new", "timeframe": "week"}
+    raise ValueError(f"no row {WIDE_ROW} call for route {route!r}")
+
+
+# The row 14 and 16 calls row 16w searches again: search text only. A template seed's query is a clip or audio id or
+# a creator handle, which a text search on another network cannot find.
+WIDE_SOURCES = (("16", "search/multi"), ("14", "tiktok/search/top"))
+
+
+def wide_calls(market, day, regular, top=None):
+    """Row 16w for a market: for each (route, count) in top, that route's search on the market's first count
+    search slots: the market's placebo search picks (row 23c, the same two routes) first, then the distinct queries
+    of its planned row 16 search/multi calls, then of its row 14 tiktok/search/top calls. A placebo item is
+    searched the way the searched real items are, so the found_platforms base rate (tvf_placebo_base) sees row 16w's
+    platforms too (TRUST.md A2); placebo picks are about 5% of a market's expansion calls, so count covers them on
+    most days. Every placebo pick is searched but only the first real queries are, so the base rate is biased high
+    (conservative), not matched. Placebo picks take real slots rather than adding to them, so a route makes at
+    most count calls, the count its protocol names (planned=count) and job.plan holds. They carry no seed, as
+    row 14i's do not; a placebo search keeps the placebo lane."""
+    placebo, queries = [], []
+    for c in regular:
+        if c.row == seeding.PLACEBO_ROW and c.lane == "placebo" and c.route in dict(WIDE_SOURCES).values() \
+                and c.seed is not None and c.seed.query and c.seed.query not in [q for q, _, _ in placebo]:
+            placebo.append((c.seed.query, c.seed_key, c.lane))
+    for row, route in WIDE_SOURCES:
+        for c in regular:
+            if c.row == row and c.route == route and c.seed is not None and c.lane != "placebo" and c.seed.query \
+                    and c.seed.query not in [q for q, _, _ in placebo + queries]:
+                queries.append((c.seed.query, c.seed_key, c.lane))
+    calls = []
+    for route, count in WIDE_TOP if top is None else top:
+        if count <= 0:
+            continue
+        for query, key, lane in (placebo + queries)[:count]:
+            params = wide_params(route, query, market, day)
+            calls.append(Call(WIDE_ROW, route, params, market, lane, seed_key=key,
+                              protocol=search_protocol(route, params, count)))
     return calls
 
 
@@ -481,7 +567,7 @@ def reels_counts(room, top=None):
     """Row 14i calls a market within room credits, market by market in the run's order (MARKETS), each up to its
     count in top (REELS_TOP) while a call's hold still fits, as the run makes them."""
     top = REELS_TOP if top is None else top
-    hold = quote_for(REELS_ROUTE, "GET", {"query": "x", "include": "creator"})
+    hold = quote_for(REELS_ROUTE, "GET", reels_params("x", MARKETS[0]))
     counts = {}
     for market in MARKETS:
         counts[market] = max(0, min(top.get(market, 0), int(room // hold)))
@@ -496,9 +582,12 @@ def cut_record(call, why):
 
 
 def count_slots(watched):
-    """Row 12's (sounds, hashtags) per market once the watches have taken their reads."""
+    """Row 12's (sounds, hashtags) per market once the watches have taken their reads, shared as COUNT_SOUNDS is to
+    COUNT_TAGS, an odd read going to sounds."""
     left = (COUNT_CALLS - watched) // len(MARKETS)
-    return (left + 1) // 2, left // 2
+    each = COUNT_SOUNDS + COUNT_TAGS
+    sounds = (left * COUNT_SOUNDS + each - 1) // each
+    return sounds, left - sounds
 
 
 def _watch_key(w):
@@ -558,7 +647,9 @@ def _tag(raw):
     tag = str(raw or "").strip().lstrip("#").casefold()
     if not tag or len(tag) > 100 or any(ch.isspace() for ch in tag) or not any(ch.isalnum() for ch in tag):
         return None
-    return None if tag in GENERIC_TAGS or blocked(tag) else tag
+    from core.detect.items import is_generic
+
+    return None if tag in GENERIC_TAGS or is_generic("hashtag", tag) or blocked(tag) else tag
 
 
 def sightings(done):
@@ -579,11 +670,14 @@ def sightings(done):
     return out
 
 
-def score_candidates(seen):
-    """Ranked keys per kind: most platforms, then most rows, then most sightings, then the key. origin maps
-    each hashtag to the (platform, row) that saw it most, for the seed mix's platform and family caps."""
+def score_candidates(seen, adoption=(), songs=None):
+    """Ranked keys per kind. Hashtags: most platforms, then most rows, then most sightings, then the key; origin
+    maps each hashtag to the (platform, row) that saw it most, for the seed mix's platform and family caps.
+    Sounds: by adoption (rank_sounds) over the harvest's sounds and the adoption rows."""
     stats = {}
     for kind, key, row, platform in seen:
+        if kind != "hashtag":
+            continue
         entry = stats.setdefault((kind, key), [set(), set(), 0, Counter()])
         entry[0].add(platform)
         entry[1].add(row)
@@ -593,9 +687,141 @@ def score_candidates(seen):
     for (kind, key), (platforms, rows, n, where) in sorted(
             stats.items(), key=lambda kv: (-len(kv[1][0]), -len(kv[1][1]), -kv[1][2], kv[0][1])):
         ranked[kind].append(key)
-        if kind == "hashtag":
-            ranked["origin"][key] = min(where, key=lambda pr: (-where[pr], pr))
+        ranked["origin"][key] = min(where, key=lambda pr: (-where[pr], pr))
+    ranked["sound"] = rank_sounds([key for kind, key, _, _ in seen if kind == "sound"], adoption, songs)
     return ranked
+
+
+def _instant(value):
+    """A post time as seconds since the epoch, or None: a datetime (naive read as UTC), a date or an ISO string."""
+    if isinstance(value, str):
+        try:
+            text = value.strip()
+            value = datetime.fromisoformat(text[:-1] + "+00:00" if text.endswith("Z") else text)
+        except ValueError:
+            return None
+    if isinstance(value, datetime):
+        return (value if value.tzinfo else datetime.combine(value.date(), value.time(), timezone.utc)).timestamp()
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day, tzinfo=timezone.utc).timestamp()
+    return None
+
+
+def rank_sounds(keys, adoption=(), songs=None):
+    """Sound ids for rows 11 and 12, most locally adopted first. keys are the harvest's sound ids; adoption holds one
+    row per post ({sound_id, creator_id, post_id, newest, day, local}): the harvest's TikTok posts and the market's
+    stored TikTok posts of the 7 days before (writers.read_sound_adoption), day being the post's posting day and local
+    whether it counts as local by the brief's pattern_posts rule (adoption_rows; a row without local is not local).
+    Sounds group by the vendor's matched song (songs maps a sound id to its ext.matched_song_id) when known, else by
+    their own id. Groups adopted by LOCAL_CREATORS or more distinct local creators on LOCAL_DAYS or more posting days
+    come first; then groups rank by distinct local creators (a creator-less post counts as its own creator, as the
+    brief counts it), their posting days, then distinct creators anywhere, distinct posts, the newest post and the
+    key. Each group is read through its most adopted sound id by the same order, as a clip id is what the routes take.
+    A sound id rule 1 (gdelt.blocked) refuses is never a candidate."""
+    from core.collect.gdelt import blocked
+
+    songs, members = songs or {}, {}
+
+    def blank():
+        return [set(), set(), None, set(), set()]
+
+    for key in keys:
+        if key not in (None, ""):
+            members.setdefault(str(key), blank())
+    for row in adoption:
+        sound = row.get("sound_id")
+        if sound in (None, ""):
+            continue
+        entry = members.setdefault(str(sound), blank())
+        if row.get("creator_id") not in (None, ""):
+            entry[0].add(str(row["creator_id"]))
+        if row.get("post_id") not in (None, ""):
+            entry[1].add(str(row["post_id"]))
+        moment = _instant(row.get("newest"))
+        if moment is not None and (entry[2] is None or moment > entry[2]):
+            entry[2] = moment
+        if row.get("local") is True:
+            who = row.get("creator_id") if row.get("creator_id") not in (None, "") else row.get("post_id")
+            if who not in (None, ""):
+                entry[3].add(str(who))
+            if row.get("day") not in (None, ""):
+                entry[4].add(str(row["day"])[:10])
+
+    def order(creators, posts, newest, local, days, key):
+        adopted = len(local) >= LOCAL_CREATORS and len(days) >= LOCAL_DAYS
+        return (not adopted, -len(local), -len(days), -len(creators), -len(posts),
+                -newest if newest is not None else math.inf, key)
+
+    groups = {}
+    for sound, (creators, posts, newest, local, days) in members.items():
+        if blocked(sound):
+            continue
+        song = songs.get(sound)
+        group = groups.setdefault(("song", str(song)) if song not in (None, "") else ("sound", sound), blank() + [[]])
+        group[0] |= creators
+        group[1] |= posts
+        if newest is not None and (group[2] is None or newest > group[2]):
+            group[2] = newest
+        group[3] |= local
+        group[4] |= days
+        group[5].append(sound)
+    ranked = sorted(groups.items(), key=lambda kv: order(*kv[1][:5], kv[0]))
+    return [min(group[5], key=lambda sound: order(*members[sound], sound)) for _, group in ranked]
+
+
+def _local_post(post, market, sourced):
+    """Whether a harvest post counts as local to market by the brief's pattern_posts rule (core/brief/sql/brief.sql
+    is_local): located in market from a known source (TikTok's ext.region, the creator's home market or a place
+    mention) at writers.GEO_KNOWN or more, or seen in the market's own feeds (sourced: an observation in market with
+    source_market market, on any route but YouTube's regional chart) and not located in another market from a known
+    source."""
+    known = post.get("geo_source") in writers.KNOWN_GEO and (post.get("geo_confidence") or 0) >= writers.GEO_KNOWN
+    if known and post.get("geo_market") == market:
+        return True
+    return sourced and not (known and post.get("geo_market") not in (None, market))
+
+
+def _within_days(day, observed, days=7):
+    """True when the posting day day (YYYY-MM-DD) is on observed or one of the days-1 days before it."""
+    try:
+        gap = (date.fromisoformat(str(observed)[:10]) - date.fromisoformat(str(day)[:10])).days
+    except ValueError:
+        return False
+    return 0 <= gap < days
+
+
+def adoption_rows(done):
+    """(adoption rows, songs) from a market's calls so far: one row per TikTok post with a sound
+    ({sound_id, creator_id, post_id, newest, day, local}, newest its publish time, day its posting day, local
+    whether it counts as local to the call's market by the brief's rule (_local_post) and was posted in the 7 days
+    to its observation), and sound id -> ext.matched_song_id for every response row that carries both."""
+    rows, songs = [], {}
+    for call, result, parsed in done:
+        market = getattr(call, "market", None)
+        observed, sourced = {}, set()
+        for obs in (parsed or {}).get("observations", []):
+            if obs.get("market") != market or obs.get("post_id") is None:
+                continue
+            observed.setdefault(obs["post_id"], obs.get("observed_date"))
+            if obs.get("source_market") == market and obs.get("route") != "youtube/videos/trending":
+                sourced.add(obs["post_id"])
+        for post in (parsed or {}).get("posts", []):
+            if post.get("platform") == "tiktok" and post.get("sound_id"):
+                pid, day = post.get("post_id"), post.get("post_date")
+                local = market in MARKETS and pid in observed and day is not None \
+                    and _within_days(day, observed[pid]) and _local_post(post, market, pid in sourced)
+                rows.append({"sound_id": post["sound_id"], "creator_id": post.get("creator_id"),
+                             "post_id": pid, "newest": post.get("published_at"), "day": day, "local": local})
+        data = _dict(getattr(result, "body", None)).get("data")
+        for row in _rows(data):
+            node = _dict(row.get("post")) or row
+            ext = _dict(node.get("ext"))
+            sound = _first(ext, "music_id", "audio_id") or _first(node, "music_id", "audio_id", "sound_id") \
+                or _first(_dict(node.get("music")) or _dict(node.get("sound")), "id")
+            song = _first(ext, "matched_song_id")
+            if sound is not None and song is not None:
+                songs[str(sound)] = str(song)
+    return rows, songs
 
 
 def _rate(url):
@@ -678,7 +904,7 @@ def interleaved(by_market):
 
 
 def drive(execute, day, config, *, x_trends, override, rank, evidence, queue=lambda market: ((), {}),
-          watched=(), curated_records=(), curated_limit=0, reels=None):
+          watched=(), curated_records=(), curated_limit=0, reels=None, wide=True):
     """The run's four phases. execute(by_market) runs one phase interleaved; rank(market) gives a market's
     ranked candidates after the harvest; queue(market) its live seeds and recorded uses; watched the watch
     calls (watch_calls), which open the expansion phase and take row 12 slots from the candidates; evidence()
@@ -700,19 +926,23 @@ def drive(execute, day, config, *, x_trends, override, rank, evidence, queue=lam
             m, day, rank(m), random.Random(f"{day.isoformat()}-{m}"), counted, search_calls(m, size), queue=live,
             uses=uses, counts=count_slots(len(watched)), cut=cut, pages=size.pages, multi_top=size.multi_top)
     execute(expansion, [cut_record(call, why) for call, why in cut])
+    spread = {m: wide_calls(m, day, expansion[m]) if wide else [] for m in MARKETS}
     later = {m: reels_calls(m, expansion[m], (reels or {}).get(m, 0)) for m in MARKETS}
     execute({m: panel_calls(m, day, config, curated_records, curated_limit)
              + [feed_pull(m, n) for n in (3,) if n <= FEED_PULLS[m]]
              for m in MARKETS})
     urls = evidence()
     execute({m: [Call("22", "prism/post-stats", {"urls": urls[m]}, m, "watchlist")] for m in MARKETS if urls.get(m)})
+    for route, _ in WIDE_TOP:
+        execute({m: [c for c in calls if c.route == route] for m, calls in spread.items()})
     execute({m: calls for m, calls in later.items() if calls})
     return skipped
 
 
 def _curated_limit(day, records, *, config, x_trends, share_cap, watches):
+    # Row 16w is left out: it takes only the room the curated panel leaves, as row 14i does.
     baseline = plan(day, config=config, x_trends=x_trends, share_cap=share_cap, watches=watches,
-                    include_curated=False, reels={})
+                    include_curated=False, reels={}, wide=False)
     cap = share_cap if share_cap is not None else load_caps()["ENGINE_DAILY"]["collect"]
     local_hold = local_sources.total_hold(local_sources.plan(day))
     residual = cap - baseline["total"] - local_hold
@@ -733,7 +963,7 @@ def reels_plan(day, curated_records, curated_limit, *, config, x_trends, share_c
 
 
 def plan(day, *, config=None, x_trends=False, share_cap=None, watches=(), include_curated=True, only_routes=None,
-         reels=None, curated=None):
+         reels=None, curated=None, wide=True):
     """Every call of a run per market in run order, with placeholders standing for the candidates, the
     seed_queue seeds and the evidence posts a live run finds, and the watch calls for watches (none from the
     command line, which reads no BigQuery). Under a cap override, calls that do not fit their share at their
@@ -755,13 +985,20 @@ def plan(day, *, config=None, x_trends=False, share_cap=None, watches=(), includ
     calls = {m: [] for m in (GLOBAL,) + MARKETS}
     over = {m: [] for m in (GLOBAL,) + MARKETS}
     research = seeding.research_rows(research_terms.load_terms(), day)
+    # Row 16w takes only the room every other planned call leaves beside the Google Trends and local holds, as a
+    # run's _Runner gives it.
+    wide_room = load_caps()["ENGINE_DAILY"]["collect"] - google_trends.MAX_SC_CREDITS \
+        - local_sources.total_hold(local_sources.plan(day))
 
     def execute(by_market, skipped=()):
         for market, block in interleaved(by_market):
             for call in block:
                 if only_routes is not None and call.route not in only_routes:
                     continue
-                if budget.fits(call, call.hold()):
+                if call.row == WIDE_ROW and sum(c.hold() for cs in calls.values() for c in cs) + call.hold() \
+                        > wide_room:
+                    over[market].append(call)
+                elif budget.fits(call, call.hold()):
                     budget.spend(call, call.hold())
                     calls[market].append(call)
                 else:
@@ -776,7 +1013,7 @@ def plan(day, *, config=None, x_trends=False, share_cap=None, watches=(), includ
                                                         [s for s in research if s["market"] == m] +
                                                         google_trends.placeholder_seeds(m, day), {}),
                     watched=watch_calls(watches)[0], curated_records=curated_records,
-                    curated_limit=curated_limit, reels=reels)
+                    curated_limit=curated_limit, reels=reels, wide=wide and share_cap is None)
     if only_routes is None:
         location_calls, _ = location_sources.plan(day, config)
         execute({m: [Call(**c) for c in location_calls if c["market"] == m] for m in MARKETS})
@@ -822,6 +1059,16 @@ class _CountedIds:
         self.made.setdefault(made, (kind, raw, platform))
         return made
 
+    def note(self, kind, raw, platform):
+        """The id of an item seen on a post with no counter row, kept for naming; None when it makes no id. Not
+        counted as a skip: parse never asked for it."""
+        try:
+            made = self.fn(kind, raw, platform)
+        except ValueError:
+            return None
+        self.made.setdefault(made, (kind, raw, platform))
+        return made
+
 
 def _named(title, artist=None):
     title, artist = (str(v).strip() if v not in (None, "") else "" for v in (title, artist))
@@ -854,11 +1101,27 @@ def _sound_named(platform, title, author):
     return AUTHOR_ONLY + author
 
 
+def post_sound_name(platform, node, ext):
+    """A ranked or searched post's sound label: the music block's title and author, else the post's ext music
+    title and author fields, as _sound_named writes them. When that gives no name, or only the author ("original
+    sound - <author>"), the vendor's matched song (ext.matched_song_title and ext.matched_song_artist, one song
+    across many "original sound" ids) names it "title by artist" when the row carries it. None without either."""
+    music = _dict(node.get("music")) or _dict(node.get("sound"))
+    sound = _sound_named(platform,
+                         _first(music, "title", "name") or _first(ext, "music_title", "music_name"),
+                         _first(music, "author", "author_name", "authorName", "artist")
+                         or _first(ext, "music_author", "music_author_name", "music_artist"))
+    matched = _named(_first(ext, "matched_song_title"), _first(ext, "matched_song_artist"))
+    if matched and (not sound or sound.startswith(AUTHOR_ONLY)):
+        return matched
+    return sound
+
+
 def body_names(route, params, body):
-    """Readable names for counter items whose raw value is an id: (kind, platform, raw) -> label. A chart,
-    music board or sound count row names its sound "title by artist"; a ranked post names its creator by
-    display name (a YouTube channel title) and its sound by the music title when the post carries one.
-    Hashtags and names need no body: default_label reads them from the raw value."""
+    """Readable names for items whose raw value is an id: (kind, platform, raw) -> label. A chart, music board
+    or sound count row names its sound "title by artist"; a ranked post names its creator by display name (a
+    YouTube channel title); a ranked or searched post names its sound as post_sound_name reads it. Hashtags and
+    names need no body: default_label reads them from the raw value."""
     family, platform = ROUTES[route][0], ROUTES[route][1]
     data = _dict(body).get("data")
     out = {}
@@ -876,15 +1139,15 @@ def body_names(route, params, body):
             raws += [_first(node, k) for k in ("id", "song_id", "apple_id", "audio_id", "music_id")]
             raws += [params.get("clipId")] if route == "tiktok/song" else []
             add_names(out, {("sound", platform, str(raw)): label for raw in raws if raw is not None and label})
-        elif family == "rank":
-            creator = _named(_first(author, "display_name", "name") or _first(author, "username"))
-            for raw in (_first(author, "username"), _first(author, "id"), _first(author, "channel_id"),
-                        _first(ext, "channel_id")):
-                if raw is not None and creator:
-                    out[("creator", platform, str(raw))] = creator
+        elif family in ("rank", "search") and platform:
+            if family == "rank":
+                creator = _named(_first(author, "display_name", "name") or _first(author, "username"))
+                for raw in (_first(author, "username"), _first(author, "id"), _first(author, "channel_id"),
+                            _first(ext, "channel_id")):
+                    if raw is not None and creator:
+                        out[("creator", platform, str(raw))] = creator
             music = _dict(node.get("music")) or _dict(node.get("sound"))
-            sound = _sound_named(platform, _first(music, "title", "name"),
-                                 _first(music, "author", "author_name", "authorName", "artist"))
+            sound = post_sound_name(platform, node, ext)
             for raw in (_first(ext, "music_id", "audio_id"), _first(node, "music_id", "audio_id", "sound_id"),
                         _first(music, "id")):
                 if raw is not None and sound:
@@ -957,6 +1220,7 @@ class Collected:
     news_seeds: list = field(default_factory=list)
     names: dict = field(default_factory=dict)
     items: dict = field(default_factory=dict)
+    post_sounds: list = field(default_factory=list)
     watches: int = 0
     watch_calls: int = 0
     watches_not_planned: list = field(default_factory=list)
@@ -1082,7 +1346,8 @@ class _Runner:
             if not self.budget.fits(call, hold):
                 self._record(call, "over_share", self.clock())
                 continue
-            if ((call.route in (REELS_ROUTE,) + location_sources.ROUTES or call.family == "profile") and self.reels_room is not None
+            if ((call.route in (REELS_ROUTE,) + location_sources.ROUTES or call.row == WIDE_ROW or call.family == "profile")
+                    and self.reels_room is not None
                     and self.run.credits + hold > self.reels_room):
                 unserved = Result("over_share", call.route, reason=location_sources.UNSERVED) if call.family == "profile" else None
                 self._record(call, "over_share", self.clock(), unserved)
@@ -1118,9 +1383,10 @@ class _Runner:
                 try:
                     parsed = self._parse(call, result, fetched)
                 except Exception:
-                    if call.route not in (REELS_ROUTE,) + location_sources.ROUTES and call.family != "profile":
+                    if call.route not in (REELS_ROUTE,) + location_sources.ROUTES and call.row != WIDE_ROW \
+                            and call.family != "profile":
                         raise
-                    # Row 14i is an extra search lane: a body it cannot read fails that call, not the run.
+                    # Rows 14i and 16w are extra search lanes: a body they cannot read fails that call, not the run.
                     log.exception("collect %s %s: response not parsed", call.market, call.route)
                     parsed, status = None, "unparsable"
                 self._record(call, status, fetched, result, parsed)
@@ -1183,11 +1449,28 @@ class _Runner:
         self.run.counters += parsed["counters"]
         if call.family in ("rank", "board", "count"):
             add_names(self.run.names, body_names(call.route, call.params, result.body))
+        elif call.family == "search":
+            add_names(self.run.names, body_names(call.route, call.params, result.body))
+            self._post_sounds(parsed)
         posts = {p["post_id"]: p for p in parsed["posts"]}
         for obs in parsed["observations"]:
             if obs["market"] in MARKETS and obs["post_id"] in posts:
                 self.first_seen.setdefault(obs["post_id"], (obs["market"], posts[obs["post_id"]]))
         return parsed
+
+    def _post_sounds(self, parsed):
+        """A searched post's sound has no counter row, so the run keeps one sighting of it per post (its
+        observation's day and market) for cultural_map_rows, which names it when a response gave its title."""
+        seen = {o["post_id"]: o for o in parsed["observations"]}
+        for post in parsed["posts"]:
+            obs = seen.get(post["post_id"])
+            if obs is None or not post.get("sound_id") or not post.get("platform"):
+                continue
+            item = self.ids.note("sound", post["sound_id"], post["platform"])
+            if item is not None:
+                self.run.post_sounds.append({"item_id": item, "obs_date": obs["observed_date"],
+                                             "market": obs["market"], "platform": post["platform"],
+                                             "source": "live"})
 
     def _record(self, call, status, moment, result=None, parsed=None):
         """One call's health inputs, dated on the market-local day of its fetch, as parse dates its rows."""
@@ -1487,11 +1770,14 @@ def country_phase(run, runner, profile_reader, cap):
 def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None, x_trends=False, share_cap=None,
             last_pulls=None, seeds=None, local_get=None, watches=None, known_posts=None,
             public_feed_transport=None, search_signals=False, only_routes=None, keep=frozenset(),
-            google_rss_transport=None, google_terms=None, country_profiles=None, on_run=None):
+            google_rss_transport=None, google_terms=None, country_profiles=None, on_run=None, sound_adoption=None):
     """Make every call of the run through client and parse each response. Nothing is written here.
     share_cap is the overridden collect cap (None without an override); last_pulls maps (market, series,
     protocol) to the last pull number already stored; seeds holds the seed_queue rows seeds.read gave;
-    watches the current watches writers.read_watches gave. run.seed_rows gets one yield row per seed used,
+    watches the current watches writers.read_watches gave; sound_adoption the stored posts
+    writers.read_sound_adoption gave per market (7 days, local flagged), which rank the row 11 and 12 sounds with the
+    harvest's by local adoption (rank_sounds).
+    run.seed_rows gets one yield row per seed used,
     and run.items names every item the run made an id for (named_items). With local_get, the free getter
     (local_sources.http_get live), the local sources phase runs last on the same client. With search_signals,
     the Google Trends phase (trends_phase) runs before it, keeping the local hold in reserve. With
@@ -1525,7 +1811,9 @@ def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None,
     focus = {}
 
     def rank(market):
-        ranked = score_candidates(sightings(runner.done[market]))
+        harvest, songs = adoption_rows(runner.done[market])
+        stored = list((sound_adoption or {}).get(market, ()))
+        ranked = score_candidates(sightings(runner.done[market]), harvest + stored, songs)
         run.candidates[market] = ranked
         focus[market] = set(ranked["hashtag"][:search_calls(market)]) | set(ranked["sound"][:SONG_VIDEOS])
         return ranked
@@ -1547,7 +1835,8 @@ def collect(client, run_date, run_id, *, item_id_fn, geo_fn, clock, config=None,
     reels = dict(REELS_TOP) if share_cap is None and only_routes is None else {}
     drive(runner.execute, run_date, config, x_trends=x_trends, override=share_cap is not None, rank=rank,
           evidence=lambda: pick_evidence(runner.first_seen, focus), queue=queue, watched=watched,
-          curated_records=curated_records, curated_limit=curated_limit, reels=reels)
+          curated_records=curated_records, curated_limit=curated_limit, reels=reels,
+          wide=share_cap is None and only_routes is None)
     if only_routes is None:
         location_calls, held = location_sources.plan(run_date, config)
         runner.execute({m: [Call(**c) for c in location_calls if c["market"] == m] for m in MARKETS})
@@ -1998,11 +2287,12 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
     try:
         item_id_fn, geo_fn = fns or detect_fns()
         last = writers.last_pulls(bq, run_date)
-        queue, watches = [], []
+        queue, watches, adoption = [], [], {}
         if only is None:
             queue = seeding.read(bq, run_date, MARKETS)
             queue.extend(seeding.research_rows(research_terms.load_terms(), run_date))
             watches = writers.read_watches(bq, MARKETS)
+            adoption = writers.read_sound_adoption(bq, run_date - timedelta(days=1), MARKETS)
         collected = collect(make_client(run.run_id, caps), run_date, run.run_id, item_id_fn=item_id_fn,
                             geo_fn=geo_fn, clock=clock, x_trends=x_trends, share_cap=share_cap, last_pulls=last,
                             seeds=queue, local_get=get or local_sources.http_get, watches=watches,
@@ -2011,7 +2301,7 @@ def main(argv=None, *, env=None, runs=None, jobs=None, bq=None, make_client=None
                             only_routes=only, keep=keep, google_rss_transport=public_feed_transport,
                             google_terms=lambda: google_trends.read_terms(bq, run_date, MARKETS),
                             country_profiles=lambda keys, **kw: writers.read_profile_countries(bq, keys, **kw),
-                            on_run=started.append)
+                            on_run=started.append, sound_adoption=adoption)
         if only is None:
             bq_trends_phase(collected, bq, run_date, clock=clock)
         written = writers.write_run(bq, collected, run.run_id, carry=base["health"] if base else None)

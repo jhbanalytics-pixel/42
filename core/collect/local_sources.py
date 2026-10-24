@@ -9,8 +9,8 @@ One extra phase of the 02:00 collect job, about 40 credits a day from the collec
 - prism/profiles include=posts since yesterday: an Instagram gossip and blog panel per market, public
   pages chosen by interest (celebrity news, entertainment and music gossip), 2 credits a page;
 - google_play/app-list, the top free apps, one market a day on Monday (ZA), Tuesday (NG) and Wednesday
-  (KE). The route is not in PRICED yet, so the client refuses it: it is planned at its list price of 5,
-  recorded as not_priced and never called until core/collect/socialcrawl_client.py prices it;
+  (KE), 5 credits (priced in core/collect/socialcrawl_client.py since 16 Oct 2026). Its body shape is unprobed,
+  so GOOGLE_PLAY_LIVE keeps it off: planned, recorded not_made and never called;
 - free, fetched with requests under a User-Agent naming 42 and Ogilvy, with no email address: the App
   Store top free chart per market (labelled iPhone only until Google Play lands) and the news RSS feeds.
   The App Store chart is a baseline rank list, so a timeout, connection error, 429 or 5xx on it is fetched
@@ -143,6 +143,10 @@ IG_GOSSIP = {
     "KE": ("nairobi_gossip_club", "edaily_kenya", "mpashogram"),
 }
 GOOGLE_PLAY_DAYS = {"ZA": 0, "NG": 1, "KE": 2}
+# google_play/app-list is priced, but no real body has been recorded: app_board reads a guessed envelope
+# (tests/fixtures/local_google_play.json is invented). Until probe.py records one real body and the fixture is
+# replaced by it, the fetch stays planned and is recorded not_made, never paid for.
+GOOGLE_PLAY_LIVE = False
 APP_STORE = "https://rss.marketingtools.apple.com/api/v2/{cc}/apps/top-free/50/apps.json"
 
 
@@ -249,7 +253,7 @@ def plan(day):
             fetches.append(Fetch("google_play", market, "google_play/app-list",
                                  _protocol("google_play/app-list", params, ("app_collection", "country")),
                                  "google_play", "board_google_play", "unbiased_rank", params,
-                                 "not priced in the client yet; held at the list price, never called"))
+                                 "top free Android apps, 5 credits"))
         fetches.append(Fetch("app_store", market, "apple_rss", APP_STORE.format(cc=market.lower()), "app_store",
                              "board_app_store_iphone", "unbiased_rank", note="iPhone only; live-verified 4 Jul 2026"))
         fetches += [Fetch(f.source, market, "rss", f.url, "news", "news_rss", "context", note=f.note)
@@ -263,12 +267,80 @@ def total_hold(fetches):
 
 # Free fetches
 
-def http_get(url, timeout=(10, 60)):
-    """(connect, read) seconds: a free chart can answer slowly (NG App Store, 3 Oct 2026)."""
-    import requests
+# A free read is bounded: at most FREE_MAX_BYTES of body and FREE_DEADLINE_S seconds in all, and at most
+# FREE_MAX_REDIRECTS redirects, each on the same host and never from https down to http, so robots.txt (read per host)
+# still speaks for the page that is read and a feed host cannot point the job at another origin.
+FREE_MAX_BYTES = 4 * 1024 * 1024
+FREE_DEADLINE_S = 120
+FREE_MAX_REDIRECTS = 5
 
-    response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=timeout)
-    return response.status_code, response.text
+
+class FreeReadRefused(ValueError):
+    """A free read refused before its body was parsed: too large, too slow, or redirected off its host."""
+
+
+def same_site_redirect(source, target):
+    """Whether a redirect from source to target stays on the same host and port and is not a downgrade from https
+    to http (an upgrade from http to https on the default port is allowed)."""
+    try:
+        before, after = urlsplit(source), urlsplit(target)
+        same_host = (after.hostname or "").rstrip(".").lower() == (before.hostname or "").rstrip(".").lower()
+        same_port = after.port == before.port
+    except ValueError:
+        return False
+    if not after.hostname or after.scheme not in ("http", "https"):
+        return False
+    if before.scheme == "https" and after.scheme != "https":
+        return False
+    upgrade = before.scheme == "http" and after.scheme == "https" and after.port is None
+    return same_host and (same_port or upgrade)
+
+
+def http_get(url, timeout=(10, 60), *, max_bytes=FREE_MAX_BYTES, deadline_s=FREE_DEADLINE_S, monotonic=None):
+    """(connect, read) seconds: a free chart can answer slowly (NG App Store, 3 Oct 2026). Returns (status, text)
+    and raises FreeReadRefused for a body over max_bytes, a read past deadline_s or a redirect same_site_redirect
+    refuses, before any of the body is parsed."""
+    import requests
+    from requests.compat import chardet
+
+    clock = monotonic or time.monotonic
+    started = clock()
+    connect, read = timeout if isinstance(timeout, tuple) else (timeout, timeout)
+    for _ in range(FREE_MAX_REDIRECTS + 1):
+        # The deadline covers every hop: each request may wait only for what is left of it.
+        left = deadline_s - (clock() - started)
+        if left <= 0:
+            raise FreeReadRefused(f"read took over {deadline_s} seconds")
+        response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=(min(connect, left), min(read, left)),
+                                allow_redirects=False, stream=True)
+        try:
+            if response.is_redirect:
+                target = urljoin(url, response.headers.get("location", ""))
+                if not same_site_redirect(url, target):
+                    raise FreeReadRefused(f"redirect from {urlsplit(url).hostname} to "
+                                          f"{urlsplit(target).hostname or target[:80]} refused")
+                url = target
+                continue
+            declared = response.headers.get("content-length", "")
+            if declared.isdigit() and int(declared) > max_bytes:
+                raise FreeReadRefused(f"body of {declared} bytes is over the {max_bytes} byte limit")
+            body = bytearray()
+            for chunk in response.iter_content(chunk_size=64 * 1024):
+                body.extend(chunk or b"")
+                if len(body) > max_bytes:
+                    raise FreeReadRefused(f"body is over the {max_bytes} byte limit")
+                if clock() - started > deadline_s:
+                    raise FreeReadRefused(f"read took over {deadline_s} seconds")
+            # As requests' own Response.text decodes: the declared charset, else a detected one, errors replaced.
+            encoding = response.encoding or (chardet.detect(bytes(body))["encoding"] if body else None) or "utf-8"
+            try:
+                text = str(bytes(body), encoding, errors="replace")
+            except LookupError:
+                text = str(bytes(body), "utf-8", errors="replace")
+            return response.status_code, text
+        finally:
+            response.close()
+    raise FreeReadRefused(f"more than {FREE_MAX_REDIRECTS} redirects")
 
 
 def _log_free_failure(run_id, fetch, status, *, http_status=None, exception_class=None):
@@ -655,6 +727,10 @@ def run(day, run_id, *, client, get, clock, item_id_fn, geo_fn, last_pulls=None,
             if stopped:
                 record(f, "not_made", reason=f"stopped: {stopped}")
                 continue
+            if f.route == "google_play/app-list" and not GOOGLE_PLAY_LIVE:
+                record(f, "not_made", reason="google_play/app-list is off: its body shape is unprobed, so a read "
+                                             "could be paid for and give no chart rows")
+                continue
             if not f.priced():
                 record(f, "not_priced", reason=f"{f.route} is not in socialcrawl_client.PRICED")
                 continue
@@ -707,6 +783,10 @@ def run(day, run_id, *, client, get, clock, item_id_fn, geo_fn, last_pulls=None,
                 continue
             if f.route == "google_play/app-list":
                 names = app_board(result.body)
+                if not names:  # as a scraped board: a body the parser reads nothing from is a failed call
+                    record(f, "no_entries", calls=1,
+                           reason="google_play/app-list body gave no app rows the parser reads")
+                    continue
                 rows = _counters(f, [(r, _item(item_id_fn, "brand", n)) for r, n in enumerate(names, 1)], pull,
                                  fetched, run_id)
                 out["counters"] += rows

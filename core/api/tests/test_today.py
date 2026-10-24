@@ -1845,6 +1845,8 @@ def _held_with_reason(rule, text):
     ("G4b", "Not assessed: political item not Corroborated in an unbiased lane",
      "Political: waiting for independent confirmation"),
     ("G3", "Found by search: seen only in search", "Only found through our own searches so far"),
+    ("G3", "Not confirmed: a reaction to a match or fixture that no cited post dates or names",
+     "A reaction to a match we could not pin to a fixture or a date"),
     ("G6", "Global: 14 of 52 card source posts in the last 7 days were located in this market or came from its feeds",
      "Too few of its posts were in this market (14 of 52 posts)"),
     ("G6", "Market unconfirmed: source market evidence is missing or invalid",

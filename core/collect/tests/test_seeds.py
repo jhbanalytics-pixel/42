@@ -330,6 +330,22 @@ def test_new_seed_creators_excludes_creators_seen_in_any_nonseed_call():
     assert row["yield_new_creators"] == 1
 
 
+@pytest.mark.parametrize("row, route", [(job.WIDE_ROW, "reddit/subreddit/search"), (job.REELS_ROW, job.REELS_ROUTE)])
+def test_a_seed_query_searched_again_on_rows_16w_or_14i_does_not_count_as_shown(row, route):
+    # Rows 16w and 14i carry no seed but search the seeds' own queries again: no harvest, panel or feed call, so
+    # a creator they also find is still new to the seed.
+    again = SimpleNamespace(row=row, route=route, lane="expansion", seed=None)
+    queued = call("16", "Cyril Ramaphosa")
+    done = [done_entry(queued, "ok", 1, [("s1", "kasi_dj")]), done_entry(again, "ok", 1, [("s1", "kasi_dj")])]
+    [(row_out,)] = [(r,) for r in seeds.yield_rows(RUN, "ZA", done)]
+    assert row_out["yield_new_creators"] == 1
+    assert row in seeds.AGAIN_ROWS  # the job's row names, kept in step
+
+
+def test_the_again_rows_are_the_job_rows_that_search_seed_queries_again():
+    assert set(seeds.AGAIN_ROWS) == {job.WIDE_ROW, job.REELS_ROW}
+
+
 def test_placeholders_stand_for_every_lane_the_mix_reads():
     fake = seeds.placeholders("KE", RUN)
     assert {s["lane"] for s in fake} == {"expansion", "exploration", "anchor"}

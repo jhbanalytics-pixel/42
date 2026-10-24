@@ -538,3 +538,129 @@ def test_the_digest_masks_a_handle_in_its_words_when_the_suppression_names_only_
             "fired_because": "It rose", "card": {"title": "Posts by @hid_handle", "evidence": []}}]}
     out = privacy.withhold_digest(resp, store)
     assert "hid_handle" not in body_of(out["alerts"][0]["card"])
+
+
+def _figure_table(platform, publisher, also=()):
+    return {"title": "voting intention", "source": "MarkData", "platform": platform, "publisher": publisher,
+            "url": f"https://example.com/{publisher}", "posted_at": "2026-10-13T08:00:00Z", "sample": "not stated",
+            "fieldwork": "not stated", "population": "not stated", "evidence_id": f"e_{publisher}",
+            "rows": [{"subject": "ANC", "value": 33.5, "unit": "%", "quote": "ANC on 33.5%"}], "note": "",
+            "also_reported_by": [{"publisher": p, "platform": pl, "url": "https://example.com/x",
+                                  "posted_at": "2026-10-13"} for pl, p in also]}
+
+
+def test_reported_figures_lose_a_hidden_publishers_table_and_mention():
+    record = ask_record()
+    record["run"]["figures"] = {"status": "ok", "lead": "hid_handle said ANC 33.5%.", "tables": [
+        _figure_table("tiktok", "hid_handle"), _figure_table("news", "enca.com", also=[("tiktok", "hid_handle")])]}
+    held = copy.deepcopy(record)
+    out = project(record, PrivStore(hide={"c_hid"}))
+    figures = out["run"]["figures"]
+    assert [t["publisher"] for t in figures["tables"]] == ["enca.com"]
+    assert figures["tables"][0]["also_reported_by"] == [] and figures["withheld"] == 1
+    assert "hid_handle" not in body_of(figures)
+    assert record == held  # the stored record is never changed
+    gone = project(copy.deepcopy(held), PrivStore(fail="missing"))
+    assert gone["run"]["figures"]["tables"] == [] and gone["run"]["figures"]["withheld"] == 2
+
+
+# Figures tables are judged by the posts they rest on, not only by the publisher's current handle (audit, 17 October
+# 2026): a renamed creator's old handle, a hide by creator id alone, a comment under a hidden post and a figure post no
+# claim cites must all take their table with them.
+def _post_table(publisher, evidence_id, quote, posted_at="2026-10-05T01:00:00+02:00"):
+    table = _figure_table("tiktok", publisher)
+    table.update(evidence_id=evidence_id, url=f"https://www.tiktok.com/@{publisher}/video/9", posted_at=posted_at,
+                 rows=[{"subject": "ANC", "value": 33.5, "unit": "%", "quote": quote}])
+    return table
+
+
+def _with_figures(record, *tables, lead="x"):
+    record["run"]["figures"] = {"status": "ok", "lead": lead, "tables": list(tables)}
+    return record
+
+
+def test_a_figures_table_on_a_renamed_hidden_creators_cited_post_goes_with_the_post():
+    record = _with_figures(ask_record(), _post_table("hid_old_handle", P_REN1, "renamed creator words ANC on 33.5%"))
+    out = project(record, PrivStore(hide={"c_ren"}))
+    assert P_REN1 not in {e["id"] for e in out["answer"]["evidence"]}
+    assert out["run"]["figures"]["tables"] == [] and out["run"]["figures"]["withheld"] == 1
+    assert "renamed creator words" not in body_of(out["run"]["figures"])
+
+
+def test_a_figures_table_on_an_uncited_post_by_a_renamed_hidden_creator_goes():
+    record = ask_record()
+    record["answer"]["evidence"] = [e for e in record["answer"]["evidence"] if e["id"] != P_REN1]
+    record["answer"]["claims"] = [c for c in record["answer"]["claims"] if c["id"] != "c4"]
+    _with_figures(record, _post_table("hid_old_handle", P_REN1, "ANC on 33.5%"), lead="A post by hid_old_handle: ANC 33.5%.")
+    out = project(record, PrivStore(hide={"c_ren"}))
+    assert out["run"]["figures"]["tables"] == [] and out["run"]["figures"]["withheld"] == 1
+    assert "hid_old_handle" not in body_of(out)
+
+
+def test_a_figures_table_by_a_creator_hidden_by_id_alone_goes():
+    store = PrivStore(hide=set(), posts={**POSTS, P_HID1: ("c_gone", "2026-10-05")})
+    store.suppression_rows = [handle_row(platform=None, handle=None, creator_id="c_gone")]
+    out = project(_with_figures(ask_record(), _post_table("hid_handle", P_HID1, "fixture hidden words one ANC 40%",
+                                                          "2026-10-05T09:00:00+02:00")), store)
+    assert out["run"]["figures"]["tables"] == []
+    assert "fixture hidden words one" not in body_of(out["run"]["figures"])
+
+
+def test_a_figures_table_on_a_comment_under_a_hidden_post_goes():
+    cid = "tiktok_comment_77"
+    comment = {"id": cid, "platform": "tiktok", "handle": "vis_commenter", "parent_id": P_HID1,
+               "url": "https://www.tiktok.com/@hid_handle/video/2", "posted_at": "2026-10-05T09:00:00+02:00",
+               "text": "commenter words ANC on 40%"}
+    record = ask_record()
+    record["answer"]["evidence"].append(comment)
+    table = _post_table("vis_commenter", cid, "commenter words ANC on 40%")
+    table["url"] = comment["url"]
+    out = project(_with_figures(record, table), PrivStore(hide={"c_hid"}))
+    assert cid not in {e["id"] for e in out["answer"]["evidence"]}
+    assert out["run"]["figures"]["tables"] == []
+
+
+def test_a_visible_creators_figures_table_stays_while_someone_else_is_hidden():
+    visible = _post_table("vis_handle", P_VIS1, "visible fixture words ANC on 33.5%", "2026-10-05T09:00:00+02:00")
+    out = project(_with_figures(ask_record(), visible), PrivStore(hide={"c_hid"}))
+    assert [t["evidence_id"] for t in out["run"]["figures"]["tables"]] == [P_VIS1]
+    assert "withheld" not in out["run"]["figures"]
+
+
+def test_a_figures_table_with_no_evidence_record_is_not_trusted_while_someone_is_hidden():
+    table = _figure_table("news", "enca.com")
+    table.pop("evidence_id")
+    out = project(_with_figures(ask_record(), table), PrivStore(hide={"c_hid"}))
+    assert out["run"]["figures"]["tables"] == []
+
+
+def test_a_figures_post_the_lookup_cannot_read_makes_the_record_unavailable():
+    record = _with_figures(ask_record(), _post_table("vis_handle", P_VIS1, "ANC on 33.5%"))
+    out = project(record, PrivStore(hide={"c_hid"}, fail="lookup"))
+    assert out["privacy"]["state"] == "unavailable" and out["run"]["figures"]["tables"] == []
+
+
+def test_withholding_only_figures_still_marks_the_record():
+    record = {"ask_id": "a_1", "question": "ANC poll share?", "status": "complete", "market": "ZA",
+              "run": {"figures": {"status": "ok", "lead": "MarkData: ANC 33.5%.",
+                                  "tables": [_figure_table("tiktok", "hid_handle")]}},
+              "answer": {"status": "complete", "short_answer": "s", "evidence": [ev(P_VIS1, "vis_handle", "visible words")],
+                         "claims": [{"id": "c1", "text": "t", "evidence_ids": [P_VIS1]}], "gaps": []}}
+    out = project(record, PrivStore(hide={"c_hid"}))
+    assert out["run"]["figures"]["withheld"] == 1
+    assert out["privacy"]["state"] == "applied"
+
+
+def test_an_also_reported_by_entry_that_cannot_be_placed_goes_while_someone_is_hidden_by_id():
+    table = _figure_table("news", "enca.com", also=[("tiktok", "some_reposter")])
+    out = project(_with_figures(ask_record(), table), PrivStore(hide={"c_hid"}))
+    assert [t["publisher"] for t in out["run"]["figures"]["tables"]] == ["enca.com"]
+    assert out["run"]["figures"]["tables"][0]["also_reported_by"] == []
+    assert out["privacy"]["state"] == "applied"
+
+
+def test_a_second_pass_adds_its_withheld_tables_to_the_first_passes_count():
+    record = _with_figures(ask_record(), _post_table("hid_handle", P_HID1, "fixture hidden words one ANC 40%"))
+    record["run"]["figures"]["withheld"] = 1
+    out = project(record, PrivStore(hide={"c_hid"}))
+    assert out["run"]["figures"]["tables"] == [] and out["run"]["figures"]["withheld"] == 2

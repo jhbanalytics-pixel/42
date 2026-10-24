@@ -182,6 +182,45 @@ def test_ju07_a_chain_stage_row_for_today_that_is_still_running_stops_the_snapsh
     assert jr.run_snapshot(w.bound, cloud, w.bq_client(), w.evidence, now=lambda: w.now)["chain_rows"]
 
 
+def dead_row_world(tmp_path, age):
+    w = jw.ReleaseWorld(tmp_path)
+    w.prepare()
+    cloud = cw.FakeCloudRun(w.world, cw.Clock(w.now))
+    today = w.now.astimezone(SAST).date()
+    w.quiet_rows = [{"run_id": "detect-killed", "stage": "detect", "run_date": today, "status": "running", "started_at": w.now - age,
+                     "finished_at": None}]
+    return w, cloud, today
+
+
+def test_ju07_a_running_row_past_its_stage_timeout_with_no_live_execution_is_recorded_as_dead_and_does_not_stop_the_snapshot(tmp_path):
+    # 21 Oct 2026: detect was killed at its memory limit before it could write a final row, so its row said running all day
+    w, cloud, today = dead_row_world(tmp_path, dt.timedelta(hours=5))
+    snapshot = jr.run_snapshot(w.bound, cloud, w.bq_client(), w.evidence, now=lambda: w.now)
+    assert snapshot["active"]["chain_rows_dead_today"] == ["detect"] and snapshot["active"]["chain_rows_running_today"] == []
+    assert snapshot["chain_rows"][f"detect:{today.isoformat()}"] == {"run_id": "detect-killed", "status": "running", "version": 1}
+
+
+def test_ju07_a_running_row_inside_its_stage_timeout_still_stops_the_snapshot(tmp_path):
+    w, cloud, _ = dead_row_world(tmp_path, dt.timedelta(minutes=59))
+    with pytest.raises(so.Stop) as stop:
+        jr.run_snapshot(w.bound, cloud, w.bq_client(), w.evidence, now=lambda: w.now)
+    assert stop.value.code == "CHAIN_ACTIVE"
+
+
+def test_ju07_a_dead_row_does_not_excuse_a_live_execution_of_the_same_stage(tmp_path):
+    w, cloud, _ = dead_row_world(tmp_path, dt.timedelta(hours=5))
+    cloud.start("f42-detect", "live")
+    with pytest.raises(so.Stop) as stop:
+        jr.run_snapshot(w.bound, cloud, w.bq_client(), w.evidence, now=lambda: w.now)
+    assert stop.value.code == "CHAIN_ACTIVE"
+
+
+def test_ju07_the_stage_timeouts_are_the_chain_task_timeouts():
+    from core.collect import chain
+
+    assert jo.STAGE_TIMEOUT == {stage: chain.TIMEOUTS[stage] for stage in jo.CHAIN_STAGES}
+
+
 def test_ju07_the_snapshot_records_the_latest_row_version_per_stage_and_day_and_is_written_to_the_evidence_folder(tmp_path):
     w = jw.ReleaseWorld(tmp_path)
     w.prepare()

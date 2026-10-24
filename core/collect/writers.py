@@ -19,7 +19,8 @@ collection_health: one row per day, market, series and protocol, the day being t
 the fetches it summarises (the day parse gives their rows), judged as DATA.md section 3.3 does: calls
 when under 80% of calls succeeded (a series skipped for want of input has 0 calls and fails here too),
 items when the day's rows fall outside half to twice the median of up to 28 prior valid days (only once
-3 exist), effort when a panel's k = units_planned / units_ok lies outside 0.5 to 2. The drift check
+3 exist; a panel is never judged on items, its items being its members' output), effort when a panel's
+k = units_planned / units_ok lies outside 0.5 to 2. The drift check
 (TRUST.md A1) is not built yet. A repair run (COLLECT_ONLY_ROUTES) also appends the day's good collect run's
 rows for every key it did not read, under its own run_id (repair_base, carry_forward).
 
@@ -37,9 +38,11 @@ it; until then a gap over 35 days in one list is the only way to reach it.
 cultural_map (L2 Needs 11): every item on this run's counter rows (boards, charts, rank lists, counts and the
 local charts) goes into cultural_map through L2's own MERGE, core.detect.aggregate.cultural_map_merge_sql(),
 with rows shaped like aggregate.items_rows and passed as the @items parameter, so a board or chart item has a
-readable name before detect sees it. The MERGE only inserts new items and moves last_seen. An item is left
-out, and counted, when its label is one gdelt.blocked refuses (rule 1) or when it has no readable label (a
-bare id): an insert with no name would keep a later named one out.
+readable name before detect sees it. A searched post's sound (job.Collected.post_sounds) goes in the same way
+when a response named it, so a sound found by search is named too. The MERGE inserts new items, moves last_seen
+and names an open sound row still labelled by its raw id. An item is left out, and counted, when its label is one
+gdelt.blocked refuses (rule 1) or when it has no readable label (a bare id); a searched post's sound with no
+readable label is left out without being counted, as aggregate inserts it by its id.
 
 post_items (L2 Needs 34c): the pulse appends its posts' item links with L2's own INSERT,
 core.detect.aggregate.POST_ITEMS_INSERT_SQL, which adds only the post and item pairs not already there.
@@ -176,17 +179,25 @@ PREVIOUS_SQL = (
 )
 
 LAST_PULL_DAYS = 35
+# A collect run that never finished ok (failed, or still marked running) does not hold its pull numbers: detect's
+# current views read counters from ok collect runs only (v_item_counter_daily_current), so a retry that counted them
+# would leave a hole between two adjacent pulls and lose the top-10-twice signal (audit F7D-COL-002). Rows of any
+# other stage's runs (pulse) count as before.
 LAST_PULLS_SQL = (
     "SELECT c.market, c.series, c.protocol, MAX(c.pull_seq) AS last_pull FROM (\n"
-    "  SELECT market, series, protocol, pull_seq FROM `{counters}`\n"
+    "  SELECT market, series, protocol, pull_seq, run_id FROM `{counters}`\n"
     f"  WHERE obs_date >= DATE_SUB(@day, INTERVAL {LAST_PULL_DAYS} DAY)\n"
     "    AND pull_seq IS NOT NULL AND (series IN UNNEST(@series)\n"
     "      OR (route = 'public_feed' AND series IN UNNEST(@public_feed_counter_series)))\n"
     "  UNION ALL\n"
-    "  SELECT market, series, protocol, pull_seq FROM `{observations}`\n"
+    "  SELECT market, series, protocol, pull_seq, run_id FROM `{observations}`\n"
     f"  WHERE observed_date >= DATE_SUB(@day, INTERVAL {LAST_PULL_DAYS} DAY) AND pull_seq IS NOT NULL\n"
     "    AND ((lane_class = 'unbiased_rank' AND series IN UNNEST(@observation_series))\n"
     "      OR (route = 'public_feed' AND series IN UNNEST(@public_feed_observation_series)))) c\n"
+    "WHERE c.run_id IS NULL\n"
+    "  OR c.run_id NOT IN (SELECT r.run_id FROM `{runs}` r WHERE r.stage = 'collect' AND r.run_id IS NOT NULL)\n"
+    "  OR c.run_id IN (SELECT r.run_id FROM `{runs}` r WHERE r.stage = 'collect' AND r.status = 'ok'\n"
+    "                  AND r.run_id IS NOT NULL)\n"
     "GROUP BY c.market, c.series, c.protocol"
 )
 
@@ -457,7 +468,8 @@ def last_pulls(bq, day):
     from google.cloud import bigquery
 
     counted = sorted(set(RANK_SERIES + LOCAL_RANK_SERIES) - set(OBSERVATION_SERIES))
-    sql = LAST_PULLS_SQL.format(counters=table("item_counter_daily"), observations=table("post_observations"))
+    sql = LAST_PULLS_SQL.format(counters=table("item_counter_daily"), observations=table("post_observations"),
+                                runs=table("runs", AGENT))
     rows = _query(bq, sql, [bigquery.ScalarQueryParameter("day", "DATE", day),
                             bigquery.ArrayQueryParameter("series", "STRING", counted),
                             bigquery.ArrayQueryParameter("observation_series", "STRING", list(OBSERVATION_SERIES)),
@@ -603,8 +615,9 @@ def judge(*, calls, calls_ok, items, ref_items, ref_days, lane_class, units_plan
     k = (units_planned / units_ok if units_ok else None) if lane_class == "panel" else None
     if calls == 0 or calls_ok < 0.8 * calls:
         reason = "calls"
-    elif ref_days >= 3 and ref_items is not None and not 0.5 * ref_items <= items <= 2 * ref_items:
-        reason = "items"
+    elif (lane_class != "panel" and ref_days >= 3 and ref_items is not None
+          and not 0.5 * ref_items <= items <= 2 * ref_items):
+        reason = "items"  # a panel's items are its creators' output; effort below judges the panel itself
     elif lane_class == "panel" and not 0.5 <= (99 if k is None else k) <= 2:
         reason = "effort"
     else:
@@ -756,6 +769,14 @@ def cultural_map_rows(counters, items):
     return [r for r in rows.values() if r is not None], left
 
 
+def named_post_sounds(run):
+    """The run's searched post sound sightings (job.Collected.post_sounds) whose item has a label, shaped as
+    counter rows for cultural_map_rows."""
+    items = getattr(run, "items", None) or {}
+    return [s for s in getattr(run, "post_sounds", ()) or ()
+            if (items.get(s["item_id"]) or (None, None, None, None))[3]]
+
+
 def merge_cultural_map(bq, rows):
     """L2's cultural_map MERGE over rows, aggregate.CHUNK rows a statement. Returns the statements run."""
     from google.cloud import bigquery
@@ -893,6 +914,62 @@ def read_profile_countries(bq, keys, *, timeout=None):
             yield row
 
 
+# The stored posts whose sounds rank the morning's row 11 and 12 sound reads (job.rank_sounds): yesterday's
+# TikTok search and trending pulls.
+# Stored adoption reads the market's TikTok posts of the ADOPTION_DAYS days to the day before the run, as the brief's
+# pattern_posts counts them (core/brief/sql/brief.sql): posted and observed in the market in the window, any route but
+# the legacy, placebo and agent_live lanes, a creator-less post counting as its own creator, and local when located in
+# the market from a known source (KNOWN_GEO, at GEO_KNOWN or more) or seen in the market's own feeds (source_market,
+# any route but YouTube's regional chart) and not located in another market from a known source.
+ADOPTION_DAYS = 7
+_KNOWN = "p.geo_source IN (" + ", ".join(f"'{s}'" for s in KNOWN_GEO) + ")"
+ADOPTION_SQL = (
+    "WITH sourced AS (\n"
+    "  SELECT DISTINCT source_market AS market, post_id FROM `{observations}`\n"
+    f"  WHERE observed_date BETWEEN DATE_SUB(@d, INTERVAL {ADOPTION_DAYS - 1} DAY) AND @d\n"
+    "    AND source_market IN UNNEST(@markets) AND IFNULL(route, '') != 'youtube/videos/trending')\n"
+    "SELECT o.market, p.sound_id, IFNULL(p.creator_id, p.post_id) AS creator_id, p.post_id, p.post_date AS post_day,\n"
+    "  MAX(IFNULL(p.published_at, o.observed_at)) AS newest,\n"
+    f"  LOGICAL_OR((p.geo_market = o.market AND IFNULL(p.geo_confidence, 0) >= {GEO_KNOWN} AND {_KNOWN})\n"
+    f"    OR (s.post_id IS NOT NULL AND NOT IFNULL(p.geo_market != o.market AND p.geo_confidence >= {GEO_KNOWN}\n"
+    f"                                         AND {_KNOWN}, FALSE))) AS is_local\n"
+    "FROM `{observations}` o\n"
+    "JOIN `{posts}` p ON p.post_id = o.post_id\n"
+    "LEFT JOIN sourced s ON s.market = o.market AND s.post_id = o.post_id\n"
+    f"WHERE o.observed_date BETWEEN DATE_SUB(@d, INTERVAL {ADOPTION_DAYS - 1} DAY) AND @d\n"
+    f"  AND p.post_date BETWEEN DATE_SUB(@d, INTERVAL {ADOPTION_DAYS - 1} DAY) AND @d\n"
+    "  AND o.market IN UNNEST(@markets)\n"
+    "  AND o.lane_class != 'legacy' AND IFNULL(o.lane, '') NOT IN ('placebo', 'agent_live')\n"
+    "  AND p.platform = 'tiktok' AND p.sound_id IS NOT NULL\n"
+    "GROUP BY o.market, p.sound_id, p.creator_id, p.post_id, p.post_date"
+)
+
+
+def read_sound_adoption(bq, day, markets):
+    """market -> [{sound_id, creator_id, post_id, newest, day, local}], one row per TikTok post with a sound that the
+    market observed and that was posted in the ADOPTION_DAYS days to day (ADOPTION_SQL), newest being its publish
+    time, else its latest observation, day its posting day and local whether it counts as local to the market by the
+    brief's rule. One parameterised SELECT; a failing read is logged and reads as no rows, so the run ranks its
+    sounds from the harvest alone, as before."""
+    from google.cloud import bigquery
+
+    sql = ADOPTION_SQL.format(observations=table("post_observations"), posts=table("posts"))
+    out = {m: [] for m in markets}
+    try:
+        rows = _query(bq, sql, [bigquery.ScalarQueryParameter("d", "DATE", day),
+                                bigquery.ArrayQueryParameter("markets", "STRING", list(markets))])
+    except Exception:
+        log.exception("the stored sound adoption read failed; sounds rank from the harvest alone")
+        return out
+    for r in rows:
+        r = dict(r.items())
+        if r.get("market") in out:
+            row = {k: r.get(k) for k in ("sound_id", "creator_id", "post_id", "newest")}
+            row["day"], row["local"] = r.get("post_day"), r.get("is_local") is True
+            out[r["market"]].append(row)
+    return out
+
+
 def read_watches(bq, markets):
     """The active current watches in any of markets or in all markets, oldest first, target parsed; an item
     target carries its cultural_map item_kind, item_key and item_label (None when the item is not there)."""
@@ -948,7 +1025,7 @@ def write_run(bq, run, run_id, carry=None):
     own = health_rows(run.records, run.posts, refs, run_id, prior)
     carried = carry_forward(carry, own, run_id) if carry is not None else []
     health = append(bq, "collection_health", own + carried)
-    mapped, left = cultural_map_rows(run.counters, run.items)
+    mapped, left = cultural_map_rows(run.counters + named_post_sounds(run), run.items)
     merge_cultural_map(bq, mapped)
     creators, error = write_creators(bq, run.creators)
     raw_rows = getattr(run, "public_feed_raw_rows", ()) or ()

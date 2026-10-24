@@ -1311,12 +1311,17 @@ def test_the_data_issue_banner_counts_every_candidate_considered():
     za = payload(r, "ZA")
     assert len(all_cards(za)) == 10 and za["held_back"]["count"] == 5
     assert {"kind": "data_issue", "text": "Data issue: 5 of 15 candidates held for invalid collection days or "
+                                          "unreadable evidence; the 10 candidates judged were not affected, so the "
+                                          "brief is complete"} in za["banners"]
+    # 18 Oct 2026: the market judged its full 10, so the banner describes the held list and the status stays the
+    # judged cards' own.
+    assert za["status"] == "published"
+    # Every candidate in the top 30 held by G1: 30 of 30, nothing judged, so the brief itself is the data issue.
+    r = brief(world(n=30, markets=("ZA",)), ctx=FakeCtx({item("ZA", i): BAD_DAYS for i in range(1, 31)}))
+    za = payload(r, "ZA")
+    assert {"kind": "data_issue", "text": "Data issue: 30 of 30 candidates held for invalid collection days or "
                                           "unreadable evidence"} in za["banners"]
     assert za["status"] == "data_issue"
-    # Every candidate in the top 30 held by G1: 30 of 30.
-    r = brief(world(n=30, markets=("ZA",)), ctx=FakeCtx({item("ZA", i): BAD_DAYS for i in range(1, 31)}))
-    assert {"kind": "data_issue", "text": "Data issue: 30 of 30 candidates held for invalid collection days or "
-                                          "unreadable evidence"} in payload(r, "ZA")["banners"]
 
 
 def test_an_unreadable_evidence_pack_still_takes_a_judged_slot(monkeypatch):
@@ -2023,7 +2028,7 @@ def test_a_sustained_rate_limit_stops_every_model_call_for_the_run(error, busy_w
 def test_other_model_errors_do_not_stop_the_run():
     model = RateLimited(RuntimeError("503 service unavailable"))
     r = brief(world(n=2), model=model, workers=1)
-    assert len(model.calls) == 6
+    assert len(model.calls) == 12  # each explanation made once more after its model error (model-error-retry)
     assert "model" not in r.counts
 
 
@@ -2053,7 +2058,7 @@ def test_a_429_status_or_a_rate_limit_class_trips_the_breaker(error):
 def test_a_429_inside_other_text_does_not_trip_the_breaker(error):
     model = RateLimited(error)
     r = brief(world(n=2), model=model, workers=1)
-    assert len(model.calls) == 6
+    assert len(model.calls) == 12  # each explanation made once more after its model error (model-error-retry)
     assert "model" not in r.counts
 
 
@@ -2071,7 +2076,7 @@ def test_on_gemini_the_brief_model_sends_a_finite_http_timeout(monkeypatch):
     model = job.brief_model()
     assert isinstance(model, GeminiModel) and model.project == job.PROJECT
     model.client
-    assert 0 < job.GEMINI_TIMEOUT_S <= 120
+    assert 0 < job.GEMINI_TIMEOUT_S <= 300  # finite; 180 s since 24 Oct 2026 (job.py GEMINI_TIMEOUT_S)
     assert made["http_options"].timeout == job.GEMINI_TIMEOUT_S * 1000
     assert made["project"] == job.PROJECT and made["vertexai"] is True
 
@@ -2113,7 +2118,9 @@ def timeout_errors():
 def test_a_timed_out_call_holds_its_card_and_the_run_goes_on(error):
     model = RateLimited(error)
     r = brief(world(n=2), model=model, workers=1)
-    assert len(model.calls) == 6  # one call per card: the timeout ends that card, not the run
+    # Two calls per card: the timeout ends that explanation, which is made once more (model-error-retry, 23 Oct
+    # 2026) and ends the same way; it ends the card, not the run.
+    assert len(model.calls) == 12
     assert "model" not in r.counts
     for m in MARKETS:
         p = payload(r, m)
@@ -2473,15 +2480,15 @@ def fixed_words():
     held = {"Critic: a simpler explanation was not ruled out"} | {
         f"Critic: a simpler explanation was not ruled out: {m}" for m in MENU}
     out |= {f"{c}; local why-now not shown" for c in held} | {"Critic: local why-now not shown"}
-    out |= {job.NEWS_PASS} | {f"{job.NEWS_PASS}: {m}" for m in MENU}
-    out |= {job.TOO_FEW, job.NO_REST}
+    out |= {job.TOO_FEW, job.NO_REST, job.CRITIC_INCONSISTENT}
     out |= set(REASON_TEXT.values())
     return out | {job.REPAIR + w for w in out}
 
 
 class ScriptedModel(FakeModel):
     """FakeModel with scripted support and critic outputs: claim_support {claim text fragment: (verdict, reason)},
-    sentence (verdict, reason) for the explanation sentence check, critic (non_cultural_explanation, reason)."""
+    sentence (verdict, reason) for the explanation sentence check, critic (non_cultural_explanation, reason) or
+    (non_cultural_explanation, reason, {flag: value}) to set the critic's own flags."""
 
     def __init__(self, claim_support=None, sentence=None, critic=None, **kw):
         super().__init__(ruled_out=critic is None, **kw)
@@ -2493,8 +2500,10 @@ class ScriptedModel(FakeModel):
         out, usage = super().complete_json(system=system, user=user, schema=schema, model=model,
                                            max_tokens=max_tokens)
         if "ruled_out" in schema["properties"] and self.critic:
-            return {"non_cultural_explanation": self.critic[0], "ruled_out": False, "local_why_now": True,
-                    "reason": self.critic[1]}, usage
+            # A whole answer, every flag given: one critic_is_valid rejects has a standing of its own (18 Oct 2026).
+            return {"non_cultural_explanation": self.critic[0], "ruled_out": False, "news_driven": False,
+                    "scheduled_event": False, "local_reaction": False, "local_why_now": True,
+                    "reason": self.critic[1], **(self.critic[2] if len(self.critic) > 2 else {})}, usage
         if "verdict" in schema["properties"]:
             if "Label: explanation sentence" in user:
                 if self.sentence:
@@ -2548,19 +2557,27 @@ def test_a_critic_hold_maps_its_explanation_onto_the_menu():
     assert held["reason_text"] == "Explanation failed its checks"
 
 
-@pytest.mark.parametrize("explanation,menu", [
-    ("a sponsored push by a drinks brand", "a paid campaign"),
-    ("TikTok changed a platform feature this week", "a platform feature change"),
-    ("bots posting on a schedule", "a coordinated push"),
-    ("a news event about the match", "a news or scheduled event"),
-    ("a collection artefact of one sweep", "a scraping or collection artefact"),
-    ("a single viral post carrying the count", "one viral post or creator"),
+@pytest.mark.parametrize("explanation,flags,menu", [
+    ("a sponsored push by a drinks brand", {}, "a paid campaign"),
+    ("TikTok changed a platform feature this week", {}, "a platform feature change"),
+    ("bots posting on a schedule", {}, "a coordinated push"),
+    # 22 Oct 2026: a news or scheduled event is named from the critic's own flag, not from its words.
+    ("a news event about the match", {"news_driven": True}, "a news or scheduled event"),
+    ("the match itself", {"scheduled_event": True}, "a news or scheduled event"),
+    ("a collection artefact of one sweep", {}, "a scraping or collection artefact"),
+    ("a single viral post carrying the count", {}, "one viral post or creator"),
 ])
-def test_the_critic_explanation_is_named_only_by_its_menu_wording(explanation, menu):
-    r = brief(world(n=1), model=ScriptedModel(critic=(explanation, "nothing rules it out")))
+def test_the_critic_explanation_is_named_only_by_its_menu_wording(explanation, flags, menu):
+    r = brief(world(n=1), model=ScriptedModel(critic=(explanation, "nothing rules it out", flags)))
     [critic] = [c for c in za1_checks(r) if c["rule"] == "critic"]
     assert critic["reason"] == f"Critic: a simpler explanation was not ruled out: {menu}"
     assert za1_held(r)["reason"] == "explanation_failed"
+
+
+def test_a_news_word_with_both_flags_false_names_no_rival():
+    r = brief(world(n=1), model=ScriptedModel(critic=("a news event about the match", "nothing rules it out")))
+    [critic] = [c for c in za1_checks(r) if c["rule"] == "critic"]
+    assert critic["reason"] == "Critic: a simpler explanation was not ruled out"
 
 
 def critic_out(ruled_out, local_why_now, explanation="a sponsored push by a drinks brand"):
@@ -2984,6 +3001,8 @@ def test_the_critics_answer_is_stored_in_the_briefs_payload_for_shown_and_held_i
         for stored, ruled_out in ((payload(shown, m)["critic"], True), (payload(held, m)["critic"], False)):
             [entry] = stored
             assert entry.pop("code_rivals")["critic_ruled_out"] is ruled_out
+            # The pattern line the critic read rides beside it as a shadow record (22 Oct 2026).
+            assert isinstance(entry.pop("patterns_seen"), list)
             assert stored == [{"item_id": item(m, 1), **answer, "ruled_out": ruled_out}]
         assert [c["item_id"] for c in all_cards(payload(shown, m))] == [item(m, 1)]
         assert all("critic" not in c for c in all_cards(payload(shown, m)))

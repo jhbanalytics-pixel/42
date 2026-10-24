@@ -569,3 +569,30 @@ def test_the_first_ledger_day_is_one_read_only_min_select():
     assert "`ogilvy-trends-v2.intelligence_42_core.credit_ledger`" in sql
     for word in ("DELETE", "MERGE", "UPDATE", "INSERT", "TRUNCATE", "DROP", "REPLACE"):
         assert word not in sql.upper()
+
+
+# A failed call is charged when it starts and refunded under the same request id (SocialCrawl, 19 Oct 2026)
+
+def test_rows_sharing_a_request_id_net_to_what_the_call_kept():
+    rows = [v("refund", at(18, 13, 5), -5, route="instagram/search/hashtag", request_id="req-NTSEBq8bgi2iYFej"),
+            v("charge", at(18, 13), 5, route="instagram/search/hashtag", request_id="req-NTSEBq8bgi2iYFej"),
+            v("kept", at(18, 20), 3, request_id="req-k"), v("bare", at(18, 30), 2, request_id="")]
+    netted = rc.net_by_request(rows)
+    assert [(r["id"], r["credits"]) for r in netted] == [("kept", 3), ("bare", 2)]
+    assert rc.net_by_request([v("a", at(1), 5, request_id="r"), v("b", at(1, 0, 5), -2, request_id="r")]) == [
+        v("a", at(1), 3, request_id="r")]
+
+
+def test_a_refunded_failure_is_one_ledger_side_difference_not_a_paired_charge_and_a_stray_refund():
+    ledger, http = seeded([5, 1], [5, 1])
+    charge(ledger, at(18, 13, 1), 5, route="instagram/search/hashtag")
+    items = http.pages[None]["data"]["items"]
+    items.insert(0, txn("refund", at(18, 13, 5), 5, route="instagram/search/hashtag", kind="refund",
+                        request_id="req-NTSEBq8bgi2iYFej"))
+    items.insert(1, txn("charge", at(18, 13), -5, route="instagram/search/hashtag", request_id="req-NTSEBq8bgi2iYFej"))
+    _, runs = go(ledger, http)
+    counts = final(runs)["counts"]
+    assert counts["vendor_total"] == 6 and counts["ledger_total"] == 11 and counts["difference"] == 5
+    assert counts["unmatched_vendor"] == 0 and counts["price_mismatches"] == 0
+    assert counts["unmatched_ledger"] == 1 and counts["unmatched_ledger_credits"] == 5
+    assert counts["unmatched_ledger_sample"][0]["route"] == "instagram/search/hashtag"

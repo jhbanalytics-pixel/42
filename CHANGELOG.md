@@ -1,16 +1,72 @@
 # Changelog
 
-The version number tracks what people see: the website and Ask. History stays as it is: 2.0.0 is Release A, 2.1.0 is Release B, 2.2.0 is Release C, and 2.3.0 is D0.
+Every release takes its own new semantic version number, jobs-only releases included. History before 2.4.0 stays as it is: 2.0.0 is Release A, 2.1.0 is Release B, 2.2.0 is Release C, and 2.3.0 is D0, with the jobs update of 12 October 2026 under it.
 
-Major goes up for a breaking change to stored data or a removed page. Minor goes up for a website release with new features. Patch goes up for a website release with fixes only.
+Major goes up for a breaking change to stored data, a removed page or a new generation of the product: the full Gamma release is 3.0.0. Minor goes up for new features anywhere people see results: the website, Ask, or the jobs that make the cards. Patch goes up for fixes only. A release with any new feature is at least minor.
 
-From D0 on, a jobs-only release keeps the current number and gets its own dated "Jobs update" entry under that version in CHANGELOG.md. The one exception is a jobs-only release that breaks stored data. Line 2 wins there: it takes the next major number, and the website is rebuilt with it so the menu shows it.
+The newest release comes first, and VERSION at the root of the repository holds its number. Each release has its own heading with its version and, in brackets, the date it went live, then one line naming the release with its release id and whether it is jobs only, then one plain line per change.
 
-A jobs update reaches the live What's new panel only with the next website build. That is accepted, because the changelog in the repo is the record and the menu shows what the website runs.
+A release not live yet reads "next, not live yet" in its brackets. At bind its lines are re-derived from the merged branch list, its release id is written into its naming line, and the go-live date takes the place of "next, not live yet".
 
-At bind for every release, the version entry's lines are re-derived from the merged branch list, and the go-live date is written in.
+A jobs-only release does not rebuild the website, so its entry reaches the live What's new panel only with the next website build. That is accepted, because the changelog in the repo is the record and the menu shows what the website runs. The panel marks the version the page runs as This version.
 
-The newest release comes first, and VERSION at the root of the repository holds its number. Each version is a heading with the version and the date in brackets, or "next, not live yet" until the date is written in, then one line naming the release and one plain line per change. A jobs update is a "### Jobs update" heading with its date in brackets under its version, followed by its own lines. The panel in the menu marks the version the page runs as This version.
+## 2.7.1 (next, not live yet)
+
+Jobs only release, release id written in at bind.
+
+- The brief gives each model call 3 minutes where it gave 1, after every explanation of 24 October ran out of time. The deadline, the time limit and the day's model spending cap are unchanged.
+
+## 2.7.0 (next, not live yet)
+
+Services release of the website and Ask, not jobs only, release id written in at bind.
+
+- Ask transcribes the speech of a TikTok video that has no captions when a question needs it.
+- The Control room look: a near black red field with Ogilvy red as the one filled action, new interface faces and Material 3 motion timing. Dark is now the default theme; Light and Match system stay in the menu.
+- Today's lead draws its posts a day as a field of red LED cells behind its header. Screen readers skip it, because the panel states the same series.
+- Ask answers a question about figures, such as poll percentages, with the figures its sources report: one bar chart per source, with who ran it, when, the sample and the quoted words. A figure is kept only when its quote is found word for word in the record, and a hidden publisher's table is left out.
+- Ask searches live news it can cite and opens the article behind a news result to read it. A question about figures searches news first.
+- Ask's Deep level, several researchers in parallel and then a critic, is open to plain questions where the service has it switched on. The app does not offer a depth control yet.
+- Today shows a card whose why-now is inferred from a format adopted by 3 or more local creators on 2 or more days, as the jobs of 2.6.0 count it, and labels it Why now, inferred.
+- Communities no longer fails on a busy day: creators are grouped as their shared items stream in, so the page fits in the service's memory. Groups, labels and community ids are unchanged.
+- The website's service runs with 1 GiB of memory, as Ask's does, after Communities ran it out of its 512 MiB on 22 October.
+- Ask keeps figures for different measures of one subject apart, and keeps apart tables that differ in population, sample or fieldwork.
+- Ask's video reads count against the research share of the question's budget, so a researcher stops reading videos once that share is spent.
+- An Ask asked just before midnight South African time counts its spending on the day it was held against.
+- History, and the Ask and dossier exports, tell browsers and caches not to keep a copy.
+- The brief explains a trend once more when a model call failed or ran out of time, while a whole call still fits before the deadline and the day's model spending is under the cap. Both attempts count against the cap, and a model that blocked the request is never asked again.
+- The brief explains the trends whose own local posts show an adopted sound or format first, in every market, so a failure late in the run never costs the strongest candidate.
+- A genre no longer counts as a format local creators adopted: a skit, tutorial, slideshow, image meme, duet or stitch adds nothing to the brief's ranking, to the counts the writer and the critic read, or to a why-now inferred from adoption. A dance still counts.
+- The morning collection follows the TikTok sounds most used by local creators on the most days over the last 7 days, where before it followed the sounds most used by creators anywhere on one day, and counts all 6 of them where it counted 5, with 4 hashtag counts a market where it had 5. The credits are unchanged.
+
+## 2.6.0 (22 October 2026)
+
+Jobs only release rel-5dff8ff-01: the collection, enrichment, video and brief changes that answer the zero card morning of 22 October.
+
+- A format adopted by 3 or more independent local creators on 2 or more days, with its simpler explanations ruled out, can now make a card when no cited post states the local cause. Code counts the adoption, never the model, and the card says its why-now is inferred. Today holds such a card until the website release that labels it, 2.7.0.
+- Collection no longer searches or counts tags that detection calls generic, such as tiktok or viral. A topic named only by generic tag words ranks after named topics for the 10 judging places, and only local posts count toward an adopted sound or format.
+- When the brief folds or regrows its candidates it keeps pool order, so a pattern keeps its own evidence.
+- The critic judges on the evidence the writer saw: the same citable posts in its pattern count, the same detection facts, and the calendar moment on each local post's day.
+- A held card names a news or scheduled event rival from the critic's own flags, and the second draft is given the simpler explanation the critic named.
+- The writer and the support check use the same wording rules for crowd words, numbers in the explanation sentence and board places, and the writer names a rival or an event date only as a cited post states it.
+- Enrichment tries again, on each of the next 6 days, a post it missed on the day it was seen, and puts today's posts of items in the running first. The limit and the caps are unchanged.
+- The 60 daily video clips go first to items in the running and are shared across the markets in turn, where before ZA could get none.
+- Video reading reads the YouTube transcript it pays for, asks for a spoken TikTok transcript when a video has no captions, and reads a clip fetched a second time in a day. The transcript is not stored.
+- A collect run that failed no longer keeps its pull number, so a same day retry does not break the twice in the top 10 signal.
+- Collection follows no redirect on a call that carries a supplier key. Free feed reads follow at most 5 redirects on the same site, never from https to http, and stop at 4 MiB or 120 seconds.
+
+## 2.5.0 (21 October 2026)
+
+Jobs only release rel-42c1af2-01: the morning collection, detection and brief changes that answer the zero card mornings of 18 to 21 October.
+
+- The morning collection's credit share is back to 2,000 a day, so the chain reaches the brief well before 06:15. At 4,000 the 20 October collection ran 162 minutes and 29 of 30 candidates went unexplained. The monthly cap is 180,000, raised from 80,000 on 16 October.
+- A creator panel's collection day is no longer held invalid for a quiet or busy day among its creators. Its item count is what those creators posted, so the day is judged on how many of its profiles answered; feeds, counters and searches keep the item band.
+- The brief's pattern pool counts the video model's format for each clip beside the enriched formats, so a format three creators share across two days reaches the adopted pattern bucket even when captions do not name it.
+- The writer sees each clip's video format and the same line of simpler explanations the critic checks, and is told to name the rival event and show the pattern beyond it, or to write no pattern claim when the posts only react to an event.
+- Sound items are named once a title is read instead of staying raw ids, searched posts' sounds are named the same way, and the watched sounds are the ones most creators adopted rather than the lexically smallest ids.
+- The morning Instagram reel search asks for each market's own posts at no extra credit, X posts carry their author's stated location for placement, and a refunded failed call no longer shows as a stray refund in the nightly credit check.
+- The morning collection also searches Bluesky, LinkedIn and each market's subreddit, only in the room the day's collection share leaves after the earlier sources.
+- Detection's coordination check holds one compact embedding a post instead of a copy per item, after the 21 October detection was stopped at its memory limit twice, and records its peak memory in its counts.
+- The release tooling takes any chain after the previous jobs release as the baseline when its job definitions match, and records a typed acceptance of a chain that did not qualify instead of refusing the release.
 
 ## 2.4.0 (15 October 2026)
 

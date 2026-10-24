@@ -3138,6 +3138,9 @@ def test_t2_is_accepted_for_the_brand_lens_and_context_pack_with_the_flag_on(cli
 
 @pytest.mark.parametrize("extra", [{}, {"skill": "creator-read"}, {"spike": SPIKE}])
 def test_t2_stays_refused_for_any_other_ask_with_the_flag_on(client, monkeypatch, extra):
+    from core.agent import depth
+
+    monkeypatch.setattr(depth, "DEEP_FOR_PLAIN_ASKS", False)  # Deep's own tests below cover a plain ask with it on
     monkeypatch.setenv("F42_T2_READY", "1")
     seen = spy_on_requests(monkeypatch)
     r = ask(client, tier="T2", **extra)
@@ -3168,6 +3171,50 @@ def test_health_says_whether_t2_is_open(client, monkeypatch):
     assert client.get("/health").json()["t2_ready"] is False
     monkeypatch.setenv("F42_T2_READY", "1")
     assert client.get("/health").json()["t2_ready"] is True
+
+
+# Deep on the depth slider: T2 for a plain ask behind F42_T2_READY and depth.DEEP_FOR_PLAIN_ASKS.
+
+
+@pytest.mark.parametrize(("ready", "switch"), [("1", False), (None, True), ("0", True)])
+def test_deep_stays_closed_unless_t2_is_ready_and_the_switch_is_on(client, monkeypatch, ready, switch):
+    from core.agent import depth
+
+    monkeypatch.setattr(depth, "DEEP_FOR_PLAIN_ASKS", switch)
+    if ready is None:
+        monkeypatch.delenv("F42_T2_READY", raising=False)
+    else:
+        monkeypatch.setenv("F42_T2_READY", ready)
+    seen = spy_on_requests(monkeypatch)
+    r = ask(client, tier="T2")
+    assert r.status_code == 400 and "T2" in r.json()["message"]
+    assert seen == []
+    levels = client.get("/health").json()["ask_depth"]
+    assert [lv["open"] for lv in levels] == [True, True, False]
+
+
+def test_deep_opens_t2_for_a_plain_ask_when_t2_is_ready_and_the_switch_is_on(client, monkeypatch):
+    from core.agent import depth
+
+    monkeypatch.setattr(depth, "DEEP_FOR_PLAIN_ASKS", True)
+    monkeypatch.setenv("F42_T2_READY", "1")
+    seen = spy_on_requests(monkeypatch)
+    r = ask(client, wait=True, tier="T2")
+    assert r.status_code == 200 and seen[0]["tier"] == "T2"
+    levels = client.get("/health").json()["ask_depth"]
+    assert [(lv["key"], lv["tier"], lv["open"]) for lv in levels] == [
+        ("quick", "T0", True), ("standard", "T1", True), ("deep", "T2", True)]
+
+
+@pytest.mark.parametrize("extra", [{"skill": "creator-read"}, {"spike": SPIKE}])
+def test_deep_is_for_plain_asks_only(client, monkeypatch, extra):
+    from core.agent import depth
+
+    monkeypatch.setattr(depth, "DEEP_FOR_PLAIN_ASKS", True)
+    monkeypatch.setenv("F42_T2_READY", "1")
+    seen = spy_on_requests(monkeypatch)
+    r = ask(client, tier="T2", **extra)
+    assert r.status_code == 400 and seen == []
 
 
 # Client skins (contract section 15.1).
@@ -3400,6 +3447,27 @@ def test_skin_report_draft_carries_the_skin_to_the_planner_and_keeps_it_in_the_p
     forged = client.put(f"/api/investigations/{body['investigation_id']}/plan",
                         json={"plan": {**plan, "skin_id": "sk_ffffffffffff"}})
     assert forged.json()["plan"]["skin_id"] == skin["skin_id"]
+
+
+def test_a_skin_report_run_is_asked_with_its_skin_so_side_lists_stay_out_at_source(client, inv, skin_env,
+                                                                                    monkeypatch):
+    from core.api import skins
+
+    seen = []
+
+    def run_ask(request, emit, should_stop):
+        seen.append(copy.deepcopy(request))
+        return {"answer": copy.deepcopy(skin_answer()),
+                "run": {"run_id": "r_" + request["ask_id"][2:], "tier": "T3", "credits": 10, "model_usd": 0.1}}
+
+    monkeypatch.setattr(agent_app, "resolve_investigator",
+                        lambda: (inv.fixture_planner, inv.fixture_estimate, run_ask))
+    skin = new_skin(client).json()
+    inv_id = client.post("/api/investigations", json=skins.report_plan(skin)).json()["investigation_id"]
+    assert client.post(f"/api/investigations/{inv_id}/start").status_code == 202
+    wait_finished(inv_id)
+    assert seen and seen[0]["skin_id"] == skin["skin_id"]
+    assert "skin_id" not in seen[0]["plan"]
 
 
 @pytest.mark.parametrize("skin_id, status", [("sk_000000000000", 404), (5, 400), ("bad id!", 400)])
@@ -3769,3 +3837,11 @@ def test_bigquery_ask_record_reads_only_the_partitions_around_the_ask_id_date():
     assert bq.ask_record("a_x") is None
     sql, params = client.calls[-1]
     assert "run_date" not in sql and set(params) == {"ask_id"}
+
+
+def test_a_dossier_export_is_not_stored_by_caches(client, dossier_store):
+    # Audit F7D-SEC-002: contract section 22 marks every stored copy no-store, exports too.
+    dossier_id = freeze_ready(client, dossier_store)
+    client.post(f"/api/dossiers/{dossier_id}/freeze")
+    r = client.get(f"/api/dossiers/{dossier_id}/versions/2/export", params={"format": "html"})
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-store"

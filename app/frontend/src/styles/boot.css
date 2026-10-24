@@ -1,12 +1,12 @@
 :root, .oi-product {
-  --color-ink-canvas: #151214;
-  --color-ink-panel: #1D191C;
-  --color-ink-raised: #2A2529;
-  --color-daylight-ink: #261E23;
-  --color-daylight-paper: #FAF8F9;
-  --color-daylight-paper-secondary: #F2EEF0;
+  --color-ink-canvas: #0B0305;
+  --color-ink-panel: #160609;
+  --color-ink-raised: #1A080D;
+  --color-daylight-ink: #1C0A0D;
+  --color-daylight-paper: #FBF5F3;
+  --color-daylight-paper-secondary: #F6EDEA;
   --color-white: #FFFFFF;
-  --color-ink-muted: #B6A8AF;
+  --color-ink-muted: #AD9799;
 }
 
 .app .instrument-shell {

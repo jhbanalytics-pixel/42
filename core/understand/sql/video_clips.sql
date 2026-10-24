@@ -7,7 +7,23 @@
 -- reads nothing twice, and so is a post by a suppressed creator (v_suppressed_creators), which is never sent on, and
 -- a post with no creator_id, whose creator cannot be checked against the list.
 -- The post_date bound keeps the scan to Stage 1's 400 days, as cluster_posts.sql does.
-WITH members AS (
+-- eligible says the cluster's item is eligible in its market's newest good detect run dated within the 7 days up to
+-- @run_date (v_item_state_current, the view the brief's candidates read, as enrich_select.sql reads it); a pooled
+-- pan cluster's item counts when it is eligible in any market. pick_clips gives those clusters their clips first.
+WITH latest_state AS (
+  SELECT s.market, s.item_id, s.eligible
+  FROM `ogilvy-trends-v2.intelligence_42_core.v_item_state_current` AS s
+  WHERE s.metric_date BETWEEN DATE_SUB(@run_date, INTERVAL 7 DAY) AND @run_date
+  QUALIFY s.metric_date = MAX(s.metric_date) OVER (PARTITION BY s.market)
+),
+eligible_clusters AS (
+  SELECT DISTINCT k.cluster_id
+  FROM `ogilvy-trends-v2.intelligence_42_core.clusters` AS k
+  JOIN latest_state AS ls
+    ON ls.item_id = k.item_id AND (LOWER(k.market) = 'pan' OR ls.market = UPPER(k.market))
+  WHERE k.cluster_date = @run_date AND ls.eligible IS TRUE
+),
+members AS (
   SELECT k.cluster_id, k.market, m.post_id
   FROM `ogilvy-trends-v2.intelligence_42_core.clusters` AS k
   JOIN `ogilvy-trends-v2.intelligence_42_core.cluster_members` AS m
@@ -29,6 +45,7 @@ already_read AS (
 SELECT
   mb.cluster_id,
   mb.market,
+  ec.cluster_id IS NOT NULL AS eligible,
   p.post_id,
   LOWER(p.platform) AS platform,
   p.url,
@@ -47,6 +64,8 @@ JOIN `ogilvy-trends-v2.intelligence_42_core.posts` AS p
   ON p.post_id = mb.post_id AND p.post_date >= DATE_SUB(@run_date, INTERVAL 402 DAY)
 LEFT JOIN seen AS s
   ON s.post_id = p.post_id
+LEFT JOIN eligible_clusters AS ec
+  ON ec.cluster_id = mb.cluster_id
 WHERE LOWER(p.platform) IN ('tiktok', 'youtube', 'instagram')
   AND p.post_id NOT IN (SELECT r.post_id FROM already_read AS r)
   AND p.creator_id IS NOT NULL

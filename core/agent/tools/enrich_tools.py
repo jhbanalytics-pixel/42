@@ -34,6 +34,9 @@ COMMENT_ROUTES = {
     "twitter": "twitter/tweet/replies",
     "threads": "threads/post/comments",
 }
+# A TikTok video with no caption track is transcribed from its speech inside the same 10 credits; one with no
+# transcript at all is not charged (SocialCrawl, 19 Oct 2026). Without it those videos return a 404.
+TRANSCRIPT_PARAMS = {"tiktok/post/transcript": {"use_ai_as_fallback": "true"}}
 TRANSCRIPT_ROUTES = {
     "tiktok": "tiktok/post/transcript",
     "instagram": "instagram/media/transcript",
@@ -237,7 +240,8 @@ def get_transcript(ctx: RunContext, client: SocialCrawlClient, evidence_id: str)
         segments, spent, status, reason, cached = hit["segments"], 0.0, hit["status"], "", True
     else:
         _, route, url = _parent(ctx, evidence_id, TRANSCRIPT_ROUTES, "transcripts")
-        result, event = _charged_call(ctx, client, "get_transcript", route, {"url": url}, ctx.credits_left(),
+        params = {"url": url, **TRANSCRIPT_PARAMS.get(route, {})}
+        result, event = _charged_call(ctx, client, "get_transcript", route, params, ctx.credits_left(),
                                       evidence_id)
         status, spent, cached = result.get("status"), result["credits_charged"], False
         reason = str(result.get("reason") or "")
@@ -369,12 +373,12 @@ def _stored_video(ctx: RunContext, warehouse, evidence_id: str) -> dict:
 
 
 class _SpendingModel:
-    """The model, with each call's spend booked on the question: reserved in its model budget before the call and
-    settled after it when the question has one, added to ctx.model_usd_extra otherwise. Without one, a call whose
-    reserve (its input bound and full output allowance at the model's price) is over what the context's own
-    max_budget_usd leaves after the research model's spend and earlier tool spend is refused before it is sent. A
-    billed failure counts. Under a budget a 429 refusal gives its reserve back and is waited out, and a 5xx books its
-    reserve and is tried once more, each try on a fresh reserve."""
+    """The model, with each call's spend booked on the question: reserved in its model budget, on the research share
+    as well as the question's hold, before the call and settled after it when the question has one, and added to
+    ctx.model_usd_extra either way. A call whose reserve (its input bound and full output allowance at the model's
+    price) is over what the context's own max_budget_usd leaves after the research model's spend and earlier tool
+    spend is refused before it is sent, under a question budget as well (_check_lane_reserve). A billed failure counts. Under a budget a 429 refusal gives its reserve
+    back and is waited out, and a 5xx books its reserve and is tried once more, each try on a fresh reserve."""
 
     def __init__(self, ctx: RunContext, model, input_bound: int):
         self.ctx, self.model, self.input_bound = ctx, model, input_bound
@@ -389,13 +393,17 @@ class _SpendingModel:
         busy = server_failed = 0
         while True:
             reservation = None
-            if budget is not None:
+            if budget is None:
+                self._check_lane(kwargs["model"], kwargs["max_tokens"])
+            else:
                 try:
-                    reservation = budget.reserve(kwargs["model"], self.input_bound, kwargs["max_tokens"])
+                    # A video read is research (a researcher's tool call), so it is booked on the research share as
+                    # well as the question's hold: past that share it is refused and the question goes on.
+                    reservation = budget.reserve(kwargs["model"], self.input_bound, kwargs["max_tokens"],
+                                                 research=True)
                 except BudgetRefused as e:
                     raise Refused(f"The question's model budget has no room to watch a video ({e}).") from None
-            else:
-                self._check_lane(kwargs["model"], kwargs["max_tokens"])
+                self._check_lane_reserve(budget, reservation)
             try:
                 result = self.model.complete_json(**kwargs)
             except Exception as exc:
@@ -410,7 +418,7 @@ class _SpendingModel:
                 if reservation is not None and not server_failed and server_error(exc):
                     # A 5xx books its full reserve and one more try runs on a fresh one; the HTTP client makes no
                     # retry of its own under a budget, since that retry would run outside the reserve.
-                    budget.settle(reservation, None, stop_unknown=False)
+                    self._book(budget.settle_usd(reservation, None, stop_unknown=False)[1])
                     server_failed += 1
                     time.sleep(RETRY_WAIT_S)
                     continue
@@ -418,6 +426,20 @@ class _SpendingModel:
                 raise
             self._spend(budget, reservation, result[1] if isinstance(result, tuple) and len(result) == 2 else None)
             return result
+
+    def _check_lane_reserve(self, budget, reservation) -> None:
+        """Under a question budget, the researcher's own allowance (a T2 lane's share, or the tier's) must also cover
+        the read's reserve after its earlier spend, as gemini_research checks each research turn; if not, the reserve
+        goes back and the read is refused."""
+        cap = self.ctx.budget.get("max_budget_usd")
+        if cap is None:
+            return
+        left = cap - self.ctx.research_usd - self.ctx.model_usd_extra
+        reserve = reservation.ceiling_micros / 1_000_000
+        if reserve > left:
+            budget.release(reservation)
+            raise Refused(f"The model budget for this research has USD {max(left, 0.0):.4f} left, under the USD "
+                          f"{reserve:.4f} a video read reserves.")
 
     def _check_lane(self, model: str, max_tokens: int) -> None:
         from core.llm.provider import price_for, reserve_output
@@ -437,9 +459,16 @@ class _SpendingModel:
 
     def _spend(self, budget, reservation, usage) -> None:
         if reservation is not None:
-            budget.settle(reservation, usage if isinstance(usage, dict) else None)
+            self._book(budget.settle_usd(reservation, usage if isinstance(usage, dict) else None)[1])
         elif isinstance(usage, dict) and isinstance(usage.get("usd"), (int, float)) and usage["usd"] > 0:
-            self.ctx.model_usd_extra += float(usage["usd"])
+            self._book(float(usage["usd"]))
+
+    def _book(self, usd: float) -> None:
+        """Count a read's booked spend in the context, as sql_query does for embeddings, so the researcher's next turn
+        and the next read see it against its allowance (gemini_research reads ctx.model_usd_extra)."""
+        if usd > 0:
+            with self.ctx.lock:
+                self.ctx.model_usd_extra += usd
 
 
 def _fenced(value):

@@ -184,7 +184,8 @@ def test_watch_video_spend_goes_through_the_question_model_budget_when_there_is_
     c, model = make_ctx(), FakeModel(usd=0.03)
     c.model_budget = AskModelBudget(1.0, 1.0)
     watch(c, model=model)
-    assert c.model_budget.booked_usd == pytest.approx(0.03) and c.model_usd_extra == 0.0
+    # The context counts it too, so the researcher's allowance sees it (audit F7D-ASK-002).
+    assert c.model_budget.booked_usd == pytest.approx(0.03) and c.model_usd_extra == pytest.approx(0.03)
 
 
 def test_watch_video_is_refused_when_the_question_model_budget_has_no_room():
@@ -252,7 +253,7 @@ def test_the_tool_count_text_is_honest():
     for name in ("toolset.py", "gemini_research.py"):
         text = (root / name).read_text(encoding="utf-8")
         assert "thirteen" not in text, name
-    assert len(toolset.TOOL_NAMES) == 15
+    assert len(toolset.TOOL_NAMES) == 16
 
 
 def test_watch_video_is_refused_while_video_daily_clips_is_zero(monkeypatch):
@@ -292,3 +293,56 @@ def test_the_suppression_check_reads_the_view_by_post_and_by_handle():
     sql, params, _ = wh.runs[0]
     assert "intelligence_42_core.v_suppressed_creators" in sql
     assert params["post_id"] == "tiktok_7412" and params["key"] == "tiktok:chef_za"
+
+
+def test_watch_video_is_refused_when_the_research_share_has_no_room_and_the_question_goes_on():
+    # Audit F7D-ASK-002: the read reserved on the question's hold only, so it ran past the T2 research allocation.
+    from core.agent.model_budget import AskModelBudget
+
+    c, model = make_ctx(), FakeModel()
+    c.model_budget = AskModelBudget(1.0, 0.000001)
+    with pytest.raises(Refused, match="model budget"):
+        watch(c, model=model)
+    assert model.calls == [] and not c.model_budget.stopped and c.model_budget.research_exhausted
+
+
+def test_watch_video_spend_is_booked_on_the_research_share():
+    from core.agent.model_budget import AskModelBudget
+
+    c = make_ctx()
+    c.model_budget = AskModelBudget(1.0, 0.5)
+    watch(c, model=FakeModel(usd=0.03))
+    assert c.model_budget._research_booked_micros == 30_000
+
+
+def test_a_t2_lane_counts_its_video_reads_against_its_allowance_under_a_question_budget(monkeypatch):
+    # Audit F7D-ASK-002 acceptance: a T2 lane capped at USD 1.00, a USD 0.50 research turn, then five USD 0.125 video
+    # reads. Reads run while the lane can cover a read's reserve, the next is refused before the model is called, and
+    # the question's own hold is left open for the writer and checks.
+    from core.agent.model_budget import AskModelBudget
+    from core.agent.context import TIERS
+
+    # Each read reserves exactly USD 0.125: 4,096 output tokens at USD 30.517578125 a million.
+    price, reserve = (lambda model: {"input": 0, "output": 30.517578125}), (lambda model, max_tokens: 4096)
+    monkeypatch.setattr("core.llm.provider.price_for", price)
+    monkeypatch.setattr("core.llm.provider.reserve_output", reserve)
+    parent = make_ctx("T2")
+    parent.model_budget = AskModelBudget(10.0, 5.0, price_for_fn=price, reserve_output_fn=reserve)
+    lane = parent.lane({**TIERS["T2"], "max_budget_usd": 1.0})
+    lane.research_usd = 0.5
+    model = FakeModel(usd=0.125)
+    model.complete_json = lambda **kw: (model.calls.append(kw) or dict(READ),
+                                        {"input_tokens": 1, "output_tokens": 1, "usd": 0.125})
+    refused = 0
+    for n in range(5):
+        eid = f"tiktok_{n}"
+        lane.evidence[eid] = {"id": eid, "platform": "tiktok", "handle": "chef_za", "market": "ZA",
+                              "url": f"https://www.tiktok.com/@chef_za/video/{n}", "text": "Braai", "engagement": {},
+                              "flags": []}
+        try:
+            watch(lane, model=model, evidence_id=eid)
+        except Refused:
+            refused += 1
+    assert len(model.calls) == 4 and refused == 1
+    assert lane.research_usd + lane.model_usd_extra == pytest.approx(1.0)
+    assert not parent.model_budget.stopped

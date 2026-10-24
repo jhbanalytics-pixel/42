@@ -64,11 +64,12 @@ from core.brief import gatectx
 from core.api.store import creator_key
 from core.api.today import _named_pattern, _today_card_fault, without_hidden
 from core.brief import pack_order
+from core.brief import pattern_formats
 from core.brief.evidence import OFFSETS, SuppressionUnreadable, build_pack, read_hidden
-from core.brief.explain import CHECK_INCOMPLETE, STANDINGS, TITLE_RULE, explain_trend
+from core.brief.explain import CHECK_INCOMPLETE, INCONSISTENT, STANDINGS, TITLE_RULE, explain_trend
 from core.brief.locality_audit import build_locality_audit
 from core.brief.market_scope import read_market_scope
-from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, _today_order, _worth,
+from core.brief.payload import (MODEL_BUSY, MODEL_REFUSED, NOT_ASSESSED_REASONS, NOT_REACHED_TEXT, NOT_RUN_WORDS, _today_order, _worth,
                                SHOWN, brief_row, build_market_payload, preview_card)
 from core.brief.same_event import near as same_event_near, reason as same_event_reason
 from core.brief.same_event import fixture_anchor, fixture_reason
@@ -102,11 +103,105 @@ from core.trust.locality import V2_BASIS, locality_block, read_locality, row_fro
 # moment, mostly sponsored or mostly news, ahead of worth_raw (core/brief/sql/brief.sql candidates), fold-half-shared a
 # Today-bound candidate with half or more of its posts on one higher card folds into it and takes no judged slot
 # (_fold_plan), pack-formats-sound the support check, critic and writer see each post's sound id and enriched formats
-# (core/brief/explain.py SUPPORT_FIELDS).
+# (core/brief/explain.py SUPPORT_FIELDS), k6-sound-label a claim or sentence naming one of the pack's sound letters is
+# cut by code (core/brief/explain.py _sound_label_rows), prompt-formats-sound the support check and the critic are
+# told what each post's formats and sound mean (core/brief/explain.py SUPPORT_SYSTEM, CRITIC_SYSTEM),
+# critic-pattern-counts the critic gets a line counted by code of the sounds and formats 2 or more different creators
+# share among the posts shown (core/brief/explain.py _shared_patterns), writer-pattern-lead the writer leads with the
+# format, sound or practice the cited posts share and words a trend as news reaction only when that is all the posts
+# show (core/brief/explain.py WRITER_SYSTEM), critic-inconsistent a critic answer critic_is_valid rejects is a cut
+# with its own standing, wording and reason code, never stored as not ruled out (core/brief/explain.py INCONSISTENT),
+# pattern-skip-talking-head the pattern line leaves talking_head out as it leaves other and news_clip out, since the
+# prompts say it alone shows no adopted practice (core/brief/explain.py PATTERN_SKIP_FORMATS), writer-critic-agree the
+# writer hears the critic's own adoption bar instead of resting on different creators, no sponsored flags and
+# different days, cites every post that shows the pattern it leads with, and the writer, the critic and the second
+# draft share one why-now definition (core/brief/explain.py WHY_NOW_DEFINITION, _writer_pattern_line), pack-video-fields
+# the pack reads the video step's on-screen text and its note's format and sound (post_enrichment screen_text,
+# video_notes) as model-only fields the support check and the critic see and the writer does not
+# (core/brief/evidence.py _video_notes, core/brief/explain.py MEDIA_FIELDS), critic-rivals-line the critic gets a line
+# written by code saying which simpler explanations detect's numbers show, do not show or could not assess, with the
+# thresholds and the 10-post floor, beside the raw shares it already saw (core/brief/explain.py _rivals_line),
+# author-step-note an observation K5 labels inferred only because none of its cited posts has an independent author
+# reaches the support check with a label note and is judged as an observation, its label unchanged
+# (core/trust/claims.py inferred_only_by_author_step, core/brief/explain.py AUTHOR_STEP_NOTE), pack-board-only-mark
+# a pack post whose every sighting in the window was the YouTube trending board is marked board_only to the writer
+# and the critic as a model-only field, with a line naming such posts; the pack order, the post's locality and the
+# board's place in source_market are unchanged (core/brief/sql/evidence.sql s, core/brief/explain.py _board_only_line),
+# creator-letters each pack post carries a code letter for its author, written from the post's creator id and never
+# the id itself, so the writer, the support check and the critic see which posts one author made, and the counted
+# pattern line counts a creator with no handle by that id (core/brief/explain.py _author, _creator_letters),
+# data-issue-full-judgement a market that judged its full CANDIDATES keeps the status its judged cards make when
+# over 30% of the candidates considered were held for data, the banner saying the judged ones were not affected;
+# a market that judged fewer is data_issue as before (_market_payload, core/brief/payload.py build_market_payload),
+# claim-floor-fault the code checks count a claim-count fault only below the 2 claims an explanation publishes on,
+# not below the 3 the writer is asked for, so the one repair round is kept for a cut that holds the draft
+# (core/brief/explain.py CLAIM_FLOOR, _faults), writer-no-earliest when no post is marked earliest_in_pack (a tie,
+# or an unreadable time) a line written by code tells the writer so and to write no earliest-post claim, and the
+# writer's ask names the mark as the condition for one (core/brief/explain.py WRITER_SYSTEM, _writer_user),
+# fixture-reaction-code a primary fixture reaction held before publication keeps its G3 hold with its own wording
+# and a hold code of its own on the held item instead of the generic Not confirmed (FIXTURE_REACTION,
+# FIXTURE_REACTION_CODE, core/trust/retained.py REASON_CODES, core/api/held_words.py), pattern-video-formats the
+# pool's adoption count reads the video step's format (post_enrichment video_notes) beside the enriched formats, with
+# the same exclusions and the same 3 creators on 2 days; rank only (core/brief/sql/brief.sql pattern_video),
+# writer-rivals-line the writer gets the critic's line of simpler explanations checked by code and is told to name the
+# rival and show the pattern beyond it, writes no pattern claim when the posts only react to an event, and the critic's
+# evaluate-only line is scoped to local_why_now (core/brief/explain.py WRITER_SYSTEM, CRITIC_SYSTEM, _writer_user),
+# video-format-counted the pattern line counts each post's video_format beside its enriched formats, with the same
+# exclusions, and the writer sees video_format (core/brief/explain.py _shared_patterns, _writer_user),
+# pattern-local-adoption only local posts (the local_creators rule) count toward an adopted sound or format in the
+# pool; rank only (core/brief/sql/brief.sql pattern_posts.is_local), generic-label-last a topic named only by
+# platform-generic tag words ranks after the other named rows (_generic_label, _ranked), fold-rank-order folds within
+# a round, and the regrow merge, run in pool rank order before worth so a pattern item is not folded into a broader
+# card (_fold_plan, _regrow),
+# critic-pattern-citable the critic's counted pattern line counts only the posts the writer may cite, as the writer's
+# own line does (core/brief/explain.py _citable_pack, CRITIC_PATTERN_SCOPE), critic-detection-facts the critic gets the
+# facts lines from detection the writer gets, with the calendar moment on each local post's day (core/brief/explain.py
+# _critic_user), pack-lane-member-marks each pack post carries measured and market_member as model-only fields to the
+# writer and the critic, with a critic line on weighing them against a collection or grouping artefact; the pack order
+# and scope are unchanged (core/brief/evidence.py _record, core/brief/explain.py CRITIC_SYSTEM),
+# critic-patterns-recorded the pattern line the critic read is kept beside code_rivals on the critic row and answer as a
+# shadow record (core/brief/explain.py _critic_patterns), redraft-critic-rival the critic-informed second draft gets the
+# simpler explanation the critic named beside its reason (core/brief/explain.py _redraft_user), critic-rival-flags the
+# critic row carries the critic's own news_driven and scheduled_event flags, and the held wording names a news or
+# scheduled event from them, not from the free text, while the dead news or event pass on local reaction is gone
+# (core/brief/explain.py _critic_row, STANDINGS, _critic_menu), writer-crowd-handles the writer's Counts line says a
+# crowd word is checked against the cited posts' handles only and how to word more creators than they show, the check
+# unchanged (core/brief/explain.py _writer_user), sentence-numeral-resting a numeral in the explanation sentence must be
+# pinned on a claim the sentence rests on, checked by code with K2's sentence reason code (core/brief/explain.py
+# _resting_numeral_rows), board-line-feed-wording the board line words a board place as ranked on the market's YouTube
+# trending board, the wording K3 passes, and the support check sees board_only and is told what it shows
+# (core/brief/explain.py _board_only_line, _support_user, SUPPORT_SYSTEM), writer-numbered-names law 8 tells the writer
+# how K2 reads a year and that a numeral inside a name such as Part 2 is no pinned number, K2 unchanged
+# (core/brief/explain.py WRITER_SYSTEM), writer-rival-post-text the writer names a rival and an event date only as a
+# cited post's own text states it, since the sentence's support check sees only the cited posts (core/brief/explain.py
+# WRITER_SYSTEM), not-run-reason a Today-bound item whose explanation was started and not completed names the cause in
+# failed_reason, still a G10 hold with the reader wording unchanged (core/brief/payload.py NOT_RUN_WORDS,
+# _payload_candidate), pattern-line-not-pack-numbers the writer's pattern line says its creators and days are not pack
+# numbers, as the Counts line does (core/brief/explain.py _writer_pattern_line), why-now-inferred-adoption with the
+# critic's simpler explanation ruled out and no local why-now a cited post states, an explanation passes when code
+# counts a format, sound or practice adopted by 3 or more independent local creators on 2 or more days among the posts
+# the writer may cite, its why-now labelled inferred on the stored card and in the app; a rival left standing still
+# holds (Albert, 22 Oct 2026; core/brief/quality.py, core/brief/explain.py adopted_pattern, core/brief/specificity.py),
+# model-error-retry an explanation that ended in a model error is made once more while a whole model call still fits
+# before the deadline and the time limit and the day's spend is below the cap, the card showing the second attempt and
+# both billed (_retry_admits, _after_retry), adopted-first the explanations of pattern bucket 0 candidates of every
+# market run before the rest (_in_rank_order), genre-formats-skipped a genre format (skit, tutorial, slideshow,
+# meme_image, duet, stitch) counts toward no adopted format in the pattern bucket, the pattern line the writer and the
+# critic read or the count behind an inferred why-now, from one list (core/brief/pattern_formats.py; 23 Oct 2026).
 RULE_VERSION = (DETECT_RULE_VERSION + "+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14"
                 "+w8-dec-15+w8-dec-16+w8-dec-17+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names"
                 "+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold+e-order-breadth+e-one-event-shadow"
-                "+brief-504-retry+pattern-first-selection+fold-half-shared+pack-formats-sound")
+                "+brief-504-retry+pattern-first-selection+fold-half-shared+pack-formats-sound+k6-sound-label"
+                "+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead"
+                "+critic-inconsistent+pattern-skip-talking-head+writer-critic-agree+pack-video-fields"
+                "+critic-rivals-line+author-step-note+pack-board-only-mark+creator-letters"
+                "+data-issue-full-judgement+claim-floor-fault+writer-no-earliest+fixture-reaction-code"
+                "+pattern-video-formats+writer-rivals-line+video-format-counted+pattern-local-adoption+generic-label-last"
+                "+fold-rank-order"
+                "+critic-pattern-citable+critic-detection-facts+pack-lane-member-marks+critic-patterns-recorded"
+                "+redraft-critic-rival+critic-rival-flags"
+                "+writer-crowd-handles+sentence-numeral-resting+board-line-feed-wording+writer-numbered-names+writer-rival-post-text+not-run-reason+pattern-line-not-pack-numbers"
+                "+why-now-inferred-adoption+model-error-retry+adopted-first+genre-formats-skipped")
 MARKETS = ("ZA", "NG", "KE")
 WORKERS = 1
 PACK_WORKERS = 8  # evidence packs and gate contexts; the BigQuery client is thread-safe
@@ -165,7 +260,10 @@ _PLATFORM_ID = re.compile(r"[#@]?(?:\d{8,}|user\d{6,}|t[1-6]_[a-z0-9]{4,})", re.
 _TOPIC_KEY = re.compile(r"topic:\d{8}-[a-z]{2}-\d{3,}", re.IGNORECASE)
 FAILED_CHECKS = {"breach", "failed_checks", "too_few_claims", "check_incomplete"}
 _NAME = re.compile(r"^--\s*name:\s*(\w+)\s*$", re.MULTILINE)
-QUERIES = {_NAME.search(s).group(1): s for s in sqlrun.split(SQL.read_text(encoding="utf-8"))}
+# The pattern bucket's format exclusions are written in from their one list (core/brief/pattern_formats.py).
+QUERIES = {_NAME.search(s).group(1): s
+           for s in sqlrun.split(pattern_formats.render(SQL.read_text(encoding="utf-8")))}
+assert QUERIES["candidates"].count(f"NOT IN ({pattern_formats.sql_list()})") == 1
 
 # The candidate statement reads the retained locality row through v_item_locality_current. If that read fails, the
 # statement runs again with the view replaced by an empty one of the same columns: a row on the v1 basis then orders,
@@ -269,6 +367,12 @@ K3_PARTS = (
                 r"evidence cannot support place or people claims$"),
      "described a place or people from posts only seen in that market's feeds"),
 )
+# A K6 cut for a pack sound letter (core/brief/explain.py _sound_label_rows) is a code label in reader text, not a
+# banned term: matched on the code's own fixed detail phrase, never on copied text.
+_CODE_LABEL = re.compile(r"^(?:short_answer: )?code label in reader text: ")
+CODE_LABEL_NAME = "Code label check"
+CODE_LABEL_WORDS = {"claim": "a claim named an internal sound label",
+                    "sentence": "the explanation named an internal sound label"}
 OTHER_WORDS = {"K5": "the label was lowered to what the evidence allows",
                "K10": "the status was lowered as claims were cut",
                # The writer's title (core/brief/explain.py): a cut only drops it, so the card keeps its label.
@@ -277,6 +381,13 @@ NOT_PASSED = "did not pass"
 # explain.py's reject_overflow row: no support check ran, so the card does not say one failed.
 OVERFLOW_WORDS = "the writer returned too many claims, so support was not checked"
 TOO_FEW = "Claim checks: fewer than 2 claims passed"
+# A primary fixture reaction (_publish_events): the explanation says creators reacted to a match or fixture, the
+# critic read it as a scheduled event, and no cited post anchors the fixture and its date, so the card is held with
+# its own wording and code instead of the generic "Not confirmed" (18 Oct 2026). The held_back.reason stays
+# not_confirmed, the contract's enum; the code is a retained.REASON_CODES member the held item carries as
+# held_reason_code, and core/api/held_words.py gives the wording its plain form.
+FIXTURE_REACTION = "Not confirmed: a reaction to a match or fixture that no cited post dates or names"
+FIXTURE_REACTION_CODE = "hold_fixture_reaction"
 NO_REST = "Claim checks: the explanation did not rest on claims that passed"
 CHECK_INCOMPLETE_WORDS = "Check did not complete"
 # CRITIC_SYSTEM's menu of non-cultural explanations, in its order, each with the words that name it.
@@ -291,16 +402,17 @@ CRITIC_MENU = (
 )
 _MENU = tuple((words, re.compile(rf"\b(?:{pattern})\b", re.I)) for words, pattern in CRITIC_MENU)
 _NEGATION = re.compile(r"\b(?:not|no|never|rather\s+than|instead\s+of|unlike|without)\b", re.I)
-_CRITIC = re.compile(r"^critic: simplest non-cultural explanation: (.*?); (?:(?:not )?ruled out|(?:news|event)-driven "
-                     r"with local reaction): ", re.S)
-_CRITIC_PARTS = re.compile(r"^critic: simplest non-cultural explanation: .*?; (not ruled out|ruled out|news-driven with "
-                           r"local reaction|event-driven with local reaction): ", re.S)
-# A critic pass on a news event that local creators react to (Albert, 2 Oct); never worded as ruled out.
-NEWS_PASS = "Critic: news-driven, local creators react in their own words"
-# The same pass on a scheduled event: a release, match, holiday or scheduled cultural moment (Albert, 3 Oct).
-EVENT_PASS = "Critic: event-driven, local creators react in their own words"
-# The standings of a news or scheduled event that passed on local reaction; a cut there failed the why-now only.
-REACTION_STANDINGS = ("news-driven with local reaction", "event-driven with local reaction")
+_CRITIC = re.compile(r"^critic: simplest non-cultural explanation: (.*?); (?:not )?ruled out: ", re.S)
+_CRITIC_PARTS = re.compile(r"^critic: simplest non-cultural explanation: .*?; (not ruled out|ruled out|critic answer "
+                           r"inconsistent): ", re.S)
+# The CRITIC_MENU item the critic's own news_driven or scheduled_event flag names (explain._critic_row puts them on the
+# row): set only when the simplest explanation is that event and no other applies (CRITIC_SYSTEM).
+EVENT_MENU = "a news or scheduled event"
+# A critic pass with no local why-now a post states, on code-counted local adoption (Albert, 22 Oct 2026).
+WHY_NOW_INFERRED = "; why-now inferred from local adoption"
+# A critic answer that contradicts itself (explain.INCONSISTENT) is a cut of its own, never worded as a simpler
+# explanation left standing (18 Oct 2026).
+CRITIC_INCONSISTENT = "Critic: the critic's answer was inconsistent"
 
 def query_sql(name):
     """The text of a named statement for the locality authority in force (sqlrun.for_authority)."""
@@ -606,12 +718,24 @@ def _prepare(client, d, market, row, *, build_ctx, campaign_hashtags, political_
     return cand
 
 
+def _generic_label(row):
+    """True for a topic whose label is made only of platform-generic tag words (core/detect/stoplist.yaml), such as
+    "tiktok, viralvideo, viral" or "mombasatiktokers, kenyantiktok": the stoplist says those words name no topic."""
+    from core.detect.items import is_generic
+
+    words = [w for part in str(row.get("label") or "").split(",") for w in part.split()]
+    return ((row.get("kind") or row.get("map_kind")) == "topic" and bool(words)
+            and all(is_generic("hashtag", w) for w in words))
+
+
 def _ranked(rows):
     """At most POOL rows in the query's order, rows without a readable title (card_title) after every named row,
-    so a platform id never takes a slot from a named item. Unnamed rows still fill slots named rows leave empty, and
-    are held there as having no readable name."""
-    named = [r for r in rows if card_title(r) is not None]
-    return (named + [r for r in rows if card_title(r) is None])[:POOL]
+    so a platform id never takes a slot from a named item, and a topic named only by platform-generic tag words
+    (_generic_label) after the other named rows. Unnamed rows still fill slots named rows leave empty, and are held
+    there as having no readable name."""
+    named = [r for r in rows if card_title(r) is not None and not _generic_label(r)]
+    generic = [r for r in rows if card_title(r) is not None and _generic_label(r)]
+    return (named + generic + [r for r in rows if card_title(r) is None])[:POOL]
 
 
 def _held_g1(cand):
@@ -804,9 +928,11 @@ def _candidates(client, d, *, build_ctx, campaign_hashtags, political_terms, cor
                                                       political_terms=political_terms[mr[0]], hidden=hidden,
                                                       calendar=calendar.get(mr[0], ()), core=core, agent=agent),
                                   rows))
-            for cand in cands:
+            for cand, (m, row) in zip(cands, rows):
                 cand["decision"] = _gate(cand, None)
                 cand["_round"] = rounds
+                # The pool position (pattern-first SQL order): within a round a fold keeps the higher-ranked row.
+                cand["_rank"] = next(n for n, r in enumerate(ranked[m]) if r is row)
                 by_market[cand["market"]].append(cand)
     if selection_audits is not None:
         for m in MARKETS:
@@ -846,7 +972,8 @@ def _fold_plan(cands):
     in worth order alone it could take posts from an earlier fold and undo it, and the market would judge more than
     CANDIDATES. Rounds first, no decision rests on a later round's rows."""
     kept, kept_posts, claimed, folds = [], [], set(), []
-    for cand in sorted((c for c in cands if _for_today(c)), key=lambda c: (c.get("_round", 0), _worth(c["row"]))):
+    for cand in sorted((c for c in cands if _for_today(c)),
+                       key=lambda c: (c.get("_round", 0), c.get("_rank", 0), _worth(c["row"]))):
         posts = cand.get("posts") or set()
         best = max(((len(posts & kp), -i) for i, kp in enumerate(kept_posts)), default=(0, 0))
         if best[0] > 0 and (len(posts - claimed) < MIN_EVIDENCE or best[0] * 2 >= len(posts)):
@@ -1010,7 +1137,7 @@ def _critic_parts(chk):
     """(standing, local_why_now) of a critic row. explain._critic_row puts both on the row as structured keys, and
     they are read from there: the detail embeds the model's own explanation text, so a standing parsed out of it
     could be chosen by that text. A row without the keys (only a hand-built one) falls back to its detail, which
-    can name only the four standings or None when unreadable."""
+    can name only the standings or None when unreadable."""
     standing, local = chk.get("standing"), chk.get("local_why_now")
     if standing in STANDINGS and isinstance(local, bool):
         return standing, local
@@ -1024,21 +1151,44 @@ def _overflow(chk):
     return detail.startswith("writer returned") and detail.endswith("support checks were withheld")
 
 
+def _code_label(chk):
+    """True for explain.py's K6 cut of a pack sound letter, before or after the repair round."""
+    detail = str(chk.get("detail") or "")
+    detail = detail[len(REPAIR):] if detail.startswith(REPAIR) else detail
+    return chk.get("rule") == "K6" and _CODE_LABEL.match(detail) is not None
+
+
+def _critic_menu(chk):
+    """The CRITIC_MENU item a critic row names. A row that carries the critic's own flags (explain._critic_row) names a
+    news or scheduled event from them: when either is true it is that event, whatever the free text matches (22 Oct
+    2026, KE stand-up comedy: scheduled_event true, its text matched release and promot, so no rival was named), and
+    when both are false the free text cannot name it. Any other menu item still comes from the text (_menu), since the
+    critic has no flag for it. A hand-built row without the flags reads its text alone."""
+    news, event = chk.get("news_driven"), chk.get("scheduled_event")
+    flagged = isinstance(news, bool) and isinstance(event, bool)
+    if flagged and (news or event):
+        return EVENT_MENU
+    menu = _menu(chk.get("detail"))
+    return None if flagged and menu == EVENT_MENU else menu
+
+
 def _wording(chk, rested=False):
     """The fixed wording for one check row. rested: the row cuts a claim the explanation sentence rests on."""
     rule, verdict = chk["rule"], chk["verdict"]
     if chk.get("detail") == CHECK_INCOMPLETE:
         return f"{'Critic' if rule == 'critic' else RULE_NAMES.get(rule, 'Claim checks')}: {CHECK_INCOMPLETE}"
     if rule == "critic":
-        menu = _menu(chk.get("detail"))
+        menu = _critic_menu(chk)
         standing, local = _critic_parts(chk)
-        news = standing == "news-driven with local reaction"
-        event = standing == "event-driven with local reaction"
+        if standing == INCONSISTENT:
+            return CRITIC_INCONSISTENT
         if verdict == "pass":
-            head = NEWS_PASS if news else EVENT_PASS if event else "Critic: the simpler explanation was ruled out"
-            return f"{head}: {menu}" if menu else head
+            head = "Critic: the simpler explanation was ruled out"
+            head = f"{head}: {menu}" if menu else head
+            # Albert, 22 Oct 2026: no post states the local cause; code counted the adoption the why-now rests on.
+            return f"{head}{WHY_NOW_INFERRED}" if chk.get("why_now_inferred") is True else head
         # A cut names the part that failed: the simpler explanation, the local why-now, or both.
-        ruled_out = standing == "ruled out" or standing in REACTION_STANDINGS
+        ruled_out = standing == "ruled out"
         if ruled_out and not local:
             return "Critic: local why-now not shown"
         head = "Critic: a simpler explanation was not ruled out"
@@ -1052,6 +1202,8 @@ def _wording(chk, rested=False):
     if _overflow(chk):
         return f"{name}: {OVERFLOW_WORDS}"
     words = (SENTENCE_WORDS.get(rule) if chk.get("claim_id") is None else None) or CLAIM_WORDS.get(rule, NOT_PASSED)
+    if _code_label(chk):
+        name, words = CODE_LABEL_NAME, CODE_LABEL_WORDS["sentence" if chk.get("claim_id") is None else "claim"]
     if rule == "K3":
         part = next((w for rx, w in K3_PARTS if rx.search(str(chk.get("detail") or "").strip())), None)
         if part is not None:
@@ -1094,10 +1246,15 @@ def _reason_code(chk):
         return f"support_{scope}_{m.group(1)}" if m and m.group(1) != "supported" else f"support_{scope}_other"
     if rule == "critic":
         standing, local = _critic_parts(chk)
+        if standing == INCONSISTENT:
+            return "critic_answer_inconsistent"
         if standing == "not ruled out":
             return "critic_rival_not_ruled_out" if local else "critic_rival_and_why_now"
         if standing is not None and not local:
             return "critic_why_now_not_shown"
+        return "unclassified"
+    if _code_label(chk):
+        # No retained.REASON_CODES member names a code label yet; the catch-all is truer than a banned term.
         return "unclassified"
     if rule == "K3":
         for (rx, _), code in zip(K3_PARTS, K3_CODES):
@@ -1217,6 +1374,34 @@ def _call_allowance(now, started, d, chain):
     return max(0.0, (min(cutoffs) - now).total_seconds())
 
 
+def _retry_admits(result, cand, breaker, spent_usd, now, started, d, chain):
+    """True when an explanation that ended in a model error (a model call that failed or ran out of time, after any
+    further attempt its check call made) gets one more whole attempt (23 Oct 2026: KE's top bucket 0 candidate and an
+    NG candidate were held "Explanation not run" at 05:15 SAST, an hour before the deadline). The same limits as any
+    explanation's start apply, with the 504 retry's floor: no refusal (a model that blocked the request or its reply is
+    never asked again, W8-DEC-15), no busy model's doing (that is the breaker's and the resume's to wait out), a
+    breaker that has not tripped, the same SAST day, the spend so far with this attempt's own below the day's cap,
+    and a whole model call (GEMINI_TIMEOUT_S) still fitting before the deadline and the time limit
+    (_call_allowance). Nothing is raised: the cap, the call timeout and the deadline are the ones every call meets."""
+    if (result.get("reason") != "model_error" or result.get("model_refused") or cand.get("busy_reason")
+            or breaker.tripped):
+        return False
+    if d != now.astimezone(SAST).date() or spent_usd + result.get("usage_usd", 0.0) >= model_daily_usd():
+        return False
+    return _call_allowance(now, started, d, chain) >= GEMINI_TIMEOUT_S
+
+
+def _after_retry(first, second):
+    """The second attempt's result, which is what the card shows and stores, with the first attempt's spend added:
+    both attempts were billed, and a reservation either one kept stays reserved."""
+    out = {**second, "usage_usd": first.get("usage_usd", 0.0) + second.get("usage_usd", 0.0)}
+    reserved = first.get("model_reserved_usd", 0.0) + second.get("model_reserved_usd", 0.0)
+    if reserved:
+        out["model_reserved_usd"] = reserved
+        out["usage_unknown"] = True
+    return out
+
+
 def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, started=None, sleep=None, busy=None):
     """Run explanations in task order, one at a time. No new one starts past the deadline or the time limit
     (_out_of_time from started, stopped as at the deadline, with limit task_timeout in the stop), outside the
@@ -1225,8 +1410,10 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
     time limit or the day. sleep (default time.sleep) does every wait. spend["usd"] grows as explanations finish.
     A Today-bound candidate the busy model left unexplained gets cand["busy_reason"], the fixed wording its held item
     shows as failed_reason: the one whose own call ran out of tries, and, once the breaker tripped on refusals or the
-    deadline stopped a run that had waited on the model, each one not started. busy, when given, gets the run's
-    refusals, waits and give-ups. Returns
+    deadline stopped a run that had waited on the model, each one not started. An explanation that ended in a model
+    error is made once more, from the writer on, when _retry_admits allows it; the card shows the second attempt and
+    both are billed (_after_retry), and spend["model_retry"] lists each retried candidate with its second reason.
+    busy, when given, gets the run's refusals, waits and give-ups. Returns
     ({id(cand): result}, the breaker's error or None, the deadline stop or None)."""
     results, running, capped = {}, {}, False
     explanation_stop = None
@@ -1245,15 +1432,26 @@ def _explain_all(tasks, *, model, base_usd, spend, clock, chain, d, workers, sta
     pace = _setting("PACE_S", PACE_S, 0.0)
     workers = 1
 
-    def explain(cand):
+    def attempt(cand, spent_before):
         gave_up = breaker.gave_up
-        result = _explain_one(cand, model=breaker, spent_before=base_usd + spend["usd"], d=d,
+        result = _explain_one(cand, model=breaker, spent_before=spent_before, d=d,
                               model_call_guard=lambda: d == clock().astimezone(SAST).date(),
                               retry_guard=lambda: _call_allowance(clock(), started, d, chain) > 0,
                               retry_504_guard=lambda: _call_allowance(clock(), started, d, chain) >= GEMINI_TIMEOUT_S)
         if breaker.gave_up > gave_up and result["reason"] == "model_error":
             cand["busy_reason"] = MODEL_BUSY if breaker.busy == "deadline" else MODEL_REFUSED
         return result
+
+    def explain(cand):
+        result = attempt(cand, base_usd + spend["usd"])
+        if not _retry_admits(result, cand, breaker, base_usd + spend["usd"], clock(), started, d, chain):
+            return result
+        print(f"brief: explanation of {cand['market']} {cand['row'].get('item_id')} tried once more after a model "
+              f"error: {str(result.get('error'))[:300]}", file=sys.stderr)
+        second = attempt(cand, base_usd + spend["usd"] + result["usage_usd"])
+        spend.setdefault("model_retry", []).append({"market": cand["market"], "item_id": cand["row"].get("item_id"),
+                                                    "reason": second["reason"]})
+        return _after_retry(result, second)
 
     def collect(done):
         nonlocal capped
@@ -1317,10 +1515,25 @@ def _floor_held(cand):
             and cand["row"].get("market_scope") == "market")
 
 
+def _adopted(cand):
+    """True for a candidate in the candidate statement's pattern bucket 0: a sound or a format its own local posts
+    show adopted by 3 or more creators on 2 or more days (core/brief/sql/brief.sql _selection_pattern)."""
+    return cand["row"].get("_selection_pattern") == 0
+
+
 def _in_rank_order(by_market):
-    """Each market's Today-bound candidates interleaved by rank, so every market's top trends go first."""
+    """Each market's Today-bound candidates interleaved by rank, so every market's top trends go first: those in
+    pattern bucket 0 (_adopted) of every market before the rest, each part interleaved by rank, so a model failure or
+    a deadline late in the run never costs the candidates whose posts show adoption (23 Oct 2026: KE's top bucket 0
+    candidate was held unexplained). Only the order of the explanations changes; which candidates are judged does
+    not."""
     lists = [[c for c in by_market[m] if _for_today(c)] for m in MARKETS]
-    return [lst[i] for i in range(max(map(len, lists), default=0)) for lst in lists if i < len(lst)]
+
+    def interleaved(parts):
+        return [lst[i] for i in range(max(map(len, parts), default=0)) for lst in parts if i < len(lst)]
+
+    return (interleaved([[c for c in lst if _adopted(c)] for lst in lists])
+            + interleaved([[c for c in lst if not _adopted(c)] for lst in lists]))
 
 
 def _payload_candidate(cand, result, specificity=None):
@@ -1330,12 +1543,18 @@ def _payload_candidate(cand, result, specificity=None):
                  and result.get("numbers_only") is False)
     status = "not_run" if not isinstance(result, dict) or "reason" not in result else (
         "explained" if explained else "failed_checks" if reason in FAILED_CHECKS else "not_run")
+    # An explanation started and not completed names its cause (payload.NOT_RUN_WORDS) unless a busy model's wording
+    # already does; the model's error text goes to the log only, never to the payload (22 Oct 2026).
+    not_run = cand.get("busy_reason") or (NOT_RUN_WORDS.get(reason) if status == "not_run" else None)
+    if status == "not_run" and reason in NOT_RUN_WORDS and isinstance(result, dict) and result.get("error"):
+        print(f"brief: explanation not run for {row.get('item_id')}: {reason}: {str(result['error'])[:300]}",
+              file=sys.stderr)
     return {
         **row, "decision": cand["decision"], "explanation_status": status, "numbers": pack["numbers"],
         "evidence": pack["evidence"], "sparkline": cand["sparkline"], "held_reason": cand.get("held_reason"),
         "held_reason_detail": cand.get("held_reason_detail"), "held_reason_audit": cand.get("held_reason_audit"),
         "failed_reason": failed_reason(result) if status == "failed_checks" else (
-            cand.get("busy_reason") if status == "not_run" else None),
+            not_run if status == "not_run" else None),
         "explanation": result.get("explanation") if explained else None,
         "title_written": result.get("title_written") if explained else None,
         "explanation_claim_ids": result.get("explanation_claim_ids") if explained else [],
@@ -1430,8 +1649,8 @@ def _publish_events(market, d, items, posts):
             r"(?:\s+on\s+(?:TikTok|Twitter|Reddit|Instagram|YouTube|X))?\s*,?\s*", parts[0], re.I)
         if primary_fixture:
             replacements[item["item_id"]] = {**item,
-                "decision": Decision(False, "held_back", None, "Not confirmed", "G3", False),
-                "held_reason": "not_confirmed"}
+                "decision": Decision(False, "held_back", None, FIXTURE_REACTION, "G3", False),
+                "held_reason": "not_confirmed", "held_reason_code": FIXTURE_REACTION_CODE}
 
     def matches(a, b):
         shared = len(set(posts.get(a["item_id"]) or ()) & set(posts.get(b["item_id"]) or ()))
@@ -1512,6 +1731,7 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
                 explanation=checked.get("explanation"), claims=checked.get("claims"),
                 explanation_claim_ids=checked.get("explanation_claim_ids"), evidence=c["pack"]["evidence"],
                 market=market, local_why_now=checked.get("local_why_now_checked") is True,
+                why_now_inferred=checked.get("why_now_inferred") is True,
             )
         item = _payload_candidate(c, result, specificity)
         if where == "today" and (item["explanation_status"] != "explained" or publish is not True
@@ -1550,19 +1770,30 @@ def _market_payload(market, d, cands, results, *, banners, moments_, boards_, is
             decision = Decision(*(decision.get(name) for name in
                                   ("publish", "where", "flag", "reason", "rule", "numbers_only")))
         data.append(decision)
+    audit = selection_audit or {}
+    # The candidates judged: the receipt's own count (non-G1 candidates less the ones that folded, _selection_result),
+    # or, with no receipt, the non-G1 decisions here. When the market judged its full CANDIDATES, the G1 holds took
+    # no judged slot from it, so the banner says so and the market's status stays what its judged cards make it
+    # (18 Oct 2026, KE: 10 cards judged, status data_issue, Today read "incomplete" for a complete brief).
+    judged = ((audit.get("selection_receipt") or {}).get("preparation") or {}).get("judged")
+    if not isinstance(judged, int):
+        judged = sum(1 for x in data if x.rule != "G1")
+    full_judgement = judged >= CANDIDATES
     if market_banner(data):
         n = sum(1 for x in data if x.rule == "G1")
-        banners = banners + [{"kind": "data_issue", "text": f"Data issue: {n} of {len(local_cands)} candidates held for "
-                                                            "invalid collection days or unreadable evidence"}]
-    audit = selection_audit or {}
+        text = f"Data issue: {n} of {len(local_cands)} candidates held for invalid collection days or unreadable evidence"
+        if full_judgement:
+            text += f"; the {judged} candidates judged were not affected, so the brief is complete"
+        banners = banners + [{"kind": "data_issue", "text": text}]
     payload = build_market_payload(market, d, items, moments=moments_, boards=boards_, banners=banners,
-        issues=issues, not_assessed=audit.get("not_assessed"), selection_receipt=audit.get("selection_receipt"))
+        issues=issues, not_assessed=audit.get("not_assessed"), selection_receipt=audit.get("selection_receipt"),
+        full_judgement=full_judgement)
     top = payload["cards"][0] if payload["cards"] else None
     if top and top["explained"]:
         headline = {"text": top["explanation"], "item_id": top["item_id"], "claim_ids": top["explanation_claim_ids"]}
         payload = build_market_payload(market, d, items, moments=moments_, boards=boards_, banners=banners,
             headline=headline, issues=issues, not_assessed=audit.get("not_assessed"),
-            selection_receipt=audit.get("selection_receipt"))
+            selection_receipt=audit.get("selection_receipt"), full_judgement=full_judgement)
     inputs = audit.get("locality_audit_inputs")
     if event_publication["merges"] or event_publication["possible_fragments"]:
         payload["event_publication"] = event_publication
@@ -1720,6 +1951,7 @@ def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags,
                 print(f"brief {d.isoformat()}: regrow {m}:{cand['row']['item_id']}: {new['error']}", file=sys.stderr)
                 continue
             new["pack"]["facts"].extend(f for f in cand["pack"]["facts"] if f not in new["pack"]["facts"])
+            new["_round"], new["_rank"] = cand.get("_round", 0), cand.get("_rank", 0)
             new["decision"] = _gate(new, None)
             by_market[m][i] = new
             grown.append({"market": m, "item_id": cand["row"]["item_id"],
@@ -1728,7 +1960,7 @@ def _regrow(client, d, by_market, *, chain, clock, build_ctx, campaign_hashtags,
         kept = [c for c in by_market[m] if _for_today(c) and "also" in c]
         claimed = set().union(*(c["posts"] for c in kept))
         for cand in sorted((c for c in by_market[m] if _for_today(c) and "also" not in c),
-                           key=lambda c: _worth(c["row"])):
+                           key=lambda c: (c.get("_round", 0), c.get("_rank", 0), _worth(c["row"]))):
             posts = cand["posts"]
             best = max(((len(posts & k["posts"]), -j) for j, k in enumerate(kept)), default=(0, 0))
             if best[0] > 0 and (len(posts - claimed) < MIN_EVIDENCE or best[0] * 2 >= len(posts)):
@@ -1872,6 +2104,8 @@ def _brief(client, d, run, *, chain, model, sc, sc_skipped, clock, build_ctx, co
               "model_usd": round(spend["usd"], 6), "platforms_found": found, "merged": merged}
     if spend.get("model_reserved_usd"):
         counts["model_reserved_usd"] = round(spend["model_reserved_usd"], 6)
+    if spend.get("model_retry"):
+        counts["model_retry"] = spend["model_retry"]
     if title_receipts:
         counts["title_majority_receipts"] = title_receipts
     if receipt_omitted:
@@ -2028,7 +2262,12 @@ def live_socialcrawl(client, clock):
 
 # Maximum HTTP phase timeout for one Gemini SDK attempt, clamped to the remaining allowance again at dispatch.
 # An expired allowance blocks later dispatches; the awaited SDK request also has a cooperative elapsed deadline.
-GEMINI_TIMEOUT_S = 60
+# Vertex receives it as the server's own deadline, so a call still thinking at this limit ends in 504
+# DEADLINE_EXCEEDED. At 60 s every explanation of 24 Oct 2026 ended that way or in 500 INTERNAL (15 of 15 tried, all
+# three markets), and the two candidates that ran out of time on 23 Oct ran out again: the candidates whose posts show
+# an adopted sound or format, which the brief explains first since 2.7.0, carry the largest packs. Ask allows 120 s
+# a call; the brief allows 180 s. The deadline, the task time limit and the day's model cap are unchanged.
+GEMINI_TIMEOUT_S = 180
 
 
 def brief_model():

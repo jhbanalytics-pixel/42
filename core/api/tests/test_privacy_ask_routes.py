@@ -479,3 +479,24 @@ def test_the_skin_report_draft_an_older_agent_returns_is_projected_again_r7(api)
     r = client.post("/api/skins/sk_0123456789ab/report", headers=GOOD)
     assert r.status_code == 201 and leaks(r.json(), [P_HID1]) == [] and "@hid_handle" not in r.text
     assert r.headers["cache-control"] == "no-store"
+
+
+def _skin_record_with_side_lists():
+    record = ask_record()
+    record["skin_id"] = "s_fixture"
+    record["run"]["figures"] = {"status": "ok", "lead": "notapproved_pub: ANC 33.5%.", "tables": [{
+        "title": "voting intention", "source": "", "platform": "tiktok", "publisher": "notapproved_pub",
+        "url": "https://www.tiktok.com/@notapproved_pub/video/9", "posted_at": "2026-10-05", "evidence_id": "p9",
+        "sample": "", "fieldwork": "", "population": "", "note": "", "also_reported_by": [],
+        "rows": [{"subject": "ANC", "value": 33.5, "unit": "%", "quote": "unapproved author words ANC on 33.5%"}]}]}
+    return record
+
+
+def test_a_stored_skin_record_the_agent_does_not_hold_carries_no_side_lists(api):
+    """f42-api's stored path drops a skin run's figures, ranked list and entity lists as f42-agent does (15.1)."""
+    api.store.records[ASK] = _skin_record_with_side_lists()
+    client = api.serve(remote_agent({}))
+    shown = client.get(f"/api/ask/{ASK}", headers=GOOD)
+    assert shown.status_code == 200
+    assert not {"figures", "ranked_list", "entity_lists"} & set(shown.json()["run"])
+    assert "notapproved_pub" not in shown.text and "unapproved author words" not in shown.text

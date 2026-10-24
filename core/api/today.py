@@ -116,6 +116,9 @@ CRITIC_ALSO_WHY_NOW = "; local why-now not shown"
 WHY_NOW_UNSHOWN = "The posts do not show why this is happening in this market now."
 CHECK_REPAIR = "before repair: "
 CRITIC_UNNAMED = "A simpler explanation could not be ruled out from these posts."
+# core/brief/job.py CRITIC_INCONSISTENT: a critic answer that contradicted itself, a cut of its own that names no
+# simpler explanation (18 Oct 2026).
+CRITIC_INCONSISTENT = "Critic: the critic's answer was inconsistent"
 # Rules that only lower a label or status; their rows never hold an item (core/brief/job.py OTHER_WORDS).
 CHECK_DOWNGRADES = {"K5", "K10"}
 # core/brief/explain.py TITLE_RULE: a cut written title only leaves the card its label, so it never names a hold.
@@ -754,7 +757,10 @@ def _publication_fault(card, payload):
     if (not matches or any(not critic_is_valid(entry) for entry in matches)
             or any(entry != matches[0] for entry in matches)):
         return "The cultural pattern has not been assessed"
-    if not cultural_critic_passes(matches[0]):
+    # The producer's own adoption count beside the critic's answer (core/brief/explain.py why_now_adoption): with the
+    # simpler explanation ruled out and no post-stated cause, the card's why-now is inferred from it (Albert, 22 Oct
+    # 2026). The critic's answer alone is never read for it.
+    if not cultural_critic_passes(matches[0], matches[0].get("why_now_adoption")):
         return "A distinct cultural pattern was not established"
     return None
 
@@ -1533,6 +1539,9 @@ def _held_detail(rows):
     critic = [r for r in rows if _is_critic_hold(r)]
     if critic:
         return _critic_sentence(critic)
+    inconsistent = next((r for r in sentence if r.get("rule") == "critic" and r["reason"] == CRITIC_INCONSISTENT), None)
+    if inconsistent is not None:
+        return _check_sentence(inconsistent)
     for group in ([r for r in sentence if r.get("rule") != "critic"],
                   [r for r in rows if r.get("claim_id") is not None]):
         if group:

@@ -2,6 +2,7 @@
 
 import time
 from abc import ABC, abstractmethod
+from urllib.parse import urljoin, urlsplit
 
 import pandas as pd
 import requests
@@ -9,6 +10,89 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from src.utils.log_redactor import get_logger
+
+# A feed may move (http to https, a new path), so its reader follows a few redirects, but only on the same host and
+# never from https down to http: another host was never checked, and a feed host must not be able to point us at
+# another origin or an internal address.
+MAX_FEED_REDIRECTS = 5
+
+
+class RedirectRefused(requests.exceptions.RequestException):
+    """A redirect a reader will not follow: any redirect while carrying a key, or a feed redirect off its host."""
+
+
+def refuse_redirect(response) -> None:
+    """Raise RedirectRefused when response is a redirect. For keyed calls made with allow_redirects=False: requests
+    strips Authorization on a cross-host redirect but copies any other header, so an x-api-key would go to wherever
+    the Location points."""
+    status = getattr(response, "status_code", None)
+    if isinstance(status, int) and not isinstance(status, bool) and 300 <= status < 400:
+        close = getattr(response, "close", None)
+        if callable(close):
+            close()
+        raise RedirectRefused(f"redirect refused (HTTP {status})")
+
+
+def same_site_redirect(source: str, target: str) -> bool:
+    """Whether a redirect from source to target stays on the same host and is not a downgrade from https to http."""
+    try:
+        before, after = urlsplit(source), urlsplit(target)
+        same_host = (after.hostname or "").rstrip(".").lower() == (before.hostname or "").rstrip(".").lower()
+        same_port = after.port == before.port or (after.port is None and before.port is None)
+    except ValueError:
+        return False
+    if not after.hostname or after.scheme not in ("http", "https"):
+        return False
+    if before.scheme == "https" and after.scheme != "https":
+        return False
+    port_ok = same_port or (before.scheme == "http" and after.scheme == "https" and after.port is None)
+    return same_host and port_ok
+
+
+class FeedTooLarge(requests.exceptions.RequestException):
+    """A feed body over MAX_FEED_BYTES, refused before it is parsed."""
+
+
+# A feed's body is read up to this many bytes; a larger one is a failed feed, never parsed (audit F7D-COL-003).
+MAX_FEED_BYTES = 4 * 1024 * 1024
+
+
+def _bounded(response, max_bytes: int):
+    """response with its body read into it, or FeedTooLarge when the body is over max_bytes."""
+    declared = str(response.headers.get("content-length", ""))
+    if declared.isdigit() and int(declared) > max_bytes:
+        response.close()
+        raise FeedTooLarge(f"feed body of {declared} bytes is over the {max_bytes} byte limit")
+    body = bytearray()
+    try:
+        for chunk in response.iter_content(chunk_size=64 * 1024):
+            body.extend(chunk or b"")
+            if len(body) > max_bytes:
+                raise FeedTooLarge(f"feed body is over the {max_bytes} byte limit")
+    finally:
+        response.close()
+    # requests keeps a read body in _content; content and text then read it as for an unstreamed response.
+    response._content = bytes(body)
+    return response
+
+
+def get_feed(session, url: str, *, max_bytes: int = MAX_FEED_BYTES, **kwargs):
+    """GET an unauthenticated feed, following at most MAX_FEED_REDIRECTS redirects and only on the same host without
+    a downgrade (same_site_redirect), with its body bounded by max_bytes. Raises RedirectRefused or FeedTooLarge
+    otherwise."""
+    for _ in range(MAX_FEED_REDIRECTS + 1):
+        response = session.get(url, allow_redirects=False, stream=True, **kwargs)
+        if getattr(response, "is_redirect", False) is not True:
+            # Only a real requests response streams; a stand-in session's response is returned as it came.
+            return _bounded(response, max_bytes) if isinstance(response, requests.Response) else response
+        target = urljoin(url, response.headers.get("location", ""))
+        response.close()
+        if not same_site_redirect(url, target):
+            raise RedirectRefused(f"redirect off the feed's host refused: {urlsplit(url).hostname} to "
+                                  f"{urlsplit(target).hostname or target[:80]}")
+        url = target
+    raise RedirectRefused(f"more than {MAX_FEED_REDIRECTS} redirects")
+
 
 RAW_COLUMNS: list[str] = [
     "source",

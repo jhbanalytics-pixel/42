@@ -285,7 +285,9 @@ def test_get_transcript_returns_fenced_segments_and_stores_them():
     out = get_transcript(c, client, "tiktok_7412")
 
     assert client.calls[0]["route"] == "tiktok/post/transcript"
-    assert client.calls[0]["params"] == {"url": "https://www.tiktok.com/@chef_za/video/7412"}
+    # A video with no caption track is transcribed from its speech, inside the same 10 credits.
+    assert client.calls[0]["params"] == {"url": "https://www.tiktok.com/@chef_za/video/7412",
+                                         "use_ai_as_fallback": "true"}
     assert out["status"] == "ok" and out["credits_spent"] == 10.0 and out["cached"] is False
     assert [(s["start_s"], s["end_s"]) for s in out["segments"]] == [(0.0, 4.2), (4.2, 9.8)]
     for seg in out["segments"]:
@@ -408,7 +410,8 @@ def test_enrichment_calls_record_route_params_and_status_on_the_context_never_in
     get_comments(c, FakeClient(), "tiktok_7412", limit=10, max_credits=5)
     get_transcript(c, FakeClient(quote=3.0, items=[], status="rate_limited"), "tiktok_7412")
     assert c.sc_calls == [{"route": "tiktok/post/comments", "params": {"url": url}, "status": "ok"},
-                          {"route": "tiktok/post/transcript", "params": {"url": url}, "status": "rate_limited"}]
+                          {"route": "tiktok/post/transcript", "params": {"url": url, "use_ai_as_fallback": "true"},
+                           "status": "rate_limited"}]
     assert all("params" not in e and "url" not in e for e in c.events)
 
 

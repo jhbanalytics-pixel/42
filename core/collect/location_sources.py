@@ -14,6 +14,14 @@ COUNTRY_ROUTES = {"tiktok": "tiktok/profile", "instagram": "instagram/profile/ab
 NO_COUNTRY_RETRY_DAYS = 30
 UNSERVED = "credit_room"  # the record reason of a country call held for want of credit room
 PLATFORM_ORDER = ("tiktok", "instagram")
+# A TikTok creator's country from the post.ext.region of their own videos instead of a tiktok/profile call (1 credit an
+# account). SocialCrawl (19 Oct 2026) found the most common region across a creator's videos matched the profile
+# country for 25 of 25 creators across ZA, NG and KE. Only videos from routes that do not filter by country count
+# (parse leaves out country= searches, whose rows all carry the filtered country), at least REGION_MIN_POSTS of them,
+# with one region on more than half. Off until 42's own probe confirms the match on its creators; an account it does
+# not settle is still looked up as before.
+REGION_COUNTRY = False
+REGION_MIN_POSTS = 2
 
 
 @lru_cache(maxsize=1)
@@ -70,6 +78,7 @@ class ProfileCache:
     def __init__(self):
         self.known, self.accounts, self.attempted = {}, {}, set()
         self.posts, self.creators = [], []
+        self.regions = {}  # TikTok account key -> {post_id: region code} from videos not filtered by country
 
     @staticmethod
     def key(platform, handle):
@@ -108,6 +117,35 @@ class ProfileCache:
                 if key not in self.known and code:
                     self.remember(key[0], key[1], code)
 
+    def region_seen(self, handle, raw, post):
+        """One TikTok video's post.ext.region for its creator, from a route that does not filter by country."""
+        key = self.key("tiktok", handle)
+        if key is None or not isinstance(raw, str) or not re.fullmatch(r"[A-Za-z]{2}", raw.strip()):
+            return
+        code = country_code(raw)
+        if code:
+            self.regions.setdefault(key, {})[post] = code
+
+    def region_country(self, key):
+        """The region on more than half of an account's REGION_MIN_POSTS or more videos, else None."""
+        seen = Counter(self.regions.get(key, {}).values())
+        total = sum(seen.values())
+        if total < REGION_MIN_POSTS:
+            return None
+        code, count = seen.most_common(1)[0]
+        return code if 2 * count > total else None
+
+    def settle_regions(self):
+        """With REGION_COUNTRY on, every TikTok account the region of its own videos settles is known, so it is not
+        looked up."""
+        if not REGION_COUNTRY:
+            return
+        for key in self.regions:
+            if key not in self.known:
+                code = self.region_country(key)
+                if code:
+                    self.known[key] = code
+
     def signals(self, platform, handle, signals):
         if self.key(platform, handle) is None:
             return dict(signals)
@@ -128,6 +166,7 @@ class ProfileCache:
     def needed(self):
         """Accounts still to look up: the two platforms in turn, TikTok first. Within a platform the account
         with most market posts comes first, then by account key."""
+        self.settle_regions()
         posts = Counter(self.key(platform, handle) for _, platform, _, handle, _ in self.posts)
         lanes = {platform: sorted((key for key in self.accounts if key[0] == platform and key not in self.known
                                    and key not in self.attempted),
@@ -139,6 +178,7 @@ class ProfileCache:
         return [self.accounts[key] for key in order]
 
     def apply(self, geo_fn):
+        self.settle_regions()
         for post, platform, market, handle, signals in self.posts:
             if self.country(platform, handle):
                 result = geo_fn(platform, market, **self.signals(platform, handle, signals))

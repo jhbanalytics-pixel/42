@@ -12,7 +12,10 @@ The HTTP routes are checked by app/tests/unit/test_runtime_entry_points.py.
 
 import importlib
 import json
+import shlex
 from pathlib import Path
+
+import yaml
 
 from ops.deploy import release, runtime_jobs
 from ops.runners import managed_runtime
@@ -60,6 +63,8 @@ ENTRY_SCRIPTS = {
 }
 CONTAINER_FILES = (
     "app/Dockerfile.general-question",
+    "core/api/Dockerfile",
+    "core/setup/jobs.Dockerfile",
     "engine/Dockerfile.staging",
     "engine/Dockerfile.tests",
     "ops/build/Dockerfile.context-builder",
@@ -68,6 +73,8 @@ CONTAINER_FILES = (
 PROCFILES = ("app/Procfile",)
 CLOUDBUILD_FILES = (
     "cloudbuild.app.publish.yaml",
+    "core/api/cloudbuild.yaml",
+    "core/setup/cloudbuild.jobs.yaml",
     "engine/cloudbuild.publish.yaml",
     "engine/cloudbuild.staging.yaml",
 )
@@ -269,17 +276,39 @@ def observed_procfile(path):
 DOCKERFILE_FLAGS = ("-f", "--file")
 
 
+def _argument_lists(text):
+    """The argument lists of a Cloud Build file, each as a list of words.
+
+    The block list items (- VALUE) of the whole file form one list, as before.
+    A flow list (args: ["build", "-f", PATH]) and a docker build command inside a
+    shell script (docker build --file PATH .) each form a list of their own. A
+    flow list is read as YAML, so quoted and bare words both count, and lines
+    ending in a backslash are joined first, so a docker build command split over
+    several lines keeps all of its flags.
+    """
+    items = []
+    for line in text.replace("\\\n", " ").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            items.append(stripped[2:].strip())
+        elif stripped.startswith("args: ["):
+            yield [str(word) for word in yaml.safe_load(stripped[len("args: ") :])]
+        elif stripped.startswith("docker build "):
+            yield shlex.split(stripped)
+    yield items
+
+
 def _dockerfile_arguments(text):
     """The Dockerfile of every docker build flag in the YAML argument lists.
 
     Accepts the flag and its value as two list items (-f PATH, --file PATH) and
     as one (--file=PATH, -f=PATH).
     """
-    items = [
-        line.strip()[2:].strip()
-        for line in text.splitlines()
-        if line.strip().startswith("- ")
-    ]
+    for items in _argument_lists(text):
+        yield from _flag_values(items)
+
+
+def _flag_values(items):
     for index, item in enumerate(items):
         if item in DOCKERFILE_FLAGS and index + 1 < len(items):
             yield items[index + 1]
@@ -293,8 +322,14 @@ def observed_cloudbuild(path):
     dockerfiles = sorted(set(_dockerfile_arguments(text)))
     images = []
     if "\nimages:\n" in text:
-        block = text.split("\nimages:\n", 1)[1].split("\n\n", 1)[0]
-        images = [line.strip()[2:] for line in block.splitlines() if line.strip()]
+        # The list items straight after images:, up to the first line that is not one.
+        for line in text.split("\nimages:\n", 1)[1].splitlines():
+            if not line.strip().startswith("- "):
+                break
+            value = line.strip()[2:].strip()
+            if len(value) > 1 and value[0] == value[-1] == '"':
+                value = value[1:-1]
+            images.append(value)
     return {"file": path, "dockerfiles": dockerfiles, "pushed_images": images}
 
 
@@ -377,7 +412,7 @@ def test_every_container_entrypoint_is_inventoried():
     }
     found = sorted(
         path.relative_to(ROOT).as_posix()
-        for pattern in ("**/Dockerfile*", "**/Procfile", "**/cloudbuild*.yaml")
+        for pattern in ("**/Dockerfile*", "**/*.Dockerfile", "**/Procfile", "**/cloudbuild*.yaml")
         for path in ROOT.glob(pattern)
         if ".git" not in path.parts
         and "node_modules" not in path.parts
@@ -393,15 +428,13 @@ def _referenced_dockerfiles(path):
     with -f, --file, --file= or any other form still has to reach the row.
     """
     names = set()
-    for line in (ROOT / path).read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("- "):
-            continue
-        value = stripped[2:].strip()
-        if value.startswith("-") and "=" in value:
-            value = value.split("=", 1)[1]
-        if Path(value).name.startswith("Dockerfile"):
-            names.add(value)
+    for items in _argument_lists((ROOT / path).read_text(encoding="utf-8")):
+        for value in items:
+            if value.startswith("-") and "=" in value:
+                value = value.split("=", 1)[1]
+            name = Path(value).name
+            if name.startswith("Dockerfile") or name.endswith(".Dockerfile"):
+                names.add(value)
     return names
 
 
@@ -454,3 +487,25 @@ def test_the_engine_modules_the_daily_job_loads_are_inventoried():
     for name in managed_runtime._DAILY_MODULES:
         path = ROOT / "engine" / "src" / "analysis" / "open_intelligence" / f"{name}.py"
         assert path.is_file(), path
+
+
+def test_the_argument_reader_takes_any_yaml_flow_list_and_continued_docker_lines():
+    # A flow list need not be JSON (single quotes, bare words), and a docker
+    # build command may run over several lines joined by backslashes.
+    text = (
+        "steps:\n"
+        "  - name: gcr.io/cloud-builders/docker\n"
+        "    args: ['build', -f, core/setup/jobs.Dockerfile, '.']\n"
+        "  - name: gcr.io/cloud-builders/docker\n"
+        "    entrypoint: bash\n"
+        "    args:\n"
+        "      - -c\n"
+        "      - |\n"
+        "        docker build \\\n"
+        "          --file core/api/Dockerfile \\\n"
+        "          .\n"
+    )
+    assert sorted(set(_dockerfile_arguments(text))) == [
+        "core/api/Dockerfile",
+        "core/setup/jobs.Dockerfile",
+    ]

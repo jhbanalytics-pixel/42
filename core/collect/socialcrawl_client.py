@@ -425,6 +425,14 @@ PRICED = {
         1, ("hashtag", "region", "trim") + SEARCH_FREE + LABEL_FREE, add=LABELLED_4, pages="max_pages"),
     "tiktok/search/music": rule(1, ("query", "cursor", "sort_by", "filter_by", "region")),
     "tiktok/search/suggestions": rule(1, ("query", "region")),
+    # Endpoint audit candidates, priced for probe.py --candidates (one body each before any lane is built). No
+    # paid add-on is priced: reddit include_body, facebook include=details or relevant_to, instagram max_pages and
+    # seen, youtube include all stay refused.
+    "reddit/subreddit/search": rule(1, ("subreddit", "query", "sort", "timeframe", "cursor")),
+    "instagram/search/hashtag": rule(5, ("hashtag", "type", "max_age_days", "min_views", "cursor")),
+    "youtube/search/hashtag": rule(1, ("hashtag", "type", "max_age_days", "continuationToken")),
+    "facebook/search/groups": rule(1, ("query", "page")),
+    "facebook/group/posts": rule(1, ("url", "group_id", "sort_by", "cursor")),
     "youtube/search/advanced": rule(
         1,
         ("query", "order", "duration", "event_type", "license", "category", "region", "language", "published_after",
@@ -432,9 +440,12 @@ PRICED = {
          "video_embeddable", "video_type", "topic_id", "location", "location_radius") + SEARCH_FREE,
         add={"includeExtras": 5, "include": {"channel": 5}}, pages="max_pages", limits={"max_results": 50}),
     # include=creator holds 60 a page (2 a creator for a full page of 30) and refunds every creator not looked up.
+    # include=country (vendor reply 19 Oct 2026) is held at the same 60: the spec's formula prices the country card
+    # like the creator card, the reply says half; the hold takes the spec until the probe reads the charge.
+    # region=ZA/NG/KE is free: the vendor appends the market name to the query.
     "instagram/search/reels": rule(
-        1, ("query", "date_posted", "page") + SEARCH_FREE + RELEVANCE_FREE + LABEL_FREE,
-        add={"include": {"creator": 60}, **JUDGED_4}, pages="max_pages"),
+        1, ("query", "date_posted", "page", "region") + SEARCH_FREE + RELEVANCE_FREE + LABEL_FREE,
+        add={"include": {"creator": 60, "country": 60}, **JUDGED_4}, pages="max_pages"),
     "twitter/search/tweets": rule(
         1, ("query", "sort") + SEARCH_FREE + RELEVANCE_FREE + LABEL_FREE, add=JUDGED_4, pages="max_pages"),
     "reddit/search": rule(
@@ -448,6 +459,13 @@ PRICED = {
     "facebook/search/posts": rule(
         1, ("query", "cursor", "start_date", "end_date", "recent_posts", "location_uid", "max_age_days", "seen")
         + RELEVANCE_FREE + LABEL_FREE, add=JUDGED_4, pages="max_pages"),
+    # The local sources' Android chart (core/collect/local_sources.py), one market a day Monday to Wednesday. It was
+    # planned at this list price and refused as not priced until 16 Oct 2026.
+    "google_play/app-list": rule(5, ("app_collection", "country", "language")),
+    # Row 16w, the morning run's wider net (core/collect/job.py WIDE_TOP). pinterest/search's include=engagement
+    # (1 a row) is left unpriced, so it is refused.
+    "bluesky/search": rule(1, ("query", "sort", "since", "until", "lang", "author")),
+    "pinterest/search": rule(1, ("query", "cursor", "trim", "limit")),
     "linkedin/search/posts": rule(
         5, ("page", "sort_by", "date_posted", "content_type", "from_company", "from_member", "query", "cursor")
         + RELEVANCE_FREE + LABEL_FREE, add=JUDGED_8),
@@ -486,7 +504,9 @@ PRICED = {
     "threads/post/comments": special(_threads_comments, ("url", "trim", "limit"), floor=1),
     "youtube/transcripts": special(_transcripts, ("ids",), method="POST", floor=0),
     "youtube/video/transcript": rule(3, ("url", "language")),
-    "tiktok/post/transcript": rule(10, ("url", "language")),
+    # use_ai_as_fallback transcribes speech when a video has no caption track, inside the same 10 credits; a video
+    # with no transcript is not charged (SocialCrawl, 19 Oct 2026).
+    "tiktok/post/transcript": rule(10, ("url", "language", "use_ai_as_fallback")),
     "instagram/media/transcript": rule(10, ("url",)),
     "twitter/tweet/transcript": rule(10, ("url",)),
     "reddit/post/transcript": rule(10, ("url", "language")),
@@ -548,6 +568,17 @@ def retry_fields(result):
         return {}
     return {"attempts": attempts, "first_status": getattr(result, "first_http_status", None),
             "server_retry": retry, "credits_charged": result.credits_charged or 0}
+
+
+def vendor_warnings(body):
+    """The names in a body's data._warnings, which the vendor uses for a partly served page."""
+    data = body.get("data") if isinstance(body, dict) else None
+    notes = data.get("_warnings") if isinstance(data, dict) else None
+    if not isinstance(notes, list):
+        return []
+    names = [n if isinstance(n, str) else (n.get("code") or n.get("type")) if isinstance(n, dict) else None
+             for n in notes]
+    return [str(n)[:60] for n in names if n]
 
 
 def transport_failure(exc):
@@ -642,7 +673,10 @@ def requests_http(method, url, *, params=None, json=None, headers=None, timeout=
     """The HTTP callable for Cloud Run jobs. Returns (status code, parsed body or None, headers)."""
     import requests
 
-    resp = requests.request(method, url, params=params, json=json, headers=headers, timeout=timeout)
+    # No redirect is followed: requests strips Authorization on a cross-host redirect but copies x-api-key, so the
+    # key would go wherever a Location pointed. A 3xx comes back as a failed call (http_failure).
+    resp = requests.request(method, url, params=params, json=json, headers=headers, timeout=timeout,
+                            allow_redirects=False)
     try:
         body = resp.json()
     except ValueError:
@@ -1060,6 +1094,11 @@ class SocialCrawlClient:
                 str(exc).replace(key, "[key]")[:200]
         if outcome != "ok":
             log.warning("socialcrawl %s %s: %s", route, outcome, reason)
+        notes = vendor_warnings(body)
+        if notes:
+            # continuation_rescued: a fallback source served the page and a few posts near its boundary can be
+            # missing; ratings_unavailable: the store returned no ratings (SocialCrawl, 19 Oct 2026).
+            log.info("socialcrawl %s warnings: %s", route, ", ".join(notes))
         return Result(outcome, route, call["phash"], status, quote, charge, False, stored, items, labels, reason,
                       failure=failure)
 

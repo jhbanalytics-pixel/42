@@ -226,12 +226,13 @@ def _passthrough(resp: httpx.Response) -> Response:
         # the Ask service, never a wrong passcode. This API's own 401 is raised before any agent call.
         logger.warning("agent answered %s", resp.status_code)
         raise ApiError(502, "agent_unavailable", "The Ask service cannot be reached.")
-    disposition = resp.headers.get("content-disposition")
+    # Content-Disposition and Cache-Control are kept: f42-agent marks stored copies no-store (contract section 22).
+    headers = {name: resp.headers[name] for name in ("Content-Disposition", "Cache-Control") if name in resp.headers}
     return Response(
         content=resp.content,
         status_code=resp.status_code,
         media_type=resp.headers.get("content-type", "application/json"),
-        headers={"Content-Disposition": disposition} if disposition else None,
+        headers=headers or None,
     )
 
 
@@ -249,7 +250,8 @@ async def api_health() -> dict:
             run_in_threadpool(_bigquery_check), _agent_check(), run_in_threadpool(_today_check))
         _health_cache["at"], _health_cache["checks"] = now, cached
     bigquery, agent_health, today = cached
-    agent, t2_ready = agent_health
+    agent, t2_ready, *rest = agent_health
+    ask_depth = rest[0] if rest else None
     checks = {
         "auth": auth_state["check"],
         "bigquery": bigquery,
@@ -275,6 +277,8 @@ async def api_health() -> dict:
         "auth_mode": auth_state["auth_mode"],
         "passcode": auth_state["passcode"],
         "t2_ready": checks["agent"] == "ok" and t2_ready,
+        # The depth slider's levels as f42-agent states them (core/agent/depth.py); null when the agent did not say.
+        "ask_depth": ask_depth if checks["agent"] == "ok" else None,
         "checks": checks,
     }
 
@@ -304,20 +308,25 @@ def _today_check() -> str:
         return "data_issue"
 
 
-async def _agent_check() -> tuple[str, bool]:
-    """Agent status and T2 readiness from one fresh response; readiness requires an explicit true."""
+async def _agent_check() -> tuple[str, bool, list | None]:
+    """Agent status, T2 readiness and the depth slider's levels from one fresh response; readiness requires an
+    explicit true, and levels that are not a list of objects are left out."""
     try:
         async with await _agent_client(HEALTH_TIMEOUT) as client:
             resp = await client.get("/health")
     except (ApiError, httpx.HTTPError):
-        return "unreachable", False
+        return "unreachable", False, None
     if resp.status_code != 200:
-        return f"status {resp.status_code}", False
+        return f"status {resp.status_code}", False, None
     try:
-        ready = resp.json().get("t2_ready") is True
+        body = resp.json()
+        ready = body.get("t2_ready") is True
+        levels = body.get("ask_depth")
     except (ValueError, AttributeError):
-        ready = False
-    return "ok", ready
+        ready, levels = False, None
+    if not (isinstance(levels, list) and levels and all(isinstance(level, dict) for level in levels)):
+        levels = None
+    return "ok", ready, levels
 
 
 class AuthVerifyRequest(BaseModel):
@@ -605,36 +614,42 @@ def api_history_item(item_id: str, market: str | None = None) -> dict:
 
 
 @gated.get("/api/history/search")
-def api_history_search(q: str = "", market: str | None = None) -> dict:
-    from core.api import fast, history, store
+def api_history_search(response: Response, q: str = "", market: str | None = None) -> dict:
+    from core.api import fast, history, privacy, store
 
+    response.headers.update(privacy.NO_STORE)  # a stored copy (contract section 22)
     mkt = _optional_market(market)
     return _v4(lambda: history.build_history_search(
         fast.prefetch(store.get_store(), fast.history_search_plan, q, mkt), q, mkt))
 
 
 @gated.get("/api/history/asks")
-def api_history_asks(limit: int = 20, before: str | None = None, market: str | None = None) -> dict:
-    from core.api import history, store
+def api_history_asks(response: Response, limit: int = 20, before: str | None = None,
+                     market: str | None = None) -> dict:
+    from core.api import history, privacy, store
 
+    response.headers.update(privacy.NO_STORE)  # a stored copy (contract section 22)
     mkt = _optional_market(market)
     return _v4(lambda: history.build_history_asks(store.get_store(), limit=limit, before=before or None, market=mkt))
 
 
 @gated.get("/api/history/briefs")
-def api_history_briefs(limit: int = 30, before: str | None = None, market: str | None = None) -> dict:
-    from core.api import history, store
+def api_history_briefs(response: Response, limit: int = 30, before: str | None = None,
+                       market: str | None = None) -> dict:
+    from core.api import history, privacy, store
 
+    response.headers.update(privacy.NO_STORE)  # a stored copy (contract section 22)
     mkt = _optional_market(market)
     return _v4(lambda: history.build_history_briefs(store.get_store(), limit=limit, before=before or None,
                                                     market=mkt))
 
 
 @gated.get("/api/history/findings")
-def api_history_findings(item_id: str | None = None, status: str | None = None,
+def api_history_findings(response: Response, item_id: str | None = None, status: str | None = None,
                          market: str | None = None) -> dict:
-    from core.api import history, store
+    from core.api import history, privacy, store
 
+    response.headers.update(privacy.NO_STORE)  # a stored copy (contract section 22)
     if item_id:
         _check_item_id(item_id)
     mkt = _optional_market(market)
@@ -966,10 +981,11 @@ async def _skin_masked(record: dict) -> dict:
     """A skin run's record, projected for privacy already, masked for its skin (contract 15.1) the way f42-agent masks
     the records it still holds. The mask comes last: it strips the handle of every author the skin may not name, and a
     suppression row that names only a handle could no longer match them."""
-    from core.api import skins, store
+    from core.api import privacy, skins, store
 
     if not record or not record.get("skin_id"):
         return record
+    record = privacy.without_skin_side_lists(record)  # dropped, never masked: masking leaves their words
     skin_key = None
     if isinstance(record["skin_id"], str) and ASK_ID_RE.match(record["skin_id"]):
         resp = await _forward("GET", f"/api/skins/{record['skin_id']}")
@@ -1114,7 +1130,8 @@ async def api_ask_export(ask_id: str, format: str = "html") -> Response:
     except export.ExportRefused as exc:
         raise ApiError(exc.status, exc.code, exc.message) from exc
     filename = export.export_filename(ask_id)
-    return HTMLResponse(page, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    return HTMLResponse(page, headers={"Content-Disposition": f'attachment; filename="{filename}"',
+                                       **privacy.NO_STORE})
 
 
 # Dossiers and investigations (contract section 13): every route forwards to f42-agent, which owns the
@@ -1184,9 +1201,13 @@ async def api_dossier_version(dossier_id: str, version: int) -> Response:
 
 @gated.get("/api/dossiers/{dossier_id}/versions/{version}/export")
 async def api_dossier_export(dossier_id: str, version: int, format: str = "html") -> Response:
+    from core.api import privacy
+
     _check_id(dossier_id, "a dossier")
-    return _passthrough(await _forward("GET", f"/api/dossiers/{dossier_id}/versions/{version}/export",
+    resp = _passthrough(await _forward("GET", f"/api/dossiers/{dossier_id}/versions/{version}/export",
                                        params={"format": format}))
+    resp.headers.update(privacy.NO_STORE)  # a stored copy (contract section 22), whatever the agent sent
+    return resp
 
 
 @gated.post("/api/investigations")

@@ -79,6 +79,20 @@ def body_for(route, params, market=None):
         return {"success": True, "data": {"items": [
             {"url": u, "status": "ok", "engagement": {"views": 100, "likes": 5, "comments": 1, "shares": 0}}
             for u in params["urls"]]}}
+    if route == "google_play/app-list":  # the local sources' Android chart
+        return json.loads((Path(__file__).resolve().parent / "fixtures" / "local_google_play.json").read_text(
+            encoding="utf-8"))
+    if route == "search/multi" and params.get("platforms") == "linkedin":  # row 16w
+        return {"success": True, "credits_used": 5, "data": {"sources": {"linkedin": {"items": [{"post": {
+            "id": f"li-{params['query']}", "url": "https://www.linkedin.com/posts/someone_activity-1",
+            "published_at": "2026-09-28T00:10:00Z", "author": {"username": "someone"},
+            "content": {"text": params["query"]}, "engagement": {"likes": 3}}}]}}}}
+    if route in ("bluesky/search", "pinterest/search", "reddit/subreddit/search"):  # row 16w
+        platform = route.split("/")[0]
+        return {"success": True, "data": {"items": [{"post": {
+            "id": f"{platform}-{params['query']}", "platform": platform, "url": f"https://example.org/{platform}/1",
+            "published_at": "2026-09-28T00:10:00Z", "author": {"username": "someone"},
+            "content": {"text": params["query"]}, "engagement": {"likes": 3}}}]}}
     region = params.get("region") or market
     return copy.deepcopy(FIXTURE.get(f"{route}|{region}") or FIXTURE[route])
 
@@ -129,8 +143,9 @@ class FakeBQ:
     """Records queries and load jobs; plays MERGE into posts on a dict keyed by post_id, the creators MERGE
     on (platform, creator_id), and serves raw_responses rows to the backfill."""
 
-    def __init__(self, previous=(), reference=(), pulls=(), seeds=(), watches=(), raw=(), prior_zero=()):
+    def __init__(self, previous=(), reference=(), pulls=(), seeds=(), watches=(), raw=(), prior_zero=(), adoption=()):
         self.raw = list(raw)
+        self.adoption = list(adoption)
         self.raw_bytes = 1_000_000
         self.dry_runs = []
         self.configs = []
@@ -154,6 +169,8 @@ class FakeBQ:
             return FakeJob(total_bytes_processed=self.raw_bytes)
         self.queries.append((sql, params))
         self.configs.append(job_config)
+        if "p.sound_id IS NOT NULL" in sql:
+            return FakeJob(self.adoption)
         if "post_id IN UNNEST(@ids)" in sql:
             return FakeJob([{"post_id": post_id} for post_id in params["ids"].values if post_id in self.posts])
         if "raw_responses" in sql:
@@ -304,7 +321,7 @@ def test_plan_covers_the_stage_1a_rows_for_every_market_within_the_collect_share
         rows = {c.row for c in planned["calls"][market]}
         assert {"1", "3", "6", "7", "8", "11", "12", "14", "16", "22", "23", "23a"} <= rows, market
     assert {c.row for c in planned["calls"]["GLOBAL"]} == {"4"}
-    assert {c.row for c in calls} - {job.REELS_ROW} == STAGE_1A
+    assert {c.row for c in calls} - {job.REELS_ROW, job.WIDE_ROW} == STAGE_1A
     assert all(c.market == "ZA" for c in calls if c.row == "2")
     total = sum(c.hold() for c in calls)
     assert 0 < total <= job.load_caps()["ENGINE_DAILY"]["collect"]
@@ -378,7 +395,12 @@ def test_row_5_plans_a_five_credit_call_for_every_configured_hub():
     for call in calls:
         assert call.row == "5" and call.source_market is None
         assert call.hold() == 5
-    assert planned["total"] == 1891  # 1830 and one row 14i reel search in the room left
+    assert planned["total"] == 1893  # 1830 and row 16w's 63, which leave row 14i no room for a reel search
+    # Row 12 counts 6 sounds and 4 hashtags a market since 23 Oct 2026 (5 and 5 before): the same 10 credits.
+    for market in ("ZA", "NG", "KE"):
+        mine = planned["calls"][market]
+        assert [sum(c.hold() for c in mine if c.route == r) for r in
+                ("tiktok/song/videos", "tiktok/song", "tiktok/hashtag")] == [6, 6, 4]
     skips = [s for s in planned["skipped"] if s["route"] == "instagram/location/posts"]
     assert skips == []
 
@@ -524,6 +546,147 @@ def test_exploration_takes_10_to_15_percent_of_row_14_from_below_the_cut():
     assert all(c.params["since"] == "2026-09-22" for c in multi)
     assert [c.params["clipId"] for c in calls if c.row == "11"] == ranked["sound"][:6]
     assert len([c for c in calls if c.row == "12"]) == 10
+
+
+def _adopted(sound, creators, posts=None, newest="2026-09-28T10:00:00+00:00", market=None):
+    rows = [{"sound_id": sound, "creator_id": f"{sound}-c{i % creators}", "post_id": f"{sound}-p{i}",
+             "newest": newest} for i in range(posts or creators)]
+    return [dict(r, market=market) for r in rows] if market else rows
+
+
+def test_sounds_rank_by_creators_then_posts_then_the_newest_post_never_by_their_id():
+    adoption = (_adopted("1000", 1) + _adopted("2000", 3, 3) + _adopted("3000", 3, 5)
+                + _adopted("4000", 3, 3, newest="2026-09-28T23:00:00Z") + _adopted("5000", 2, 9))
+    assert job.rank_sounds(["1000", "9000"], adoption) == ["3000", "4000", "2000", "5000", "1000", "9000"]
+    # the harvest's own posts count as adoption too; a sound seen only in storage is still a candidate
+    ranked = job.score_candidates([("sound", "1000", "1", "tiktok")], adoption)
+    assert ranked["sound"][0] == "3000" and "1000" in ranked["sound"]
+
+
+def test_sounds_group_by_the_matched_song_and_read_through_its_most_adopted_clip():
+    adoption = _adopted("7001", 2) + _adopted("7002", 2) + _adopted("7003", 3)
+    songs = {"7001": "song-9", "7002": "song-9"}
+    assert job.rank_sounds([], adoption, songs) == ["7001", "7003"]  # 4 creators on song-9 beat 3; 7001 is its clip
+    assert job.rank_sounds([], adoption) == ["7003", "7001", "7002"]
+
+
+def test_a_rule_one_sound_id_is_never_a_candidate():
+    word = "".join(["te", "en"]) + "_vibes"
+    assert job.rank_sounds([word], _adopted(word, 5) + _adopted("1000", 1)) == ["1000"]
+
+
+def test_adoption_rows_read_the_harvest_posts_and_the_matched_song_on_each_row():
+    body = {"data": {"items": [{"post": {"id": "1", "ext": {"music_id": "7001", "matched_song_id": "song-9"}}},
+                               {"post": {"id": "2", "ext": {"music_id": "7002"}}}]}}
+    parsed = {"posts": [{"post_id": "tiktok:1", "platform": "tiktok", "sound_id": "7001", "creator_id": "a",
+                         "published_at": "2026-09-28T10:00:00+00:00"},
+                        {"post_id": "youtube:3", "platform": "youtube", "sound_id": None, "creator_id": "b"}]}
+    done = [(SimpleNamespace(route="tiktok/trending", row="1"), SimpleNamespace(status="ok", body=body), parsed)]
+    rows, songs = job.adoption_rows(done)
+    assert rows == [{"sound_id": "7001", "creator_id": "a", "post_id": "tiktok:1",
+                     "newest": "2026-09-28T10:00:00+00:00", "day": None, "local": False}]
+    assert songs == {"7001": "song-9"}
+
+
+def _harvest_post(pid, creator, *, geo=None, conf=None, source=None, day="2026-09-28"):
+    return {"post_id": pid, "platform": "tiktok", "sound_id": "7001", "creator_id": creator, "post_date": day,
+            "published_at": f"{day}T10:00:00+00:00", "geo_market": geo, "geo_confidence": conf, "geo_source": source}
+
+
+def test_adoption_rows_flag_a_post_local_by_the_brief_rule():
+    """Local as core/brief/sql/brief.sql pattern_posts.is_local: located in the market from a known source at 0.7 or
+    more, or seen in the market's own feeds and not located elsewhere; posted in the 7 days to its sighting."""
+    posts = [_harvest_post("tiktok:1", "a", geo="KE", conf=0.9, source="ext_region"),
+             _harvest_post("tiktok:2", "b"),                                         # feed sighting, not placed
+             _harvest_post("tiktok:3", "c", geo="NG", conf=0.9, source="ext_region"),  # feed sighting, placed abroad
+             _harvest_post("tiktok:4", "d", geo="KE", conf=0.3, source="language"),    # language is never a place
+             _harvest_post("tiktok:5", "e", geo="KE", conf=0.9, source="ext_region", day="2026-09-20")]
+    feed = {"tiktok:2", "tiktok:3"}
+    observations = [{"post_id": p["post_id"], "market": "KE", "observed_date": "2026-09-29", "route": "tiktok/trending",
+                     "source_market": "KE" if p["post_id"] in feed else None} for p in posts]
+    done = [(SimpleNamespace(route="tiktok/trending", row="1", market="KE"), SimpleNamespace(status="ok", body={}),
+             {"posts": posts, "observations": observations})]
+    rows, _ = job.adoption_rows(done)
+    assert {r["post_id"]: r["local"] for r in rows} == {
+        "tiktok:1": True, "tiktok:2": True, "tiktok:3": False, "tiktok:4": False, "tiktok:5": False}
+    assert {r["day"] for r in rows} == {"2026-09-28", "2026-09-20"}
+
+
+def _local(sound, creators, days, start=20):
+    return [{"sound_id": sound, "creator_id": f"{sound}-l{i}", "post_id": f"{sound}-lp{i}",
+             "newest": f"2026-09-{start + i % days:02d}T10:00:00+00:00", "day": f"2026-09-{start + i % days:02d}",
+             "local": True} for i in range(creators)]
+
+
+def test_sounds_rank_by_local_creators_on_two_days_before_any_global_count():
+    """A sound 2 or more local creators used on 2 or more days comes before one that only creators elsewhere used,
+    however many; then local creators, then their days, then the old order."""
+    adoption = (_adopted("1000", 40)                     # 40 creators, none local
+                + _local("2000", 2, 2)                   # 2 local creators on 2 days
+                + _local("3000", 5, 1)                   # 5 local creators on one day
+                + _local("4000", 3, 2) + _adopted("4000", 1)
+                + _local("5000", 7, 4))                  # the KE 23 Oct shape: 7 creators on 4 days
+    assert job.rank_sounds([], adoption) == ["5000", "4000", "2000", "3000", "1000"]
+    # a creator-less local post counts as its own creator, as the brief counts it
+    bare = [dict(r, creator_id=None) for r in _local("6000", 3, 3)]
+    assert job.rank_sounds([], bare + _local("2000", 2, 2)) == ["6000", "2000"]
+
+
+def test_a_rule_one_sound_stays_out_however_local_its_adoption():
+    word = "".join(["te", "en"]) + "_vibes"
+    assert job.rank_sounds([word], _local(word, 9, 4) + _adopted("1000", 1)) == ["1000"]
+
+
+def test_row_12_counts_every_row_11_sound_and_four_hashtags_a_market():
+    assert job.count_slots(0) == (job.SONG_VIDEOS, 4) == (6, 4)
+    assert job.COUNT_CALLS == 30
+    assert job.count_slots(3) == (6, 3) and job.count_slots(15) == (3, 2) and job.count_slots(30) == (0, 0)
+
+
+def test_stored_adoption_picks_the_row_11_and_12_sounds_within_the_planned_reads():
+    """Rows 11 and 12 still read at most SONG_VIDEOS and COUNT_SOUNDS sounds a market, the plan job.plan holds;
+    stored adoption only chooses which, so the credit plan does not move."""
+    stored = {"ZA": [r for i in range(8) for r in _local(f"74000000000000000{i:02d}", 10 - i, 2)]}
+    run = collect(FakeClient(), sound_adoption=stored)
+
+    def reads(route):
+        return [c["params"]["clipId"] for c in run.client_calls if c["market"] == "ZA" and c["route"] == route]
+
+    za = run.candidates["ZA"]["sound"]
+    assert za[:8] == [f"74000000000000000{i:02d}" for i in range(8)] and za[8] == "m100"
+    assert reads("tiktok/song/videos") == za[:job.SONG_VIDEOS]
+    assert reads("tiktok/song") == za[:job.count_slots(0)[0]] and job.count_slots(0)[0] == job.COUNT_SOUNDS
+
+
+def test_main_reads_yesterdays_stored_adoption_once_and_ranks_with_it():
+    rows = ([dict(r, market="ZA", post_day=r["day"], is_local=True) for r in _local("7400000000000000009", 4, 2)]
+            + _adopted("7400000000000000007", 2, market="XX"))
+    bq = FakeBQ(adoption=rows)
+    client = FakeClient()
+    assert run_main(["--run-date", "2026-09-29"], client=client, bq=bq) == 0
+    [(sql, params)] = [(q, p) for q, p in bq.queries if "p.sound_id IS NOT NULL" in q]
+    assert params["d"].value == date(2026, 9, 28)
+    assert params["markets"].values == list(job.MARKETS)
+    assert set(params) == {"d", "markets"}
+    assert sql.lstrip().upper().startswith("WITH") and "@d" in sql and "2026" not in sql
+    # the brief's 7 day window and locality rule (core/brief/sql/brief.sql pattern_posts)
+    assert sql.count("BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d") == 3 and "AS is_local" in sql
+    assert "'ext_region', 'home_market', 'place_mention'" in sql and "youtube/videos/trending" in sql
+    assert "'placebo', 'agent_live'" in sql and "lane_class != 'legacy'" in sql
+    za = [c["params"]["clipId"] for c in client.calls if c["route"] == "tiktok/song/videos" and c["market"] == "ZA"]
+    assert za[0] == "7400000000000000009"
+    assert "7400000000000000007" not in {c["params"].get("clipId") for c in client.calls}
+
+
+def test_a_failed_adoption_read_ranks_from_the_harvest_alone():
+    class Failing(FakeBQ):
+        def query(self, sql, job_config=None, **kw):
+            if "p.sound_id IS NOT NULL" in sql:
+                raise RuntimeError("read failed")
+            return super().query(sql, job_config, **kw)
+
+    assert writers.read_sound_adoption(Failing(), date(2026, 9, 28), job.MARKETS) == {m: [] for m in job.MARKETS}
+    assert run_main(["--run-date", "2026-09-29"], bq=Failing()) == 0
 
 
 def test_the_live_hashtag_board_envelope_yields_board_tag_sightings():
@@ -900,6 +1063,17 @@ def test_validity_rules_follow_data_md_3_3():
                  units_planned=12, units_ok=4) == (False, "effort", 3.0)
     assert judge(calls=8, calls_ok=8, items=5, ref_items=None, ref_days=0, lane_class="panel",
                  units_planned=8, units_ok=8) == (True, None, 1.0)
+    # a panel day is never held on items: a quiet day for its creators is still a complete read of them
+    assert judge(calls=1, calls_ok=1, items=4, ref_items=16, ref_days=6, lane_class="panel",
+                 units_planned=12, units_ok=12) == (True, None, 1.0)
+    assert judge(calls=1, calls_ok=1, items=0, ref_items=3, ref_days=6, lane_class="panel",
+                 units_planned=12, units_ok=9) == (True, None, 12 / 9)
+    assert judge(calls=1, calls_ok=1, items=4, ref_items=16, ref_days=6, lane_class="panel",
+                 units_planned=12, units_ok=5)[:2] == (False, "effort")
+    assert judge(calls=1, calls_ok=0, items=4, ref_items=16, ref_days=6, lane_class="panel",
+                 units_planned=12, units_ok=0)[:2] == (False, "calls")
+    assert judge(calls=3, calls_ok=3, items=4, ref_items=16, ref_days=6, lane_class="unbiased_counter",
+                 units_planned=3, units_ok=3)[:2] == (False, "items")
     assert judge(calls=0, calls_ok=0, items=0, ref_items=None, ref_days=0, lane_class="unbiased_rank",
                  units_planned=0, units_ok=0)[:2] == (False, "calls")
 
@@ -1350,8 +1524,10 @@ def test_research_terms_rotate_inside_existing_search_holds():
     wednesday = job.plan(date(2026, 9, 30))
     monday = job.plan(MONDAY)
     expected = {
-        "2026-09-30": ({"ZA": (56, 7), "NG": (56, 7), "KE": (65, 7)}, 368, 1891, 1925),  # with one row 14i call
-        "2026-10-05": ({"ZA": (60, 7), "NG": (56, 7), "KE": (61, 7)}, 368, 1926, 1960),
+        # Row 16w's searches fill the room left: all 27 on the Wednesday (none left for row 14i), fewer on the
+        # Monday, whose industry board takes the rest.
+        "2026-09-30": ({"ZA": (56, 7), "NG": (56, 7), "KE": (65, 7)}, 394, 1893, 1927),
+        "2026-10-05": ({"ZA": (60, 7), "NG": (56, 7), "KE": (61, 7)}, 387, 1949, 1983),
     }
 
     for day, planned in (("2026-09-30", wednesday), ("2026-10-05", monday)):
@@ -1522,9 +1698,13 @@ def test_unaffordable_placebo_is_skipped_with_expansion_share_reason():
                              item_id=f"topic|low {i}"), priority=96 - i) for i in range(96)]
     client = FakeClient()
     run = collect(client, seeds=queue)
-    placebo_calls = [c for c in client.calls if c["lane"] == "placebo"]
+    placebo_calls = [c for c in client.calls if c["lane"] == "placebo" and c["route"] == "tiktok/search/top"]
     cut = [r for r in run.records if r["row"] == "23c" and r["status"] == "skipped"]
     assert [c["seed_key"] for c in placebo_calls] == [f"topic|low {i}" for i in range(95)]
+    # Row 16w searches the first placebo picks again, each route at most its count a market.
+    wide = [c for c in client.calls if c["lane"] == "placebo" and c["route"] != "tiktok/search/top"]
+    for route, count in job.WIDE_TOP:
+        assert len([c for c in wide if c["route"] == route]) <= count * len(job.MARKETS)
     assert len(cut) == 1 and "expansion share" in cut[0]["reason"]
 
 
@@ -1535,7 +1715,8 @@ def test_main_reads_live_seeds_and_appends_one_yield_row_per_seed_used():
     assert run_main(["--run-date", "2026-09-29"], bq=bq, client=client) == 0
     [(sql, params)] = [(s, p) for s, p in bq.queries if "seed_queue" in s]
     assert sql.lstrip().upper().startswith("SELECT") and params["d"].value == TUESDAY
-    cyril = [c for c in client.calls if c["params"].get("query") == "Cyril Ramaphosa"]
+    cyril = [c for c in client.calls if c["params"].get("query") == "Cyril Ramaphosa"
+             and c["params"].get("platforms") == job.MULTI_PLATFORMS]  # row 16w searches it again elsewhere
     assert [c["params"] for c in cyril] == [{"query": "Cyril Ramaphosa", "platforms": job.MULTI_PLATFORMS,
                                              "since": "2026-09-27"}]
     assert cyril[0]["item_id"] == "topic|cyril ramaphosa" and cyril[0]["lane"] == "expansion"
@@ -1694,7 +1875,7 @@ def test_the_real_client_ledgers_local_calls_in_lane_local_against_the_collect_s
                                raw=MemoryRawStore(), http=both_http, clock=lambda: NOW)
     run = local_collect(client)
     local = [r for r in ledger.rows if r["lane"] == "local"]
-    assert {r["route"] for r in local} == {"web/scrape", "prism/profiles"}
+    assert {r["route"] for r in local} == {"web/scrape", "prism/profiles"}  # google_play/app-list is off
     assert not [r for r in ledger.rows if r["route"] == "web/scrape" and r["lane"] != "local"]
     assert {r["job"] for r in ledger.rows} == {"collect"}
     assert sum(r["credits_charged"] for r in local) == run.local_credits > 0
@@ -1703,7 +1884,8 @@ def test_the_real_client_ledgers_local_calls_in_lane_local_against_the_collect_s
     local = local_records(run)
     assert not [r for r in local if r["market"] == "KE" and r["series"] == "board_kworb_spotify"]
     assert not [r for r in local if "ewn.co.za" in r["protocol"]]
-    assert {r["status"] for r in local} <= {"ok", "not_priced", "http_500"}
+    assert {r["status"] for r in local if r["route"] != "google_play/app-list"} <= {"ok", "not_priced", "http_500"}
+    assert {r["status"] for r in local if r["route"] == "google_play/app-list"} == {"not_made"}
 
 
 def test_the_local_phase_is_not_made_when_the_collect_share_has_less_than_its_hold_left(monkeypatch):
@@ -1717,9 +1899,14 @@ def test_the_local_phase_is_not_made_when_the_collect_share_has_less_than_its_ho
     baseline_run = collect(baseline_client)
     creator_hold = sum(c.hold() for cs in job.plan(TUESDAY)["calls"].values() for c in cs
                        if c.route == "prism/profiles" and not _desk(c))
-    # Row 14i also moves with the cap (it takes only the room left), and below it is never made.
-    reels_charged = sum(c["credits"] for c in baseline_client.charged if c["route"] == job.REELS_ROUTE)
-    spent = baseline_run.credits - creator_hold - reels_charged
+    # Rows 16w and 14i also move with the cap (they take only the room left), and below it they are never made.
+    # Every baseline call is ok, so its calls and charges pair up in order.
+    assert len(baseline_client.calls) == len(baseline_client.charged)
+    room_charged = sum(ch["credits"] for c, ch in zip(baseline_client.calls, baseline_client.charged)
+                       if c["route"] in (job.REELS_ROUTE, "bluesky/search", "pinterest/search",
+                                         "reddit/subreddit/search")
+                       or c["params"].get("platforms") == "linkedin")
+    spent = baseline_run.credits - creator_hold - room_charged
     hold = ls.total_hold(ls.plan(TUESDAY))
     for cap, made in ((spent + hold - 1, False), (spent + hold, True)):
         caps = copy.deepcopy(job.load_caps())

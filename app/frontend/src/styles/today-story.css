@@ -997,3 +997,21 @@ html .oi-product .t42 .sc-skeleton-tile {
     padding: var(--s-4);
   }
 }
+
+/* The LED field's box (ui/LedField.jsx; its look is in controlroom.css). It
+   fills the lead header behind every other child. On a phone the headline
+   spans the width and the field would only smudge the meta line, so it is
+   not drawn there. */
+html .oi-product .t42 .t42-head:has(> .t42-lead) { position: relative; isolation: isolate; }
+html .oi-product .t42 .t42-led-field {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  pointer-events: none;
+}
+@media (max-width: 719px) {
+  html .oi-product .t42 .t42-led-field { display: none; }
+}

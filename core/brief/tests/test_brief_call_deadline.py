@@ -208,7 +208,7 @@ def test_task_finish_cutoff_keeps_the_eight_minute_margin_before_the_hour():
     with native_model(clock, sdk, job.GEMINI_TIMEOUT_S) as model:
         results, _, stop = job._explain_all(tasks, model=model, base_usd=0, spend={"usd": 0}, clock=clock,
                                            chain=FakeChain(), d=D, workers=1, started=start, sleep=clock.sleep)
-    assert job.FINISH_MARGIN == timedelta(minutes=8) and job.GEMINI_TIMEOUT_S == 60
+    assert job.FINISH_MARGIN == timedelta(minutes=8) and job.GEMINI_TIMEOUT_S == 180
     assert sdk.dispatches and sdk.dispatches[0]["configured_timeout_ms"] == 11000
     assert 0 < sdk.dispatches[0]["timeout_ms"] <= 11000
     assert all(call["at"] < cutoff and call["attempts"] == 1

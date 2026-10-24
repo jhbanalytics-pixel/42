@@ -10,6 +10,7 @@ from types import SimpleNamespace
 import pytest
 
 from core.brief import explain, job
+from core.brief.payload import NOT_RUN_WORDS
 from core.brief.tests.test_brief_explain import FakeModel, good, run as run_unguarded
 from core.brief.tests.test_brief_job import (
     CHECK_KEYS, D, SAST, FakeModel as JobModel, brief, checks, held_items, payload, world,
@@ -537,16 +538,23 @@ def stored(r):
 def test_two_504s_in_the_job_store_exactly_what_one_504_stored_at_1cfda9c():
     before = json.loads(SINGLE_504_AT_1CFDA9C.read_text(encoding="utf-8"))
     assert before["dispatched"] == [1, 1, 1]
-    model = FlakyJobModel(2, kind="504")
+    # 23 Oct 2026, model-error-retry: an explanation that ended in a model error is made once more, so a card that
+    # ends as one 504 did now meets two 504s on each of its two attempts.
+    model = FlakyJobModel(4, kind="504")
     now = stored(brief(world(n=1), model=model))
-    assert sorted(model.dispatched.values()) == [2, 2, 2]  # the retry was sent, and failed
+    assert sorted(model.dispatched.values()) == [4, 4, 4]  # each attempt's retry was sent, and failed
     assert sorted(now["briefs"]) == sorted(before["briefs"]) == ["KE", "NG", "ZA"]
     for m in ("ZA", "NG", "KE"):
         assert set(now["briefs"][m]) == set(before["briefs"][m])
-        for key in before["briefs"][m]:
-            assert now["briefs"][m][key] == before["briefs"][m][key], (m, key)
         [item] = now["briefs"][m]["payload"]["held_back"]["items"]
         [old] = before["briefs"][m]["payload"]["held_back"]["items"]
+        # 22 Oct 2026, not-run-reason: the explanation the 504 left unfinished now names its cause, where 1cfda9c
+        # stored none; nothing else changed.
+        assert old.get("failed_reason") is None
+        assert item.pop("failed_reason") == NOT_RUN_WORDS["model_error"]
+        item["failed_reason"] = None
+        for key in before["briefs"][m]:
+            assert now["briefs"][m][key] == before["briefs"][m][key], (m, key)
         for key in ("reason", "explanation_status", "failed_reason", "reason_text"):
             assert item.get(key) == old.get(key), (m, key)
     assert len(now["claim_checks"]) == len(before["claim_checks"])
@@ -654,5 +662,8 @@ def test_the_job_hands_each_explanation_a_retry_guard_that_follows_the_deadline(
 
 
 def test_the_briefs_rule_version_names_the_504_retry_after_the_event_shadow():
+    # Read by position from the event shadow, not from the end, so a later token does not move the pin
+    # (18 Oct 2026).
     tokens = job.RULE_VERSION.split("+")
-    assert tokens[-5:-3] == ["e-one-event-shadow", "brief-504-retry"]
+    shadow = tokens.index("e-one-event-shadow")
+    assert tokens[shadow:shadow + 2] == ["e-one-event-shadow", "brief-504-retry"]

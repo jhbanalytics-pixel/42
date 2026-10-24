@@ -20,7 +20,10 @@ LEFT JOIN {core}.creators c ON c.creator_id = s.creator_id;
 -- or of a cluster outside the window is context). Within a tier, measured lanes (unbiased_rank, panel) first, then
 -- engagement, then the post id, which is unique, so no tie is left to the engine. At most 2 per creator, chosen
 -- tier first, and at most @outlet_cap outlet posts (the news platform, or a platform:handle key in @outlet_keys;
--- a post whose creator has no creators row is not an outlet). 12 posts in all. The counts after each stage ride on
+-- a post whose creator has no creators row is not an outlet). 12 posts in all. board_only marks a post whose every
+-- sighting in the window is the YouTube trending board (post_observations.series board_youtube); it changes no
+-- rank and nothing about what counts as local, and is only marked for the writer and the critic (18 Oct 2026). The
+-- counts after each stage ride on
 -- every row, and on one row with no post id when the caps leave nothing, so a hold can name its cause. A post seen
 -- only by the brief's confirm search enters only when local by the market scope rule (market_scope.sql
 -- creator_ranked): located in the market or sighted in its feeds in the window. sponsored is the enrich model's
@@ -37,7 +40,8 @@ WITH source_market_by_post AS (
 ),
 s AS (
   SELECT po.post_id, LOGICAL_OR(po.lane_class IN ('unbiased_rank', 'panel')) measured,
-    LOGICAL_OR(IFNULL(po.lane, '') != 'confirm') beyond_confirm
+    LOGICAL_OR(IFNULL(po.lane, '') != 'confirm') beyond_confirm,
+    LOGICAL_AND(IFNULL(po.series, '') = 'board_youtube') board_only
   FROM {core}.post_observations po
   JOIN {core}.post_items pi ON pi.post_id = po.post_id
   WHERE pi.item_id = @item_id AND po.market = @market
@@ -59,14 +63,16 @@ pan_members AS (
     AND k.cluster_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
   GROUP BY mb.post_id),
 r AS (
-  SELECT ps.post_id, ps.platform, ps.url, ps.published_at, ps.creator_tier_at_post creator_tier,
+  SELECT ps.post_id, ps.platform, ps.url, ps.published_at, ps.creator_tier_at_post creator_tier, ps.creator_id,
     ps.geo_market, ps.geo_confidence, ps.geo_source,
     source_market_by_post.source_market,
     IFNULL(NULLIF(ps.text, ''), ps.transcript) quote_text, ps.hashtags,
     ps.views, ps.likes, ps.comments, ps.shares, ps.thumbnail_url, ps.duration_s, cr.handle,
     -- What the post is made of, for the critic and the support check (held-topics slice 2): its sound and the
-    -- formats the enrich model gave it. A post with no enrich row has no formats, never a guess.
-    ps.sound_id, pe.formats,
+    -- formats the enrich model gave it. A post with no enrich row has no formats, never a guess. The video step's
+    -- row (core/understand/video.py, video_insert.sql) adds the clip's on-screen text and its notes, a JSON string
+    -- whose format and sound evidence.py reads; both were written and never read by the pack (18 Oct 2026).
+    ps.sound_id, pe.formats, pe.screen_text, pe.video_notes,
     IFNULL(cr_flags.coord_score, 0) >= 1 flagged,
     IFNULL(pe.sponsored, FALSE) enrich_sponsored, IFNULL(pe.sponsor_read, FALSE) enrich_read,
     -- The vendor's paid label (posts.vendor_labels, core/collect/socialcrawl_client.py split_vendor_labels): a
@@ -80,7 +86,7 @@ r AS (
        JSON_VALUE(ps.vendor_labels, '$.labels.sponsored.undisclosed')]) label
      WHERE LOWER(label) IN ('true', 'false')) vendor_paid,
     IFNULL(pe.near_dup_size, 1) >= 3 near_dup,
-    s.measured, IFNULL(ps.engagement, 0) eng,
+    s.measured, s.board_only, IFNULL(ps.engagement, 0) eng,
     mm.post_id IS NOT NULL market_member, pm.post_id IS NOT NULL pan_member, mm.membership_probability,
     -- An outlet is the news platform or a platform:handle key in the registry, written as core/api/store.py
     -- creator_key writes it: x for twitter, the handle trimmed, without a leading @ or u/, lower case. A handle the
@@ -107,9 +113,11 @@ r AS (
   ) cr_flags ON cr_flags.creator_id = ps.creator_id
   -- One row per post: post_enrichment can hold several rows for a post, which would repeat the evidence record.
   -- sponsor_read: a row the enrich model wrote, with its sponsored reading; embed and video rows leave it null.
-  -- formats: every row's, deduplicated and ordered in evidence.py _record.
+  -- formats: every row's, deduplicated and ordered in evidence.py _record. screen_text and video_notes: the video
+  -- row's (video_insert.sql writes one per post; MAX picks the one non-null value, never joins two).
   LEFT JOIN (SELECT post_id, MAX(near_dup_size) near_dup_size, LOGICAL_OR(sponsored) sponsored,
-               LOGICAL_OR(sponsored IS NOT NULL) sponsor_read, ARRAY_CONCAT_AGG(formats) formats
+               LOGICAL_OR(sponsored IS NOT NULL) sponsor_read, ARRAY_CONCAT_AGG(formats) formats,
+               MAX(screen_text) screen_text, MAX(video_notes) video_notes
              FROM {core}.post_enrichment GROUP BY post_id) pe ON pe.post_id = s.post_id
   LEFT JOIN members mm ON mm.post_id = s.post_id
   LEFT JOIN pan_members pm ON pm.post_id = s.post_id

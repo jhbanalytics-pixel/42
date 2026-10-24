@@ -18,6 +18,16 @@ pack is the shape core/brief/explain.py reads:
         located. The sponsored flag is the enrich model's paid marker or the vendor's paid label
         (posts.vendor_labels). sponsor_checked is true when either gave a reading for the post, so a post with
         sponsor_checked true and no sponsored flag was checked and shows no paid label; false means unknown.
+        sound_id, formats, screen_text, video_format and video_sound are model-only fields (payload.MODEL_ONLY_FIELDS):
+        the sound id and the enrich model's formats, and what the video step read from the clip (post_enrichment
+        screen_text and video_notes, core/understand/video.py). The stored card never carries them. The writer sees
+        formats, video_format and the sound as a code letter (core/brief/explain.py _writer_user, 20 Oct 2026); only
+        screen_text and video_sound stay off the writer, for the support check and the critic, and a quote is checked
+        against the caption alone (18 Oct 2026). creator_id reaches every prompt only as a code letter. board_only, model-only
+        too, is true for a post whose every sighting in the window was the YouTube trending board; the writer and the
+        critic are told so, and the post stays local by the same rules (18 Oct 2026). measured and market_member,
+        model-only too, say whether the post was sighted in a measured lane and whether it is a member of the item's
+        own market cluster; the writer and the critic see them (22 Oct 2026).
     numbers: {value, unit, query_id, run_id, result_hash} for creators3, posts3 and, when the item was tested,
         main_ratio. result_hash is "sha256:" plus the hex sha256 of the canonical JSON of the query's rows.
         After those, when detect has them for the item, the rival-explanation numbers of RIVAL_NUMBERS (posts7,
@@ -198,6 +208,38 @@ def _located(row):
 
 
 BRAND_KEY_MIN = 3  # letters and digits; a shorter brand key never marks an author
+# The video step's format list (core/understand/video.py FORMATS, the one list enrich uses too), repeated here so the
+# pack reads a stored video note without loading the model client that module imports; test_brief_evidence pins the
+# two equal. A format outside it is not a format the checks know, so it is dropped (18 Oct 2026).
+VIDEO_FORMATS = ("talking_head", "skit", "dance", "duet", "stitch", "tutorial", "slideshow", "meme_image", "news_clip",
+                 "other")
+SCREEN_TEXT_MAX_CHARS = 2_000  # video.MAX_SCREEN_TEXT_CHARS, the bound the row was written under
+VIDEO_SOUND_MAX_CHARS = 300
+
+
+def _video_notes(row):
+    """(format, sound) from the post's video_notes JSON (core/understand/video.py read_clip writes it: the model's
+    answer less the on-screen text, which has its own column): the format only when it is one of VIDEO_FORMATS, the
+    sound as the model's own words, trimmed and bounded, or None each when the row has no note, the note is not an
+    object or the value is blank. Never a guess: an unreadable note reads as no note."""
+    raw = row.get("video_notes")
+    if not isinstance(raw, str) or not raw.strip():
+        return None, None
+    try:
+        notes = json.loads(raw)
+    except ValueError:
+        return None, None
+    if not isinstance(notes, dict):
+        return None, None
+    fmt = notes.get("format")
+    sound = notes.get("sound")
+    sound = " ".join(sound.split())[:VIDEO_SOUND_MAX_CHARS] if isinstance(sound, str) and sound.strip() else None
+    return (fmt if fmt in VIDEO_FORMATS else None), sound
+
+
+def _screen_text(row):
+    text = row.get("screen_text")
+    return text.strip()[:SCREEN_TEXT_MAX_CHARS] if isinstance(text, str) and text.strip() else None
 
 
 def _alnum(value):
@@ -232,6 +274,26 @@ def _record(row, tz, item=None):
         # The model sees the sound as a letter (explain._sound_letters), never this vendor id.
         "sound_id": row.get("sound_id") or None, "formats": sorted({f for f in row.get("formats") or [] if f}),
     }
+    # What the video step read from the clip (18 Oct 2026): its on-screen text and, from its notes, the format and
+    # sound. Model-only too (payload.MODEL_ONLY_FIELDS), never on the stored card: the writer sees video_format (20 Oct
+    # 2026), the on-screen text and the sound go to the support check and the critic only, and a quote is still checked
+    # against the caption alone (text, quote_text).
+    video_format, video_sound = _video_notes(row)
+    record.update({"screen_text": _screen_text(row), "video_format": video_format, "video_sound": video_sound})
+    # Every sighting of the post in the window was the YouTube trending board (evidence.sql board_only): marked for
+    # the writer and the critic as feed_evidence posts are, and nothing else; the post stays local by the same rules
+    # (18 Oct 2026). A row from a statement without the column gives False, never a guess.
+    record["board_only"] = row.get("board_only") is True
+    # The post's creator id (posts.creator_id), model-only: explain.py turns it into a code letter per author
+    # (_creator_letters) so the checks count creators when a handle is missing; the raw id reaches no prompt
+    # and no stored card (18 Oct 2026).
+    record["creator_id"] = str(row["creator_id"]) if row.get("creator_id") else None
+    # Model-only marks the pack statement already computes and orders by (evidence.sql s.measured, market_member):
+    # the post was sighted in a measured lane (a rank list or a fixed panel), not only by search, and it is a member of
+    # this item's own market cluster in the window. The writer and the critic see them, the evidence on a collection or
+    # grouping artefact (22 Oct 2026); the pack order and scope do not change. A row without the column gives False.
+    record["measured"] = row.get("measured") is True
+    record["market_member"] = row.get("market_member") is True
     # The pack statement (C4 v3 appendix G) emits is_outlet. A row without the column gets no class, so the record
     # shape does not change until the pack carries it, and a post of unknown class never counts as a creator's reaction.
     if "is_outlet" in row:
@@ -250,9 +312,10 @@ def _sparkline(rows, d):
 
 def _day_lines(evidence, market, moments):
     """One line per local post (specificity's rule: located in the market or found in its feeds) with its weekday
-    and market-local date, so the writer can date a cause a post already names (WRITER_SYSTEM law 12 allows a cause
-    "that its posted_at dates"). A calendar moment is named only when the market's calendar has one on that date.
-    These are facts lines: the why-now never rests on them (WRITER_SYSTEM, "never on the facts lines")."""
+    and market-local date. A day line dates the post only, never an event: a posting date shows when the post was
+    published, not when an event happened (WRITER_SYSTEM laws 19 and 20, WHY_NOW_DEFINITION). A calendar moment is
+    named only when the market's calendar has one on that date. These are facts lines, read by the writer and the
+    critic: the why-now never rests on them (WRITER_SYSTEM, "never on the facts lines")."""
     on = {}
     for m in moments or ():
         on.setdefault(str(m.get("date")), m.get("name"))

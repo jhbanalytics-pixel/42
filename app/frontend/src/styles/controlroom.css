@@ -1,0 +1,269 @@
+/* Control room, 17 October 2026. The visual layer Albert chose from the Gamma
+   3.1 redesign directions ("much better ! i pick this direction"), carried
+   from the reviewed v8 prototype into the live app. It loads after Night Desk
+   and changes faces, motion timing and the shell; the palette itself lives in
+   app.css and styles/boot.css, where the contrast tests read it.
+
+   1. One grotesk family. Archivo carries the interface, the reading text and
+      the posters (by width, not by a second face); Martian Mono carries
+      labels, figures and provenance.
+   2. Motion follows Material 3. The package move durations keep their names
+      and take the M3 short, medium and long steps; standard moves run on the
+      emphasized curve and hand-offs decelerate.
+   3. Red means the one action and the selection. Filled red is the primary
+      action; signal red is accent text; state layers are tints of the ink,
+      never shadows (scripts/check_design_tokens.mjs).
+   Corners stay on the host shape scale and shadows stay off. */
+
+@font-face {
+  font-family: "Martian Mono 42";
+  src: url("../assets/fonts/martian-mono-variable.woff2") format("woff2");
+  font-weight: 300 600;
+  font-stretch: 75% 112.5%;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root,
+.oi-product,
+.rail42 {
+  --cr-face: "Archivo 42", Arial, Helvetica, sans-serif;
+  --cr-mono: "Martian Mono 42", Consolas, "Courier New", monospace;
+  --font-sans: var(--cr-face);
+  --font-serif: var(--cr-face);
+  --font-provenance: var(--cr-mono);
+  --sans: var(--cr-face);
+  --serif: var(--cr-face);
+  --mono: var(--cr-mono);
+  --data-mono: var(--cr-mono);
+  --nd-face: var(--cr-face);
+
+  /* M3 motion on the package's own move names. */
+  --motion-control: 100ms;
+  --motion-row: 150ms;
+  --motion-layer: 250ms;
+  --motion-handoff: 400ms;
+  --motion-draw: 900ms;
+  --motion-standard-easing: cubic-bezier(0.2, 0, 0, 1);
+  --motion-handoff-easing: cubic-bezier(0.05, 0.7, 0.1, 1);
+
+  /* Label sizes for the mono face; tokens so the size gate stays at zero. */
+  --cr-t-label: 11px;
+  --cr-t-meta: 12px;
+  --cr-track: 0.08em;
+}
+
+/* State layers: the hover tint is 8% of the ink, the pressed and selected
+   tint 10%, the M3 values. */
+:root[data-dir="midnight"],
+[data-dir="midnight"],
+.oi-product[data-dir="midnight"] {
+  --cr-hover: color-mix(in srgb, var(--ink) 8%, transparent);
+  --cr-select: color-mix(in srgb, var(--accent) 16%, transparent);
+  --cr-rule: #2A141A;
+  --cr-rule-strong: #6C5B5D;
+  --cr-field: #8A0012;
+}
+:root[data-dir="daylight"],
+[data-dir="daylight"],
+.oi-product[data-dir="daylight"] {
+  --cr-hover: color-mix(in srgb, var(--ink) 6%, transparent);
+  --cr-select: color-mix(in srgb, var(--accent) 10%, transparent);
+  --cr-rule: #E6D7D3;
+  --cr-rule-strong: #958385;
+}
+
+html:root body { font-family: var(--cr-face); }
+html:root .oi-product,
+html:root .rail42 { font-family: var(--cr-face); font-stretch: 100%; }
+
+/* ---------- Shell ---------- */
+html:root .app .instrument-shell { border-top-color: var(--accent); }
+html:root .instrument-utility-strip {
+  background: var(--canvas);
+  border-bottom: 1px solid var(--cr-rule);
+}
+html:root .instrument-masthead-mark { position: relative; padding-inline-end: 10px; }
+html:root .instrument-masthead-mark::after {
+  content: "";
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-end: 2px;
+  inline-size: 7px;
+  block-size: 7px;
+  background: var(--accent);
+}
+html:root .instrument-masthead-identity,
+html:root .rail42 .rail42-group-title {
+  font-family: var(--cr-mono);
+  font-size: var(--cr-t-label);
+  font-weight: 500;
+  font-stretch: 100%;
+  letter-spacing: var(--cr-track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+html:root .rail42 {
+  background: var(--canvas-2, var(--canvas));
+  border-inline-end: 1px solid var(--cr-rule);
+}
+html:root .rail42 .rail42-link,
+html:root .rail42 .rail42-more-button {
+  font-weight: 500;
+  color: var(--ink-2, var(--ink));
+  transition: background-color var(--motion-row) var(--motion-standard-easing), color var(--motion-row) var(--motion-standard-easing);
+}
+html:root .rail42 .rail42-link:hover,
+html:root .rail42 .rail42-more-button:hover { background: var(--cr-hover); color: var(--ink); }
+/* The rail keeps its own law: the current page is marked in ink and only
+   the focus ring is red (route-focus test). */
+html:root .rail42 .rail42-link[aria-current="page"] {
+  border-inline-start-color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* ---------- Headlines: posters by width ---------- */
+html:root .oi-product .t42 .t42-headline .t42-headline-term,
+html:root .oi-product .t42 .t42-lead-value,
+html:root .oi-product .t42 .tc-big-lead .tc-big-value { color: var(--accent-text); }
+html:root .oi-product .t42 .t42-lead-panel { border-color: var(--cr-rule); border-top-color: var(--accent); }
+html:root .oi-product .t42-spark .t42-area { fill: color-mix(in srgb, var(--heat-1) 30%, transparent); }
+html:root .oi-product .t42 .tc-big-lead { border-top-color: var(--accent); }
+html:root .oi-product #main-content .t42 .t42-head:has(> .t42-lead) > h1.t42-heading,
+html:root .oi-product .ask42 .ask42-label,
+html:root .oi-product .t42 .t42-glance-unit {
+  font-family: var(--cr-mono);
+  font-size: var(--cr-t-label);
+  font-weight: 500;
+  letter-spacing: var(--cr-track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Today's lead header sits on the field: a low red light rising from the
+   right, painted as a linear wash so nothing reads as a halo or casts a
+   shadow. Other routes reuse .t42-head, so the wash is scoped to the lead. */
+html:root .oi-product .t42 .t42-head:has(> .t42-lead) {
+  align-content: start;
+  background: linear-gradient(100deg, transparent 40%, color-mix(in srgb, var(--cr-field) 26%, transparent));
+}
+html:root[data-dir="daylight"] .oi-product .t42 .t42-head:has(> .t42-lead),
+html:root .oi-product[data-dir="daylight"] .t42 .t42-head:has(> .t42-lead) {
+  background: linear-gradient(100deg, transparent 40%, color-mix(in srgb, var(--accent) 6%, transparent));
+}
+
+/* Market tiles read as instrument panels on the tonal surface. */
+html:root .oi-product .t42 .t42-glance-list { background: var(--cr-rule); border-color: var(--cr-rule); }
+html:root .oi-product .t42 .t42-glance-list > li { background: var(--surface); }
+html:root .oi-product .t42 .t42-glance-market {
+  transition: background-color var(--motion-row) var(--motion-standard-easing);
+}
+html:root .oi-product .t42 .t42-glance-market:hover { background: var(--cr-hover); }
+html:root .oi-product .t42 .t42-glance-market[aria-pressed="true"] { background: var(--cr-select); }
+
+/* Figures and provenance in the mono face. */
+html:root .oi-product :is(.t42-card-meta, .ask42-meta, .t42-glance-facts) {
+  font-family: var(--cr-mono);
+  font-size: var(--cr-t-meta);
+  letter-spacing: 0.02em;
+}
+
+/* ---------- Actions ---------- */
+/* Filled red is the one primary action. */
+html:root .oi-product .ask42 .ask42-submit:not(:disabled),
+html:root .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-action-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 700;
+  transition: background-color var(--motion-control) var(--motion-standard-easing);
+}
+html:root .oi-product .ask42 .ask42-submit:not(:disabled):hover,
+html:root .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-action-primary:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 88%, #000000);
+  color: var(--accent-ink);
+}
+html:root .oi-product .ask42 .ask42-submit:focus-visible,
+html:root .oi-product .t42 :is(.t42-lead-actions, .sc-foot .t42-actions) .t42-action-primary:focus-visible { outline: 2px solid var(--accent-text); outline-offset: var(--focus-offset); }
+
+/* Inputs sit on the lowest surface with a strong outline that turns red. */
+html:root .oi-product .ask42 :is(.ask42-input, .ask42-select) {
+  background: var(--surface-inset, var(--canvas));
+  border: 1px solid var(--cr-rule-strong);
+  color: var(--ink);
+  transition: border-color var(--motion-control) var(--motion-standard-easing);
+}
+html:root .oi-product .ask42 :is(.ask42-input, .ask42-select):hover { border-color: var(--muted); }
+html:root .oi-product .ask42 :is(.ask42-input, .ask42-select):focus-visible { border-color: var(--accent); outline: var(--focus-width, 2px) solid var(--accent); outline-offset: calc(var(--focus-offset) * -1); }
+
+/* Example questions are rows with a state layer and a red lead rule. */
+html:root .oi-product .ask42 .ask42-starter {
+  border-inline-start: 2px solid transparent;
+  transition: background-color var(--motion-row) var(--motion-standard-easing), border-color var(--motion-row) var(--motion-standard-easing);
+}
+html:root .oi-product .ask42 .ask42-starter:hover { background: var(--cr-hover); border-inline-start-color: var(--accent); }
+html:root .oi-product .ask42 .ask42-starter:focus-visible { border-inline-start-color: var(--accent); outline: 2px solid var(--accent-text); outline-offset: calc(var(--focus-offset) * -1); }
+
+html:root .oi-product .ask42 .ask42-claim-text,
+html:root .oi-product .ask42 .ask42-list li,
+html:root .oi-product .t42 .t42-post-text { font-family: var(--cr-face); }
+
+html:root .rail42 .rail42-version-button { font-family: var(--cr-mono); font-size: var(--cr-t-label); letter-spacing: 0.02em; }
+
+/* Selected tabs take the red selection tint and a red base rule instead of
+   an ink fill, so ink stays text and red stays the selection. */
+html:root .oi-product .t42 .t42-tabs .t42-tab[aria-selected="true"] {
+  background: var(--cr-select);
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* Ask's research view reads as the LED field: the grid becomes a matrix of
+   square cells lit in red, under the same sweep and pulse the motion law
+   already names. */
+html:root .oi-product .ask42-scan-panel { background: var(--surface-inset, var(--canvas)); border-color: var(--cr-rule-strong); }
+html:root .oi-product .ask42-scan-field {
+  background:
+    linear-gradient(90deg, transparent 9px, var(--surface-inset, var(--canvas)) 9px),
+    linear-gradient(0deg, transparent 9px, var(--surface-inset, var(--canvas)) 9px),
+    color-mix(in srgb, var(--accent) 22%, transparent);
+  background-size: 12px 12px;
+}
+html:root .oi-product :is(.ask42-scan-clock, .ask42-scan-step-label, .ask42-log-times) { font-family: var(--cr-mono); font-size: var(--cr-t-meta); }
+html:root .oi-product .ask42-scan-counts dd { font-family: var(--cr-face); font-weight: 800; font-stretch: 62%; }
+
+/* Discover's chips follow the tab rule: the pressed chip takes the red
+   selection tint and a red base, not an ink fill. */
+html:root .oi-product :is(.d42-chip[aria-pressed="true"], .d42-chip[aria-selected="true"]) {
+  color: var(--ink);
+  background: var(--cr-select);
+  border-color: var(--accent);
+}
+
+/* The LED field (ui/LedField.jsx). Its box lives in today-story.css, which
+   lands with the route, so a cold load never lays the canvas out at its
+   intrinsic size. Here it fades out at the left, the top, the foot and the panel
+   side, runs on under a panel that lets it through faintly, and fades in
+   once, only for a reader who has not asked for less motion. */
+html:root .oi-product .t42 .t42-led-field {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 35%, #000 88%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 35%, #000 88%, transparent);
+  mask-composite: intersect;
+}
+html:root[data-dir="daylight"] .oi-product .t42 .t42-led-field {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 60%, #000 88%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 60%, #000 88%, transparent);
+}
+html:root .oi-product .t42 .t42-head > .t42-lead > .t42-lead-panel { background: color-mix(in srgb, var(--surface) 92%, transparent); }
+@media (prefers-reduced-motion: no-preference) {
+  html:root .oi-product .t42 .t42-led-field { animation: crLedIgnite var(--motion-handoff) var(--motion-handoff-easing) both; }
+}
+@keyframes crLedIgnite { from { opacity: 0; } to { opacity: 1; } }
+/* The chart is a data surface, so its plot box keeps an opaque ground and
+   the field never shows through as a mark. */
+html:root .oi-product .t42 .t42-lead-panel .t42-spark[data-wide] { background: var(--surface); }

@@ -289,14 +289,19 @@ def test_plan_r9_the_module_read_runs_without_bytecode_and_the_form_without_it_i
     assert plan.matching_entries(["py", "-3.13", "-m", "core.setup.release.declared_env_removals", "--service", "f42-agent"]) == []
 
 
+def swapped(call, old, new):
+    return [new if a == old else a for a in call]
+
+
 AGENT_REAL = ["run", "deploy", "f42-agent", "--project", "ogilvy-trends-v2", "--region", "us-central1", "--image", "r/f42-web@sha256:" + "ab" * 32,
               "--revision-suffix", RID, "--tag", RID, "--no-traffic", "--service-account", "f42-agent@ogilvy-trends-v2.iam.gserviceaccount.com",
               "--min-instances", "1", "--max-instances", "1", "--no-cpu-throttling", "--timeout", "3600", "--memory", "1Gi",
               "--update-env-vars", "A=1,B=2", "--set-secrets", "S=S:latest"]
 API_REAL = ["run", "deploy", "f42-api", "--project", "ogilvy-trends-v2", "--region", "us-central1", "--image", "r/f42-web@sha256:" + "ab" * 32,
             "--revision-suffix", RID, "--tag", RID, "--no-traffic", "--service-account", "f42-web@ogilvy-trends-v2.iam.gserviceaccount.com",
-            "--no-invoker-iam-check", "--min-instances", "1", "--max-instances", "3", "--timeout", "3600",
+            "--no-invoker-iam-check", "--min-instances", "1", "--max-instances", "3", "--timeout", "3600", "--memory", "1Gi",
             "--update-env-vars", "A=1,B=2", "--set-secrets", "S=S:latest"]
+API_WITHOUT_MEMORY = [a for i, a in enumerate(API_REAL) if a != "--memory" and API_REAL[i - 1] != "--memory"]
 
 
 def equals_form(call, flags):
@@ -313,6 +318,8 @@ def equals_form(call, flags):
 
 def test_plan_r4_the_two_real_deploy_forms_are_allowed_and_equals_forms_parse():
     assert plan.deploy_call_allowed(AGENT_REAL) and plan.deploy_call_allowed(API_REAL)
+    # f42-api carries --memory 1Gi since 22 Oct 2026; a deploy without it is still a valid call, the readback holds the size.
+    assert plan.deploy_call_allowed(API_WITHOUT_MEMORY) and "--memory" not in API_WITHOUT_MEMORY
     assert plan.deploy_call_allowed(AGENT_REAL + ["--remove-env-vars", "ONE_NAME,TWO_NAME"])
     assert plan.deploy_call_allowed(AGENT_REAL + ["--remove-env-vars=ONE_NAME,TWO_NAME"])
     valued = {"--min-instances", "--max-instances", "--timeout", "--memory", "--image", "--tag", "--update-env-vars"}
@@ -329,15 +336,13 @@ def test_plan_r4_the_two_real_deploy_forms_are_allowed_and_equals_forms_parse():
     AGENT_REAL + ["--allow-unauthenticated"], AGENT_REAL + ["--allow-unauthenticated=true"], AGENT_REAL + ["--to-latest"],
     AGENT_REAL + ["--no-traffic=false"], AGENT_REAL + ["--cpu=8"], AGENT_REAL + ["--vpc-connector", "x"], AGENT_REAL + ["--min-instances", "1"],
     AGENT_REAL + ["--update-env-vars", "C=3"], AGENT_REAL + ["stray-positional"], API_REAL + ["--no-cpu-throttling"], API_REAL + ["--memory", "1Gi"],
+    API_REAL + ["--memory=2Gi"], swapped(API_REAL, "1Gi", "1G"), swapped(API_REAL, "1Gi", "lots"), swapped(AGENT_REAL, "1Gi", "0Gi"),
+    API_WITHOUT_MEMORY + ["--memory"],
     [a for a in AGENT_REAL if a != "--no-traffic"], AGENT_REAL + ["--min-instances"],
     [a.replace(RID, "latest") if a == RID else a for a in AGENT_REAL],
 ])
 def test_plan_r4_a_flag_outside_the_positive_list_or_used_twice_or_on_the_wrong_service_is_refused(call):
     assert not plan.deploy_call_allowed(call)
-
-
-def swapped(call, old, new):
-    return [new if a == old else a for a in call]
 
 
 SA_AGENT = "f42-agent@ogilvy-trends-v2.iam.gserviceaccount.com"

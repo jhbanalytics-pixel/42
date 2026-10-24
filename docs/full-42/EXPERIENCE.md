@@ -4,7 +4,7 @@
 
 ## Navigation
 
-Rail: Today, Ask, Discover, Compare, Investigations, Dossiers. At the foot: History, Alerts, Coverage. Everything else (Seeds, Seed path, Map, Board, Listen, Network, Lexicon, Browse, Method) moves under More; nothing is deleted. Ask gets its own route #/ask (#/console?work=ask stays as an alias). Themes: Light (default), Dark, Match system.
+Rail: Today, Ask, Discover, Compare, Investigations, Dossiers. At the foot: History, Alerts, Coverage. Everything else (Seeds, Seed path, Map, Board, Listen, Network, Lexicon, Browse, Method) moves under More; nothing is deleted. Ask gets its own route #/ask (#/console?work=ask stays as an alias). Themes: Dark (default since the Control room look, October 2026), Light, Match system.
 
 Type: four sizes only, 13, 16, 21 and 32 px; Recursive at 400 and 600; Newsreader for one moment per screen (the short answer, the brief's finding sentence). Red marks the one primary action, never direction or alarm.
 

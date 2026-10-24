@@ -139,6 +139,8 @@ def test_measured_lanes_rank_before_search_presence_then_engagement():
     add_post(con, "p_search_low", "c5", utc(day(1), 9), 3, sightings=[("exploration", "search_presence")])
     pack, *_ = build(con)
     assert ids(pack) == ["p_panel", "p_mixed", "p_rank", "p_search", "p_search_low"]
+    # 22 Oct 2026: each record says whether a measured lane sighted it, a model-only mark the order already reads.
+    assert [e["measured"] for e in pack["evidence"]] == [True, True, True, False, False]
 
 
 def test_evidence_record_has_the_contract_fields_and_flags():
@@ -169,13 +171,77 @@ def test_evidence_record_has_the_contract_fields_and_flags():
         "flags": ["flagged", "sponsored", "near_duplicate"], "thumbnail_url": "https://t.example/p1.jpg",
         "duration_s": 21.0, "creator_tier": "mid", "sponsor_checked": True, "outlet_class": "creator",
         "sound_id": "7301234567890", "formats": ["dance", "duet"],
+        "screen_text": None, "video_format": None, "video_sound": None, "board_only": False, "creator_id": "c1",
+        "measured": True, "market_member": False,
     }
-    assert set(first) == CONTRACT_FIELDS | {"quote_text", "sponsor_checked", "sound_id", "formats"}
+    assert set(first) == CONTRACT_FIELDS | {"quote_text", "sponsor_checked", "sound_id", "formats", "screen_text",
+                                            "video_format", "video_sound", "board_only", "creator_id", "measured",
+                                            "market_member"}
     assert len(first["text"]) == 280 and len(first["quote_text"]) == 450
     assert second["text"] == "caption words" and second["quote_text"] == "caption words"
     assert second["market"] is None and second["flags"] == ["market_assumed"]
     assert second["sponsor_checked"] is True
     assert second["sound_id"] == "7301234567890" and second["formats"] == []
+
+
+def test_the_video_steps_screen_text_format_and_sound_reach_the_record_as_model_only_fields():
+    # 18 Oct 2026: post_enrichment held screen_text and video_notes for read clips and the pack never read them.
+    con = world()
+    add_post(con, "p_read", "c1", utc(day(1), 9), 500, text="caption only")
+    add_post(con, "p_odd", "c2", utc(day(1), 10), 400, text="caption two")
+    add_post(con, "p_bad", "c3", utc(day(1), 11), 300, text="caption three")
+    duck.load(con, "core.post_enrichment", [
+        {"post_id": "p_read", "formats": ["skit"]},
+        {"post_id": "p_read", "screen_text": "  WHEN THE BOSS WALKS IN  ",
+         "video_notes": json.dumps({"format": "skit", "hook": "a door opens", "on_screen_text": "x",
+                                    "sound": "  trending amapiano\n track ", "read_from": "youtube"})},
+        {"post_id": "p_odd", "screen_text": "   ", "video_notes": json.dumps({"format": "sitcom", "sound": ""})},
+        {"post_id": "p_bad", "screen_text": "legible", "video_notes": "{not json"}])
+    pack, *_ = build(con)
+    by_id = {e["id"]: e for e in pack["evidence"]}
+    assert (by_id["p_read"]["screen_text"], by_id["p_read"]["video_format"], by_id["p_read"]["video_sound"]) == (
+        "WHEN THE BOSS WALKS IN", "skit", "trending amapiano track")
+    # The caption stays the text a quote is checked against; the formats list is the enrich model's, as before.
+    assert by_id["p_read"]["text"] == by_id["p_read"]["quote_text"] == "caption only"
+    assert by_id["p_read"]["formats"] == ["skit"]
+    # A format outside the list and blank values read as none; an unreadable note reads as no note, the screen text stays.
+    assert (by_id["p_odd"]["screen_text"], by_id["p_odd"]["video_format"], by_id["p_odd"]["video_sound"]) == (
+        None, None, None)
+    assert (by_id["p_bad"]["screen_text"], by_id["p_bad"]["video_format"], by_id["p_bad"]["video_sound"]) == (
+        "legible", None, None)
+    from core.brief.payload import MODEL_ONLY_FIELDS, reader_evidence
+    assert {"screen_text", "video_format", "video_sound"} <= set(MODEL_ONLY_FIELDS)
+    assert not {"screen_text", "video_format", "video_sound", "sound_id", "formats"} & set(
+        reader_evidence(pack["evidence"])[0])
+
+
+def test_a_post_sighted_only_on_the_youtube_trending_board_is_marked_board_only():
+    # 18 Oct 2026: marked for the writer and the critic; it stays local by the same rules and the card keeps its shape.
+    con = world()
+    add_post(con, "p_board", "c1", utc(day(1), 9), 900, geo_market="ZA", geo_confidence=0.9)
+    add_post(con, "p_mixed", "c2", utc(day(1), 10), 800, geo_market="ZA", geo_confidence=0.9)
+    add_post(con, "p_feed", "c3", utc(day(1), 11), 700, geo_market="ZA", geo_confidence=0.9)
+    con.execute("UPDATE core.post_observations SET series = 'board_youtube' WHERE post_id IN ('p_board', 'p_mixed')")
+    duck.load(con, "core.post_observations", [{
+        "post_id": "p_mixed", "observed_at": utc(D, 12), "observed_date": D, "market": "ZA", "platform": "tiktok",
+        "lane": "sweep", "lane_class": "unbiased_rank", "series": "feed_tiktok", "run_id": rid("collect", D)}])
+    pack, *_ = build(con)
+    by_id = {e["id"]: e for e in pack["evidence"]}
+    assert {i: e["board_only"] for i, e in by_id.items()} == {"p_board": True, "p_mixed": False, "p_feed": False}
+    assert by_id["p_board"]["market"] == "ZA"  # still located, still local
+    from core.brief.payload import reader_evidence
+    assert not any("board_only" in e for e in reader_evidence(pack["evidence"]))
+
+
+def test_the_packs_video_format_list_is_the_video_steps_own():
+    from core.understand import video
+
+    assert evidence.VIDEO_FORMATS == tuple(video.FORMATS)
+    assert evidence.SCREEN_TEXT_MAX_CHARS == video.MAX_SCREEN_TEXT_CHARS
+    assert evidence._video_notes({"video_notes": json.dumps(["a list"])}) == (None, None)
+    assert evidence._video_notes({"video_notes": None}) == (None, None)
+    assert evidence._video_notes({"video_notes": json.dumps({"format": "dance", "sound": "x" * 400})}) == (
+        "dance", "x" * evidence.VIDEO_SOUND_MAX_CHARS)
 
 
 @pytest.mark.parametrize("market,offset", [("NG", "+01:00"), ("KE", "+03:00")])

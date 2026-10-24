@@ -77,6 +77,8 @@ SA = {"f42-agent": "f42-agent@ogilvy-trends-v2.iam.gserviceaccount.com", "f42-ap
 SCALE = {"f42-agent": {"autoscaling.knative.dev/minScale": "1", "autoscaling.knative.dev/maxScale": "1",
                        "run.googleapis.com/cpu-throttling": "false"},
          "f42-api": {"autoscaling.knative.dev/minScale": "1", "autoscaling.knative.dev/maxScale": "3"}}
+# The resources live before the services release of 23 Oct 2026. A candidate deploy carries the memory deploy_flags.env declares
+# (so.declared_memory), which raises f42-api to 1Gi; Release A and every release before it left f42-api at 512Mi.
 RESOURCES = {"f42-agent": {"limits": {"cpu": "1000m", "memory": "1Gi"}}, "f42-api": {"limits": {"cpu": "1000m", "memory": "512Mi"}}}
 ACCESS = {"f42-agent": {"run.googleapis.com/ingress": "all"},
           "f42-api": {"run.googleapis.com/ingress": "all", "run.googleapis.com/invoker-iam-disabled": "true"}}
@@ -89,9 +91,9 @@ def env_entries(env):
     return [{"name": k, **(v if isinstance(v, dict) else {"value": v})} for k, v in env.items()]
 
 
-def revision_raw(name, service, image, digest, env, annotations=None):
+def revision_raw(name, service, image, digest, env, annotations=None, resources=None):
     return {"metadata": {"name": name, "annotations": {**SCALE[service], **(annotations or {})}},
-            "spec": {"containers": [{"image": image, "env": env_entries(env), "resources": copy.deepcopy(RESOURCES[service])}],
+            "spec": {"containers": [{"image": image, "env": env_entries(env), "resources": copy.deepcopy(resources or RESOURCES[service])}],
                      "serviceAccountName": SA[service], "timeoutSeconds": 3600},
             "status": {"imageDigest": f"{REPO}@{digest}", "conditions": copy.deepcopy(READY)}}
 
@@ -123,7 +125,7 @@ class World:
             self.svc[name] = {"annotations": dict(ACCESS[name]), "tmpl_ann": dict(SCALE[name]), "image": f"{REPO}:{A80_VERSION}",
                               "env": copy.deepcopy(env), "traffic": [{"latestRevision": True, "percent": 100}],
                               "latest_created": rev, "latest_ready": rev, "sa": SA[name], "timeout": 3600,
-                              "url": CANON[name]}
+                              "url": CANON[name], "resources": copy.deepcopy(RESOURCES[name])}
         self.jobs = {name: job_raw(name, jobs_digest) for name in so.JOB_NAMES}
         self.policy = copy.deepcopy(POLICY)
         self.config = {"core": {"account": CALLER, "project": PROJECT}}
@@ -139,7 +141,7 @@ class World:
         """Release A's candidates deployed and promoted, the agent first: both services serve A by name at 100% with A's tag kept, and the
         API names A's agent tag URL with the canonical audience. The revisions the serving ones are pinned back to are now A's."""
         for name in so.SERVICES:
-            self.deploy_candidate(name, rid=A_RID, digest=A_DIGEST, version=A_SHORT12)
+            self.deploy_candidate(name, rid=A_RID, digest=A_DIGEST, version=A_SHORT12, memory=RESOURCES[name]["limits"]["memory"])
         for name in so.SERVICES:
             self.promote(name, rid=A_RID)
         self.base_rev = dict(A_REV)
@@ -159,7 +161,7 @@ class World:
         return {"metadata": {"name": name, "annotations": dict(st["annotations"])},
                 "spec": {"template": {"metadata": {"annotations": dict(st["tmpl_ann"])},
                                       "spec": {"containers": [{"image": st["image"], "env": env_entries(st["env"]),
-                                                               "resources": copy.deepcopy(RESOURCES[name])}],
+                                                               "resources": copy.deepcopy(st["resources"])}],
                                                "serviceAccountName": st["sa"], "timeoutSeconds": st["timeout"]}},
                          "traffic": [{k: v for k, v in e.items() if k != "_url"} for e in st["traffic"]]},
                 "status": {"url": st["url"], "traffic": status_traffic, "latestCreatedRevisionName": st["latest_created"],
@@ -174,8 +176,12 @@ class World:
             self.svc[n]["traffic"] = [{"revisionName": base, "percent": 100, **({"tag": kept["tag"]} if kept else {})},
                                       *[e for e in tagged if e is not kept]]
 
-    def deploy_candidate(self, name, *, env_override=None, remove_env=(), digest=CAND_DIGEST, rid=RID, version=SHORT12):
+    def deploy_candidate(self, name, *, env_override=None, remove_env=(), digest=CAND_DIGEST, rid=RID, version=SHORT12, memory=None):
+        """memory: the --memory the deploy passes; by default the one deploy_flags.env declares, as deploy_candidate.sh passes it."""
         st = self.svc[name]
+        memory = memory or so.declared_memory(name)
+        if memory:
+            st["resources"] = {**st["resources"], "limits": {**st["resources"]["limits"], "memory": memory}}
         env = copy.deepcopy(st["env"])
         env["F42_VERSION"] = version
         if name == "f42-api":
@@ -185,7 +191,7 @@ class World:
             env.pop(key, None)
         env.update(env_override or {})
         rev = f"{name}-{rid}"
-        self.revisions[rev] = revision_raw(rev, name, f"{REPO}@{digest}", digest, env)
+        self.revisions[rev] = revision_raw(rev, name, f"{REPO}@{digest}", digest, env, resources=st["resources"])
         st.update(image=f"{REPO}@{digest}", env=env, latest_created=rev, latest_ready=rev)
         st["traffic"].append({"revisionName": rev, "percent": 0, "tag": rid})
         self.revision_names[name].append(rev)

@@ -47,9 +47,12 @@ export function builtRelease(){
 }
 
 /* A heading "## 2.2.0 (11 October 2026)", one line naming the release, then
-   one "- " line per change. A "### Jobs update (date)" heading under a
-   version opens a dated jobs entry with its own lines. Anything before the
-   first heading is the numbering rule and is not shown. */
+   one "- " line per change. Since the ruling of 22 October 2026 every
+   release, jobs only ones included, has its own version heading. A "### Jobs
+   update (date)" heading under a version is history (the jobs update of
+   12 October 2026 under 2.3.0) and still opens a dated jobs entry with its
+   own lines. Anything before the first heading is the numbering rule and is
+   not shown. */
 export function parseChangelog(text){
   const releases = [];
   let into = null;
@@ -66,7 +69,7 @@ export function parseChangelog(text){
     if (!current || !line) continue;
     const update = line.match(UPDATE);
     if (update){
-      into = {title: update[1], when: update[2], lines: []};
+      into = {title: update[1], when: update[2].charAt(0).toUpperCase() + update[2].slice(1), lines: []};
       current.updates.push(into);
       continue;
     }

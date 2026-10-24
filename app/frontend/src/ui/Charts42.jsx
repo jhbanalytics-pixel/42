@@ -57,22 +57,26 @@ function HiddenTable({columns, rows}){
 const said = (v, unit) => (num(v) ? readerFigure(v) + (unit ? ' ' + unit : '') : 'not measured');
 
 /* rows: [{key, label, value, note?, queryId?, focus?}]. Bars run from zero to
-   the largest measured value; a row with no measure says so in place of a bar. */
-export function BarList({title, caption, rows, unit = '', data}){
+   the largest measured value; a row with no measure says so in place of a bar.
+   suffix is written straight after each value, as in 33.5%. */
+/* scale, when given, is the value a full bar stands for (100 for shares in
+   percent), so a 4% figure is not drawn as a full bar; without it bars are
+   drawn against the largest value. */
+export function BarList({title, caption, rows, unit = '', suffix = '', data, scale}){
   const measured = rows.filter((r) => num(r.value));
   if (measured.length === 0) return null;
-  const max = Math.max(...measured.map((r) => r.value), 1);
+  const max = num(scale) && scale > 0 ? scale : Math.max(...measured.map((r) => r.value), 1);
   return (
     <Frame title={title} caption={caption} className="ch42-barlist" data={data}
-      table={<HiddenTable columns={['', unit || 'value']} rows={rows.map((r) => [r.label, said(r.value, unit)])} />}>
+      table={<HiddenTable columns={['', unit || 'value']} rows={rows.map((r) => [r.label, num(r.value) && suffix ? readerFigure(r.value) + suffix : said(r.value, unit)])} />}>
       <ol className="ch42-bars" aria-hidden="true">
         {rows.map((r, i) => (
           <li key={r.key || r.label} className={'ch42-bar-row' + (r.focus ? ' is-focus' : '')}>
             <span className="ch42-bar-label">{r.label}</span>
             {num(r.value)
-              ? <span className="ch42-bar-track"><span className="ch42-bar-fill" style={{'--share': r.value / max, '--row': i}} {...(r.queryId ? {'data-query-id': r.queryId} : {})} /></span>
+              ? <span className="ch42-bar-track"><span className="ch42-bar-fill" style={{'--share': Math.min(Math.max(r.value / max, 0), 1), '--row': i}} {...(r.queryId ? {'data-query-id': r.queryId} : {})} /></span>
               : <span className="ch42-bar-none">Not measured</span>}
-            <span className="ch42-bar-value">{num(r.value) ? readerFigure(r.value) : ''}{r.note ? <span className="ch42-bar-note"> {r.note}</span> : null}</span>
+            <span className="ch42-bar-value">{num(r.value) ? readerFigure(r.value) + suffix : ''}{r.note ? <span className="ch42-bar-note"> {r.note}</span> : null}</span>
           </li>
         ))}
       </ol>

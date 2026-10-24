@@ -77,7 +77,7 @@ from typing import Any
 import pandas as pd
 import requests
 
-from src.ingestion.connectors.base import RAW_COLUMNS, BaseConnector
+from src.ingestion.connectors.base import RAW_COLUMNS, BaseConnector, refuse_redirect
 from src.utils.config_loader import load_sources
 
 BRAND24_BASE_URL = "https://api-data.brand24.com"
@@ -897,7 +897,9 @@ class Brand24Connector(BaseConnector):
                     headers=headers,
                     params=params or {},
                     timeout=REQUESTS_TIMEOUT_SECONDS,
+                    allow_redirects=False,  # the X-Api-Key header would follow a redirect to any origin
                 )
+                refuse_redirect(resp)
                 resp.raise_for_status()
             except requests.exceptions.HTTPError as exc:
                 status = getattr(exc.response, "status_code", None)

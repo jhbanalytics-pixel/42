@@ -31,7 +31,8 @@ CAP_BEFORE_EXPIRY = datetime(2026, 10, 2, 21, 59, 59, tzinfo=timezone.utc)
 CAP_AFTER_EXPIRY = datetime(2026, 10, 2, 22, 0, tzinfo=timezone.utc)
 USAGE = {"input_tokens": 1000, "output_tokens": 200, "usd": 0.01}
 RESULT_KEYS = {"explanation", "explanation_claim_ids", "claims", "numbers_only", "reason", "usage_usd", "checks",
-               "error", "local_why_now_checked", "specificity", "news_driven", "critic", "title_written"}
+               "error", "local_why_now_checked", "why_now_inferred", "specificity", "news_driven", "critic",
+               "title_written"}
 
 
 def post(eid, platform, handle, text, posted_at="2026-09-26T19:40:00+02:00"):
@@ -408,7 +409,7 @@ def test_checks_hold_code_rows_for_every_claim_and_a_support_row_per_claim():
         support = [r for r in rows if r["claim_id"] == cid and r["rule"] == "K4"]
         assert len(support) == 1 and support[0]["verdict"] == "pass" and support[0]["checker"] == "model"
     base = {"claim_id", "rule", "verdict", "checker", "detail"}
-    assert all(set(r) == base | ({"standing", "local_why_now"} if r["rule"] == "critic" else set()) for r in rows)
+    assert all(set(r) == base | (CRITIC_ROW_KEYS if r["rule"] == "critic" else set()) for r in rows)
 
 
 def test_conditional_watch_question_is_allowed_under_k9():
@@ -596,7 +597,8 @@ def test_support_prompt_carries_each_cited_posts_fields_and_whether_it_is_the_ea
     c2_call = next(c for c in model.support_calls() if "earliest post" in c["user"])
     assert heads(c2_call["user"]) == [{"id": "tt_1", "platform": "tiktok", "posted_at": "2026-09-25T08:10:00+02:00",
                                        "market": "ZA", "source_market": None, "creator_tier": "mid",
-                                       "formats": None, "sound": None, FLAG: True}]
+                                       "formats": None, "video_format": None, "sound": None, "creator": "creator A",
+                                       FLAG: True}]
     assert "@thandi_moves" in c2_call["user"] and "@thandi_moves" not in outside_fences(c2_call["user"])
     c3_call = next(c for c in model.support_calls() if "Heritage Day weekend" in c["user"])
     assert [(h["platform"], h[FLAG]) for h in heads(c3_call["user"])] == [("instagram", False),
@@ -1390,7 +1392,9 @@ def test_the_writer_keeps_the_age_law_and_every_earlier_rule_word_for_word():
 def test_the_writer_asks_for_the_earliest_post_in_the_pack_and_never_for_an_origin():
     [ask] = [line for line in writer_lines() if "3 to 5 claims" in line]
     assert ask == ("You write the morning explanation for one trend: 3 to 5 claims from the evidence pack, on what it "
-                   "is, the earliest post in the pack, the platforms its cited posts are on and why now.")
+                   "is, the earliest post in the pack when one post is marked earliest_in_pack true, the platforms its "
+                   "cited posts are on and why now. When no post carries that mark, write no claim about the earliest "
+                   "post.")
     assert ('10 Never say where or when the trend began. Scope earliest wording to the pack: "the earliest post in the '
             'pack". Never write "where it came from", "first appeared", "first seen", "started", "originated" or '
             '"earliest post 42 found".') in writer_lines()
@@ -1409,7 +1413,12 @@ def test_the_writer_names_a_place_only_from_a_cited_posts_market_and_is_told_wha
 def test_the_writer_writes_no_bare_numeral_but_a_pinned_number_and_never_42():
     assert ('8 The only numerals you write are pinned pack numbers and dates. A numeral inside a unit is not pinned, '
             'so write "31 creators in three days", never "in 3 days". Write any other count in words or leave it '
-            'out, and never write 42.') in writer_lines()
+            'out, and never write 42. A year reads as a date only at the start of a sentence, after the, a, in, '
+            'since, of or a possessive, or before a capitalised name, such as "in 2027" or "the 2027 Rugby World '
+            'Cup", never after a name: "World Cup 2027" or "AFCON 2025" is cut as an unpinned number. A numeral '
+            'inside a title or name, such as Part 2, Season 10 or Matric 2026, is not a pinned number either: copy '
+            'it inside an exact quote of at least two words from a cited post, write the name without it, or write '
+            'it in words.') in writer_lines()
 
 
 def test_the_writer_spreads_across_platforms_only_over_the_cited_posts():
@@ -1594,6 +1603,12 @@ def critic_row(result):
     return row
 
 
+# The structured keys a critic row carries beside the base row keys; patterns_seen is the shadow record of the pattern
+# line the critic read, news_driven and scheduled_event the critic's own flags the wording reads, why_now_inferred
+# whether the row passed on code-counted adoption with no post-stated cause (22 Oct 2026).
+CRITIC_ROW_KEYS = {"standing", "local_why_now", "patterns_seen", "news_driven", "scheduled_event", "why_now_inferred"}
+
+
 def test_a_critic_that_rules_out_the_simple_explanation_lets_the_card_publish(monkeypatch):
     model = FakeModel([good()])
     result = run(model, model_id=other_model(monkeypatch))
@@ -1604,7 +1619,7 @@ def test_a_critic_that_rules_out_the_simple_explanation_lets_the_card_publish(mo
     row = critic_row(result)
     assert row["claim_id"] is None and row["verdict"] == "pass" and row["checker"] == "model"
     assert "a paid campaign" in row["detail"] and "adopt the shaya step dance" in row["detail"]
-    assert set(row) == {"claim_id", "rule", "verdict", "checker", "detail", "standing", "local_why_now"}
+    assert set(row) == {"claim_id", "rule", "verdict", "checker", "detail"} | CRITIC_ROW_KEYS
     assert row["standing"] == "ruled out" and row["local_why_now"] is True
 
 
@@ -1972,7 +1987,7 @@ def test_the_critics_answer_is_returned_field_for_field_when_it_passes():
     assert result["critic"] == {"non_cultural_explanation": "a paid campaign", "ruled_out": True,
                                 "news_driven": False, "scheduled_event": False, "local_reaction": False,
                                 "local_why_now": True,
-                                "reason": RULED_OUT["reason"]}
+                                "reason": RULED_OUT["reason"], "patterns_seen": []}
 
 
 def test_the_critics_answer_is_kept_when_it_holds_the_explanation_back():
@@ -1980,7 +1995,7 @@ def test_the_critics_answer_is_kept_when_it_holds_the_explanation_back():
 
     assert held["reason"] == "failed_checks" and held["numbers_only"] is True
     assert held["explanation"] is None and held["claims"] == []
-    assert held["critic"] == dict(NOT_RULED_OUT, scheduled_event=None)
+    assert held["critic"] == dict(NOT_RULED_OUT, scheduled_event=None, patterns_seen=[])
     [row] = [r for r in held["checks"] if r["rule"] == "critic"]
     assert row["verdict"] == "cut"
 
@@ -2081,3 +2096,79 @@ def test_sound_letters_follow_the_pack_as_built_so_a_folded_pack_never_shares_a_
     # One id string on two platforms is two sounds.
     assert len(explain._sound_letters({"evidence": [{"platform": "tiktok", "sound_id": "7"},
                                                     {"platform": "instagram", "sound_id": "7"}]})) == 2
+
+
+def test_a_claim_that_echoes_a_sound_letter_is_cut_and_the_writer_is_told_not_to():
+    # The letters are code labels over the pack, which readers never see (review of PR #5, 16 Oct 2026).
+    draft = good()
+    draft["claims"][1]["text"] = "The earliest post in the pack, by @thandi_moves on 25 September, uses sound A."
+    model = FakeModel([draft])
+    sounded = make_pack()
+    sounded["evidence"][0]["sound_id"] = "7001"
+    result = run(model, pack=sounded)
+    assert any(r["claim_id"] == "c2" and r["rule"] == "K6" and r["verdict"] == "cut" and r["checker"] == "code"
+               and "sound letter" in r["detail"] for r in result["checks"])
+    assert all("sound A" not in (c.get("text") or "") for c in result.get("claims") or [])
+    assert 'never write a sound label such as "sound A"' in model.writer_calls()[0]["user"]
+    pack = {"evidence": [{"platform": "tiktok", "sound_id": str(n)} for n in range(9)]}  # sounds A to I
+    checked = {"claims": [], "short_answer": "Creators reuse sound B for the shaya step."}
+    assert explain._sound_label_rows(checked, pack)[0]["claim_id"] is None and checked["short_answer"] == ""
+    for text in ("Sound A spreads across Soweto.", "Posts use sounds A and B.", 'Two use sound "C".', "On sound-D."):
+        assert explain._sound_label_rows({"claims": [{"id": "c", "text": text}]}, pack), text
+    two = {"evidence": [{"platform": "tiktok", "sound_id": "1"}, {"platform": "tiktok", "sound_id": "2"}]}
+    for text in ("A sound around the braai", "the sound I love", "a sound DJ Maphorisa made", "sound OK",
+                 "Sound C is not one of this pack's letters"):
+        assert explain._sound_label_rows({"claims": [{"id": "c", "text": text}]}, two) == [], text
+    # A post's own words in quotes, checked against the post, are not read for a label, even when the pack has that
+    # letter; the same quote with no post behind it is the writer's own text and is read.
+    quoted = {"id": "c", "text": 'One post says "this sound I can not stop playing".', "evidence_ids": ["tt_1"],
+              "quotes": [{"evidence_id": "tt_1", "text": "this sound I can not stop playing"}]}
+    records = {"tt_1": {"text": "Honestly this sound I can not stop playing"}}
+    assert explain._sound_label_rows({"claims": [quoted]}, pack, records) == []
+    assert explain._sound_label_rows({"claims": [quoted]}, pack)
+    assert explain._sound_label_rows({"claims": [{"id": "c", "text": "sound A"}]}, {"evidence": []}) == []
+
+
+def test_a_sound_letter_between_two_short_straight_quotes_is_still_cut():
+    # A straight quote opens and closes a span, so the stretch between two quoted words is prose, not a quote: the
+    # label there must still be read (audit of PR #17, 17 Oct 2026).
+    two = {"evidence": [{"platform": "tiktok", "sound_id": "1"}, {"platform": "tiktok", "sound_id": "2"}]}
+    for text in ('Creators say "Yo" over sound A and "lekker" after it.', 'Posts say "ja" to sound B, then "eish".',
+                 'Creators reply "lol" on sound A and "fire" too'):
+        assert explain._sound_label_rows({"claims": [{"id": "c", "text": text}]}, two), text
+        checked = {"claims": [], "short_answer": text}
+        assert explain._sound_label_rows(checked, two) and checked["short_answer"] == "", text
+
+
+def test_only_a_quote_checked_against_its_post_is_exempt_from_the_sound_label_cut():
+    two = {"evidence": [{"platform": "tiktok", "sound_id": "1"}, {"platform": "tiktok", "sound_id": "2"}]}
+    records = {"tt_1": {"text": "Everyone dancing to A Night in Lagos this week"},
+               "tt_2": {"text": "sound A is fire honestly"}}
+
+    def claim(text, quote, eid="tt_1"):
+        return {"id": "c", "text": text, "evidence_ids": [eid], "quotes": [{"evidence_id": eid, "text": quote}]}
+
+    # A post's own words, verified, in curly single quotes or double quotes, are not read for a label.
+    for text in ("Creators dance to the sound ‘A Night in Lagos’",
+                 'Creators dance to the sound "A Night in Lagos"'):
+        assert explain._sound_label_rows({"claims": [claim(text, "A Night in Lagos")]}, two, records) == [], text
+    # The same words quoted with no post behind them are the writer's, so the label is cut.
+    unverified = 'Fans say "sound A is fire" here.'
+    assert explain._sound_label_rows({"claims": [claim(unverified, "sound A is fire", "tt_9")]}, two, records)
+    assert explain._sound_label_rows({"claims": [{"id": "c", "text": unverified}]}, two, records)
+    # The sentence is exempt only for quotes verified on a claim it rests on.
+    sentence = 'Fans write "sound A is fire" under the clips.'
+    resting = {**claim("One post says “sound A is fire”.", "sound A is fire", "tt_2"), "id": "c1"}
+    checked = {"claims": [resting], "short_answer": sentence}
+    assert explain._sound_label_rows(checked, two, records, ["c1"]) == [] and checked["short_answer"] == sentence
+    checked = {"claims": [resting], "short_answer": sentence}
+    rows = explain._sound_label_rows(checked, two, records, [])
+    assert [r["claim_id"] for r in rows] == [None] and checked["short_answer"] == ""
+
+
+def test_a_hyphenated_name_after_sound_is_not_a_sound_letter():
+    one = {"evidence": [{"platform": "tiktok", "sound_id": "1"}]}
+    assert explain._sound_label_rows(
+        {"claims": [{"id": "c", "text": "Three posts dance to the new sound A-Reece dropped on Friday."}]}, one) == []
+    for text in ("Creators chase a sound A-led trend.", "A sound A–heavy mix.", "On sound-A."):
+        assert explain._sound_label_rows({"claims": [{"id": "c", "text": text}]}, one), text

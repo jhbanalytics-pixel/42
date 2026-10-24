@@ -22,6 +22,10 @@ def _clean(monkeypatch):
     monkeypatch.setenv("GCP_PROJECT", "test-project")
     monkeypatch.setenv("CACHE_BUCKET", "")
     monkeypatch.setenv("RESEARCH_PERSIST_BACKEND", "gcs")
+    # The durable artifact store, in memory: an artifact id is issued only after a durable write (bq.py).
+    saved = {}
+    monkeypatch.setattr(bq, "_write_research_artifact_durable_gcs", lambda aid, row: saved.update({aid: row}))
+    monkeypatch.setattr(bq, "_read_research_artifact_durable_gcs", saved.get)
     synth._CACHE.clear()
     main._research_hits.clear()
     with main._research_jobs_lock:

@@ -1290,7 +1290,6 @@ def test_quotes_above_a_route_limit_are_refused(route, method, params):
     "route,method,params",
     [
         ("web/batch-scrape", "POST", {"urls": ["https://x.example"] * 500}),  # reviewer reproduction
-        ("reddit/subreddit/search", "GET", {"query": "x", "include_body": "true"}),  # reviewer reproduction
         ("prism/jobs", "POST", {}),
         ("instagram/search/profiles", "GET", {"query": "x"}),
         ("xiaohongshu/search", "GET", {"query": "x"}),
@@ -1324,6 +1323,8 @@ def test_wrong_method_on_a_priced_route_is_refused():
         ("search/everywhere", {"query": "x", "include_transcripts": "true"}),
         ("prism/creator-card", {"handle": "x", "include": "posts"}),
         ("google_news/search", {"keyword": "x", "depth": 100}),
+        # reviewer reproduction: the route is priced for probe.py --candidates, its paid body add-on is not
+        ("reddit/subreddit/search", {"subreddit": "Kenya", "query": "x", "include_body": "true"}),
     ],
 )
 def test_unpriced_parameter_is_refused(route, params):
@@ -2184,3 +2185,12 @@ def test_legitimate_empty_success_remains_a_free_cached_empty_result():
     assert second.items == [] and second.body["success"] is True
     assert second.credits_charged == 0
     assert http.routes().count("tiktok/trending") == 1
+
+
+def test_vendor_warnings_names_a_partly_served_page():
+    from core.collect.socialcrawl_client import vendor_warnings
+
+    assert vendor_warnings({"data": {"items": [], "_warnings": ["continuation_rescued"]}}) == ["continuation_rescued"]
+    assert vendor_warnings({"data": {"_warnings": [{"code": "ratings_unavailable"}, None, 3]}}) == [
+        "ratings_unavailable"]
+    assert vendor_warnings({"data": [1]}) == vendor_warnings(None) == vendor_warnings({"data": {}}) == []

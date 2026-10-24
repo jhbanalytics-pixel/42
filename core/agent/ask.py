@@ -25,11 +25,13 @@ from uuid import uuid4
 from core.agent import answer_state, checks, critic, native_review, plain, skills, timings as timing
 from core.agent.answer import validate_answer
 from core.agent.checks import _text_breaches, _unpinned, check_answer, platform_label, source_gaps, window_text
+from core.agent import figures
 from core.agent.context import TIERS, Refused, RunContext
 from core.agent.ranked import ranked_list
 from core.agent.remaining_lists import entity_lists
 from core.agent.tools import sc_adapter
 from core.agent.tools.dates import SAST, resolve_dates
+from core.agent.tools.article import ARTICLE_ROUTE
 from core.agent.tools.enrich_tools import ENRICH_SHARE
 from core.agent.tools.socialcrawl import (ALLOWED_ROUTES, EVERYWHERE_EXCLUDE, PLATFORM_NAMES, SEARCH_EVERYWHERE,
                                           check_route, normalise_route)
@@ -90,7 +92,8 @@ FAILED_STEPS = {"sql_query": "A warehouse count", "search_posts": "A search of s
                 "budget_status": "Checking the budget", "resolve_dates": "Working out the dates",
                 "get_comments": "Fetching comments", "get_transcript": "Fetching a transcript",
                 "watch_video": "Watching a video", "log_forecast": "Logging a forecast",
-                "history": "Reading the item's history", "analogues": "Finding past analogues"}
+                "history": "Reading the item's history", "analogues": "Finding past analogues",
+                "read_article": "Reading a news article"}
 # The model-written input each tool's step line repeats verbatim. A figure in it is pinned to nothing, so it never shows.
 MODEL_INPUT = {"search_posts": "query", "recall_findings": "query", "sql_query": "purpose", "resolve_dates": "expression"}
 # The writer, support and field-check calls an ask may make after research, for its hold. Output is each call's
@@ -141,6 +144,19 @@ QUESTION_PLATFORMS = (("tiktok", re.compile(r"\btik\s?tok\b", re.I)),
                       ("threads", re.compile(r"\bThreads\b")),
                       ("x", re.compile(r"\btwitter\b|\btweets?\b", re.I)),
                       ("x", re.compile(r"\b(?:[Oo]n|[Ff]rom)\s+X(?![\w-])")))
+# A question that asks for figures (figures.quantitative_question): what research is told, by code.
+QUANT_NOTE = ("This question asks for figures. Find the sources that state them: search news (google_news/search, whose "
+              "search term is keyword) and posts by news outlets, pollsters and journalists, in two or three wordings, "
+              "and open the articles that report figures with read_article. Code lists the percentages the sources "
+              "state, checked word for word, beside the answer; the claims say what the sources are and what they "
+              "cover. A source that names a poll without its figures is not a figure.")
+FIGURES_FAILED = "The figures the sources report could not be listed, so this answer shows none"
+FIGURES_NO_ROOM = ("The question's model budget had no room left to list the figures the sources report, so this answer "
+                   "shows none")
+FIGURES_STOPPED = ("The run was stopped while the figures the sources report were being listed, so this answer shows "
+                   "none; the checked answer stands")
+FIGURES_SWEEP_FAILED = ("Stored posts that state a percentage could not be read this time, so any figures shown come only "
+                        "from the sources the research read; a failed read is not evidence that none exist")
 TRENDING_FALLBACK_NOTICE = "Today's board is empty, so this uses the last 7 days"
 TRENDING_BOARD_READ_FAILED = "Today's published board could not be read; fallback was not used."
 TRENDING_POSTS_READ_FAILED = "Located posts in the last 7 days could not be read; fallback was not used."
@@ -187,6 +203,15 @@ def recorded(ask_id) -> None:
         if held is not None:
             for reading in _READING:
                 _READING[reading] += held[1]
+
+
+def spend_day(ask_id) -> date | None:
+    """The SAST day an ask's model spend was held and counted against (its cap decision's day), while its runs row is
+    not yet recorded: agent_app.sink writes it as the row's run_date, so the row lands on the day the cap read and
+    the hold used, even for an ask created before SAST midnight and admitted after it (audit F7D-ASK-004)."""
+    with _SPEND_LOCK:
+        held = _UNRECORDED.get(ask_id)
+    return held[0] if held is not None else None
 
 
 def _unrecorded_usd(day: date) -> float:
@@ -593,6 +618,8 @@ def _describe(name: str, tool_input: dict, progress: Progress) -> tuple[str, str
         return "plan", f"Working out the dates for '{tool_input.get('expression')}'", None
     if name == "watch_video":  # the question is model-written, so the line never repeats it
         return "read", "Watching a video post", None
+    if name == "read_article":
+        return "read", "Reading a news article in full", None
     return "note", f"Using {name}", None
 
 
@@ -948,6 +975,11 @@ def hold_usd(tier: str, model: str) -> float:
     return TIERS[tier]["max_budget_usd"] + gate_usd(model, CRITIC_CALLS)
 
 
+def figures_usd(model: str) -> float:
+    """The one figure-listing call a quantitative question makes (figures.extract_figures)."""
+    return call_usd(model, figures.FIGURES_INPUT_TOKENS, figures.FIGURES_MAX_TOKENS)
+
+
 def researcher_usd() -> float:
     """One T2 research loop's USD budget: the tier's research budget over the most loops an ask runs, every
     first-round researcher and the gap researcher."""
@@ -966,17 +998,33 @@ def platform_groups(markets: list[str], most: int | None = None,
     return picked[:most or min(MAX_RESEARCHERS, MIN_RESEARCHERS + len(markets))]
 
 
+def _route_label(route: str) -> str:
+    """A live route as a reader names it: its platform group's label (google_news, search and web/scrape read as
+    the news lane), else the platform's own label. Never a route id."""
+    if route == ARTICLE_ROUTE:
+        return GROUP_LABELS["news"]
+    prefix = route.split("/", 1)[0]
+    group = next((g for g, prefixes in PLATFORM_GROUPS.items() if prefix in prefixes), None)
+    return GROUP_LABELS[group] if group is not None else platform_label(prefix)
+
+
 def group_routes(group: str) -> list[str]:
-    return sorted(r for r in ALLOWED_ROUTES if r.split("/", 1)[0] in PLATFORM_GROUPS[group])
+    routes = {r for r in ALLOWED_ROUTES if r.split("/", 1)[0] in PLATFORM_GROUPS[group]}
+    if group == "news":
+        routes.add(ARTICLE_ROUTE)  # read_article only; socialcrawl_call still refuses it (ALLOWED_ROUTES)
+    return sorted(routes)
 
 
 def _lane_prompt(prompt: str, group: str, count: int, search_credits: float) -> str:
+    news = (" Search news with google_news/search (its search term is keyword, as in {\"keyword\": \"Gauteng poll\", "
+            "\"location_name\": \"South Africa\"}), try two or three wordings, and open the articles that report "
+            "figures with read_article." if group == "news" else "")
     return (f"{prompt}\n\nYou are one of {count} researchers working on this question at the same time, each on its own "
             f"platforms. Your platforms: {GROUP_LABELS[group]}. Live routes you may call: "
-            f"{', '.join(group_routes(group))}. Stored posts and the warehouse are free; keep to your platforms there "
-            f"too. Spend at most {search_credits:g} credits on live searches; comments and transcripts come from the "
-            "enrichment share. End with a short note of what the posts show, their evidence ids and any source that "
-            "failed.")
+            f"{', '.join(group_routes(group))}.{news} Stored posts and the warehouse are free; keep to your platforms "
+            f"there too. Spend at most {search_credits:g} credits on live searches; comments and transcripts come from "
+            "the enrichment share. End with a short note of what the posts show, their evidence ids and any source "
+            "that failed.")
 
 
 def _gap_prompt(prompt: str, queries: list[str], followups: list[dict], credits: float) -> str:
@@ -1009,7 +1057,7 @@ def _research_lanes(deps: Deps, jobs: list[tuple], setup: ResearchSetup, progres
             raise fatal or failures[0][1]
         for index, exc in failures:
             lane, _, lane_client = jobs[index]
-            platforms = sorted({platform_label(route.split("/", 1)[0]) for route in lane_client.routes or []})
+            platforms = sorted({_route_label(route) for route in lane_client.routes or []})
             ctx.research_gaps.append({
                 "what": f"A researcher did not finish ({', '.join(platforms) or 'assigned research'})",
                 "searched": "Only its recorded results and the other researchers' completed results are available",
@@ -1816,6 +1864,9 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
     if skill == "creator-fit":
         skills.check_creator(question, deps.warehouse, MAX_BYTES_BILLED)  # refuses before any spend
     run_id = _run_id(request, question, tier, as_of)
+    quantitative = figures.quantitative_question(question)
+    figure_sweep_out: dict | None = None
+    figures_payload: dict | None = None
 
     notices, model_name = [], MODEL
     discovered = None
@@ -1951,7 +2002,9 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         raise
 
     def held(tier: str, model: str) -> float:
-        return inv["max_model_usd"] if tier == "T3" else hold_usd(tier, model)
+        base = inv["max_model_usd"] if tier == "T3" else hold_usd(tier, model)
+        # A confirmed investigation keeps to its quoted price: its figures call runs only if that price has room.
+        return base + (figures_usd(model) if quantitative and tier != "T3" else 0.0)
 
     lane_usd = researcher_usd()
     if tier == "T3":
@@ -2062,8 +2115,66 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
             return answer, [row("cut", reason)]
         return {**answer, "short_answer": text}, [row("pass", HEADLINE_REWRITTEN_REASON)]
 
+    def list_figures() -> dict:
+        """The percentages the run's sources state, checked in code (figures.py), for run.figures. One model call,
+        inside the question's hold; a failed call shows no figures and says so."""
+        listed_records = figures.figure_records(ctx)
+        records = len(listed_records)
+        bound = figures.input_bound(figures.figures_user(question, listed_records))
+        if records and model_budget is not None and not model_budget.affords(
+                model_name, [(bound, figures.FIGURES_MAX_TOKENS)]):
+            if FIGURES_NO_ROOM not in notices:
+                notices.append(FIGURES_NO_ROOM)
+            return figures.payload(question, [], {}, figure_sweep_out, records, "not_run")
+        progress.step("write", f"Listing the figures {records} sources state and checking each against its source"
+                      if records else "No source in this answer states a percentage")
+        try:
+            listed, usage, dispatched = timed("write", figures.extract_figures, stop_model, question, ctx, model_name)
+        except _StopRequested as exc:
+            # The figures run after every claim was streamed and its checks written, so no stop here, the user's or
+            # the budget's, before or after the call was sent, may replace that checked answer: it stands without
+            # figures and the notice says why. A billed call is spent; one the budget booked stays in its ledger.
+            billed = getattr(exc, "usage", None)
+            if isinstance(billed, dict):
+                spend(billed.get("input_tokens"), billed.get("output_tokens"), billed.get("usd"))
+            if should_stop():
+                return figures_stopped(records)
+            reason = getattr(exc, "model_budget_reason", None)
+            if getattr(exc, "before_dispatch", False):
+                notice = FIGURES_NO_ROOM
+            else:
+                reason = (model_budget.stop_reason if model_budget is not None and model_budget.stopped
+                          else None) or reason
+                log.warning("ask figures stopped on its model budget: run %s: %s", run_id, reason)
+                notice = budget_stop_words(reason)[2]
+            if notice not in notices:
+                notices.append(notice)
+            return figures.payload(question, [], {}, figure_sweep_out, records, "not_run")
+        except Exception as exc:
+            billed = _failed_call_usage(exc, model_name, figures.FIGURES_INPUT_TOKENS, figures.FIGURES_MAX_TOKENS)
+            spend(billed.get("input_tokens"), billed.get("output_tokens"), billed.get("usd"))
+            log.warning("ask figures call failed: run %s: %s", run_id, type(exc).__name__)
+            if FIGURES_FAILED not in notices:
+                notices.append(FIGURES_FAILED)
+            return figures.payload(question, [], {}, figure_sweep_out, records, "failed")
+        if dispatched:
+            usage = _usage_or_reserve(usage, model_name, figures.FIGURES_INPUT_TOKENS, figures.FIGURES_MAX_TOKENS)
+            spend(usage.get("input_tokens"), usage.get("output_tokens"), usage.get("usd"))
+        if should_stop():
+            return figures_stopped(records)
+        kept, cut = figures.verify(listed, ctx)
+        built = figures.tables(kept)
+        sweep_failed = bool(figure_sweep_out and figure_sweep_out.get("failed"))
+        status = "ok" if built else "sweep_failed" if sweep_failed else "none_found"
+        return figures.payload(question, built, cut, figure_sweep_out, records, status)
+
+    def figures_stopped(records: int) -> dict:
+        if FIGURES_STOPPED not in notices:
+            notices.append(FIGURES_STOPPED)
+        return figures.payload(question, [], {}, figure_sweep_out, records, "stopped")
+
     def gate(note: str, source_status: list[dict]) -> tuple:
-        nonlocal numeric_repair_attempted, store_count, summary_ledger
+        nonlocal numeric_repair_attempted, store_count, summary_ledger, figure_sweep_out
         summary_ledger = answer_state.SummaryLedger()  # a gap round writes a new draft; only the last pass is stored
         """The writer, the code checks, the support check, the recheck and the field check, once. First the posts the
         researchers only saw in query rows become evidence, so the writer sees them as posts and K1 can resolve them.
@@ -2085,6 +2196,14 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                 log.warning("ask store breadth failed: run %s: %s", run_id, type(exc).__name__)
                 notices.append(STORE_FAILED)
             progress.hold_back(set(ctx.evidence) - before)  # the sweep's posts: streamed only if a claim cites one
+        if quantitative and figure_sweep_out is None:
+            progress.step("read", "Reading every stored post in the market and window that reports a percentage")
+            before = set(ctx.evidence)
+            with timings.begin("io", "figure_sweep"):
+                figure_sweep_out = figures.figure_sweep(ctx, deps.warehouse, question, question_platforms(question))
+            if figure_sweep_out.get("failed") and FIGURES_SWEEP_FAILED not in notices:
+                notices.append(FIGURES_SWEEP_FAILED)  # figures.figure_sweep logged the warehouse's reason
+            progress.hold_back(set(ctx.evidence) - before)
         timings.phase("prepare")
         listed = listed_post_ids(ctx)
         if listed:
@@ -2333,6 +2452,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                                                              skill=skill),
                                   model=model_name, warehouse=deps.warehouse, client=client, tables=deps.tables)
             prompt = _prompt(question, markets, window, request.get("parent"), request.get("from_card"), jump)
+            if quantitative:
+                prompt = f"{prompt}\n\n{QUANT_NOTE}"
             if fallback_active:
                 fallback_parts = [
                     "The empty Today board routes this answer to located posts from the last 7 days. "
@@ -2389,7 +2510,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                                               topic=sweep_topic(question))
                 if tier == "T2":
                     research = timed("research", _first_round, deps, ctx, client, setup, prompt, markets,
-                                     progress, should_stop, question_platforms(question))
+                                     progress, should_stop,
+                                     (["news"] if quantitative else []) + question_platforms(question))
                 elif tier == "T3":
                     research = timed("research", _plan_round, deps, ctx, client, setup, prompt, inv, lane_usd,
                                      progress, should_stop)
@@ -2452,6 +2574,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
                 with timings.begin("io", "claim_checks_write"):
                     deps.tables.insert(CLAIM_CHECKS, rows, row_ids=[f"{ask_id}:{r['claim_id']}:{r['rule']}:{i}"
                                                                     for i, r in enumerate(rows)])
+            if quantitative:
+                figures_payload = list_figures()
 
         for gap in ctx.research_gaps:
             if gap not in answer["gaps"]:
@@ -2521,6 +2645,8 @@ def run_ask(request: dict, emit: Callable[[dict], None], should_stop: Callable[[
         run["ranked_list"] = ranked
     if entities:
         run["entity_lists"] = entities
+    if figures_payload is not None and not request.get("skin_id"):  # a skin run shows no side lists (contract 15.1)
+        run["figures"] = figures_payload
     result = {"answer": answer,
               "run": run,
               "query_receipts": query_receipts(ctx, answer)}

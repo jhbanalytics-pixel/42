@@ -5,8 +5,10 @@ the packet command derives from the prior release's own lock and packet, and not
 The values the tests expect are literals here (the digest Release B went live on, the dates, the letter), never read from the code under test.
 Offline: no cloud, no network, no pwsh. The end to end run through the real paste is in test_jobs_final.py."""
 import copy
+import hashlib
 import datetime as dt
 import json
+from pathlib import Path
 
 import pytest
 
@@ -414,7 +416,7 @@ def test_the_release_phases_take_the_rollback_digest_and_the_definitions_from_th
 
 def test_the_baseline_chain_is_judged_from_the_prior_terminal_and_not_from_release_a(tmp_path):
     # The chain of 12 Oct is the first after Release B's AfterJobsUpdate (11 Oct 16:56 SAST). Counted from Release A's terminal (9 Oct) it
-    # would be the third chain, which the Q3 rule refuses.
+    # would be the fourth chain; the manifest must still name the prior terminal as its anchor.
     w, record = d_world(tmp_path)
     assert w.baseline_j()["aTerminal"]["at_utc"] == jw.A_TERMINAL_AT
     assert w.run("BeforeAnyWrite")["observations"]["baseline_chain"]["run_date"] == "2026-10-12"
@@ -425,19 +427,46 @@ def test_the_baseline_chain_is_judged_from_the_prior_terminal_and_not_from_relea
 @pytest.mark.parametrize("terminal,run_day,now_day,accepted", [
     ("2026-10-11T14:56:41.844177+00:00", 12, 13, True),
     ("2026-10-11T14:56:41.844177+00:00", 13, 13, True),
-    ("2026-10-11T14:56:41.844177+00:00", 14, 14, False),
-    ("2026-10-11T14:56:41.844177+00:00", 11, 12, False),
-    ("2026-10-11T23:30:00+00:00", 12, 13, True),    # 01:30 SAST on the 12th, before that day's 02:00 collect: the chain of the 12th is the first
-    ("2026-10-11T23:30:00+00:00", 14, 14, False),
-    ("2026-10-12T00:30:00+00:00", 12, 13, False),   # 02:30 SAST on the 12th: the 13th is the first, so the 12th is no chain after it
+    ("2026-10-11T14:56:41.844177+00:00", 14, 14, True),   # the third chain after the prior terminal serves as well (the Q3 ordinal rule is gone)
+    ("2026-10-11T14:56:41.844177+00:00", 11, 12, False),  # the 11th's collect started before the prior terminal: WINDOW
+    ("2026-10-11T23:30:00+00:00", 12, 13, True),    # 01:30 SAST on the 12th, before that day's 02:00 collect: the chain of the 12th follows it
+    ("2026-10-11T23:30:00+00:00", 14, 14, True),
+    ("2026-10-12T00:30:00+00:00", 12, 13, False),   # 02:30 SAST on the 12th: the 12th's chain ran before it
     ("2026-10-12T00:30:00+00:00", 14, 14, True),
 ])
-def test_only_the_first_two_chains_after_the_prior_terminal_can_be_the_baseline(tmp_path, terminal, run_day, now_day, accepted):
+def test_any_chain_after_the_prior_terminal_inside_the_bound_age_can_be_the_baseline(tmp_path, terminal, run_day, now_day, accepted):
     w, record = d_world(tmp_path, terminal_at=terminal, run_day=dt.date(2026, 10, run_day), now=dt.datetime(2026, 10, now_day, 8, 0, tzinfo=jw.UTC))
     if accepted:
         assert w.run("BeforeAnyWrite")["phase"] == "BeforeAnyWrite"
     else:
         assert w.stop("BeforeAnyWrite").code == "BASELINE"
+
+
+def failed_chain_rebound(w):
+    """The qualifying manifest of the world, rewritten as one whose detect failed, rebound by hash."""
+    path = Path(w.bound["baselineChainPath"])
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["verdict"] = {"qualifies": False, "baseline_by_line": False, "failed_stage": "detect", "reasons": ["TERMINAL", "UPSTREAM"],
+                           "decision": None}
+    tampered = w.release_dir / "failed-chain.json"
+    jw.write_json(tampered, manifest)
+    w.bound["baselineChainPath"] = str(tampered)
+    w.bound["baselineChainSha256"] = hashlib.sha256(tampered.read_bytes()).hexdigest()
+    return manifest
+
+
+def test_a_typed_acceptance_after_a_prior_jobs_release_must_name_that_releases_commit(tmp_path):
+    w, record = d_world(tmp_path)
+    manifest = failed_chain_rebound(w)
+    short = record["commit"][:7]
+    without = {"line": "BASELINE ACCEPT 2026-10-12: I accept the chain, whose detect failed, as the baseline.", "run_date": "2026-10-12",
+               "reasons": ["TERMINAL", "UPSTREAM"]}
+    w.bound["baselineChainAcceptance"] = without
+    assert w.stop("BeforeAnyWrite").code == "BINDINGS"
+    w.bound["baselineChainAcceptance"] = {**without, "line": f"BASELINE ACCEPT 2026-10-12: I accept the chain, whose detect failed, as the "
+                                                            f"baseline of the jobs only release on the {short} image."}
+    observed = w.run("BeforeAnyWrite")["observations"]["baseline_chain"]
+    assert observed["accepted_by_line"] is True and observed["run_date"] == manifest["run_date"]
 
 
 def test_a_job_that_drifted_from_the_prior_definitions_after_baseline_j_was_captured_stops_the_release(tmp_path):
@@ -634,11 +663,12 @@ def test_bind_with_a_prior_record_binds_its_digest_its_record_and_the_release_le
     assert producer["rollbackJobsDigest"] == B and producer["priorJobsRelease"] == record
 
 
-def test_the_bindings_of_a_release_on_a_prior_hold_the_required_keys_and_exactly_the_two_optional_ones(d_bench, capsys):
+def test_the_bindings_of_a_release_on_a_prior_hold_the_required_keys_and_the_two_optional_ones_of_a_prior(d_bench, capsys):
+    # The third optional key, baselineChainAcceptance, is bound only with --accept-failed-baseline (test_jobs_packet).
     bound(d_bench, capsys)
     required = set(jo.RELEASE_BINDINGS) | {"schema_version", "mode", "status"}
     assert set(d_bench.bindings_value()) == required | {"priorJobsRelease", "releaseLetter"}
-    assert set(jo.OPTIONAL_BINDINGS) == {"priorJobsRelease", "releaseLetter"}
+    assert set(jo.OPTIONAL_BINDINGS) == {"priorJobsRelease", "releaseLetter", "baselineChainAcceptance"}
     assert not set(jo.OPTIONAL_BINDINGS) & set(jo.RELEASE_BINDINGS)
 
 

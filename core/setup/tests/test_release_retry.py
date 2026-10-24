@@ -24,6 +24,18 @@ def test_rt02_a_failed_attempt_with_its_tags_removed_and_declared_lets_the_next_
     second.to("BeforeCandidate")
 
 
+def test_rt02_after_a_failed_attempt_the_template_may_hold_the_declared_memory_and_nothing_else(tmp_path):
+    first = Scenario(tmp_path / "first")
+    first.to("AfterSmoke")
+    for name in SERVICES:
+        first.world.remove_tag(name)
+    assert first.world.svc["f42-api"]["resources"]["limits"]["memory"] == "1Gi"
+    second = second_attempt(tmp_path, first)
+    assert second.run("BeforeAnyWrite")["phase"] == "BeforeAnyWrite"
+    second.world.svc["f42-api"]["resources"] = {"limits": {"cpu": "1000m", "memory": "2Gi"}}
+    stops_with(second, "BeforeAnyWrite", "BASELINE", "f42-api template differs from the baseline: resources")
+
+
 def test_rt03_a_failed_attempt_after_the_pin_passes_and_the_pin_is_idempotent(tmp_path):
     first = Scenario(tmp_path / "first")
     first.to("BeforeCandidate")

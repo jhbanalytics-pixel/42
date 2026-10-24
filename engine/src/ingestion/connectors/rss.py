@@ -11,7 +11,7 @@ import feedparser
 import pandas as pd
 import requests
 
-from src.ingestion.connectors.base import RAW_COLUMNS, BaseConnector
+from src.ingestion.connectors.base import RAW_COLUMNS, BaseConnector, get_feed
 from src.utils.config_loader import load_sources
 
 
@@ -60,7 +60,7 @@ class RSSConnector(BaseConnector):
                 self.logger.warning("RSS feed entry missing url, skipping (name=%s)", name)
                 continue
             try:
-                response = self._session.get(url, headers=headers, timeout=10)
+                response = get_feed(self._session, url, headers=headers, timeout=10)
                 response.raise_for_status()
             except requests.exceptions.RequestException as e:
                 msg = f"rss feed {name}: {str(e)[:200]}"

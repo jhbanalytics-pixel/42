@@ -185,7 +185,7 @@ export function StoryCard({card: stored, market, date, onAuth, onWatch, onFeedba
           {todaySpecificity && (
             <>
               <p className="t42-explanation t42-specificity-why-now sc-why">
-                <span className="t42-specificity-label">Why now</span>
+                <span className="t42-specificity-label">{todaySpecificity.inferred ? 'Why now, inferred' : 'Why now'}</span>
                 {proseDates(todaySpecificity.whyNow)}
               </p>
               <blockquote className="t42-specificity-quote sc-pull">

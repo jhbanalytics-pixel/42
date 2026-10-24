@@ -20,7 +20,7 @@ def test_ordinary_event_reactions_hold_and_cannot_receive_timing_redraft(event):
                   local_reaction=True, reason="Independent creators give ordinary match opinions.")
     result = run(FakeModel([good()], critic=critic))
     assert result["numbers_only"] is True and result["reason"] == "failed_checks"
-    assert result["critic"] == critic
+    assert result["critic"] == dict(critic, patterns_seen=[])
     assert result["usage_usd"] > 0
     assert explain._wording_only(dict(critic, local_why_now=False), 20) is False
 
@@ -75,7 +75,7 @@ def test_supported_dance_adoption_keeps_existing_post_and_claim_evidence():
     original = copy.deepcopy(pack)
     result = run(FakeModel([good()], critic=PATTERN), pack=pack)
     assert result["numbers_only"] is False
-    assert result["critic"] == PATTERN
+    assert result["critic"] == dict(PATTERN, patterns_seen=[])
     assert result["claims"][0]["quotes"] == [{"evidence_id": "tt_1", "text": "shaya step"}]
     assert pack == original
 
@@ -108,3 +108,7 @@ def test_prompt_demands_a_cited_pattern_beyond_event_reaction():
     assert "adopted format, practice or emerging behaviour" in prompt
     assert "Ordinary event coverage, independent opinions, jokes, personal stories and event timing alone do not rule it out" in prompt
     assert "Name the pattern and the cited post evidence in reason" in prompt
+    # 20 Oct 2026: the evaluate-only line had no scope and could be read as limiting the whole critic.
+    assert ("For local_why_now, evaluate only the why-now clause and the local posts cited by its supporting "
+            "claims.") in prompt
+    assert "Evaluate only the why-now clause" not in prompt

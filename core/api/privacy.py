@@ -361,11 +361,13 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
     links = comment_links.read(base)
     evidence = comment_links.attach(answer.get("evidence") if isinstance(answer, dict) else None, links)
     named = set()
+    figure_refs = comment_links.attach(_figure_refs(base, evidence), links)
+    judged = (list(evidence) if isinstance(evidence, list) else []) + figure_refs
     try:
-        gone = evidence_gone(evidence, hidden, store, creators, names=named)
+        gone = evidence_gone(judged, hidden, store, creators, names=named)
     except PeopleUnavailable:
         hidden = None
-        gone = evidence_gone(evidence, None, store)
+        gone = evidence_gone(judged, None, store)
     unavailable = hidden is None
     out = copy.deepcopy(base)
     meta = out.pop("answer_meta", None)
@@ -392,6 +394,7 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
         if ans.get("status") == "complete" and not kept:
             ans["status"] = "partial"
         _ranked(out, claims_gone, present, hidden, unavailable)
+    figures_dropped = _figures(out, hidden, unavailable, gone, named, judged)
     kept_evidence = [e for e in (ans.get("evidence") if isinstance(ans, dict) else None) or [] if isinstance(e, dict)]
     shown = {e.get("id") for e in kept_evidence}
     out.pop(comment_links.KEY, None)
@@ -405,7 +408,7 @@ def project_record(record, store, hidden=READ, inbound=None, creators=None):
         out["answer_meta"] = meta
     if unavailable:
         marker = _marker("unavailable", posts_gone, claims_gone, summary_gone)
-    elif posts_gone or claims_gone or summary_gone or changed:
+    elif posts_gone or claims_gone or summary_gone or changed or figures_dropped:
         marker = _marker("applied", posts_gone, claims_gone, summary_gone)
     else:
         marker = None
@@ -438,6 +441,104 @@ def _ranked(record, claims_gone, present, hidden, unavailable):
         run["ranked_list"] = {**ranked, "items": items}
     else:
         run.pop("ranked_list", None)
+
+
+def _figure_refs(record, evidence):
+    """The records the figures tables of run.figures rest on, for judging beside the answer's evidence: a table (or an
+    also_reported_by entry that carries an evidence_id) may quote a post no claim cites, and the answer keeps only
+    cited posts. A record the answer holds is judged as it is stored there (its creator id and parent link and all);
+    any other is judged from the fields the table carries, which fails closed where they cannot place it (a stored
+    post the lookup cannot find, a comment whose post is not among them)."""
+    run = record.get("run")
+    payload = run.get("figures") if isinstance(run, dict) else None
+    if not isinstance(payload, dict) or not isinstance(payload.get("tables"), list):
+        return []
+    listed = {e.get("id") for e in evidence or [] if isinstance(e, dict)}
+    out, seen = [], set()
+    for t in payload["tables"]:
+        if not isinstance(t, dict):
+            continue
+        for ref in [t, *[r for r in t.get("also_reported_by") or [] if isinstance(r, dict)]]:
+            eid = ref.get("evidence_id")
+            if isinstance(eid, str) and eid and eid not in listed and eid not in seen:
+                seen.add(eid)
+                out.append({"id": eid, "platform": ref.get("platform"), "handle": ref.get("publisher"),
+                            "url": ref.get("url"), "posted_at": ref.get("posted_at")})
+    return out
+
+
+def _figures(record, hidden, unavailable, gone=frozenset(), named=frozenset(), judged=()):
+    """run.figures (core/agent/figures.py) without the tables or also_reported_by entries that rest on a post a
+    hidden person wrote, or none when who is hidden cannot be read. A table names its publisher's handle and quotes its
+    post, so it goes with the post: it is judged by its evidence record (gone, from evidence_gone over the answer's
+    evidence and the figures' own records), by its publisher and the author in its address against the hidden handles
+    and the old handles a hidden person's posts carry (named). A table with no evidence_id cannot be judged and goes.
+    An entry with no evidence_id is judged by the evidence record with its address; when there is none and somebody is
+    hidden by creator id, it goes (a miss is never read as "not hidden"). Returns how many tables and entries went."""
+    run = record.get("run")
+    payload = run.get("figures") if isinstance(run, dict) else None
+    if not isinstance(payload, dict) or not isinstance(payload.get("tables"), list):
+        return 0
+    keys = set() if hidden is None else hidden[0] | set(named)
+    ids = set() if hidden is None else hidden[1]
+    by_url = {}
+    for e in judged:
+        if isinstance(e, dict) and isinstance(e.get("url"), str) and e["url"]:
+            by_url.setdefault(e["url"], []).append(e.get("id"))
+
+    def named_hidden(ref):
+        return (creator_key(ref.get("platform"), ref.get("publisher")) in keys
+                or creator_key(ref.get("platform"), _url_handle(ref.get("url"))) in keys)
+
+    def table_kept(t):
+        eid = t.get("evidence_id")
+        return isinstance(eid, str) and bool(eid) and eid not in gone and not named_hidden(t)
+
+    def entry_kept(r):
+        if named_hidden(r):
+            return False
+        eid = r.get("evidence_id")
+        if isinstance(eid, str) and eid:
+            return eid not in gone
+        placed = by_url.get(r.get("url")) if isinstance(r.get("url"), str) else None
+        if placed:
+            return not any(i in gone for i in placed)
+        return not ids
+
+    tables = [] if unavailable else [t for t in payload["tables"] if isinstance(t, dict) and table_kept(t)]
+    dropped = len(payload["tables"]) - len(tables)
+    kept = []
+    for t in tables:
+        entries = [r for r in t.get("also_reported_by") or [] if isinstance(r, dict)]
+        shown = [r for r in entries if entry_kept(r)]
+        dropped += len(entries) - len(shown)
+        kept.append({**t, "also_reported_by": shown})
+    if len(kept) == len(payload["tables"]):
+        run["figures"] = {**payload, "tables": kept}
+        return dropped
+    from core.agent.figures import lead
+
+    # f42-api's pass runs over what f42-agent's pass left, so tables withheld there still count.
+    before = payload.get("withheld")
+    before = before if isinstance(before, int) and not isinstance(before, bool) and before > 0 else 0
+    run["figures"] = {**payload, "tables": kept, "lead": lead(kept),
+                      "withheld": before + len(payload["tables"]) - len(kept)}
+    return dropped
+
+
+SKIN_SIDE_LISTS = ("ranked_list", "entity_lists", "figures")  # a skin run shows none of them (contract 15.1)
+
+
+def without_skin_side_lists(record):
+    """A skin run's record without the side lists of its run: they name publishers and quote posts the skin may not
+    name, and masking handles leaves their words, so they are dropped, never masked. Every reader of a skin run's
+    record (f42-agent's and f42-api's stored path alike) calls this before the skin's mask. Any other record is
+    returned as it came."""
+    if not isinstance(record, dict) or not record.get("skin_id") or not isinstance(record.get("run"), dict):
+        return record
+    if not any(key in record["run"] for key in SKIN_SIDE_LISTS):
+        return record
+    return {**record, "run": {k: v for k, v in record["run"].items() if k not in SKIN_SIDE_LISTS}}
 
 
 def _source_evidence(read_source, ask_id):

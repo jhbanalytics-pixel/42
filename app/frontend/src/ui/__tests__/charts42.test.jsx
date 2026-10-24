@@ -105,3 +105,12 @@ test('unit rows draw one square per unit in state order, outline open states and
   expect(dom.querySelector('.ch42-unit-key').textContent).toBe(' 3 delivered 1 failed');
   expect(dom.querySelector('.ch42-bar-label').textContent).toBe('South Africa · 4 sources');
 });
+
+test('a bar list with a scale draws each bar against it, not against the largest value', () => {
+  const dom = draw(<BarList rows={[{label: 'A', value: 4}, {label: 'B', value: 2}]} suffix="%" scale={100} />);
+  const shares = [...dom.querySelectorAll('.ch42-bar-fill')].map((f) => f.getAttribute('style'));
+  expect(shares[0]).toContain('--share:0.04');
+  expect(shares[1]).toContain('--share:0.02');
+  const unscaled = draw(<BarList rows={[{label: 'A', value: 4}, {label: 'B', value: 2}]} />);
+  expect(unscaled.querySelector('.ch42-bar-fill').getAttribute('style')).toContain('--share:1');
+});

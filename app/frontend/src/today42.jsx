@@ -15,9 +15,10 @@ import {safeUrl} from './safeUrl.js';
 import {SearchingNow} from './ui/SearchingNow.jsx';
 import {TodayBoards} from './ui/TodayBoards.jsx';
 import {accountsWords, countedCreators} from './ui/accounts.js';
-import {EvidenceList, PostsShownNote, countLineWords, longDate, proseDates, topicHref} from './ui/TrendCard.jsx';
+import {EvidenceList, PostsShownNote, accountsCard, countLineWords, longDate, proseDates, topicHref} from './ui/TrendCard.jsx';
 import {StoryCard} from './ui/StoryCard.jsx';
 import {LeadPanel} from './ui/LeadPanel.jsx';
+import {LedField} from './ui/LedField.jsx';
 import {PartsBar, StepMeter} from './ui/Charts42.jsx';
 import {FigureLine} from './ui/FigureLine.jsx';
 import {Facts} from './ui/Facts.jsx';
@@ -211,8 +212,11 @@ function todaySpecificityView(card){
   const examples = [quoteSource, evidenceById.get(secondId)].map((item) => (
     nonEmptyString(item.text) ? item : {...item, text: item.quote_text}
   ));
+  /* Albert, 22 October 2026: a card whose why-now no cited post states publishes on code-counted adoption by 3 or
+     more independent local creators on 2 or more days, and its stored specificity says why_now_basis inferred. */
   return {
     whyNow: card.explanation,
+    inferred: specificity.why_now_basis === 'inferred',
     quote: quoteText,
     examples,
   };
@@ -397,6 +401,7 @@ export function TodayPage42({region, date, onAuth, loadAlerts, loadInvestigation
         <h1 className="t42-heading" {...(load.state === 'ready' ? {'data-today-loaded': ''} : {})}>{load.state === 'ready' && headingText ? headingWords(headingText) : 'Today'}</h1>
         {headline && (
           <div className="t42-lead" data-today-lead="">
+            <LedField points={leadPoints(headlineLead(markets, headline))} />
             <p className="t42-headline"><HeadlineText text={headline.text} term={headlineTerm(markets, headline)} /></p>
             <LeadPanel {...headlineLead(markets, headline)} date={briefDate || date} watch={watch} />
           </div>
@@ -772,6 +777,14 @@ function headlineLead(markets, headline){
     if (hit) return {card: hit.card, specificity: hit.specificity, market: entry.market.market};
   }
   return {card: null, specificity: null, market: headline.market};
+}
+
+/* The lead's posts a day, the series the LED field draws; the panel reads
+   the same card the same way. */
+function leadPoints({card}){
+  if (!card) return [];
+  const shown = accountsCard(card);
+  return shown.sparkline && Array.isArray(shown.sparkline.points) ? shown.sparkline.points : [];
 }
 
 function HeadlineText({text, term}){

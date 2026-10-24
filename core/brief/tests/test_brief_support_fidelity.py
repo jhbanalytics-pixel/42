@@ -48,8 +48,15 @@ def test_writer_never_picks_an_earliest_post_when_the_support_pack_cannot(times)
     pack = make_pack()
     for post, when in zip(pack["evidence"], times):
         post["posted_at"] = when
-    rows = writer_heads(explain._writer_user(CANDIDATE, pack, "ZA", "s", "e"))
+    prompt = explain._writer_user(CANDIDATE, pack, "ZA", "s", "e")
+    rows = writer_heads(prompt)
     assert all(r["earliest_in_pack"] is False for r in rows)
+    # 18 Oct 2026: the code says so too, so the writer writes no earliest-post claim for the support check to cut.
+    assert ("No post is marked earliest_in_pack true: two posts share the earliest posting time or a time is "
+            "unreadable, so write no claim about the earliest post in the pack.") in outside_fences(prompt)
+    with_one = explain._writer_user(CANDIDATE, make_pack(), "ZA", "s", "e")
+    assert "No post is marked earliest_in_pack" not in with_one
+    assert [r["id"] for r in writer_heads(with_one) if r["earliest_in_pack"]] == ["tt_1"]
 
 
 @pytest.mark.parametrize("text, expected", [
@@ -106,8 +113,13 @@ def test_writer_keeps_the_explanation_inside_the_claims_actual_scope():
 
 
 def test_support_contract_remains_pinned():
+    # 18 Oct 2026, prompt-formats-sound: SUPPORT_SYSTEM says what formats and sound mean.
+    # 22 Oct 2026, board-line-feed-wording: SUPPORT_SYSTEM says a post marked board_only supports board feed wording
+    # only, and nothing about a creator posting there; the support check reads exactly as before otherwise.
     assert hashlib.sha256(explain.SUPPORT_SYSTEM.encode("utf-8")).hexdigest() == (
-        "0da133fe7fb64a1bf099d653b147370a55d17dc37dee38777b4657d0df69f123")
+        "2e6cef9b77ddf9e72687cdab033d5a793fb63a664d9f71958c9e6ea351b5131d")
     # 16 Oct 2026, pack-formats-sound: each cited post's head also carries its sound letter (_sound_letters).
+    # 22 Oct 2026, board-line-feed-wording: a cited post sighted only on the YouTube trending board carries
+    # board_only true in its head, as the writer and the critic see it; nothing else in the prompt changed.
     assert hashlib.sha256(inspect.getsource(explain._support_user).encode("utf-8")).hexdigest() == (
-        "ba2905d5e56795332e7d305cc832874600465bc237cd6b60a65d1c22ce18c35f")
+        "39554c26cae83cd91c274838fc0c83c45fd3211a08c85428fb61fb5aae921e7d")

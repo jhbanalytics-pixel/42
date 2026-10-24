@@ -423,12 +423,23 @@ def test_ds16_every_gcloud_run_line_names_the_project_and_region_and_the_only_li
         assert not re.search(rf"echo[^\n]*{secretish}", text)
 
 
-def test_ds17_deploy_flags_env_is_byte_identical_to_a80():
+# The one change to the a80 deploy flags: f42-api is deployed with 1Gi of memory since it ran out of memory at 512Mi on /api/communities on
+# 22 Oct 2026. The readback holds each candidate to the memory these flags declare (services_only.declared_memory).
+A80_API_FLAGS = b'API_FLAGS="--no-invoker-iam-check --min-instances 1 --max-instances 3 --timeout 3600"\n'
+API_MEMORY_CHANGE = (b'# 1Gi of memory (--memory 1Gi): at the 512Mi default it ran out of memory on /api/communities on 22 Oct 2026.\n'
+                     b'API_SA="f42-web"\n'
+                     b'API_FLAGS="--no-invoker-iam-check --min-instances 1 --max-instances 3 --timeout 3600 --memory 1Gi"\n')
+
+
+def test_ds17_deploy_flags_env_is_a80_with_the_one_declared_memory_change():
     result = subprocess.run(["git", "show", f"{A80}:core/api/deploy_flags.env"], cwd=ROOT, capture_output=True)
     if result.returncode != 0:
         pytest.fail(f"commit {A80} is not available in this checkout; a shallow clone cannot run the release tests")
+    a80 = result.stdout.replace(b"\r\n", b"\n")
+    assert a80.count(b'API_SA="f42-web"\n' + A80_API_FLAGS) == 1
+    expected = a80.replace(b'API_SA="f42-web"\n' + A80_API_FLAGS, API_MEMORY_CHANGE)
     assert hashlib.sha256((ROOT / "core" / "api" / "deploy_flags.env").read_bytes().replace(b"\r\n", b"\n")).hexdigest() == \
-        hashlib.sha256(result.stdout.replace(b"\r\n", b"\n")).hexdigest()
+        hashlib.sha256(expected).hexdigest()
 
 
 def test_ds22_a_service_that_still_follows_latest_stops_before_any_deploy(tmp_path):

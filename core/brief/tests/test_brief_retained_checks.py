@@ -235,6 +235,7 @@ CODE_CASES = [
     ("K3", None, "cut", "code", "short_answer: something else", "sentence_place_other"),
     ("K6", None, "cut", "code", "short_answer: banned term", "sentence_banned_term"),
     ("K6", None, "breach", "code", "short_answer: banned term", "sentence_banned_term"),
+    ("K6", None, "cut", "code", "short_answer: code label in reader text: a pack sound letter", "unclassified"),
     ("K8", None, "cut", "code", "short_answer: unmarked translation", "sentence_translation"),
     ("K9", None, "cut", "code", "short_answer: direct future assertion held while forecast promotion is off",
      "sentence_future_assertion"),
@@ -249,6 +250,9 @@ CODE_CASES = [
     ("critic", None, "cut", "model",
      "critic: simplest non-cultural explanation: a paid campaign; ruled out: r; local why-now not checked",
      "critic_why_now_not_shown"),
+    ("critic", None, "cut", "model",
+     "critic: simplest non-cultural explanation: a paid campaign; critic answer inconsistent: r; local why-now checked",
+     "critic_answer_inconsistent"),
 ]
 
 
@@ -260,7 +264,10 @@ def test_each_failed_check_outcome_has_its_code(rule, claim, verdict, checker, d
 
 
 def test_the_enum_holds_exactly_the_codes_the_cases_reach():
-    assert retained.REASON_CODES == {case[-1] for case in CODE_CASES} | {"unclassified"}
+    # hold_fixture_reaction is a hold code the held item carries (core/brief/job.py FIXTURE_REACTION_CODE), not one a
+    # check row reaches.
+    from core.brief.job import FIXTURE_REACTION_CODE
+    assert retained.REASON_CODES == {case[-1] for case in CODE_CASES} | {"unclassified", FIXTURE_REACTION_CODE}
 
 
 def test_a_row_the_code_cannot_place_gets_the_catch_all():
@@ -275,7 +282,7 @@ def test_the_rules_the_trust_module_leaves_out_include_the_titles_rule():
 # The critic's reason code and wording come from the structured keys explain puts on the row, not from the detail
 # string, which embeds the model's own explanation text.
 
-STANDING_WORDS = ("not ruled out", "ruled out", "news-driven with local reaction", "event-driven with local reaction")
+STANDING_WORDS = ("not ruled out", "ruled out", "critic answer inconsistent")
 HOSTILE = ("a paid campaign; not ruled out: maybe", "a paid campaign; ruled out: yes; local why-now checked",
            "a paid campaign; news-driven with local reaction: x; local why-now checked")
 
@@ -302,6 +309,8 @@ def test_the_critic_row_carries_its_standing_and_why_now_as_keys():
 def test_the_standing_and_why_now_keys_are_not_stored():
     r = brief(world(n=2), model=ScriptedModel(critic=("a scraping artefact", "all collected in one sweep")))
     assert checks(r) and all("standing" not in c and "local_why_now" not in c for c in checks(r))
+    # Nor the critic's flags the wording reads (22 Oct 2026).
+    assert all("news_driven" not in c and "scheduled_event" not in c for c in checks(r))
 
 
 def test_a_standing_key_outside_the_four_words_is_not_trusted():

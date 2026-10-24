@@ -356,7 +356,8 @@ def test_a_shared_platform_generic_hashtag_is_not_identity_evidence(tag):
 
 def test_a_specific_hashtag_beside_generic_ones_still_votes():
     c = a_cluster("current", at(1.0), hashtags=["fyp", "amapiano"], creators=["publisher"])
-    item = an_item("prior", at(0.5), DAY - timedelta(days=1), hashtags=["fyp", "Amapiano"], creators=["publisher"])
+    # At cosine 0.75: below VARIANT_COSINE a shared creator and one shared tag are no longer enough on their own.
+    item = an_item("prior", at(0.75), DAY - timedelta(days=1), hashtags=["fyp", "Amapiano"], creators=["publisher"])
     [decision] = cluster.assign([c], [item], DAY)
     assert (decision["kind"], decision["item_id"]) == ("match", "prior")
     assert decision["votes"] == ["hashtag_or_sound", "creator", "recent"]
@@ -1525,6 +1526,17 @@ def test_a_flagged_keyword_is_dropped_and_a_label_built_on_it_gives_way():
     assert c["keywords"] == ["kota", "dance"]
     assert c["label"] == "#kotaday", "the keyword label holds kasi, so it goes even though the net passed it whole"
     assert counts["net_keywords_dropped"] == 1 and counts["net_relabelled"] == 1
+
+
+def test_a_flagged_word_inside_a_deduped_bigram_label_still_takes_the_label():
+    # The label drops "school" because "school trip" holds it; a flag on "school" must still reach the label.
+    words = ["school trip", "school", "bus"]
+    label = cluster.label_for(words, [], [])
+    assert label == "school trip, bus"
+    [c], _ = run_net([net_cluster(labels=(label, "#kotaday"), keywords=words)],
+                     NetModel(flag=lambda t: t == "school"))
+    assert c["keywords"] == ["school trip", "bus"]
+    assert c["label"] == "#kotaday"
 
 
 def test_one_model_call_per_market_run_with_every_new_label_and_keyword_fenced():

@@ -12,7 +12,7 @@ import threading
 from datetime import datetime, timezone
 
 from core.agent.context import Refused
-from core.agent.tools.socialcrawl import MARKET_PARAMS, MARKETS
+from core.agent.tools.socialcrawl import CALL_MARKET_PARAMS, MARKETS
 
 LOCK = threading.Lock()
 SHARE = "ask"
@@ -36,7 +36,7 @@ _URL = re.compile(r"\S*://\S*|\bwww\.\S*", re.IGNORECASE)
 
 
 def _market(params: dict) -> str | None:
-    for key in MARKET_PARAMS:
+    for key in CALL_MARKET_PARAMS:
         value = params.get(key)
         if isinstance(value, str) and value.strip().casefold() in MARKETS:
             return MARKETS[value.strip().casefold()]
@@ -64,6 +64,18 @@ def _transcript_rows(route: str, body) -> list | None:
     return list(rows) if isinstance(rows, list) else None
 
 
+def page_markdown(body) -> str | None:
+    """data.page.content.markdown of a web/scrape body, or None for a page that answered 400 or more
+    (core/collect/local_sources.py _markdown)."""
+    data = body.get("data") if isinstance(body, dict) else None
+    page = data.get("page") if isinstance(data, dict) else None
+    if not isinstance(page, dict) or (page.get("status_code") or 200) >= 400:
+        return None
+    content = page.get("content")
+    markdown = content.get("markdown") if isinstance(content, dict) else None
+    return markdown if isinstance(markdown, str) and markdown.strip() else None
+
+
 class L1Adapter:
     def __init__(self, client, *, lock: threading.Lock):
         self.client = client
@@ -89,6 +101,12 @@ class L1Adapter:
             raise Refused(reason or f"{route} is forbidden by the SocialCrawl client")
         items = list(result.items or [])
         status = STATUS.get(result.status, "error")
+        if route == "web/scrape":  # a page, not a list of items (read_article)
+            page = page_markdown(result.body) if status == "ok" else None
+            return {"items": [], "page": page, "next_cursor": None,
+                    "credits_charged": float(result.credits_charged or 0),
+                    "status": status if status != "ok" or page else "empty",
+                    "cache_hit": bool(result.cache_hit), "reason": reason}
         transcript = _transcript_rows(route, result.body) if status == "ok" and not items else None
         if transcript:
             items = transcript

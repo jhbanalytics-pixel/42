@@ -27,7 +27,7 @@ def statement():
 
 
 def post(con, pid, *, creator, eng, platform="tiktok", handle=None, member=False, cluster="ng", lane_class="unbiased_rank",
-         geo="NG", creator_row=True):
+         geo="NG", creator_row=True, series=None):
     published = datetime(2026, 10, 6, 9, tzinfo=UTC)
     if creator_row and not con.execute("SELECT 1 FROM core.creators WHERE creator_id = ? AND platform = ?",
                                        [creator, platform]).fetchall():
@@ -39,7 +39,7 @@ def post(con, pid, *, creator, eng, platform="tiktok", handle=None, member=False
     seen = published + timedelta(hours=1)
     duck.load(con, "core.post_observations", [{"post_id": pid, "observed_at": seen, "observed_date": seen.date(),
                                                 "market": MARKET, "platform": platform, "lane": "sweep",
-                                                "lane_class": lane_class}])
+                                                "lane_class": lane_class, "series": series}])
     if member:
         duck.load(con, "core.cluster_members", [{"cluster_id": f"{D:%Y%m%d}-{cluster}-001", "post_id": pid,
                                                   "probability": 0.9}])
@@ -82,6 +82,32 @@ def pack(con, cap, keys=KEYS, sql=None):
 
 
 MEMBERS = ["mc4", "mc3", "m5", "m4", "m3", "m2", "m1", "m0", "mx_m"]  # tier 0, measured then engagement
+
+
+def board_world():
+    """A high-engagement local post sighted on the YouTube trending board alone, one sighted on the board and in a
+    feed, and a low-engagement local creator post: the mark says which, and the order is the measured and engagement
+    order it always was."""
+    con = duck.connect()
+    clusters(con)
+    post(con, "board_hi", creator="yt1", eng=8000, platform="youtube", series="board_youtube")
+    post(con, "mixed_board", creator="yt2", eng=7000, platform="youtube", series="board_youtube")
+    seen = datetime(2026, 10, 6, 12, tzinfo=UTC)
+    duck.load(con, "core.post_observations", [{"post_id": "mixed_board", "observed_at": seen, "observed_date": seen.date(),
+                                                "market": MARKET, "platform": "youtube", "lane": "sweep",
+                                                "lane_class": "unbiased_rank", "series": "feed_youtube"}])
+    post(con, "lc_low", creator="lc", eng=10)
+    return con
+
+
+def check_a_post_sighted_only_on_the_youtube_board_is_marked_board_only_and_ranks_as_before(sql):
+    # 18 Oct 2026: board_only marks a post whose every sighting in the window was the YouTube trending board, for the
+    # writer and the critic; it changes no rank and the post stays local.
+    rows = pack(board_world(), 12, sql=sql)
+    assert [r["post_id"] for r in rows] == ["board_hi", "mixed_board", "lc_low"]  # measured, then engagement
+    by_id = {r["post_id"]: r for r in rows}
+    assert {pid: r["board_only"] for pid, r in by_id.items()} == {"board_hi": True, "mixed_board": False, "lc_low": False}
+    assert by_id["board_hi"]["local_flag"] is True
 
 
 def check_members_come_first_then_the_rest_in_the_old_order(sql):
@@ -374,6 +400,9 @@ MUTANTS = {
         [("ORDER BY f.market_member DESC, f.measured DESC", "ORDER BY f.measured DESC")],
     "tier dropped from the creator cap":
         [("ORDER BY mm.post_id IS NULL, s.measured DESC", "ORDER BY s.measured DESC")],
+    "board-only read as any board sighting":
+        [("LOGICAL_AND(IFNULL(po.series, '') = 'board_youtube') board_only",
+          "LOGICAL_OR(IFNULL(po.series, '') = 'board_youtube') board_only")],
     "outlet cap off by one": [("class_rank <= @outlet_cap", "class_rank < @outlet_cap")],
     "no unique last key": [("f.eng DESC, f.post_id\nLIMIT 12", "f.eng DESC\nLIMIT 12")],
     "creator cap 3": [("r.creator_rank <= 2", "r.creator_rank <= 3")],
@@ -444,7 +473,7 @@ def test_each_mutant_of_the_statement_is_caught_by_at_least_one_check(name):
 
 def test_no_check_or_mutant_has_been_deleted_to_keep_the_suite_green():
     """Nothing else runs these tests, so the totals are pinned here: lowering either needs this line to change."""
-    assert len(CHECKS) == 17 and len(MUTANTS) == 27
+    assert len(CHECKS) == 18 and len(MUTANTS) == 28
 
 
 def test_the_statement_names_no_dataset_other_than_the_placeholders_and_is_read_only():
@@ -462,5 +491,13 @@ def test_the_briefs_rule_version_names_every_wave_8_rule_change():
     tail = ("+pack-member-first+w8-dec-02+w8-dec-06+w8-dec-11+w8-dec-12+w8-dec-14+w8-dec-15+w8-dec-16+w8-dec-17"
             "+w8-dec-03d+w8-dec-06b+k6-b7-decade+k6-names+k6-n13-n15+rule1-old-age+g1-gap+zero-count-hold"
             "+e-order-breadth+e-one-event-shadow+brief-504-retry+pattern-first-selection+fold-half-shared"
-            "+pack-formats-sound")
+            "+pack-formats-sound+k6-sound-label+prompt-formats-sound+critic-pattern-counts+writer-pattern-lead+critic-inconsistent"
+            "+pattern-skip-talking-head+writer-critic-agree+pack-video-fields+critic-rivals-line"
+            "+author-step-note+pack-board-only-mark+creator-letters+data-issue-full-judgement+claim-floor-fault"
+            "+writer-no-earliest+fixture-reaction-code+pattern-video-formats+writer-rivals-line+video-format-counted"
+            "+pattern-local-adoption+generic-label-last+fold-rank-order"
+            "+critic-pattern-citable+critic-detection-facts+pack-lane-member-marks+critic-patterns-recorded"
+            "+redraft-critic-rival+critic-rival-flags"
+            "+writer-crowd-handles+sentence-numeral-resting+board-line-feed-wording+writer-numbered-names+writer-rival-post-text+not-run-reason+pattern-line-not-pack-numbers"
+            "+why-now-inferred-adoption+model-error-retry+adopted-first+genre-formats-skipped")
     assert job.RULE_VERSION in {detect_job.rule_version_for(authority) + tail for authority in ("v1", "v2")}

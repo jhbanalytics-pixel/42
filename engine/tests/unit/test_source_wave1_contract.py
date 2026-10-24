@@ -770,7 +770,7 @@ def test_wave1_vendor_overage_stops_before_the_next_http(monkeypatch) -> None:
             }
 
     class Session:
-        def get(self, url, *, params, timeout, stream=False):
+        def get(self, url, *, params, timeout, stream=False, allow_redirects=True):
             route = url.rsplit("/v1/", 1)[1]
             events.append(("http", route))
             return Response(route)
@@ -845,7 +845,7 @@ def test_wave1_transport_failure_attributes_the_attempt_to_its_phase(monkeypatch
     SocialCrawlConnector.configure_funded_run(context)
 
     class Session:
-        def get(self, _url, *, params, timeout, stream=False):
+        def get(self, _url, *, params, timeout, stream=False, allow_redirects=True):
             raise RuntimeError("transport failed after request attempt")
 
     connector = SocialCrawlConnector(market="za")
@@ -890,7 +890,7 @@ def test_wave1_qualification_rows_do_not_create_downstream_source_value(
             }
 
     class Session:
-        def get(self, url, *, params, timeout, stream=False):
+        def get(self, url, *, params, timeout, stream=False, allow_redirects=True):
             return Response(url.rsplit("/v1/", 1)[1])
 
     connector = SocialCrawlConnector(market="za")
@@ -987,7 +987,7 @@ def test_wave1_runner_invokes_only_frozen_routes_and_emits_four_usages(monkeypat
         def __init__(self):
             self.calls = []
 
-        def get(self, url, *, params, timeout, stream=False):
+        def get(self, url, *, params, timeout, stream=False, allow_redirects=True):
             route = url.rsplit("/v1/", 1)[1]
             self.calls.append((route, dict(params), timeout))
             return Response(route)
@@ -1149,7 +1149,7 @@ def test_wave1_runner_applies_geo_and_dedup_before_returning_ingestion_rows(monk
         def __init__(self):
             self.counts = {}
 
-        def get(self, url, *, params, timeout, stream=False):
+        def get(self, url, *, params, timeout, stream=False, allow_redirects=True):
             route = url.rsplit("/v1/", 1)[1]
             self.counts[route] = self.counts.get(route, 0) + 1
             return Response(route, self.counts[route])
@@ -1235,7 +1235,7 @@ def test_wave1_runner_chains_missing_audio_and_uses_manifest_comment_qualificati
             self.calls = []
             self.counts = {}
 
-        def get(self, url, *, params, timeout, stream=False):
+        def get(self, url, *, params, timeout, stream=False, allow_redirects=True):
             route = url.rsplit("/v1/", 1)[1]
             self.calls.append((route, dict(params)))
             self.counts[route] = self.counts.get(route, 0) + 1
@@ -1330,7 +1330,7 @@ def test_wave1_audio_chain_reserves_remaining_plan_before_paid_calls(
             self.calls = []
             self.counts = {}
 
-        def get(self, url, *, params, timeout, stream=False):
+        def get(self, url, *, params, timeout, stream=False, allow_redirects=True):
             route = url.rsplit("/v1/", 1)[1]
             self.calls.append((route, dict(params)))
             self.counts[route] = self.counts.get(route, 0) + 1
@@ -1407,7 +1407,7 @@ def test_wave1_chain_reads_the_vendor_nested_audio_id_and_degrades_without_one(
                 self.calls = []
                 self.counts = {}
 
-            def get(self, url, *, params, timeout, stream=False):
+            def get(self, url, *, params, timeout, stream=False, allow_redirects=True):
                 route = url.rsplit("/v1/", 1)[1]
                 self.calls.append((route, dict(params)))
                 self.counts[route] = self.counts.get(route, 0) + 1
@@ -1732,7 +1732,7 @@ def test_wave1_runner_rejects_vendor_reported_route_debit_overrun(monkeypatch) -
     class Session:
         calls = 0
 
-        def get(self, url, *, params, timeout, stream=False):
+        def get(self, url, *, params, timeout, stream=False, allow_redirects=True):
             self.calls += 1
             return Response(url.rsplit("/v1/", 1)[1])
 

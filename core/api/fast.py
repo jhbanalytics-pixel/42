@@ -36,7 +36,7 @@ CACHED = frozenset({
     "first_ok_collect_date", "collection_health", "calendar", "runs", "search_signals", "item_history", "item_waves",
     "coord_signals", "item_evidence", "item_series", "item_origin", "news_followthrough", "item_reach",
     "health_days", "watch_matches", "detect_states", "sensitive_items", "generic_items", "board_items",
-    "community_edges", "creators_by_handle", "creators_by_id", "creator_names", "map_items", "waves", "item_days",
+    "community_groups", "creators_by_handle", "creators_by_id", "creator_names", "map_items", "waves", "item_days",
     "nearest_items", "search_items", "compare_counts", "latest_aggregate_run", "health_range",
 })  # not here: suppressed_creators and hidden_people_rows, which are read fresh on every request
 

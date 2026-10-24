@@ -1,6 +1,6 @@
 """Ask's research loop on Gemini function calling (ask.default_research runs it).
 
-The model sees only 42's fifteen tools (core/agent/toolset.py). The guards (toolset.guard) run here before every
+The model sees only 42's sixteen tools (core/agent/toolset.py). The guards (toolset.guard) run here before every
 call, the tier's turn and USD budgets stop the loop, and progress steps come from the same
 ask.describe_tool lines. The model's own turn is appended to the history unchanged, so Gemini's thought signatures
 go back with it.

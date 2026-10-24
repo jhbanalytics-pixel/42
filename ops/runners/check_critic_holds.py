@@ -34,6 +34,7 @@ RULED_OUT = "Critic: the simpler explanation was ruled out"
 NOT_RULED_OUT = "Critic: a simpler explanation was not ruled out"
 LWN_ONLY = "Critic: local why-now not shown"
 NO_LWN = "; local why-now not shown"
+INCONSISTENT = "Critic: the critic's answer was inconsistent"
 
 c = None
 
@@ -61,6 +62,8 @@ def critic_fields(reason):
     if r == LWN_ONLY:
         return ("cut", "true, or a news or event path met", "true, or ruled out or event path",
                 "true, or ruled out or news path", False, None)
+    if r == INCONSISTENT:
+        return "cut", "inconsistent answer", "?", "?", "?", None
     if r.startswith(NOT_RULED_OUT):
         rest = r[len(NOT_RULED_OUT):]
         lwn = not rest.endswith(NO_LWN)

@@ -138,8 +138,10 @@ def test_today_eligibility_in_the_record_is_the_vote_rule_unchanged():
         shadow = []
         cluster.assign(clusters, items, DAY, shadow=shadow)
         for r in shadow:
-            ok = len(set(r["today_votes"]) - {"recent"}) >= cluster.MIN_VOTES and bool(
-                {"cosine", "keywords", "hashtag_or_sound"}.intersection(r["today_votes"]))
+            votes = set(r["today_votes"]) - {"recent"}
+            ok = len(votes) >= cluster.MIN_VOTES and bool({"cosine", "keywords", "hashtag_or_sound"} & votes)
+            # A shared creator whose only other vote is a shared hashtag or sound also needs VARIANT_COSINE.
+            ok = ok and (votes != {"creator", "hashtag_or_sound"} or r["cosine"] >= cluster.VARIANT_COSINE)
             assert r["today_eligible"] is ok
 
 

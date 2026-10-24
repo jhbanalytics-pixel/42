@@ -1,4 +1,4 @@
-"""42's fifteen tools with no model SDK attached: schemas, descriptions, the guards and the plain functions.
+"""42's sixteen tools with no model SDK attached: schemas, descriptions, the guards and the plain functions.
 
 The Gemini function-calling loop in core/agent/gemini_research.py uses these. Nothing here imports google.genai.
 """
@@ -11,6 +11,7 @@ import re
 
 from core.agent.context import Refused, RunContext
 from core.agent.forecast_promotion import MARKET_NAMES, PERIODS, TEMPLATES
+from core.agent.tools.article import MAX_ARTICLES, read_article
 from core.agent.tools.dates import resolve_dates
 from core.agent.tools.enrich_tools import get_comments, get_transcript, watch_video
 from core.agent.tools.forecast import log_forecast
@@ -29,10 +30,10 @@ from core.agent.tools.sql_query import (QUERY_PAGE_ROWS, check_sql, model_sql_qu
 from core.agent.tools.warehouse import search_view
 
 TOOL_NAMES = ["sql_query", "search_posts", "socialcrawl_call", "rising_topics", "recall_findings", "save_finding",
-              "budget_status", "resolve_dates", "get_comments", "get_transcript", "watch_video", "log_forecast",
-              "query_rows", "history", "analogues"]
+              "budget_status", "resolve_dates", "get_comments", "get_transcript", "watch_video", "read_article",
+              "log_forecast", "query_rows", "history", "analogues"]
 # A SocialCrawl failure can carry a URL with a key, so these tools report only the exception type.
-SOCIALCRAWL_TOOLS = ("socialcrawl_call", "get_comments", "get_transcript", "watch_video")
+SOCIALCRAWL_TOOLS = ("socialcrawl_call", "get_comments", "get_transcript", "watch_video", "read_article")
 _ERROR_CHARS = 300
 # Rule 9: a URL or query string in an exception can carry a key, so neither reaches the model.
 _URL = re.compile(r"[a-z][a-z0-9+.-]*://\S*", re.IGNORECASE)
@@ -134,6 +135,10 @@ SCHEMAS = {
         "market": {"type": "string", "enum": list(MARKETS)},
         "k": {"type": "integer", "minimum": 1, "maximum": MAX_K},
     }),
+    "read_article": _schema({
+        "evidence_id": {"type": "string", "description": "The id of a news result a google_news/search call returned "
+                                                         "in this run."},
+    }, ["evidence_id"]),
     "query_rows": _schema({
         "query_id": {**_STR, "description": "A query_id already recorded in this question."},
         "offset": {"type": "integer", "minimum": 0, "default": 0,
@@ -185,6 +190,10 @@ DESCRIPTIONS = {
                "query_id.",
     "analogues": "Items in 42's cultural map nearest to an item by meaning, each with its past waves. Says when it "
                  "falls back to shared label words. Cite each row's query_id.",
+    "read_article": ("Open the full article behind a news result found in this run and store its text as new "
+                     "evidence you can cite and quote. 1 credit; at most " + str(MAX_ARTICLES) + " a question. Use it "
+                     "when a headline or snippet points to figures, a poll, a survey or a result the article holds. "
+                     "A page the site's robots.txt forbids is not read."),
     "query_rows": "Read exact rows from a query already recorded in this question, without querying the warehouse "
                   "or spending source credits. Returns rows in their original order with query_id, result_hash, "
                   "row_count, recorded_row_count, columns, truncated and preview (offset, limit, returned, has_more, "
@@ -203,6 +212,19 @@ def build_functions(ctx: RunContext, warehouse, client, writer) -> dict:
         start, end = resolve_dates(expression, ctx.as_of)
         return {"from": start.isoformat(), "to": end.isoformat()}
 
+    robots = []
+
+    def _robots():
+        """The robots.txt reader, made on first use and kept for this research loop (one read per site). Its getter
+        reaches public hosts only, within a byte cap and a deadline (article.RobotsGet), never the collect job's
+        http_get."""
+        if not robots:
+            from core.agent.tools.article import RobotsGet
+            from core.collect.local_sources import Robots
+
+            robots.append(Robots(RobotsGet()))
+        return robots[0]
+
     functions = {
         "sql_query": lambda **a: query_preview(ctx, model_sql_query(ctx, warehouse, **a)),
         "search_posts": lambda **a: search_view(wh.search_posts(ctx, warehouse, **a)),
@@ -215,6 +237,7 @@ def build_functions(ctx: RunContext, warehouse, client, writer) -> dict:
         "get_comments": lambda **a: get_comments(ctx, client, **a),
         "get_transcript": lambda **a: get_transcript(ctx, client, **a),
         "watch_video": lambda **a: watch_video(ctx, client, warehouse=warehouse, **a),
+        "read_article": lambda **a: read_article(ctx, client, robots=_robots(), **a),
         "log_forecast": lambda **a: log_forecast(ctx, warehouse, writer, **a),
         "query_rows": lambda **a: query_rows(ctx, **a),
         "history": lambda **a: history(ctx, warehouse, **a),

@@ -19,7 +19,8 @@ from core.agent.ask import SPEND_SQL, model_daily_usd
 from core.understand import embed, enrich, job
 
 SQL_DIR = Path(__file__).resolve().parents[1] / "sql"
-ENRICH_FILES = ("enrich_select", "enrich_insert", "enrich_insert_sensitive", "enrich_batches", "enrich_check_rows")
+ENRICH_FILES = ("enrich_select", "enrich_insert", "enrich_insert_sensitive", "enrich_batches", "enrich_check_rows",
+                "enrich_eligible")
 DAY = date(2026, 9, 28)
 CORE = "`ogilvy-trends-v2.intelligence_42_core"
 
@@ -317,6 +318,9 @@ def test_select_sql_uses_the_sighting_day_and_the_enrichment_marker():
     # The eligible-first order reads detect's current state only in a bounded window of item_state partitions.
     assert f"{CORE}.v_item_state_current`" in text and f"{CORE}.post_items`" in text
     assert re.search(r"metric_date BETWEEN DATE_SUB\(@run_date, INTERVAL 7 DAY\) AND @run_date", text)
+    # The cluster-first order reads the clusters of a bounded window too (18 Oct 2026).
+    assert f"{CORE}.clusters`" in text and f"{CORE}.cluster_members`" in text
+    assert re.search(r"cluster_date BETWEEN DATE_SUB\(@run_date, INTERVAL 7 DAY\) AND @run_date", text)
     statement = sqlglot.parse_one(text, read="bigquery")
     assert {"post_id", "platform", "market", "handle", "hashtags", "content", "enriched"} <= set(statement.named_selects)
 
@@ -337,10 +341,12 @@ PROJECT_DB = '"ogilvy-trends-v2"'
 DUCK_CORE = f"{PROJECT_DB}.intelligence_42_core"
 
 
-def fixture_warehouse(posts, observations, enrichment=(), creators=(), post_items=(), states=(), suppressed=()):
+def fixture_warehouse(posts, observations, enrichment=(), creators=(), post_items=(), states=(), suppressed=(),
+                      clusters=()):
     """observations are (post_id, observed_date) sighted in ZA or (post_id, observed_date, market); states are
     (metric_date, market, item_id, eligible) rows of v_item_state_current, a table here. suppressed are the
-    creator_ids of v_suppressed_creators, also a table here."""
+    creator_ids of v_suppressed_creators, also a table here. clusters are (cluster_date, cluster_id, member post ids)
+    rows of clusters and cluster_members."""
     import duckdb
 
     con = duckdb.connect()
@@ -355,6 +361,13 @@ def fixture_warehouse(posts, observations, enrichment=(), creators=(), post_item
     con.execute(f"CREATE TABLE {DUCK_CORE}.v_item_state_current (metric_date DATE, market VARCHAR, item_id VARCHAR, "
                 "eligible BOOLEAN)")
     con.execute(f"CREATE TABLE {DUCK_CORE}.v_suppressed_creators (creator_id VARCHAR)")
+    con.execute(f"CREATE TABLE {DUCK_CORE}.clusters (cluster_date DATE, cluster_id VARCHAR, market VARCHAR, "
+                "item_id VARCHAR, match_kind VARCHAR)")
+    con.execute(f"CREATE TABLE {DUCK_CORE}.cluster_members (cluster_id VARCHAR, post_id VARCHAR, probability DOUBLE)")
+    for cluster_date, cluster_id, members in clusters:
+        con.execute(f"INSERT INTO {DUCK_CORE}.clusters VALUES (?, ?, 'za', 'item', 'match')", [cluster_date, cluster_id])
+        con.executemany(f"INSERT INTO {DUCK_CORE}.cluster_members VALUES (?, ?, 0.9)",
+                        [(cluster_id, pid) for pid in members])
     if suppressed:
         con.executemany(f"INSERT INTO {DUCK_CORE}.v_suppressed_creators VALUES (?)", [(c,) for c in suppressed])
     observations = [tuple(o) + ("ZA",) * (3 - len(o)) for o in observations]
@@ -400,12 +413,45 @@ def test_select_sql_on_fixtures_returns_the_days_sightings_and_marks_enriched_on
         creators=[("c1", "@mzansi")])
     rows = run_sql(con, "enrich_select", {"run_date": DAY})
     by_id = {r["post_id"]: r for r in rows}
-    assert sorted(by_id) == ["embedded_only", "enriched", "no_text", "seen_today"]
-    assert [r["post_id"] for r in rows] == sorted(by_id)
+    # seen_yesterday has no enrichment row and has text, so it is tried again (22 Oct 2026), after today's posts.
+    assert sorted(by_id) == ["embedded_only", "enriched", "no_text", "seen_today", "seen_yesterday"]
+    assert [r["post_id"] for r in rows] == ["embedded_only", "enriched", "no_text", "seen_today", "seen_yesterday"]
+    assert {pid: r["today"] for pid, r in by_id.items()} == {
+        "embedded_only": True, "enriched": True, "no_text": True, "seen_today": True, "seen_yesterday": False}
     assert by_id["enriched"]["enriched"] is True
     assert by_id["embedded_only"]["enriched"] is False and by_id["embedded_only"]["content"] == "Jollof wars"
     assert by_id["seen_today"]["handle"] == "@mzansi" and by_id["seen_today"]["market"] == "ZA"
     assert by_id["no_text"]["content"] == ""
+
+
+def test_select_sql_retries_unenriched_posts_sighted_in_the_packs_seven_days_after_todays():
+    # EVIDENCE E1 (22 Oct 2026): a post was enriched only on a day it was sighted, so one missed that day (the time
+    # budget, the cap, a failed output) was never tried again, while the brief's pack reads 7 days of posts. A post
+    # sighted in the 7 days up to run_date with no enrichment row and some content is now selected too, after the
+    # posts of its part of the order sighted today. An enriched one, an empty one, one sighted only before the
+    # window, and one by a suppressed creator are not.
+    con = fixture_warehouse(
+        posts=[("a_today", "c1", "today", DAY), ("b_missed_2d", "c1", "missed", DAY),
+               ("c_missed_6d", "c1", "edge of window", DAY), ("d_missed_7d", "c1", "outside", DAY),
+               ("e_done_3d", "c1", "enriched", DAY), ("f_empty_1d", "c1", "  ", DAY),
+               ("g_hidden_1d", "c_hidden", "hidden", DAY), ("h_eligible_4d", "c1", "eligible", DAY),
+               ("i_eligible_today", "c1", "eligible today", DAY), ("j_future", "c1", "tomorrow", DAY)],
+        observations=[("a_today", DAY), ("b_missed_2d", DAY - timedelta(days=2)),
+                      ("c_missed_6d", DAY - timedelta(days=6)), ("d_missed_7d", DAY - timedelta(days=7)),
+                      ("e_done_3d", DAY - timedelta(days=3)), ("f_empty_1d", DAY - timedelta(days=1)),
+                      ("g_hidden_1d", DAY - timedelta(days=1)), ("h_eligible_4d", DAY - timedelta(days=4), "NG"),
+                      ("i_eligible_today", DAY), ("j_future", DAY + timedelta(days=1))],
+        enrichment=[("e_done_3d", "neutral")],
+        post_items=[("h_eligible_4d", "jollof"), ("i_eligible_today", "jollof")],
+        states=[(DAY - timedelta(days=1), "NG", "jollof", True), (DAY - timedelta(days=1), "ZA", "jollof", True)],
+        suppressed=["c_hidden"])
+    rows = run_sql(con, "enrich_select", {"run_date": DAY})
+    assert [r["post_id"] for r in rows] == ["i_eligible_today", "h_eligible_4d", "a_today", "b_missed_2d",
+                                            "c_missed_6d"]
+    assert [r["today"] for r in rows] == [True, False, True, False, False]
+    assert all(r["enriched"] is False and r["content"].strip() for r in rows)
+    text = sql("enrich_select")
+    assert text.count("BETWEEN DATE_SUB(@run_date, INTERVAL 6 DAY) AND @run_date") == 2  # the pack's 7 days
 
 
 def test_select_sql_leaves_out_the_posts_of_a_suppressed_creator_and_keeps_those_without_a_creator():
@@ -450,6 +496,58 @@ def test_select_sql_sends_posts_of_items_eligible_in_the_markets_newest_state_fi
         "u_ke_eligible", "x_eligible", "z_eligible",
         "a_plain", "b_plain", "t_too_old", "v_other_market", "w_stale", "y_not_eligible"]
     assert len(rows) == len({r["post_id"] for r in rows}), "a post linked to two eligible items comes once"
+
+
+def test_select_sql_sends_the_posts_of_recent_clusters_after_the_eligible_ones_and_before_the_rest():
+    # 18 Oct 2026: a member of a cluster dated within the 7 days up to run_date follows the eligible posts; a cluster
+    # from before the window does not count, a post that is eligible and clustered comes once, first among the
+    # eligible, and the same posts are selected as before, in the same number.
+    con = fixture_warehouse(
+        posts=[(pid, "c1", f"text {pid}", DAY) for pid in
+               ("a_plain", "b_plain", "k_clustered", "m_clustered_today", "n_old_cluster", "x_eligible",
+                "y_eligible_clustered")],
+        observations=[(pid, DAY) for pid in
+                      ("a_plain", "b_plain", "k_clustered", "m_clustered_today", "n_old_cluster", "x_eligible",
+                       "y_eligible_clustered")],
+        post_items=[("x_eligible", "amapiano"), ("y_eligible_clustered", "amapiano")],
+        states=[(DAY - timedelta(days=1), "ZA", "amapiano", True)],
+        clusters=[(DAY - timedelta(days=1), "yesterday-za-001", ["k_clustered", "y_eligible_clustered"]),
+                  (DAY, "today-za-001", ["m_clustered_today"]),
+                  (DAY - timedelta(days=8), "old-za-001", ["n_old_cluster"])])
+    rows = run_sql(con, "enrich_select", {"run_date": DAY})
+    assert [r["post_id"] for r in rows] == [
+        "y_eligible_clustered", "x_eligible",
+        "k_clustered", "m_clustered_today",
+        "a_plain", "b_plain", "n_old_cluster"]
+    assert len(rows) == 7 and all(r["enriched"] is False for r in rows)
+
+
+def test_select_sql_returns_what_the_eligible_first_order_needs_for_todays_new_posts():
+    # EVIDENCE E2 (22 Oct 2026): post_items holds no post first sighted today (detect's aggregate writes those links
+    # after understand), so the select hands enrich.py each post's hashtags, sound, creator and sighting markets, and
+    # whether post_items already links it to an eligible item, for _eligible_first to finish the order.
+    con = fixture_warehouse(
+        posts=[("new_today", "c1", "skroef", DAY), ("linked", "c1", "old", DAY)],
+        observations=[("new_today", DAY), ("new_today", DAY, "NG"), ("linked", DAY - timedelta(days=1))],
+        post_items=[("linked", "amapiano")], states=[(DAY - timedelta(days=1), "ZA", "amapiano", True)])
+    rows = {r["post_id"]: r for r in run_sql(con, "enrich_select", {"run_date": DAY})}
+    assert rows["linked"]["linked_eligible"] is True and rows["new_today"]["linked_eligible"] is False
+    assert sorted(rows["new_today"]["markets"]) == ["NG", "ZA"] and rows["linked"]["markets"] == ["ZA"]
+    assert rows["new_today"]["creator_id"] == "c1" and rows["new_today"]["hashtags"] == ["#x"]
+    eligible = run_sql(con, "enrich_eligible", {"run_date": DAY})
+    assert eligible == [{"market": "ZA", "item_id": "amapiano"}]
+
+
+def test_eligible_sql_reads_each_markets_newest_state_in_the_window():
+    con = fixture_warehouse(posts=[], observations=[], states=[
+        (DAY - timedelta(days=1), "ZA", "amapiano", True), (DAY - timedelta(days=1), "ZA", "generic", False),
+        (DAY - timedelta(days=2), "ZA", "old_trend", True), (DAY - timedelta(days=3), "KE", "gengetone", True),
+        (DAY + timedelta(days=1), "ZA", "future", True), (DAY - timedelta(days=9), "NG", "ancient", True)])
+    rows = run_sql(con, "enrich_eligible", {"run_date": DAY})
+    assert sorted((r["market"], r["item_id"]) for r in rows) == [("KE", "gengetone"), ("ZA", "amapiano")]
+    text = sql("enrich_eligible")
+    assert set(re.findall(r"@(\w+)", code_only(text))) == {"run_date"}
+    assert f"{CORE}.v_item_state_current`" in text
 
 
 def test_insert_sql_on_fixtures_appends_once_and_leaves_embeddings_alone():
@@ -548,6 +646,57 @@ def test_run_enrich_writes_valid_outputs_and_counts_invalid_ones_failed():
     assert counts == {"enriched": 1, "failed": 2, "skipped": 2, "model_usd": spent, "booked_usd": spent,
                       "batch_collected": 0, "batch_pending": 0}
     assert fake.calls[:2] == [(sql("enrich_batches"), {"run_date": DAY}), (sql("enrich_select"), {"run_date": DAY})]
+
+
+class EligibleExecute(FakeExecute):
+    def __init__(self, rows, eligible, **kw):
+        super().__init__(rows, **kw)
+        self.eligible = eligible
+
+    def __call__(self, text, params, max_bytes=None):
+        if text == sql("enrich_eligible"):
+            self.calls.append((text, params))
+            if isinstance(self.eligible, Exception):
+                raise self.eligible
+            return [{"market": m, "item_id": i} for m, i in self.eligible]
+        return super().__call__(text, params, max_bytes)
+
+
+def _item(**post):
+    from core.detect.items import items_for_post
+
+    return items_for_post({"platform": "tiktok", **post})[0]["item_id"]
+
+
+def test_run_enrich_sends_todays_new_posts_of_eligible_items_first():
+    # EVIDENCE E2 (22 Oct 2026): the eligible-first order read post_items only, which holds no post first sighted
+    # today, so today's new posts of the brief's candidates fell among the rest in post_id (hash) order and a limit
+    # or budget cut them at random. A post whose own hashtag, sound or creator is an item eligible in a market it was
+    # sighted in now goes first, beside the posts post_items already links; each part keeps the select's order and
+    # the limit is the same.
+    rows = [dict(post("e_linked"), linked_eligible=True, markets=["ZA"]),
+            dict(post("a_plain"), markets=["ZA"]),
+            dict(post("b_other_market"), hashtags=["#Skroef"], markets=["KE"]),
+            dict(post("c_hashtag"), hashtags=["#skroef", "#fyp"], markets=["ZA"]),
+            dict(post("d_sound"), sound_id="777", markets=["NG", "ZA"]),
+            dict(post("f_creator"), creator_id="cr9", markets=["NG"]),
+            dict(post("g_plain"), markets=["ZA"])]
+    eligible = [("ZA", _item(hashtags=["#skroef"])), ("NG", _item(sound_id="777")), ("NG", _item(creator_id="cr9"))]
+    fake, runner = EligibleExecute(rows, eligible), FakeRunner()
+    counts = enrich.run_enrich(fake, runner, run_date=DAY, limit=4)
+    assert runner.sent == [["e_linked", "c_hashtag", "d_sound", "f_creator"]]
+    assert counts["enriched"] == 4 and "eligible_error" not in counts
+    assert (sql("enrich_eligible"), {"run_date": DAY}) in fake.calls
+
+
+def test_run_enrich_keeps_the_selects_order_when_nothing_is_eligible_or_the_state_cannot_be_read():
+    rows = [dict(post(pid), hashtags=["#skroef"], markets=["ZA"]) for pid in ("b", "a")]
+    runner = FakeRunner()
+    enrich.run_enrich(EligibleExecute(rows, []), runner, run_date=DAY, limit=10)
+    assert runner.sent == [["b", "a"]]
+    runner = FakeRunner()
+    counts = enrich.run_enrich(EligibleExecute(rows, RuntimeError("bq down")), runner, run_date=DAY, limit=10)
+    assert runner.sent == [["b", "a"]] and counts["eligible_error"] == "RuntimeError"
 
 
 def test_run_enrich_reads_a_job_shaped_result_too():

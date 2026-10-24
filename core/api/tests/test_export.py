@@ -247,3 +247,49 @@ def test_budget_stop_is_not_headed_as_missing_evidence(partial):
     page = render_answer_html(record)
     assert "Stopped at this question&#x27;s model budget, not for lack of evidence" in page
     assert "Not enough evidence to answer" not in page
+
+
+# Audit, 17 October 2026: an export of a quantitative answer dropped the reported figures the app shows.
+def _poll_table(**extra):
+    return {"title": "voting intention", "source": "eNCA/MarkData", "fieldwork": "", "sample": "1,500 voters",
+            "population": "Gauteng", "publisher": "eNCA", "platform": "x", "url": "https://x.com/eNCA/status/1",
+            "posted_at": "2026-10-13T08:00:00", "evidence_id": "p1", "note": "",
+            "rows": [{"subject": "ANC", "value": 33.5, "unit": "%", "quote": "the ANC on 33.5%"}],
+            "also_reported_by": [{"publisher": "TimesLIVE"}], **extra}
+
+
+def test_reported_figures_are_exported_with_their_source_and_words(complete):
+    record = copy.deepcopy(complete)
+    record["run"] = {**(record.get("run") or {}), "figures": {
+        "status": "ok", "lead": "eNCA/MarkData, published 13 October 2026: ANC 33.5%.",
+        "basis": "Figures are copied from the cited posts.", "tables": [_poll_table()]}}
+    page = render_answer_html(record)
+    assert "<h2>Reported figures</h2>" in page
+    assert "eNCA/MarkData, published 13 October 2026: ANC 33.5%." in page
+    assert "ANC 33.5%" in page and "the ANC on 33.5%" in page
+    assert "sample 1,500 voters" in page and "covers Gauteng" in page and "Also reported by TimesLIVE" in page
+    assert 'href="https://x.com/eNCA/status/1"' in page
+
+
+def test_reported_figures_export_says_withheld_and_never_links_a_script(complete):
+    record = copy.deepcopy(complete)
+    record["run"] = {**(record.get("run") or {}), "figures": {"status": "ok", "lead": "", "tables": [], "withheld": 2}}
+    page = render_answer_html(record)
+    assert "The figures 2 sources report are not shown" in page
+    assert "No source this answer read states a percentage" not in page
+    record["run"]["figures"] = {"status": "ok", "tables": [_poll_table(url="javascript:alert(1)")]}
+    page = render_answer_html(record)
+    assert "javascript:" not in page and "Source link unavailable" in page
+    record["skin_id"] = "sk_0123456789ab"
+    assert "Reported figures" not in render_answer_html(record)
+
+
+@pytest.mark.parametrize("status, words", [
+    ("sweep_failed", "Stored posts that state a percentage could not be read this time"),
+    ("stopped", "The run was stopped while the figures were being listed"),
+])
+def test_reported_figures_export_words_a_failed_sweep_and_a_stop(complete, status, words):
+    record = copy.deepcopy(complete)
+    record["run"] = {**(record.get("run") or {}), "figures": {"status": status, "tables": []}}
+    page = render_answer_html(record)
+    assert words in page and "No figures can be shown" not in page

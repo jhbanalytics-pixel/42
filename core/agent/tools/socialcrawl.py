@@ -32,6 +32,7 @@ FORBIDDEN = (
     "prism/ai-visibility",
 )
 SEARCH_EVERYWHERE = "search/everywhere"
+NEWS_ROUTE = "google_news/search"
 # What Ask may call at T0 and T1: search, hashtag, comments, transcripts and TikTok screen text (watch_video) on the
 # platforms SOURCES.md expands and deepens with. Every one is a GET route in L1's PRICED
 # (core/collect/socialcrawl_client.py), which prices no post-detail route, and in docs/full-42/reference/sc_routes.json.
@@ -44,6 +45,8 @@ ALLOWED_ROUTES = frozenset({
     "reddit/search", "reddit/post/comments", "reddit/post/transcript",
     "threads/search", "threads/post/comments",
     "facebook/search/posts", "facebook/post/comments", "facebook/post/transcript",
+    # LinkedIn and Bluesky search: both platforms are in the answer schema's platform list.
+    "linkedin/search/posts", "bluesky/search",
     "google_news/search", "search/multi", SEARCH_EVERYWHERE,
     *GOOGLE_TRENDS_ROUTES,
 })
@@ -57,6 +60,9 @@ _LANE_NAMED = re.compile(r"(?:^|-)(" + "|".join(re.escape(lane) for lane in ANSW
 ITEM_STATUSES = ("ok", "partial")
 MARKETS = {"za": "ZA", "south africa": "ZA", "ng": "NG", "nigeria": "NG", "ke": "KE", "kenya": "KE"}
 MARKET_PARAMS = ("country", "region", "geo", "gl")
+# Every param a call's market is read from: the platforms' own, then google_news/search's location_name (its only
+# market param besides the numeric location_code, which is not read). After the others, so they keep precedence.
+CALL_MARKET_PARAMS = (*MARKET_PARAMS, "location_name")
 # Stored platform names the answer schema names otherwise (core/eval/answer.schema.json): posts and SocialCrawl
 # routes say twitter, the answer says x.
 PLATFORM_NAMES = {"twitter": "x"}
@@ -188,6 +194,58 @@ def iso_time(value) -> str | None:
     return (when.astimezone(timezone.utc) if when.tzinfo else when).isoformat()
 
 
+def _first(node: dict, *keys):
+    return next((node[k] for k in keys if node.get(k) not in (None, "")), None)
+
+
+def flat_item(item) -> dict:
+    """A live item in the flat shape the tool reads (text, handle, url, posted_at, engagement). SocialCrawl wraps a
+    post in {"post": {author, content, url, published_at, engagement}} and a Google News result in {"article": {title,
+    snippet, url, published_at, domain}} (core/collect/parse.py, engine connector); read flat, both lost their text,
+    author and time, so the writer could not cite them. A flat item is returned as it is."""
+    if not isinstance(item, dict):
+        return {}
+    article = item.get("article")
+    if isinstance(article, dict):
+        title, snippet = _first(article, "title"), _first(article, "snippet", "description")
+        text = ". ".join(str(part).strip().rstrip(".") for part in (title, snippet) if part) or None
+        if text and snippet and str(snippet).strip()[-1:] in ".!?":
+            text += str(snippet).strip()[-1]
+        elif text:
+            text += "."
+        url = _first(article, "url")
+        # An article without its own id is named by a hash of its link, as read_article names the page it opens.
+        native = _first(article, "id") or (hashlib.sha256(str(url).encode("utf-8")).hexdigest()[:16] if url else None)
+        return {"id": native, "platform": "news", "url": _first(article, "url"),
+                "handle": _first(article, "domain", "source"), "text": text,
+                "posted_at": news_time(_first(article, "published_at", "date")), "engagement": None,
+                **{k: item[k] for k in ("market", "country") if k in item}}
+    post = item.get("post")
+    if not isinstance(post, dict):
+        return item
+    author = post.get("author") if isinstance(post.get("author"), dict) else {}
+    content = post.get("content") if isinstance(post.get("content"), dict) else {}
+    title = _first(content, "title") or _first(post, "title")
+    body = _first(content, "text", "description") or _first(post, "text", "description", "caption")
+    text = "\n".join(str(part) for part in dict.fromkeys(p for p in (title, body) if p)) or None
+    return {"post_id": item.get("post_id"), "id": _first(post, "id"), "platform": _first(post, "platform"),
+            "url": _first(post, "url"), "handle": _first(author, "username", "handle"), "text": text,
+            "posted_at": _first(post, "published_at", "created_at", "create_time", "taken_at"),
+            "engagement": post.get("engagement") if isinstance(post.get("engagement"), dict) else None,
+            **{k: item[k] for k in ("market", "country") if k in item},
+            **{k: post[k] for k in ("market", "country") if k in post and k not in item}}
+
+
+_NEWS_TIME = re.compile(r"^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([+-]\d{2}):?(\d{2})$")
+
+
+def news_time(value):
+    """Google News sends '2026-07-23 10:06:18 +00:00' (engine/docs/socialcrawl-probe-2026-07-23.md); ISO otherwise."""
+    if isinstance(value, str) and (m := _NEWS_TIME.match(value.strip())):
+        return f"{m[1]}T{m[2]}{m[3]}:{m[4]}"
+    return value
+
+
 def _evidence_id(item: dict, platform: str) -> str:
     if item.get("post_id"):
         return str(item["post_id"])
@@ -203,7 +261,8 @@ def _market(value) -> str | None:
 
 
 def _evidence_market(item: dict, params: dict, ctx_market: str | None) -> tuple[str | None, bool, str | None]:
-    """ZA, NG or KE from the item's market or country, else the call's country, region, geo or gl, else ctx.market.
+    """ZA, NG or KE from the item's market or country, else the call's country, region, geo, gl or location_name, else
+    ctx.market.
 
     Returns (market, assumed, source_market). Only the item's own market locates the post. A market from the call's
     params says which market's feeds the platform searched, so the post is seen in those feeds (source_market) and
@@ -211,7 +270,7 @@ def _evidence_market(item: dict, params: dict, ctx_market: str | None) -> tuple[
     for value in (item.get("market"), item.get("country")):
         if market := _market(value):
             return market, False, None
-    for value in (params.get(k) for k in MARKET_PARAMS):
+    for value in (params.get(k) for k in CALL_MARKET_PARAMS):
         if market := _market(value):
             return market, True, market
     market = _market(ctx_market)
@@ -263,6 +322,8 @@ def socialcrawl_call(ctx: RunContext, client: SocialCrawlClient, platform: str, 
                      max_credits: float, cursor: str | None = None, warehouse=None) -> dict:
     route = normalise_route(platform, endpoint)
     params = dict(params or {})
+    if route == NEWS_ROUTE and "keyword" not in params and isinstance(params.get("query"), str):
+        params["keyword"] = params.pop("query")  # the route's search term is keyword (sc_routes.json); query is refused
     if route == SEARCH_EVERYWHERE:
         params["exclude"] = ",".join(sorted(_excludes(params) | set(EVERYWHERE_EXCLUDE)))
     if cursor is not None:
@@ -293,7 +354,7 @@ def socialcrawl_call(ctx: RunContext, client: SocialCrawlClient, platform: str, 
     google_trends_signal = route in GOOGLE_TRENDS_ROUTES
     evidence_ids, items, unplaced, placed = [], [], 0, []
     if status in ITEM_STATUSES and not google_trends_signal:
-        for item in result.get("items") or []:
+        for item in map(flat_item, result.get("items") or []):
             market, assumed, source = _evidence_market(item, params, ctx.market)
             if market is None:
                 unplaced += 1  # an unplaced post cannot be cited, so it never becomes evidence

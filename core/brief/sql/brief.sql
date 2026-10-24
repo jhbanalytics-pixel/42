@@ -14,9 +14,9 @@
 -- support check does not change. Then items with fewer than 2 creators or fewer than 3 posts in 3 days
 -- (item_state's creators3 and posts3, NULL read as 0) rank after the rest: a single-video board tag can never reach
 -- MIN_EVIDENCE, so it should not take a judged slot from an item with breadth. Then the pattern bucket (pattern_posts
--- below): 0 when 3 or more different creators used one sound, or posted one enriched adoption format, on 2 or more
--- days; 2 when the item is a creator, sits on a calendar
--- moment, has one creator with 60% or more of its 3 day posts, half or more of its posts sponsored (core/brief/rivals.py's
+-- below): 0 when 3 or more different creators used one sound, or posted one enriched adoption format (a genre
+-- such as skit never counts: core/brief/pattern_formats.py), on 2 or more days; 2 when the item is a creator, sits on
+-- a calendar moment, has one creator with 60% or more of its 3 day posts, half or more of its posts sponsored (core/brief/rivals.py's
 -- sponsored threshold), or half or more of its market posts or enriched posts are news; 1 otherwise. This only
 -- orders the pool; nothing is dropped and no threshold changes. Then non-NULL
 -- worth_raw ranks first, followed by worth_raw descending and item_id.
@@ -42,19 +42,40 @@ fs AS (
   FROM {core}.v_item_daily_current i
   WHERE i.market = @market AND i.metric_date <= @d
   GROUP BY i.item_id),
+-- Posts sighted in the market in the last 7 days whose market is @market by a source other than the YouTube
+-- trending board: the market's own feeds and lists (TikTok, Instagram, Facebook, Reddit and the rest) in
+-- v_post_source_markets. A video on the board carries the board's region as its source market whoever made it
+-- (core/collect/parse.py _source_provenance), so the board alone never counts here.
+sourced_posts AS (
+  SELECT DISTINCT v.post_id
+  FROM {core}.v_post_source_markets v
+  CROSS JOIN UNNEST(v.source_sightings) sight
+  WHERE sight.source_market = @market AND IFNULL(sight.route, '') != 'youtube/videos/trending'
+    AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d),
 -- Pattern evidence (held-topics root cause, 16 Oct 2026). Posts published and observed in the market in the last 7 days. Since the critic passes only an evidenced adopted format,
 -- practice or behaviour (04bc5cc), the pool orders candidates whose own posts already show adoption before ones the
 -- code can see are an event spike, one creator or news. Per item, over the market's posts of the last 7 days (the
 -- lanes and suppression rule of local_creators below): the most different creators who used one sound (posts.sound_id)
 -- and on how many posting days, the most different creators whose enriched post has one adoption format
--- (post_enrichment.formats other than other, news_clip and talking_head) and on how many days, and how many enriched
--- posts are news clips. Rank only: nothing is dropped, no gate, threshold or judged count changes.
+-- (post_enrichment.formats or the video step's video_notes format, other than the generic formats and the genres of
+-- core/brief/pattern_formats.py PATTERN_SKIP_FORMATS, which core/brief/job.py writes in for the placeholder below) and
+-- on how many days, and how many enriched posts are news clips (post_enrichment.formats only). Rank only: nothing is
+-- dropped, no gate, threshold or judged count changes.
 pattern_posts AS (
   SELECT DISTINCT pi.item_id, po.post_id, IFNULL(ps.creator_id, ps.post_id) creator_id, ps.sound_id,
-    ps.post_date post_day
+    ps.post_date post_day,
+    -- Local by local_creators' rule below, with sourced_posts above: the card rule and the critic need adoption by
+    -- local creators, so only a local post counts toward an adopted sound or format (pattern_news still reads every
+    -- post).
+    ((ps.geo_market = @market AND IFNULL(ps.geo_confidence, 0) >= 0.7
+      AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'))
+     OR (sourced.post_id IS NOT NULL
+         AND NOT IFNULL(ps.geo_market != @market AND ps.geo_confidence >= 0.7
+                        AND ps.geo_source IN ('ext_region', 'home_market', 'place_mention'), FALSE))) is_local
   FROM {core}.post_observations po
   JOIN {core}.post_items pi ON pi.post_id = po.post_id
   JOIN {core}.posts ps ON ps.post_id = po.post_id
+  LEFT JOIN sourced_posts sourced ON sourced.post_id = po.post_id
   WHERE po.market = @market AND po.observed_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
     AND ps.post_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d
     AND po.lane_class != 'legacy' AND IFNULL(po.lane, '') NOT IN ('placebo', 'agent_live')
@@ -70,37 +91,44 @@ pattern_sound AS (
     LOGICAL_OR(creators >= 3 AND days >= 2) sound_adopted FROM (
     SELECT pp.item_id, pp.sound_id, COUNT(DISTINCT pp.creator_id) creators, COUNT(DISTINCT pp.post_day) days,
       COUNT(DISTINCT pp.post_id) posts
-    FROM pattern_posts pp WHERE pp.sound_id IS NOT NULL AND TRIM(pp.sound_id) != ''
+    FROM pattern_posts pp WHERE pp.sound_id IS NOT NULL AND TRIM(pp.sound_id) != '' AND pp.is_local
     GROUP BY pp.item_id, pp.sound_id) own
   JOIN pattern_sound_posts tot ON tot.sound_id = own.sound_id
   WHERE 2 * own.posts >= tot.posts
   GROUP BY item_id),
 pattern_enriched AS (
-  SELECT DISTINCT pp.item_id, pp.post_id, pp.creator_id, pp.post_day, post_format
+  SELECT DISTINCT pp.item_id, pp.post_id, pp.creator_id, pp.post_day, pp.is_local, post_format
   FROM pattern_posts pp
   JOIN {core}.post_enrichment pe ON pe.post_id = pp.post_id
   CROSS JOIN UNNEST(pe.formats) post_format),
+-- The video step's format for the same posts: the format key of its post_enrichment row's video_notes JSON
+-- (core/understand/video.py read_clip, video_insert.sql). Caption-only enrichment reads most posts as other, so a
+-- format the video model saw counts as the post's format too. Only the adoption count reads it: news clips seen on
+-- video do not change pattern_news, the third bucket or any gate.
+pattern_video AS (
+  SELECT DISTINCT pp.item_id, pp.post_id, pp.creator_id, pp.post_day, pp.is_local,
+    JSON_VALUE(pe.video_notes, '$.format') post_format
+  FROM pattern_posts pp
+  JOIN {core}.post_enrichment pe ON pe.post_id = pp.post_id
+  WHERE pe.video_notes IS NOT NULL),
 pattern_format AS (
   SELECT item_id, MAX(creators) format_creators, MAX_BY(days, creators) format_days,
     LOGICAL_OR(creators >= 3 AND days >= 2) format_adopted FROM (
     SELECT item_id, post_format, COUNT(DISTINCT creator_id) creators, COUNT(DISTINCT post_day) days
-    FROM pattern_enriched WHERE post_format NOT IN ('other', 'news_clip', 'talking_head')
+    FROM (
+      SELECT item_id, post_id, creator_id, post_day, post_format FROM pattern_enriched WHERE is_local
+      UNION DISTINCT
+      SELECT item_id, post_id, creator_id, post_day, post_format FROM pattern_video WHERE is_local) format_rows
+    WHERE post_format NOT IN ({pattern_skip_formats})
     GROUP BY item_id, post_format)
   GROUP BY item_id),
 pattern_news AS (
   SELECT item_id, COUNT(DISTINCT post_id) enriched_posts,
     COUNT(DISTINCT IF(post_format = 'news_clip', post_id, NULL)) news_clip_posts
   FROM pattern_enriched GROUP BY item_id),
--- Posts sighted in the market in the last 7 days whose market is @market by a source other than the YouTube
--- trending board: the market's own feeds and lists (TikTok, Instagram, Facebook, Reddit and the rest) in
--- v_post_source_markets. A video on the board carries the board's region as its source market whoever made it
--- (core/collect/parse.py _source_provenance), so the board alone never counts here.
+-- The sourced posts above, under the name local_creators reads.
 sourced AS (
-  SELECT DISTINCT v.post_id
-  FROM {core}.v_post_source_markets v
-  CROSS JOIN UNNEST(v.source_sightings) sight
-  WHERE sight.source_market = @market AND IFNULL(sight.route, '') != 'youtube/videos/trending'
-    AND sight.obs_date BETWEEN DATE_SUB(@d, INTERVAL 6 DAY) AND @d),
+  SELECT post_id FROM sourced_posts),
 -- Distinct creators of the item's local posts: located in the market (the market_scope.sql rule) or sourced
 -- above and not located in another market by that rule, by a creator not on the suppression list. Rank only: it is
 -- not selected, so nothing downstream reads it.

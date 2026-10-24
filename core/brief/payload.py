@@ -25,6 +25,13 @@ LABELS = {"ZA": "South Africa", "NG": "Nigeria", "KE": "Kenya"}
 MODEL_BUSY = "Model busy: not explained before the deadline"
 MODEL_REFUSED = "Model busy: the model kept refusing calls, so this was not explained"
 NOT_RUN_REASONS = (MODEL_BUSY, MODEL_REFUSED)
+# The job's fixed wording for a Today-bound item whose explanation was started and never completed for a cause other
+# than a busy model (core/brief/explain.py reason model_error or model_cap, core/brief/job.py job_error): the hold stays
+# G10 and the reader wording stays the cause-neutral one (core/api/held_words.py NOT_COMPLETED_WORDS), and the held item
+# names the cause in failed_reason instead of none (22 Oct 2026, NG "realtemiday0": checks none, failed_reason none).
+NOT_RUN_WORDS = {"model_error": "Explanation not run: a model call failed or ran out of time",
+                 "model_cap": "Explanation not run: the day's model budget was used",
+                 "job_error": "Explanation not run: the brief job hit an error"}
 # The held reason of a Today-bound item the explanation loop never reached (a cap, a day change or the deadline stopped
 # the run before it) when the model was not busy: no explanation was tried, so no check failed.
 NOT_REACHED_TEXT = "Not explained: the run stopped before this topic was reached"
@@ -242,15 +249,22 @@ def _title_written(c, explained):
 
 def _failed_reason(c, status):
     """failed_reason as the job wrote it, on an item whose explanation failed its checks, or on one not run whose
-    reason is a busy model's fixed wording (NOT_RUN_REASONS); else None."""
+    reason is a busy model's fixed wording (NOT_RUN_REASONS) or the fixed wording of the cause it did not complete
+    (NOT_RUN_WORDS); else None."""
     reason = c.get("failed_reason")
-    if status == "failed_checks" or (status == "not_run" and reason in NOT_RUN_REASONS):
+    if status == "failed_checks" or (status == "not_run" and (reason in NOT_RUN_REASONS
+                                                              or reason in NOT_RUN_WORDS.values())):
         return reason
     return None
 
 
-# Evidence fields only the model checks read (explain.SUPPORT_FIELDS); stored cards and held items keep their shape.
-MODEL_ONLY_FIELDS = ("formats", "sound_id")
+# Evidence fields only the model checks read (explain.SUPPORT_FIELDS, _scraped); stored cards and held items keep
+# their shape. screen_text, video_format and video_sound are what the video step read from the clip; board_only marks a
+# post sighted only on the YouTube trending board; creator_id is the author id the prompts show only as a code letter
+# (18 Oct 2026); measured and market_member mark a post sighted in a measured lane and one in the item's own market
+# cluster (22 Oct 2026).
+MODEL_ONLY_FIELDS = ("formats", "sound_id", "screen_text", "video_format", "video_sound", "board_only", "creator_id",
+                     "measured", "market_member")
 
 
 def reader_evidence(evidence):
@@ -288,6 +302,10 @@ def _held_item(c):
         held["held_reason_detail"] = c["held_reason_detail"]
     if c.get("event_fragment"):
         held["event_fragment"] = c["event_fragment"]
+    # The brief job's own hold code (core/brief/job.py FIXTURE_REACTION_CODE, a retained.REASON_CODES member), beside
+    # the contract's reason; left out when the hold has none, so every other held item keeps its shape.
+    if c.get("held_reason_code"):
+        held["held_reason_code"] = c["held_reason_code"]
     return held
 
 
@@ -340,7 +358,10 @@ def _headline_ok(headline, market, shown):
 
 
 def build_market_payload(market, brief_date, candidates, *, moments, boards, banners, headline=None, issues=(),
-                         not_assessed=None, selection_receipt=None):
+                         not_assessed=None, selection_receipt=None, full_judgement=False):
+    """full_judgement: the market judged its full set of candidates (core/brief/job.py CANDIDATES), so a data_issue
+    banner about candidates held beside them describes the held list, not the brief, and leaves the status to the
+    judged cards (18 Oct 2026). Every other data_issue banner still makes the status data_issue."""
     day = _iso(brief_date)
     by_where = {"today": [], "held_back": [], "moments": []}
     for c in candidates:
@@ -358,7 +379,7 @@ def build_market_payload(market, brief_date, candidates, *, moments, boards, ban
                  "item_ids": [c["item_id"]]} for c in sorted(by_where["moments"], key=_worth)]
 
     refused = headline is not None and not _headline_ok(headline, market, shown)
-    if any(b["kind"] == "data_issue" for b in banners):
+    if any(b["kind"] == "data_issue" for b in banners) and not full_judgement:
         status = "data_issue"
     elif refused or any(not c["explained"] for c in shown) or any(
             i["reason"] == "explanation_failed" for i in held):

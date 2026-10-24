@@ -226,16 +226,20 @@ def build_seed_prompt(*, trend_date: str, briefs: list[dict[str, Any]]) -> str:
     market_label = {"za": "Mzansi", "ng": "Naija", "ke": "Kenya"}
     paragraphs: list[str] = []
     for b in briefs:
-        market = str(b.get("market") or "").strip().lower()
-        topic = str(b.get("topic_group") or "").strip()
-        status = str(b.get("status_tag") or "Rising").strip()
+        # Every value placed inside <briefs> is sanitised, labels too: a model-written platform or topic holding
+        # "</briefs>" must not close the data fence (audit F7D-ENG-004).
+        market = _sanitize_user_text(str(b.get("market") or ""), 8).lower()
+        topic = _sanitize_user_text(str(b.get("topic_group") or ""), 80)
+        status = _sanitize_user_text(str(b.get("status_tag") or "Rising"), 40)
         seed = float(b.get("seed_score") or 0.0)
         velocity = float(b.get("velocity_score") or 0.0)
         label = market_label.get(market, market.upper())
         synthesis = _sanitize_user_text(b.get("trend_synthesis") or "", 360)
         context = _sanitize_user_text(b.get("cultural_context") or "", 240)
         headline = _sanitize_user_text(b.get("headline") or "", 140)
-        platforms = ", ".join(str(p) for p in (b.get("platforms") or [])[:4])
+        platforms = ", ".join(
+            filter(None, (_sanitize_user_text(str(p), 40) for p in (b.get("platforms") or [])[:4]))
+        )
         paragraphs.append(
             f"[{label} {market}/{topic}] {status} (seed {seed:.2f}, velocity "
             f"{velocity:+.2f}; platforms: {platforms or 'n/a'}). "

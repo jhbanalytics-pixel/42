@@ -463,3 +463,15 @@ details.ask42-log[open] > summary::before { transform: rotate(45deg); }
    choosing one is the quicker way in on a phone; the summary of what an
    answer holds is kept for the side by side layout. */
 @media (max-width: 1023px) { .ask42-returns { display: none; } }
+/* Reported figures (ReportedFigures.jsx): the lead line in the headline's
+   weight, then one chart per source, the full width of the answer column so
+   no sentence wraps into a narrow strip. */
+.ask42-figures { margin: var(--s-4) 0 var(--s-5); }
+.ask42-figures-lead { font-family: var(--serif); font-size: var(--type-5); font-weight: 600; line-height: 1.4; color: var(--ink); text-wrap: pretty; margin: 0 0 var(--s-3); }
+.ask42-figures-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-4); }
+.ask42-figures-table { border-top: 1px solid var(--hairline); padding-top: var(--s-3); }
+.ask42-figures-note, .ask42-figures-source, .ask42-figures-basis { font-size: var(--type-meta); margin: var(--s-2) 0 0; }
+.ask42-figures-source a { color: inherit; }
+.ask42-figures-quotes { font-size: var(--type-meta); margin-top: var(--s-2); }
+.ask42-figures-quotes ul { margin: var(--s-2) 0 0; padding-left: var(--s-4); }
+.ask42-figures-subject { font-weight: 600; margin-right: var(--s-1); }

@@ -67,23 +67,23 @@ body { text-wrap: pretty; }
 :root[data-dir="midnight"],
 [data-dir="midnight"],
 .oi-product[data-dir="midnight"] {
-  --canvas: #151214;
-  --canvas-2: #1D191C;
-  --surface: #1D191C;
-  --surface-2: #1D191C;
-  --surface-inset: #151214;
-  --ink: #F5F1F3;
-  --ink-2: #B6A8AF;
-  --muted: #B6A8AF;
-  --faint: #B6A8AF;
+  --canvas: #0B0305;
+  --canvas-2: #120509;
+  --surface: #160609;
+  --surface-2: #1A080D;
+  --surface-inset: #070102;
+  --ink: #F8EDEA;
+  --ink-2: #D3C0BF;
+  --muted: #AD9799;
+  --faint: #AD9799;
   --rule: color-mix(in srgb, var(--muted) 24%, var(--surface));
   --line: var(--rule);
   --line-2: var(--rule);
   --hairline: var(--rule);
-  --accent: #B52B3F;
-  --accent-soft: #3B2027;
+  --accent: #E4002B;
+  --accent-soft: #3A0A14;
   --accent-ink: #FFFFFF;
-  --accent-text: #F08A99;
+  --accent-text: #FF4A5E;
   --accent-glow: transparent;
   --up: #6DCB9C;
   --up-soft: color-mix(in srgb, var(--up) 12%, transparent);
@@ -91,8 +91,8 @@ body { text-wrap: pretty; }
   --down-soft: color-mix(in srgb, var(--down) 12%, transparent);
   --down-text: #FF8D96;
   --neg: var(--down);
-  --steady: #B6A8AF;
-  --neu: #B6A8AF;
+  --steady: #AD9799;
+  --neu: #AD9799;
   --dossier-contradictory: var(--down-text);
   --dossier-unchecked: var(--muted);
   --paper: var(--canvas);
@@ -122,30 +122,30 @@ body { text-wrap: pretty; }
   --color-daylight-paper-secondary: #FFFFFF;
   --color-daylight-red-surface: var(--accent);
   --color-daylight-red-text: #A60815;
-  --color-midnight-red: #FF5C68;
+  --color-midnight-red: #FF4A5E;
   --color-rule: var(--rule);
   --color-white: #FFFFFF;
 }
 :root[data-dir="daylight"],
 [data-dir="daylight"],
 .oi-product[data-dir="daylight"] {
-  --canvas: #FAF8F9;
+  --canvas: #FBF5F3;
   --canvas-2: #FFFFFF;
   --surface: #FFFFFF;
-  --surface-2: #FFFFFF;
-  --surface-inset: #FAF8F9;
-  --ink: #261E23;
-  --ink-2: #6E5D66;
-  --muted: #6E5D66;
-  --faint: #6E5D66;
+  --surface-2: #F6EDEA;
+  --surface-inset: #F6EDEA;
+  --ink: #1C0A0D;
+  --ink-2: #624D50;
+  --muted: #624D50;
+  --faint: #624D50;
   --rule: color-mix(in srgb, var(--muted) 24%, var(--surface));
   --line: var(--rule);
   --line-2: var(--rule);
   --hairline: var(--rule);
-  --accent: #9D263B;
-  --accent-soft: #F8E8ED;
+  --accent: #E4002B;
+  --accent-soft: #FBE3E6;
   --accent-ink: #FFFFFF;
-  --accent-text: #9D263B;
+  --accent-text: #B00026;
   --accent-glow: transparent;
   --up: #176848;
   --up-soft: color-mix(in srgb, var(--up) 12%, transparent);
@@ -153,8 +153,8 @@ body { text-wrap: pretty; }
   --down-soft: color-mix(in srgb, var(--down) 12%, transparent);
   --down-text: #A60815;
   --neg: var(--down);
-  --steady: #6E5D66;
-  --neu: #6E5D66;
+  --steady: #624D50;
+  --neu: #624D50;
   --dossier-contradictory: var(--down-text);
   --dossier-unchecked: var(--muted);
   --paper: var(--canvas);
@@ -179,7 +179,7 @@ body { text-wrap: pretty; }
   --color-ink-secondary: var(--muted);
   --color-ink-muted: var(--muted);
   --color-ink-faint: var(--muted);
-  --color-daylight-ink: #261E23;
+  --color-daylight-ink: #1C0A0D;
   --color-daylight-paper: var(--canvas);
   --color-daylight-paper-secondary: var(--surface);
   --color-daylight-red-surface: var(--accent);

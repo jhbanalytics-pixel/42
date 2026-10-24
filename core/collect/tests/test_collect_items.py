@@ -193,6 +193,65 @@ def test_the_run_keeps_a_titled_sound_name_when_a_later_call_carries_only_its_au
     assert len(calls) > 1 and run.names[("sound", "tiktok", CLIP)] == "Moyongcwele by Nontokozo Mkhize"
 
 
+def _search_body(ext, music=None):
+    post = {"id": "7500000000000000088", "url": "https://www.tiktok.com/@q.eight/video/7500000000000000088",
+            "published_at": "2026-09-28T10:00:00Z", "author": {"username": "q.eight"},
+            "content": {"text": "Search find"}, "engagement": {"views": 900, "likes": 30, "comments": 2, "shares": 1},
+            "ext": {"region": "ZA", "music_id": CLIP, **ext}}
+    if music is not None:
+        post["music"] = music
+    return {"success": True, "credits_used": 1, "data": {"items": [{"post": post}]}}
+
+
+@pytest.mark.parametrize("ext,music,label", [
+    ({"music_title": "Mnike", "music_author": "Tyler ICU"}, None, "Mnike by Tyler ICU"),
+    ({"music_author": "DJ Nine"}, None, "original sound - DJ Nine"),
+    ({"matched_song_title": "Mnike", "matched_song_artist": "Tyler ICU"}, None, "Mnike by Tyler ICU"),
+    ({"matched_song_title": "Mnike", "matched_song_artist": "Tyler ICU"}, {"id": CLIP, "author": "DJ Nine"},
+     "Mnike by Tyler ICU"),
+    ({"matched_song_title": "Mnike", "matched_song_artist": "Tyler ICU"},
+     {"id": CLIP, "title": "Moyongcwele", "author": "Nontokozo Mkhize"}, "Moyongcwele by Nontokozo Mkhize"),
+])
+def test_a_searched_tiktok_post_names_its_sound_from_the_fields_the_row_carries(ext, music, label):
+    for route, params in (("tiktok/search/top", {"query": "amapiano"}), ("tiktok/search/hashtag", {"hashtag": "x"})):
+        names = job.body_names(route, params, _search_body(ext, music))
+        assert names == {("sound", "tiktok", CLIP): label}  # a search names no creator
+
+
+def test_a_searched_tiktok_post_with_only_its_music_id_stays_unnamed():
+    assert job.body_names("tiktok/search/top", {"query": "amapiano"}, _search_body({})) == {}
+
+
+def test_a_searched_posts_named_sound_reaches_cultural_map_and_an_unnamed_one_is_not_counted(monkeypatch):
+    item = tj.fake_item_id("sound", CLIP, "tiktok")
+    monkeypatch.setitem(tj.FIXTURE, "tiktok/search/top", _search_body({}))
+    run = tj.collect(tj.FakeClient())
+    assert item in {s["item_id"] for s in run.post_sounds} and run.items[item][3] is None
+    assert writers.named_post_sounds(run) == []
+    skips = run.item_id_skips
+    monkeypatch.setitem(tj.FIXTURE, "tiktok/search/top",
+                        _search_body({"matched_song_title": "Mnike", "matched_song_artist": "Tyler ICU"}))
+    run = tj.collect(tj.FakeClient())
+    assert run.items[item] == ("sound", CLIP, "tiktok", "Mnike by Tyler ICU")
+    rows, _ = writers.cultural_map_rows(run.counters + writers.named_post_sounds(run), run.items)
+    (row,) = [r for r in rows if r["item_id"] == item]
+    assert (row["kind"], row["canonical_key"], row["label"], row["first_seen_platform"]) == (
+        "sound", f"tiktok:{CLIP}", "Mnike by Tyler ICU", "tiktok")
+    assert row["first_seen_market"] in job.MARKETS and row["first_seen"] == date(2026, 9, 29)
+    assert run.item_id_skips == skips  # a post's sound is never counted as a parse skip
+
+
+def test_a_searched_sound_whose_title_rule_one_refuses_gets_no_row(monkeypatch):
+    title = "Vibes for " + AGE_WORD
+    assert blocked(title)
+    monkeypatch.setitem(tj.FIXTURE, "tiktok/search/top",
+                        _search_body({"matched_song_title": title, "matched_song_artist": "Someone"}))
+    run = tj.collect(tj.FakeClient())
+    item = tj.fake_item_id("sound", CLIP, "tiktok")
+    rows, left = writers.cultural_map_rows(run.counters + writers.named_post_sounds(run), run.items)
+    assert item not in {r["item_id"] for r in rows} and left["blocked"] >= 1
+
+
 def test_an_item_with_no_readable_name_is_left_for_later_and_counted():
     run = tj.collect(tj.FakeClient())  # the fixture's YouTube authors carry only a UC id
     rows, left = mapped(run)
@@ -254,12 +313,14 @@ def planned_calls(planned):
 @pytest.mark.usefixtures("collect_share_2000")
 def test_no_watches_leaves_the_plan_as_it_was():
     base = job.plan(WEDNESDAY)
-    assert base["total"] == 1891 and len(planned_calls(base)) == 368  # one row 14i reel search included
+    # Row 16w's 27 searches included (pinterest/search is off); they leave row 14i too little room for a reel
+    # search on this day.
+    assert base["total"] == 1893 and len(planned_calls(base)) == 394
     assert local_sources.total_hold(local_sources.plan(WEDNESDAY)) == 34
     monday = date(2026, 10, 5)
     monday_plan = job.plan(monday)
     monday_local = local_sources.total_hold(local_sources.plan(monday))
-    assert monday_plan["total"] + monday_local == 1960
+    assert monday_plan["total"] + monday_local == 1983
     assert monday_plan["total"] + monday_local <= job.load_caps()["ENGINE_DAILY"]["collect"] == 2000
     paused = [watch("w1", {"kind": "hashtag", "value": "braai"}, status="paused")]
     for watches in ([], paused):
@@ -394,7 +455,7 @@ def test_plan_mode_reads_no_watches_and_says_so(capsys):
     assert job.main(["--plan", "--run-date", "2026-09-30"], env={}) == 0
     out = capsys.readouterr().out
     assert "watches: none read in plan mode" in out
-    assert re.search(r"total hold 1891 credits over 368 calls", out)
+    assert re.search(r"total hold 1893 credits over 394 calls", out)
 
 
 @pytest.mark.parametrize("value", ["", "   ", None])

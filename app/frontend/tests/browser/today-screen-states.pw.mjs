@@ -5,6 +5,9 @@ const ORIGIN = 'http://127.0.0.1:4199';
 const FIXTURE_PASSCODE = 'today-screen-states-fixture-only';
 const FIXED_DATE = '2026-10-02';
 const SERVER_HEADING = 'Today, Friday 2 October 2026';
+/* A past brief names its own day in place of "today" (today42.jsx,
+   briefDayWords), and the fixed date is always past. */
+const DAY_WORDS = 'on 2 October 2026';
 const HELD_DETAIL = 'The saved detail includes <img src=x onerror="window.__heldDetailInjected=true"> as plain text.';
 const SOURCE_ISSUE = 'TikTok collection: 2 requests failed';
 const readFixture = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
@@ -193,9 +196,10 @@ test('an all-empty Today brief keeps its server heading and shows stored holds a
   for (const marketData of today.markets){
     const market = main.locator('.t42-market[data-market="' + marketData.market + '"]');
     const count = marketData.held_back.items.length;
-    const heldCount = count === 1 ? '1 is held back' : count + ' are held back';
+    const heldCount = count === 1 ? '1 is held back.' : count + ' are held back.';
     await expect(market.locator('[data-empty-market-reason]'))
-      .toHaveText('No trend cleared our checks in ' + marketData.label + ' today. ' + heldCount + '; see why below.');
+      .toHaveText('No trend cleared our checks in ' + marketData.label + ' ' + DAY_WORDS + '.');
+    await expect(market.locator('[data-held-count]')).toHaveText(heldCount);
     const held = market.locator('details[data-section="held-for-evidence"]');
     await expect(held).toHaveAttribute('open', '');
     await expect(held.locator('[data-held-item-id]')).toHaveCount(count);
@@ -212,10 +216,10 @@ test('an all-empty Today brief keeps its server heading and shows stored holds a
 
   const ke = main.locator('.t42-market[data-market="KE"]');
   await expect(main.locator('[data-today-status="data_issue"]'))
-    .toHaveText('Data issue: some data needed for this brief is incomplete.');
+    .toHaveText('Some data for this brief was incomplete, so the topics it affects are held back below with their reasons.');
   await expect(ke.locator('.t42-banner-data_issue'))
     .toHaveText('Data issue: collection or detection failed for Kenya');
-  await expect(ke.locator('[data-source-problem]')).toHaveText('Some sources were incomplete today');
+  await expect(ke.locator('[data-source-problem]')).toHaveText('Some sources were incomplete ' + DAY_WORDS);
   const sourceDetails = ke.locator('details[data-section="source-details"]');
   await expect(sourceDetails).toBeVisible();
   await expect(sourceDetails).not.toHaveAttribute('open', '');
@@ -239,11 +243,16 @@ test('a partial Today brief keeps its message and populated held list', async ({
   const main = page.locator('#main-content');
   await expect(main.locator('h1[data-today-loaded]')).toHaveText(SERVER_HEADING);
   await expect(main.locator('[data-today-status="partial"]'))
-    .toHaveText('Some trends are shown without an explanation yet.');
+    .toHaveText('Some markets are incomplete: Kenya.');
 
   const za = main.locator('.t42-market[data-market="ZA"]');
   await expect(za.locator('[data-card]').first()).toBeVisible();
-  const heldBack = za.locator('section[data-section="held-back"]');
+  /* What 42 left out sits behind one closed line that counts it (today42.jsx,
+     LeftOut); the held list is inside it. */
+  const leftOut = za.locator('details[data-section="left-out"]');
+  await expect(leftOut).not.toHaveAttribute('open', '');
+  await leftOut.locator('summary').click();
+  const heldBack = leftOut.locator('section[data-section="held-back"]');
   await expect(heldBack).toBeVisible();
   await expect(heldBack).toContainText(today.markets[0].held_back.text);
   for (const item of today.markets[0].held_back.items){

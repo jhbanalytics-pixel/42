@@ -4,6 +4,7 @@ pool orders candidates whose own posts show a sound or an enriched format used b
 before plain rows, and plain rows before ones the code sees as one creator, a calendar moment or mostly news. It only
 orders: every row stays in the pool, and worth_raw still orders rows within a bucket."""
 
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -16,19 +17,24 @@ UTC = timezone.utc
 
 
 def posts(con, item, rows):
-    """rows: (post_id, creator_id, day offset from D, sound_id, formats or None for no enrichment row)."""
-    for post_id, creator, back, sound, formats in rows:
+    """rows: (post_id, creator_id, day offset from D, sound_id, formats or None for no enrichment row), and optionally
+    the video step's format, written as its own post_enrichment row with only video_notes, as video_insert.sql does."""
+    for post_id, creator, back, sound, formats, *video in rows:
         day = D - timedelta(days=back)
         duck.load(con, "core.posts", [{"post_id": post_id, "platform": "tiktok", "creator_id": creator,
                                        "sound_id": sound, "published_at": datetime(day.year, day.month, day.day, 9,
                                                                                    tzinfo=UTC),
-                                       "post_date": day}])
+                                       "post_date": day, "geo_market": "NG", "geo_confidence": .9,
+                                       "geo_source": "home_market"}])
         duck.load(con, "core.post_items", [{"post_id": post_id, "item_id": item, "via": "hashtag", "linked_on": day}])
         duck.load(con, "core.post_observations", [{"post_id": post_id, "observed_at": T, "observed_date": day,
                                                    "market": "NG", "platform": "tiktok", "lane": "seed",
                                                    "lane_class": "seeded"}])
         if formats is not None:
             duck.load(con, "core.post_enrichment", [{"post_id": post_id, "formats": formats}])
+        if video:
+            notes = json.dumps({"format": video[0], "hook": "", "sound": "music", "read_from": "video"})
+            duck.load(con, "core.post_enrichment", [{"post_id": post_id, "video_notes": notes}])
 
 
 def item(con, name, worth, kind="hashtag", **over):
@@ -146,3 +152,54 @@ def test_the_bucket_sits_below_locality_and_breadth(con):
     con.execute("DELETE FROM core.item_locality_verified WHERE item_id = 'sound'")
     ids, _ = order(con)
     assert ids.index("sound") > ids.index("clips")
+
+
+def test_a_format_the_video_step_saw_counts_when_the_caption_reads_other(con):
+    # Three creators on two days whose caption-only formats are other: the video step's dance makes the item adopted.
+    item(con, "seen", .03)
+    posts(con, "seen", [("v1", "a", 0, None, ["other"], "dance"), ("v2", "b", 0, None, ["other"], "dance"),
+                        ("v3", "c", 1, None, ["other"], "dance")])
+    # The same with only a video row and no caption enrichment at all.
+    item(con, "videoonly", .025)
+    posts(con, "videoonly", [("u1", "a", 0, None, None, "dance"), ("u2", "b", 1, None, None, "dance"),
+                             ("u3", "c", 1, None, None, "dance")])
+    # Talking heads and news clips on video stay out, as they do from the caption, and a video news clip does not
+    # move an item into the third bucket.
+    item(con, "vtalk", .04)
+    posts(con, "vtalk", [("h1", "a", 0, None, ["other"], "talking_head"),
+                         ("h2", "b", 0, None, ["other"], "talking_head"),
+                         ("h3", "c", 1, None, ["other"], "talking_head")])
+    item(con, "vnews", .035)
+    posts(con, "vnews", [("k1", "a", 0, None, ["other"], "news_clip"), ("k2", "b", 0, None, ["other"], "news_clip"),
+                         ("k3", "c", 1, None, ["other"], "news_clip")])
+    # Two creators on video is still under the bar, and a note with no format key counts as no format.
+    item(con, "vtwo", .045)
+    posts(con, "vtwo", [("p1", "a", 0, None, ["other"], "dance"), ("p2", "b", 1, None, ["other"], "dance"),
+                        ("p3", "c", 1, None, ["other"])])
+    duck.load(con, "core.post_enrichment", [{"post_id": "p3", "video_notes": json.dumps({"hook": "dance"})}])
+    ids, rows = order(con)
+    by = {r["item_id"]: r for r in rows}
+    assert {name: by[name]["_selection_pattern"] for name in ("seen", "videoonly", "vtalk", "vnews", "vtwo")} == {
+        "seen": 0, "videoonly": 0, "vtalk": 1, "vnews": 1, "vtwo": 1}
+    assert (by["seen"]["_selection_format_creators"], by["seen"]["_selection_format_days"]) == (3, 2)
+    assert by["vnews"]["_selection_news_clip_posts"] == 0 and by["vnews"]["_selection_enriched_posts"] == 3
+    assert ids.index("seen") < ids.index("spike") and ids.index("vtalk") > ids.index("spike")
+
+
+def test_a_post_with_the_format_in_both_its_caption_and_its_video_counts_once(con):
+    # f1 to f3 already read dance from the caption; the same dance from the video adds no creator and no day.
+    for post_id in ("f1", "f2", "f3"):
+        duck.load(con, "core.post_enrichment", [{"post_id": post_id,
+                                                 "video_notes": json.dumps({"format": "dance"})}])
+    _, rows = order(con)
+    by = {r["item_id"]: r for r in rows}
+    assert (by["dance"]["_selection_format_creators"], by["dance"]["_selection_format_days"]) == (3, 3)
+    assert by["dance"]["_selection_pattern"] == 0
+
+
+def test_a_format_adopted_only_by_creators_placed_in_another_market_does_not_lift_the_item(con):
+    con.execute("UPDATE core.posts SET geo_market = 'ZA' WHERE post_id IN ('f1', 'f2', 'f3', 's1')")
+    _, rows = order(con)
+    by = {r["item_id"]: r for r in rows}
+    assert by["dance"]["_selection_pattern"] == 1 and by["sound"]["_selection_pattern"] == 1
+    assert by["clips"]["_selection_pattern"] == 2          # the news test still reads every post

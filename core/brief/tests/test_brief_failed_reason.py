@@ -92,3 +92,27 @@ def test_k3_rested_claim_and_unknown_detail():
                                                       "market, or named a place no cited post is located in")
     assert job.check_reason(_k3("short_answer: something new", None)) == (
         "Place check: the explanation named a place no cited post is located in")
+
+
+# A K6 cut for a pack sound letter (core/brief/explain.py _sound_label_rows) is a code label in reader text, not a
+# banned term, so its wording and reason code say so (audit of PR #17, 17 Oct 2026).
+SOUND_CLAIM = {"claim_id": "c2", "rule": "K6", "verdict": "cut", "checker": "code",
+               "detail": "code label in reader text: a pack sound letter"}
+SOUND_SENTENCE = {"claim_id": None, "rule": "K6", "verdict": "cut", "checker": "code",
+                  "detail": "short_answer: code label in reader text: a pack sound letter"}
+
+
+def test_a_sound_letter_cut_is_not_named_a_banned_term():
+    assert job.check_reason(SOUND_CLAIM) == "Code label check: a claim named an internal sound label"
+    assert job.check_reason(SOUND_SENTENCE) == "Code label check: the explanation named an internal sound label"
+    repaired = {**SOUND_SENTENCE, "detail": job.REPAIR + SOUND_SENTENCE["detail"]}
+    assert job.check_reason(repaired) == job.REPAIR + "Code label check: the explanation named an internal sound label"
+    assert job.retained_columns(SOUND_SENTENCE)["reason_code"] != "sentence_banned_term"
+    assert job.retained_columns(repaired)["reason_code"] != "sentence_banned_term"
+    held = job.failed_reason({"reason": "explanation_failed", "rests_on": ["c2"],
+                              "checks": [SOUND_CLAIM]})
+    assert held == "Code label check: a claim the explanation rests on named an internal sound label", held
+    # A real banned term keeps its own wording.
+    banned = {"claim_id": None, "rule": "K6", "verdict": "cut", "checker": "code", "detail": "short_answer: age term"}
+    assert job.check_reason(banned) == "Banned term check: the explanation used a banned term"
+    assert job.retained_columns(banned)["reason_code"] == "sentence_banned_term"
